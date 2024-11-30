@@ -1,0 +1,11 @@
+(A) Work out what LLMs (local/remote) I can use via api calls or direct prompting to generate reliable hypos and their respective issues and tags @core @function
+(A) Allow for students to generate practise hypos based on specified parameters @core @ideas
+(A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
+(A) Brainstorm further user functionality that allows them to comment on hypos, rate hypos etc. @core @ideas
+(A) Consider implementing more than one LLM so users can rate and jointly decide which LLMs are better at generating hypos @core @ideas
+(A) Implementing agentic workflows to test and randomly sample the generated hypos and issues being spotted to validate the quality of each hypo @core @testing
+(A) Consider implementing a textbox or textarea for users to actually type their responses in so they can practise on the website itself @core @testing
+(B) Look into launching the webapp with Jinja (https://jinja.palletsprojects.com/en/stable/) or another convenient to work with Python Web framework @web @feature
+(B) Figure out what technologies I can use to migrate jikai to a full-stack webapp @web @feature
+(C) Allow for students to log in with an account and store their respective hypos and cases on this account @web @feature @user
+(D) Better code and all documentation to prepare jikai for release @admin 
