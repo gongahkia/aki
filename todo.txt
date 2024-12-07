@@ -1,4 +1,6 @@
 (A) Work out what LLMs (local/remote) I can use via api calls or direct prompting to generate reliable hypos and their respective issues and tags @core @function
+(A) Ask GPT to suggest a learning plan and follow along with how to train my own model in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @ideas
+(A) Take this opportunity to learn how to train a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @ideas
 (A) Allow for students to generate practise hypos based on specified parameters @core @ideas
 (A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
 (A) Brainstorm further user functionality that allows them to comment on hypos, rate hypos etc. @core @ideas
