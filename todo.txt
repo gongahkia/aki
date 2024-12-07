@@ -3,6 +3,7 @@
 (A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
 (A) Brainstorm further user functionality that allows them to comment on hypos, rate hypos etc. @core @ideas
 (A) Consider implementing more than one LLM so users can rate and jointly decide which LLMs are better at generating hypos @core @ideas
+(A) Consider using https://github.com/explosion/spaCy to extract relevant information from the hypo for users, OR to implement an agentic workflow @core @ideas
 (A) Implementing agentic workflows to test and randomly sample the generated hypos and issues being spotted to validate the quality of each hypo @core @testing
 (A) Consider implementing a textbox or textarea for users to actually type their responses in so they can practise on the website itself @core @testing
 (B) Look into launching the webapp with Jinja (https://jinja.palletsprojects.com/en/stable/) or another convenient to work with Python Web framework @web @feature
