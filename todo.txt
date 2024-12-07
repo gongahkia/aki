@@ -13,4 +13,7 @@
 (B) Consider using flask or bottle (https://github.com/bottlepy/bottle) to handle the database interaction and backend routing logic @web @feature @backend
 (C) Allow for students to log in with an account and store their respective hypos and cases on this account @web @feature @user
 (D) Better code and all documentation to prepare jikai for release @admin 
-(E) Backup plan: Always prioritise training my own models for hypo generation first, but if there's a limit to how well that goes then consider relying on OpenAI's API pricing per here (https://openai.com/api/pricing/) and see whether I can integrate Chatlab (https://github.com/rgbkrk/chatlab) so OpenAI can call my own predefined functions @ideas
+(E) Backup plan: Always prioritise training my own models for hypo generation first, but if there's a limit to how well that goes then consider relying on OpenAI's API pricing per here (https://openai.com/api/pricing/) and see whether I can integrate Chatlab (https://github.com/rgbkrk/chatlab) so OpenAI can call my own predefined functions @ideas @future
+(E) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
+(E) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
+(E) Additional: Look into bm25s (https://github.com/xhluca/bm25s) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
