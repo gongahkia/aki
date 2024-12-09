@@ -1,3 +1,4 @@
+(A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
 (A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
 (A) Take this opportunity to learn how to train a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
 
