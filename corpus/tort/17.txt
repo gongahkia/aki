@@ -1,0 +1,68 @@
+Forest is Southeast Asia’s leading online shopping destination. It has the hugest selection
+of third-party sellers on our platform which includes a few luxury brands that do not appear
+on any of our competitor’s websites. They also have their own line of luxury goods,
+the “Rafflesia” series, through which we provide custom-made soaps, couture, make-up,
+perfumes, food, and many other popular products.
+Their main website, forest.biz, receives millions of visits per day from consumers and store
+owners alike. As such, it is supported by a veritable infrastructure of computer servers
+located in data centres in Singapore, Indonesia, and the U.S. Forest appointed an external
+vendor, Safe Servers Pte Ltd (a Singapore company) to maintain the server farm. The
+contract states that their “primary and inalienable responsibility is to ensure that forest.biz
+is always up and running – 24 hours a day, 7 days a week, 365.25 days a year”. In parallel,
+Forest engaged a huge cybersecurity firm, Black Cat Ltd, to ensure that their servers do
+not fall prey to hackers. Black Cat had been advising Safe Servers on cybersecurity best
+practices for our servers for a few years.
+On 27 June 2020, however, Forest’s website suffered a massive outage for about 48 hours.
+Accountants estimate that they lost $25 million in revenue from those two days alone.
+They then engaged Descenture, an IT consultancy, to conduct a forensic investigation into
+the matter. Their report establishes the following:
+
+1. The outage occurred because more than 80% of Forest’s servers were infected with
+a new computer virus that had been detected in January 2020. The virus, known as
+Donald-2020, is named after its supposed creator, an infamous hacker.
+2. Although SS had provided for the standard 300% redundancy (i.e. for every one
+server required there are two backups), because so many servers were infected there
+were not enough servers left to support the traffic we were getting that day.
+3. It was not clear how Donald-2020 managed to spread so quickly and rampantly
+within our server farm. The world’s top cybersecurity experts are still trying to identify exactly how the virus spreads. It defies traditional expectations. Emerging
+consensus is that the virus converts itself into electrical signals and cross-infects
+computers sharing the same power source. Thus, once a particular server in a data
+centre gets infected, within a short time all other servers sharing the same power
+source also get infected.
+4. However, experts disagree on how the virus works to take down a server. One view
+is that a single instance of the virus suffices. After establishing itself in the server’s
+memory, it is able to replicate itself so much that it crowds out all of the server’s
+resources. Other experts do not believe that the virus is capable of self-replication.
+They hold instead that continuous exposure to a virus source is necessary. As more
+and more virus copies enters a target server via the shared power source, the server
+gets more and more overloaded and eventually fails.
+5. What was clear, however, was that Safe Servers was had been egregiously careless
+in wiring up the servers. To save costs, they had overloaded their power sockets
+significantly. Many servers were sharing power sources with servers used by other
+companies with far weaker cybersecurity practices. A number of them do not even
+have in place basic, common-sense practices like data masking.
+6. By May 2020 it was generally believed in the industry that, because of Donald-2020,
+
+server farms needed to be strictly electrically-distanced. This especially for high-
+value servers such as ours. Attempting to infect high-value (and thus high security)
+
+servers by first infecting low-value (and low security) ones is a well-known attack
+vector in the hacking circles. Black Cat did not advise Safe Servers on this matter.
+
+7. It was likely that Forest’s servers were exposed to Donald-2020 through these low-
+security servers. At the same time, Descenture could not rule out the possibility that
+
+Forest’s servers were also directly compromised by hackers. Thus, there were two
+possible and non-mutually exclusive sources of virus exposure.
+
+8. To the extent that the virus was a result of direct hacking, then even if proper distanc-
+ing had been practiced, some amount of the virus would still have been spreading
+
+within our server farm. Descenture noted that since Forest’s servers were more se-
+cure, the level of virus exposure would have been lower. But since how the virus
+
+operates is yet unclear, they could not definitely say if they would still have suffered
+such a major outage.
+
+Forest wishes to pursue a battery of contractual and tortious remedies against both Safe
+Servers and Black Cat.

@@ -1,0 +1,61 @@
+Maven Technologies (MT) is a newly-minted Singapore-based tech unicorn whose pri-
+mary product is a virtual reality headset known as the MaveGear. As described on Maven’s
+
+website, the MaveGear is a “truly revolutionary advance in VR tech that delivers true-to-
+life, hyper-realistic, fully-immersive experiences”. Its in-built speakers allow people to
+
+talk to one another online as if they were meeting in person. Maven’s proprietary “neural
+link” technology allows some physical touch to be simulated. Users can therefore feel
+‘pain’, but this is highly limited and never actually dangerous to the body.
+Priced at $1,500, each MaveGear is worn much like a motorcyclist’s helmet. On startup,
+it always displays a standard warning that the MaveGear should “only be used in physical
+spaces with enough clearance for safe mobility”, and that “some MaveGear apps may
+contain disturbing images and/or light patterns or flashing lights that may trigger epileptic
+seizures”.
+The MaveGear has taken Singapore by storm. It is wildly popular amongst youths aged
+29 and under, who have been using it to play a variety of first-person shooter, open-world,
+role-playing, adventure, and other VR games. Many also use it simply to meet friends
+and chat. The MaveGear experience is so authentic that users sometimes lose track of
+real-world time.
+Recently, taking seriously the Silicon Valley lore that “those who are serious about their
+hardware should make their own software”, Maven unveiled a new killer app for the
+MaveGear known as the Maven Creator Universe (MCU). The MCU is both a VR world
+
+in itself as well as an app store. In itself, the MCU is already a vast, explorable land-
+scape. Third-party developers (“creators”) can further build and host their own virtual
+
+spaces. This is, and can only be, done using Maverick, an open-source code framework
+developed, maintained, and documented by Maven.
+After the MCU’s release, swathes of small-time and established VR developers descend
+
+on the platform. They create scores of wondrous MCU spaces styled after alternate galax-
+ies, magical worlds, and medieval castles alike. One such developer YuriTech, a small
+
+game development company with only 5 employees. Working round the clock, they scrap
+together a new game they call “Among Them”. On release day, a quaint countryside village appears on the MCU landscape. It is surrounded by ten metre tall, opaque brick
+walls. The only entrance to (and exit from) the village is a set of massive steel gates at
+the village’s southernmost tip. By day, the village is bustling with activity. Scores of
+computer-controlled non-playable characters (NPCs) hawk exotic wares, delicious foods,
+carnival games, etc. This festive sight attracts numerous passer-by MCU users to enter and
+explore the village.
+
+As soon as the MCU World Clock strikes 7p.m., the steel gates swing shut. The previously-
+friendly NPCs spontaneously transform into all sorts of nightly horrors — zombies, were-
+wolves, giants, beasts, vampires. Time in the village stops momentarily while a voice in
+
+the sky announces that everyone there has become “players in a next-generation VR game,
+brought to you by YuriTech”. They are asked to choose from a variety of guns, swords,
+climbing gear, etc, and told that “the only way out is to fight and survive till the sun rises,
+or die trying”. Everyone is taken aback, but many experienced gamers take to it quickly.
+They go on to have the most fun they’ve ever had in years.
+Eli, 23, is not so lucky. Since young, he had been terrified of the dark. He had carefully
+avoided all horror movies and games. Just hearing YuriTech’s announcement had put him
+in a state of severe shock. Now finding himself suddenly amongst monsters, all Eli could
+do was hide in a corner of the village crying to himself. Through the night, he (his VR
+character) is repeatedly attacked and hurt by monsters. He is very, very distressed. It was
+not until the dawn the next (virtual) day that his real world university friend Nadia, who
+had racked up the second highest score that night, discovers him sobbing in a corner. She
+drags him out of there and screams, “ELI, JUST LOG OUT!”
+A surge of clarity takes over Eli. He does so. But it is too late. He had been stuck in
+the MCU for 8 real world hours. Haunted by images of the night, he develops a serious,
+recognized psychiatric injury within a week.

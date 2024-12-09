@@ -1,0 +1,62 @@
+In Silicon Valley, fund raises are the delight of everyone. Series A, B, C, mezzanine rounds
+are the dream of every tech entrepreneur. Every company and raise is different, but every
+fund-raising contract is the same. Typically, lawyers were just copy-pasting “templates”
+and charging startups thousands of dollars for “advice”. Hoping to disrupt this lucrative
+market, Alex and his wife Wendy (A&W), a programmer-lawyer duo, created a new app
+called Ventricle. A&W built and run the app from out of Singapore. On the app, users are
+asked a series of questions about their company and what kind of capital they are raising.
+
+Based on how they answer, Ventricle’s algorithm chooses the most relevant contract tem-
+plate and populates it with the user’s names and other relevant variables. A&W had paid
+
+about S$50,000 to a top US law firm in Silicon Valley for these templates.
+Thereafter, the user can either (a) download the template as it is, completely free, or (b)
+pay Ventricle to upgrade to what is called a ‘Vented’ contract. A ‘Vented’ contract is
+essentially a contract that is vetted by real lawyers. So far, A&W have signed up 10
+partner law firms in Singapore with lawyers who are deeply experienced with fund-raising
+contracts. When a user Vents a contract, the system automatically sends the base template
+off to a randomly-chosen partner firm. They are expected to give it a human review, though
+A&W do not know what exactly happens there. The law firm is also given access to all the
+information the user enters on the form. This is done with the user’s express permission.
+All partner firms’ logos are prominently displayed on Ventricle’s website, and A&W make
+it a point to make sure that Venting users are informed about the exact law firm and partner
+their contracts will be reviewed by.
+The law firm is free to change anything in the contract they want. After they’re done,
+they upload the new version on Ventricle and the app automatically passes that on to the
+user. No further checks are performed to the Vented contract at all, and Ventricle’s terms
+of use make it clear to users that they “take no responsibility whatsoever for any Vented
+contracts”. There are no other material terms.
+Although there are several other contract-generation apps in the Singapore market, only
+A&W app’s has the option to Vent contracts. Because the entire process is so optimised
+and automated, Ventricle charges something along the lines of a 75% discount to what
+the average Singapore lawyer charges for the same work. It has therefore been seeing steady growth in its user base in Singapore and around the world. The platform is popular
+amongst both startup founders and investors.
+
+Toby is one such founder. Recently she started WeatherGPT, a startup whose main busi-
+ness is stated as “harnessing the power of ChatGPT to predict and control the weather”.
+
+Toby had previously started 3 tech startups involving blockchain, AI, etc but none of them
+
+have lasted very long. This time, however, riding the wave of ChatGPT hype, she man-
+aged to interest a reputable venture capitalist, Banyan Capital to invest. However, being a
+
+typical stingy Singaporean VC, they ask her to bear the costs of preparing the agreements.
+Not knowing any law herself, Toby turns to Ventricle and pays $500 for a Vented contract.
+Ventricle provides her a contract Vented by a large Singapore firm, Nadia & Kahn LLP.
+However, the contract contained a crucial typo — instead of saying that “Banyan Capital
+will invest $100,000 at pre-money valuation of $1m”, which was the informally agreed
+
+deal, the contract stated that “Banyan Capital will invest $100,000 at a post-money valu-
+ation of $1m”. The effective result was that Banyan Capital ended up owning 10% of the
+
+company instead of 9% as agreed, despite investing the exact same amount of cash.
+Neither party realised this and just signed the agreement. Things only came to light three
+months later when Toby was chasing yet another round of fund-raising, and thus had to
+double-check WeatherGPT’s share structure. At this point, Banyan and Toby agreed that
+they had better engage a proper law firm to sort this out. This was done but the additional
+paperwork cost them $30,000. The parties split this cost evenly and started investigating
+how the error got into the contract in the first place. They realised that although Toby had
+specified on Ventricle that the valuation should be pre-money, the first template Ventricle
+generated had already gotten it wrong.
+The trouble created by this fiasco also caused Toby several sleepless nights, with the result
+that she could not properly follow up on a promising lead she had with a potential investor.

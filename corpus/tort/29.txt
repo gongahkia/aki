@@ -1,0 +1,66 @@
+Good afternoon. I hope this email finds you well and in the best of health. I am writing
+to seek your distinguished law firm’s advice on a matter of serious concern to our game
+studio. The facts are below and please answer the questions at the end.
+In May this year, Tensendo released a new game virtual-reality game called Kendo Hunter.
+In this game, players wear headsets and use handheld controllers, one on each hand, that
+turn into wooden swords in the VR world. The game is simply about using these swords
+to defeat things and claim honour. There are two game modes. In the player-versus-
+environment (PvE) mode, the human player fights against computer enemies, which could
+be ninjas, zombies, or even huge monsters. In the player-versus-player (PvP) mode, people
+can fight with other humans online. The two game modes are linked. As players advance
+further in PvE, they unlock more powerful weapons, armour,a and skills and they can use
+in PvP. Players can then specialise in specific weapon types from spears to broadswords. 
+This game became very popular because of how realistic the fighting was. Our engineers
+created a very advanced system for perfectly translating players’ real life movements into
+game movements. This includes both their sword swings and their body movements for
+dodging attacks. The only thing we do not track is players’ leg movements, because we
+designed the game to be playable without any walking or running. The only way to move
+in the game world is using a joystick on the right controller. Currently, the game is only
+playable through TensenVR, a VR headset developed entirely by our studio. It is a typical
+VR headset that does not allow players to see the real world while they have it on.
+Building on the game’s success, we organised the world’s first ‘Kendo Hunter Live’ tour-
+nament at Suntec City last month. We rented a convention hall and set up a real life 8x8m
+boxing ring. Near the middle of the ring we constructed two custom-made booths, one for
+each competitor, which essential was a soft circular platform 2m in diameter and 30cm in
+height (i.e. thickness). Each was surrounded by one horizontal rope cordon at 1m above
+ring level. The booths were placed 3m apart (measured from centre to centre). During
+the tournament, competitors would enter these booths, put on their TensenVRs and start
+battling with their respective weapons. The competition rules, which all participants must
+sign before competing, states as follows:
+Event Rules
+1. You are participating in Kendo Hunter Live at your own risk. Although the
+game is primarily virtual, Kendo Hunter involves certain physical movements
+in the real world. Participants must take care when competing to avoid the
+possibility of serious injury.
+2. A specific rule of the competition is that players must not leave the compe-
+tition zone during a match. To avoid doubt, the competition zone refers to the
+circular booths assigned to each player. Players who breach this rule will be
+immediately disqualified.
+3. Every round lasts exactly 5 minutes.
+4. Every in-game hit on any part of the opponent scores exactly one point.
+The competition attracted most of our top ranked players and a strong audience. Many fans
+flew in from all over Asia to support their favourite teams. The atmosphere got particularly tense in the semifinals as the world’s top 2 players were facing off. The top seed (P1)
+specialised in short range daggers while the second seed (P2) wielded a two-handed great
+sword that was over 2m long (in the game).
+The players got into their booths and put on their headsets. The instant the battle began,
+both started unleashing a flurry of attacks at each other at lightning speed. With 5 seconds
+left on the clock, and both players at equal points, P2 went for a drastic move that involved
+throwing themselves onto the ground (in real life) and slashing his controllers along the
+floor. This maneuver causes one’s in-game character to perform a ‘low-sweep’ attack
+that is very difficult to avoid our game does not allow jumping. We the developers did
+not actually know such a move was possible until some semi-pro player chanced upon
+the technique accidentally because she fell while playing the game one week before the
+tournament. The community started calling this the “death strike” both because of how
+lethal it was to opponents in-game and to players in real life (since some people got injured
+trying to do it). We considered updating the game to remove it, but did not want to disturb
+the game so close to the tournament.
+Either way, P1 was taken completely aback by this move. She instinctively tried to jump
+(in real life) away from it. Their in-game character still got hit, but the bigger problem was
+that she ended up tripping over the rope barrier, thereafter falling and breaking their wrists.
+Meanwhile, P2 landed badly and broke his jaw while performing the death strike. Both
+players were given swift and prompt medical assistance. I hear they will soon recover
+but the medical bills are substantial. Neither can play the finals so both will miss the
+S$500,000 grand prize.
+I am worried they will sue us for negligence and would seek you advice on the viability
+of any such claim. Our legal team said we should not contest duty (whatever that means),
+but will need advice on all other areas. Please take good care of us. Thank you.

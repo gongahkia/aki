@@ -1,0 +1,57 @@
+Dear Partner,
+Long time. I remember your stellar business law notes in uni and am reaching out to
+ask for some real advice on a matter that just came up. One of the startups I advise just
+got a lawyers’ letter demanding they cease operations and I need help on how we should
+respond.
+The startup Wallrus was founded by three post-grad computer science students at Singa-
+pore University of Startups (SUS). Their idea, which I completely loved when they pitched
+me, was to sell computer vision AI add-ons to commercial CCTVs that allow them to
+detect mold, cracks, leaks, rust, and other potential issues in building walls. I invested
+almost immediately when they told me of the huge addressable market. Apparently Sin-
+gapore companies and residents spend upwards of S$500 million a year fixing such wall
+issues (internally we call them Wall-Ees). So any software that enables early detecting and
+reporting is worth millions. I told them that to protect their IP and ensure no one can steal their AI, they must only train
+their AI on their own hardware, which my venture capital was more than capable of spon-
+sor. I also said they should operate as lean as possible, so they essentially avoided renting
+actual office space for their training clusters. Instead, they have essentially converted their
+student housing, located in an apartment building owned by SUS along Waterloo Street,
+into a data centre. They did this with full permission from SUS, who were very proud to
+have their students running a multi-million dollar, VC-backed startup.
+Using my capital, Wallrus bought dozens of state-of-the-art H100 chips and have been
+training, hosting, and serving their AI systems from a super-computing cluster they’d set
+up in the apartment. This of course incur significant electricity costs, but we have a special
+arrangement with SUS that allows us to pay our fair share for the additional usage.
+The lawyer’s letter came last month from Liquid Drake (LD), a company whose storage
+facilities are located in a unit on the same floor in the adjacent building (not owned by
+SUS). LD has been in that building for six years. They sell energy drinks which it markets
+as being “the absolute coolest you can get”. They are typically stored in liquid nitrogen and
+only taken out when someone orders them on their app. Apparently the drink’s efficacy in
+revitalising people is most effective when consumed at freezing temperatures.
+LD’s and SUS’s buildings were built in the 1950s and I’m not too sure what kind of
+insulation they have. Also, the buildings are joined physically, in that they share a common
+middle wall. As fate would have it — as if this was some kind of business school law
+hypothetical — Wallrus and LD’s units just happen to be two units down from each other.
+That is, Wallrus’ data centre is the leftmost on SUS’s building’s third storey while LD’s
+unit is second from the right. The unit on the rightmost of LD’s building is unoccupied;
+its previous tenant got busted for money laundering and all its officers ran away, leaving
+the office eerily abandoned.
+According to LD’s letter, their cold storage coolers have been constantly overworking and
+breaking down ever since Wallrus set up shop in May last year. They had been puzzled at
+why this was happening for some time and had even tried replacing their coolers with bet-
+ter quality ones — to no avail. These cooling problems had seriously affected their sales.
+Recently they stumbled across an SUS press release championing the ‘AI whizzes’ oper-
+ating from their student residences and began to sense a connection. LD is demanding that Wallrus stop training their AI systems in SUS accommodation immediately. Attached to
+their lawyer’s letter was also an expert report they had commissioned to study why the tem-
+perature in their building was constantly elevated. The report, which seems very credible
+to me, indicated “the presence of significant heat sources consistent with the round-the-
+clock operation of heavy machinery and/or computer clusters in the vicinity” as the main
+source of the problem.
+To make matters worse, LD managed to enlist support from several other SUS students
+living on the same floor. It turned out they had also been having their aircons breaking
+down constantly. Coupled with the recent hot weather, it has been difficult for them to
+study at home. One of them happened to be an SUS law student and took it upon herself
+to draft a fancy legal letter. The students sent this to both Wallrus and SUS, making
+essentially the same claims and demands as LD.
+I need to make sure this startup flourishes because I have bet almost the entire fund on
+them. Would you kindly let us know how we can get LD and the other pesky SUS students
+off our backs? It would be important also to make sure we keep SUS on our side.

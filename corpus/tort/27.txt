@@ -1,0 +1,43 @@
+Dear Partner,
+I would like you to sue my private jet operator. Below is what happened.
+I run own and run TrainAI, as you know. Our core business is providing on-demand cloud
+compute for tech companies and startups seeking to train, finetune, or host their AI models.
+Sell shovels during a gold rush, as they say.
+For obvious reasons, our data centres are located in the East and West extremes of Singa-
+pore — Tuas, Tengah, and Changi to be precise. I am a very hands on CEO and make it a
+point to visit and inspect every data centre daily. Because my time is worth literally mil-
+lions, I generally fly from end to end. This saves me an hour every day which I use to make
+important business decisions. I have been paying East-West Airlines (EWAL) S$100,000
+a month for this service. I take their 0900–0930 flight from Changi airbase to Tengah airbase every morning. EWAL has a special licence from the Republic of Singapore Air
+Force that allows them to do this.
+Inexplicably, on 24 September last month a whole bunch of my engineers showed up
+several hours late for work at our Tuas Data Centre (TDC). I have fired them all, of course.
+Problem was, at around 0930 hours that day, TDC saw a huge spike in server demand, as
+if a whole lot of people suddenly had nothing to do but train or use AI. There were not
+enough staff on site to upscale our servers to handle the increased load. By 1000 hours,
+TDC was at max capacity, and by 1030 the entire cluster got overloaded and crashed.
+Given my elite coder skills, I could have single-handedly averted the disaster had I man-
+aged to reach TDC on time. This is where EWAL comes back in. During the incident I was
+stuck on my usual daily flight without access to WiFi. (EWAL’s dismal flight service does
+not come with it.) Usually this is fine because the entire flight is only 20 minutes. On that
+day, however, the plane took off incredibly late, at 0910. I was told that “the pilot needed
+to make additional flightworthiness checks”. This seemed strange to me as it had never
+happened before. I suspect the real reason was because the incompetent pilot showed up
+late to work.
+To make things worse, in mid-air the pilot sheepishly told me he had forgotten to file the
+clearances to land at Tengah. This was around 0925. We started circling the airbase while
+EWAL’s ground staff rushed to fast-track the approvals. However, at 0945 I was told that
+a surprise air defence drill had been initiated, so all military airfields in Singapore had to
+be reserved for military use only from 0940 onwards. I only managed to land at 1400
+hours. I reached TDC at 1410. By then, some of the senior engineers had made it back to
+work. They reported that the root cause of TDC’s crash was really quite simple — when
+the servers started to get overwhelmed, a simple fix would have been to spin up the backup
+data centre we had built in Malaysia. Problem was, this required CEO-level approval, and
+I had been uncontactable. With my incredible help, we got the servers back up at 1435.
+Based on our service contracts, TrainAI has to compensate our users a total of $1.5 million
+in damages for each full hour of downtime. For example, if we are down for 1.9 hours, we
+are only liable for 1 hour. Thus the total damage that EWAL has wrought upon us is $4.5
+million. Fortunately, due to my amazing public relations skills, I managed to contain any
+further fallout. The total amount is petty change, I know, but I want to make sure they pay for this as a matter of principle. Please advise me on how best I can make them pay. Your
+retainer will be duly renewed if you do a good job.
+Axe.

@@ -1,0 +1,67 @@
+CryptoMath (“CM”) is amongst the largest producers of the popular cryptocurrency Vit-
+Coin (“VTC”). Under the VitCoin protocol, the currency is produced by throwing massive
+
+computing resources to solve for the next largest prime number. Every new prime gen-
+erates fresh VitCoins for the one who found it. This takes up significant compute, and
+
+essentially all the VitCoin producing companies race against each other to be the first to
+find the next prime.
+To solve for primes, CM relies heavily on processors from a chipmaker known as RTX
+Solutions. RTX makes all sorts of computer chips, including general purpose graphics
+processing units. One of their chips, the RTX105, turned out to be particularly suited for
+finding prime numbers, and has since become a staple of the VitCoin mining industry.
+However, a recent expose published by CoinFail.com, a group of investigative journalists,
+found that the actual prime processing power (VitCoiners call this PPP) was far below
+what had been advertised for certain batches of the RTX105 sold in Singapore. The report
+also showed that this originated from weaknesses in RTX’s quality control processes. RTX
+has since publicly acknowledged this and promised to do better.
+After learning about the problem, CM’s engineers benchmarked their RTXs and found that
+they RTXs had indeed been operating at 800 instead of the advertised 1600 PPP for about
+2 years now. CM estimates to have lost out on between 4,000 to 5,000 VitCoins. Based on
+today’s CoinBase exchange rates, that makes about 400 to 500 thousand SGD.
+VitCoins are valuable because they also serve as tokens entitling the holder to special
+rights. The VitCoin is strongly supported by the International Society of Prime-Loving
+Mathematicians (“ISPriMe”), who promises to give awards, recognition, and all forms of
+goodies to those who present enough VitCoins. For example, 100 VTC entitles one to
+name the next discovered prime after anything they want, including themselves. 1,000
+VTC may be exchanged for a dinner with the society’s president, a Fields medal recipient
+and the manager of a highly successful hedge fund. Those who have redeemed this even
+once have said that it is truly a life-changing experience. And, as the ultimate glory,
+5,000 VTC entitles one to being conferred the highly-prestigious Primes medal, the prime
+number theory equivalent of the Fields. When CM wrote to RTX demanding compensation of 
+5,000 VTC (or equivalents), they responded with an open letter published on their website RTX.com:
+
+Dear CryptoMath,
+While we are deeply sorry for that your RTX105s have not performed up to
+
+your unique expectations, we regret that we cannot accede to your oddly-
+specific demands.
+
+Foremost, the RTX105 chips are general purpose processing units meant to
+be applied for broad computing purposes. We did not recommend relying on
+them for highly-intensive and financially-sensitive things, such as the mining
+of VitCoin. For this reason, we do not hold any VitCoin, and do not hold
+ourselves responsible to compensate crypto companies like yours, especially
+when they are so many frauds out there and when your relationship with these
+frauds is unclear.
+Second, it is unreasonable for you to insist that we arrange a dinner with the
+ISPriMe president for you.
+
+Third, we are ourselves victims in this situation. Based on our internal in-
+vestigations, details of which will soon be publicised, the Limited RTX105
+
+Under-Performance Issue was exacerbated by external forces beyond our con-
+trol. We are only a chip maker, and had paid a chip design consultancy in the
+
+US to create the blueprint and architecture of the chip for us. The US chip
+
+designer had not considered Singapore’s hot and humid climate, which oper-
+ated together with the designer’s oversight to cause the Under-Performance.
+
+Notably, the Under-Performance usually only occurs when the chips are put
+under severe stress. For instance, if for some reason one were to unilaterally
+decide to leave them on all day to find prime numbers.
+Granted, had we checked more carefully we would have fixed the issue before
+distributing the chips. However, taken together with the first three reasons
+above, we do not believe we are liable to compensate you for your alleged
+‘losses’.

@@ -1,0 +1,52 @@
+Dear Partner,
+Been a while since our last catch up. I recently started a new tech company in Singapore.
+I hatched the idea with my usual partners in crime one day over a couple of beers. We
+called it the Bockchain (pun totally intended). It’s a company that uses the blockchain to
+sell beer! So here’s how it works. My friend and co-founder Shelley owns a microbrewery.
+We take the beer she produces and put them in vending machines all around Singapore.
+Normally this would not be legal, because there is no way to stop vending machines from
+selling beer to children, so the pesky regulators would not grant a licence for this. But due
+to my genius, we convinced them that our blockchain-based software would serve as an
+effective way to enforce age restrictions on our customers.
+The tech behind this is very simple, really. We first created our own token, BockCoin,
+on the standard Ethereum framework. We then made sure our vending machines only
+accepted BockCoin as payment. BockCoin can only be purchased using Singapore dollars using BockApp, an iOS/Android app developed and maintained by our company. Before
+any purchase can be made, however, users must undertake that they are of drinking age,
+and further provide us with a real-time picture of themselves as well as photo of their
+NRIC. The BockApp back-end software then runs a standard facial and image recognition
+module on both the user’s face and the NRIC to identify potentially under-aged users.
+Between you and I, these checks only work 70% of the time, so we expect that 30% of
+BockApp users may be underaged (or otherwise not who they claim to be). But hey, no
+software’s perfect, and we realised that making the software better would limit our sales,
+so why block these people?
+Anyway, last month I got a frantic call from Shelley asking me to read the news. Appar-
+ently a bunch of 15-year-olds had gotten drunk off our product at the Downtown East
+chalet. We have several machines stationed there for obvious reasons. Our database
+records show that they had bought the beer at around 2200hrs. One of the teenagers in
+the group managed to buy BockCoin because they had submitted a copy of their parents’
+NRIC accompanying that was a clearly AI-editted photo — the kind you get from those
+apps which promise to let you see how you look as an old man.
+Either way, around 2am that day, the four of them then took an alcohol-fuelled joyride
+down Changi Coast road on e-scooters they had rented from the chalet the previous morn-
+ing. Traffic cameras showed them speeding up and down the road, which meant they
+sometimes went in the wrong direction of travel. Things were fine initially because there
+was no car traffic at all. However, at around 0345am, one of the teenagers lost control of
+their e-scooter and veered into the oncoming lane. A lorry travelling slightly beyond the
+speed limit at the time crashed headfirst into them. The impact threw them against a nearby
+raintree. Possibly because of recent torrential rains, one of the tree branches snapped and
+came crashing down on one of the other teenagers. The other two were lucky to escape
+unharmed, but witnessed everything firsthand. The lorry driver took off and has still not
+been found.
+In total, the four victims suffered the following injuries:
+1. P1: Hit by the lorry and had to amputate a leg. Because of the extended hospitalisa-
+tion, P1 had to miss their O-levels and will have to re-sit the exam next year.
+2. P2: The tree branch fell on their right (master) hand. It will recover eventually but
+they had to make special arrangements for their O-level exams as they could not use
+it to write or type.
+3. P3: They were dating P1 and developed an RPI following the incident.
+4. P4: The only one to escape without any harm at all. Ironically, they were the one
+who bought the Bock.
+None of them have thought to sue us yet, but I am writing just to be sure. In case they
+come after us, what might BockChain be liable for, if anything? I am quite prepared to
+concede that we were careless for not making the age verification software better, but my
+sense is that what happened was really far off.
