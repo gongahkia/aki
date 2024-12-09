@@ -7,10 +7,10 @@ Recommended pipeline:
 5. Generate hypotheticals (transformers, torch)
 6. Evaluate and refine as needed
 
-(A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
+x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
 (A) Focus on training the model on tort law hypotheticals first @core @basis
-(A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
 (A) Take this opportunity to learn how to train a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
+(A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
 
 (A) Allow for students to generate practise hypos based on specified parameters @core @ideas @feature
 (A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
