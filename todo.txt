@@ -44,4 +44,5 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Additional: Look into Fine-tuned LLaMA variants for conversational AI like Vicuna (https://lmsys.org/blog/2023-03-30-vicuna/) and Alpaca (https://crfm.stanford.edu/2023/03/13/alpaca.html) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into FOSS models like Falcon (https://falconllm.tii.ae/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into Lightweight models for resource efficiency like Mistral (https://mistral.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(E) Additional: Look into langgraph (https://www.langchain.com/langgraph) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Implement OCR from PDFs to handle rendering the corpus for future documents that require more detailed preprocessing @ideas @future
