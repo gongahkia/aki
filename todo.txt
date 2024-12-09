@@ -11,6 +11,7 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (A) Focus on training the model on tort law hypotheticals first @core @basis
 (A) Take this opportunity to learn how to train a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
 (A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
+(A) Add mermaid diagrams of the complete workflow for loading pretrained models and traning models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
 
 (A) Allow for students to generate practise hypos based on specified parameters @core @ideas @feature
 (A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
