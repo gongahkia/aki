@@ -8,5 +8,4 @@ config:
 	@pre-commit run --all-files
 	@echo "WARNING: these are meant for testing and not to be run in production!"
 	@echo "installing dependancies for local development..."
-	@pip install pyinstaller pytest
-	@echo "installing requirements..."
+	@pip install -r requirements.txt
