@@ -10,6 +10,7 @@ Recommended pipeline:
 x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
 (A) Focus on training the model on hypotheticals within the domain of tort law first @core @basis
 (A) Debug the breaking code within ./all.py and actually understand and annotate what each line is doing @core @basis
+(A) Train the model on the sanitised corpus within clean/tort/corpus.json @core @basis
 (A) Work on training a LLM model from scratch and work on code within ./src/scratch @core @basis
 (A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
 (A) Add mermaid diagrams of the complete workflow for training models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
