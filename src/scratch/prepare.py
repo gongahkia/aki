@@ -1,18 +1,24 @@
-# Load text files
-text_files = [f for f in os.listdir() if f.endswith('.txt')]
-corpus = []
+import os
+from datasets import Dataset
+from transformers import GPT2Tokenizer
 
-# Read each text file and store its contents
+target_directory = "../../corpus/tort"
+if not os.path.exists(target_directory):
+    raise FileNotFoundError(f"The directory '{target_directory}' does not exist.")
+else:
+    text_files = [f for f in os.listdir(target_directory) if f.endswith('.txt')]
+    corpus = []
+    count = 0
+
 for file in text_files:
-    with open(file, 'r') as f:
-        corpus.append(f.read().strip())
+    file_path = os.path.join(target_directory, file)  
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:  
+            corpus.append(f.read().strip())
+            count += 1
+    except Exception as e:
+        print(f"Error reading file '{file_path}': {e}")
 
-# Tokenizer (using GPT2's tokenizer as an example)
-tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-
-# Encode corpus using the tokenizer
-def encode_text(text):
-    return tokenizer.encode(text, truncation=True, padding='max_length', max_length=512)
-
-# Tokenize the entire corpus
-encoded_corpus = [encode_text(text) for text in corpus]
+dataset = Dataset.from_dict({'text': corpus})
+print(f'{count} documents added to the corpus')
+print(dataset)
