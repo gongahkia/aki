@@ -2,7 +2,7 @@ import os
 from datasets import Dataset
 from transformers import GPT2Tokenizer
 
-target_directory = "../../corpus/tort"
+target_directory = "../corpus/tort"
 if not os.path.exists(target_directory):
     raise FileNotFoundError(f"The directory '{target_directory}' does not exist.")
 else:
