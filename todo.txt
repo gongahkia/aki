@@ -35,11 +35,11 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Backup plan: Always prioritise training my own models for hypo generation first, but if there's a limit to how well that goes then consider relying on OpenAI's API pricing per here (https://openai.com/api/pricing/) and see whether I can integrate Chatlab (https://github.com/rgbkrk/chatlab) so OpenAI can call my own predefined functions @ideas @future
 (E) Backup plan: Work out what LLMs (local/remote) I can use via api calls or direct prompting to generate reliable hypos and their respective issues and tags @core @function
 
+(E) Additional: Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into bm25s (https://github.com/xhluca/bm25s) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into LangChain (https://langchain.com/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into Haystack (https://haystack.deepset.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into Fine-tuned LLaMA variants for conversational AI like Vicuna (https://lmsys.org/blog/2023-03-30-vicuna/) and Alpaca (https://crfm.stanford.edu/2023/03/13/alpaca.html) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into FOSS models like Falcon (https://falconllm.tii.ae/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
