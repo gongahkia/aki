@@ -1,7 +1,7 @@
 Recommended pipeline: 
 
 1. Collect and sanitise dataset (pandas, nltk, spacy, re)
-2. Select pretrained models to finetune (transformers, torch) OR train your own model from scratch (pytorch, keras)
+2. Train your own model from scratch (pytorch, keras)
 3. Prepare dataset for training (datasets, transformers)
 4. Finetune the model (transformers, torch)
 5. Generate hypotheticals (transformers, torch)
@@ -9,10 +9,9 @@ Recommended pipeline:
 
 x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
 (A) Focus on training the model on hypotheticals within the domain of tort law first @core @basis
-(A) First work on finetuning a pretrained LLM model and work on code within ./src/pretrained @core @basis
-(A) Next work on training a LLM model from scratch and work on code within ./src/scratch @core @basis
+(A) Work on training a LLM model from scratch and work on code within ./src/scratch @core @basis
 (A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
-(A) Add mermaid diagrams of the complete workflow for loading pretrained models and traning models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
+(A) Add mermaid diagrams of the complete workflow for training models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
 (A) Take this opportunity to learn how to train and finetune a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
 
 (A) Allow for students to generate practise hypos based on specified parameters @core @ideas @feature
@@ -35,7 +34,6 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Backup plan: Always prioritise training my own models for hypo generation first, but if there's a limit to how well that goes then consider relying on OpenAI's API pricing per here (https://openai.com/api/pricing/) and see whether I can integrate Chatlab (https://github.com/rgbkrk/chatlab) so OpenAI can call my own predefined functions @ideas @future
 (E) Backup plan: Work out what LLMs (local/remote) I can use via api calls or direct prompting to generate reliable hypos and their respective issues and tags @core @function
 
-(E) Additional: Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into bm25s (https://github.com/xhluca/bm25s) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
@@ -46,3 +44,4 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Additional: Look into Lightweight models for resource efficiency like Mistral (https://mistral.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into langgraph (https://www.langchain.com/langgraph) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Implement OCR from PDFs to handle rendering the corpus for future documents that require more detailed preprocessing @ideas @future
+(E) Additional: Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
