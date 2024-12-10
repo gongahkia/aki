@@ -33,6 +33,7 @@ def tokenize_function(examples):
 
 tokenized_dataset = dataset.map(tokenize_function, batched=True)
 print(tokenized_dataset[0])
+print(tokenized_dataset[len(tokenized_dataset) - 1])
 
 config = GPT2Config(
     vocab_size=tokenizer.vocab_size,
@@ -42,6 +43,8 @@ config = GPT2Config(
     n_layer=12,
     n_head=12
 )
+
+# FUA right now the script is breaking at the training portion of the model 
 
 model = GPT2LMHeadModel(config)
 
