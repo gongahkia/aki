@@ -47,3 +47,7 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Additional: Look into langgraph (https://www.langchain.com/langgraph) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Implement OCR from PDFs to handle rendering the corpus for future documents that require more detailed preprocessing @ideas @future
 (E) Additional: Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+
+(E) Consider implementing unified interface for LLM inquiry with langchain within my implementation of internal agents within the agentic workflow validation 
+(E) Look into using other locally trained agents for agentic workflows, such as Hugging Face's pretrained models (GPT-J, GPT-Neo, LLaMA), Fine-tuned LLaMA variants for conversational AI (Vicuna, Alpaca), FOSS models (Falcon) and Microsoft Deepspeed 
+(E) See if there's any space to integrate doc2vec technology into the data_pipeline_validation workflow similar to https://github.com/gongahkia/the-archives/tree/main/python/learning_doc2vec 
