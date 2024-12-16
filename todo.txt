@@ -15,6 +15,7 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
 (A) Add mermaid diagrams of the complete workflow for training models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
 (A) Take this opportunity to learn how to train and finetune a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
+(A) If pretrained doesn't work, look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 
 (A) Allow for students to generate practise hypos based on specified parameters @core @ideas @feature
 (A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
@@ -46,7 +47,6 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Additional: Look into Lightweight models for resource efficiency like Mistral (https://mistral.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Look into langgraph (https://www.langchain.com/langgraph) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (E) Additional: Implement OCR from PDFs to handle rendering the corpus for future documents that require more detailed preprocessing @ideas @future
-(E) Additional: Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 
 (E) Consider implementing unified interface for LLM inquiry with langchain within my implementation of internal agents within the agentic workflow validation 
 (E) Look into using other locally trained agents for agentic workflows, such as Hugging Face's pretrained models (GPT-J, GPT-Neo, LLaMA), Fine-tuned LLaMA variants for conversational AI (Vicuna, Alpaca), FOSS models (Falcon) and Microsoft Deepspeed 
