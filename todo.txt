@@ -8,23 +8,31 @@ Recommended pipeline:
 6. Evaluate and refine as needed
 
 x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
-(A) Look into what available models there are similar to Ollama's local clients that can read existing text and 'learn' them to then produce different specified output @core @basis
-(A) Focus on training the model on hypotheticals within the domain of tort law first @core @basis
-(A) Debug the breaking code within ./all.py and actually understand and annotate what each line is doing @core @basis
-(A) Train the model on the sanitised corpus within clean/tort/corpus.json @core @basis
-(A) Work on training a LLM model from scratch and work on code within ./src/scratch @core @basis
-(A) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
-(A) Add mermaid diagrams of the complete workflow for training models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
-(A) Take this opportunity to learn how to train and finetune a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
-(A) If pretrained doesn't work, look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 
-(A) Allow for students to generate practise hypos based on specified parameters @core @ideas @feature
-(A) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
-(A) Brainstorm further user functionality that allows them to comment on hypos, rate hypos etc. @core @ideas
-(A) Consider implementing more than one LLM so users can rate and jointly decide which LLMs are better at generating hypos @core @ideas
-(A) Consider using https://github.com/explosion/spaCy to extract relevant information from the hypo for users, OR to implement an agentic workflow @core @ideas
-(A) Implementing agentic workflows to test and randomly sample the generated hypos and issues being spotted to validate the quality of each hypo @core @testing
-(A) Consider implementing a textbox or textarea for users to actually type their responses in so they can practise on the website itself @core @testing
+(A) Look into what available models there are similar to Ollama's local clients that can read existing text and 'learn' them to then produce different specified output @core @basis
+(A) Train these local Ollama models with long-term context by using tools like LANGCHAIN, LLAMAINDEX or MEMORYBANK so memory can be retained based on the hypo data across sessions @core @basis
+(A) Look into other alternatives that allow local LLM models to retain context and memory across query sessions, ask GPT and perplexity ai for help @core @basis
+(A) Build Jikai's base of generating hypos based on specified topics with pretrained local LLM models like ollama client first @core @basis
+(A) If training from scratch doesn't work, look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+
+(A) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into bm25s (https://github.com/xhluca/bm25s) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into LangChain (https://langchain.com/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into Haystack (https://haystack.deepset.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into Fine-tuned LLaMA variants for conversational AI like Vicuna (https://lmsys.org/blog/2023-03-30-vicuna/) and Alpaca (https://crfm.stanford.edu/2023/03/13/alpaca.html) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into FOSS models like Falcon (https://falconllm.tii.ae/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into Lightweight models for resource efficiency like Mistral (https://mistral.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(A) Additional: Look into langgraph (https://www.langchain.com/langgraph) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
+(A) Additional: Implement OCR from PDFs to handle rendering the corpus for future documents that require more detailed preprocessing @ideas @future
+
+(B) Allow for students to generate practise hypos based on specified parameters @core @ideas @feature
+(B) Collate core subjects I want Jikai to support (tort law, criminal law, contract law 1, contract law 2, ip law) @core @ideas
+(B) Brainstorm further user functionality that allows them to comment on hypos, rate hypos etc. @core @ideas
+(B) Consider implementing more than one LLM so users can rate and jointly decide which LLMs are better at generating hypos @core @ideas
+(B) Consider using https://github.com/explosion/spaCy to extract relevant information from the hypo for users, OR to implement an agentic workflow @core @ideas
+(B) Implementing agentic workflows to test and randomly sample the generated hypos and issues being spotted to validate the quality of each hypo @core @testing
+(B) Consider implementing a textbox or textarea for users to actually type their responses in so they can practise on the website itself @core @testing
 
 (B) Add a disclaimer to the README.md excusing myself of any and all liability particularly relating to defamation under libel, ask GPT for further legal advice as required @legal @admin
 (B) Look into launching the webapp with Jinja (https://jinja.palletsprojects.com/en/stable/) or another convenient to work with Python Web framework @web @feature
@@ -38,17 +46,14 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 (E) Backup plan: Always prioritise training my own models for hypo generation first, but if there's a limit to how well that goes then consider relying on OpenAI's API pricing per here (https://openai.com/api/pricing/) and see whether I can integrate Chatlab (https://github.com/rgbkrk/chatlab) so OpenAI can call my own predefined functions @ideas @future
 (E) Backup plan: Work out what LLMs (local/remote) I can use via api calls or direct prompting to generate reliable hypos and their respective issues and tags @core @function
 
-(E) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into bm25s (https://github.com/xhluca/bm25s) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into LangChain (https://langchain.com/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into Haystack (https://haystack.deepset.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into Fine-tuned LLaMA variants for conversational AI like Vicuna (https://lmsys.org/blog/2023-03-30-vicuna/) and Alpaca (https://crfm.stanford.edu/2023/03/13/alpaca.html) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into FOSS models like Falcon (https://falconllm.tii.ae/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into Lightweight models for resource efficiency like Mistral (https://mistral.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Look into langgraph (https://www.langchain.com/langgraph) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
-(E) Additional: Implement OCR from PDFs to handle rendering the corpus for future documents that require more detailed preprocessing @ideas @future
-
 (E) Consider implementing unified interface for LLM inquiry with langchain within my implementation of internal agents within the agentic workflow validation 
 (E) Look into using other locally trained agents for agentic workflows, such as Hugging Face's pretrained models (GPT-J, GPT-Neo, LLaMA), Fine-tuned LLaMA variants for conversational AI (Vicuna, Alpaca), FOSS models (Falcon) and Microsoft Deepspeed 
 (E) See if there's any space to integrate doc2vec technology into the data_pipeline_validation workflow similar to https://github.com/gongahkia/the-archives/tree/main/python/learning_doc2vec 
+
+(F) Focus on training the model on hypotheticals within the domain of tort law first @core @basis
+(F) Debug the breaking code within ./all.py and actually understand and annotate what each line is doing @core @basis
+(F) Train the model on the sanitised corpus within clean/tort/corpus.json @core @basis
+(F) Work on training a LLM model from scratch and work on code within ./src/scratch @core @basis
+(F) Ask GPT to suggest a learning plan and follow along with how to train my own model from scratch in prep for the intro-to-ai mod next sem, reference this channel (https://youtube.com/@statquest?si=TsXa6S6xCMznv0nH) as and where its relevant @core @basis
+(F) Add mermaid diagrams of the complete workflow for training models completely from scratch to the README.md so the user has the option to use either route and just for better documentation @core @basis @admin
+(F) Take this opportunity to learn how to train and finetune a LLM model on specific hypo datasets from scratch, only using specified low-level core dependancies like langchain or those suited for law instead of using pretrained models @core @basis
