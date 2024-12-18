@@ -8,6 +8,7 @@ Recommended pipeline:
 6. Evaluate and refine as needed
 
 x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
+(A) Look into what available models there are similar to Ollama's local clients that can read existing text and 'learn' them to then produce different specified output @core @basis
 (A) Focus on training the model on hypotheticals within the domain of tort law first @core @basis
 (A) Debug the breaking code within ./all.py and actually understand and annotate what each line is doing @core @basis
 (A) Train the model on the sanitised corpus within clean/tort/corpus.json @core @basis
