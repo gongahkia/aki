@@ -2,7 +2,7 @@
 
 import json
 import ollama
-from langchain.llms import Ollama
+from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -23,13 +23,13 @@ def load_corpus(filepath):
         return None
 
 
-def chunk_corpus():
+def chunk_corpus(data):
     """
     processes corpus using chunking
     """
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     texts = [entry["text"] for entry in data]
-    return text_splitter.split_texts(texts)
+    return text_splitter.split_text(texts)
 
 
 def create_vector_store(texts):
