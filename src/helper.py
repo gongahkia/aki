@@ -52,14 +52,25 @@ def load_model(model_name):
         return (False, None)
 
 
-def query_model(model, vector_store, question):
+def query_model(model, vector_store, topics):
     """
     generates a query that is then
     used to prompt the model
     """
     relevant_texts = vector_store.similarity_search(question, k=3)  # Adjust k as needed
     context = "\n".join([text.page_content for text in relevant_texts])
-    prompt = f"{context}\n\n{question}"
+    topic_string = ", ".join(topics)
+    prompt = f"""
+    You are an AI tasked with generating law hypotheticals that contain specified topics. 
+
+    Here is some relevant training data:
+
+    {context}
+
+    Now, generate a law hypothetical that includes the following topics:
+    
+    {topic_string}
+    """
     response = model(prompt)
     return response
 
@@ -68,17 +79,21 @@ def query_model(model, vector_store, question):
 
 if __name__ == "__main__":
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
-    MODEL_NAME = "your_model_name"
+    MODEL_NAME = "llama2:7b"
     data = load_corpus(TARGET_FILEPATH)
     if data is not None:
         success, model = load_model(MODEL_NAME)
         if success and model is not None:
             texts = chunk_corpus(data)
             vector_store = create_vector_store(texts)
-            question = (
-                "What are the implications of Ollie's programming on human safety?"
-            )
-            response = query_model(model, vector_store, question)
+            topics = [
+                "negligence",
+                "duty of care",
+                "standard of care",
+                "causation",
+                "remoteness",
+            ]
+            response = query_model(model, vector_store, topics)
             print(f"Model Response: {response}")
         else:
             print("Error: Failed to load the model.")
