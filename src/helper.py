@@ -1,7 +1,10 @@
 # ----- required imports -----
 
 import json
+import ollama
 from langchain.llms import Ollama
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # ----- helper functions -----
@@ -39,6 +42,17 @@ def create_vector_store(texts):
     return vector_store
 
 
+def start_model():
+    """
+    attempts to start and return an ollama model, else returns none
+    """
+    try:
+        client = ollama.Client()
+        return client
+    except:
+        return None
+
+
 def load_model(model_name):
     """
     attempts to load the specified
@@ -57,7 +71,7 @@ def query_model(model, vector_store, topics):
     generates a query that is then
     used to prompt the model
     """
-    relevant_texts = vector_store.similarity_search(question, k=3)  # Adjust k as needed
+    relevant_texts = vector_store.similarity_search(topics, k=3)
     context = "\n".join([text.page_content for text in relevant_texts])
     topic_string = ", ".join(topics)
     prompt = f"""
@@ -82,20 +96,17 @@ if __name__ == "__main__":
     MODEL_NAME = "llama2:7b"
     data = load_corpus(TARGET_FILEPATH)
     if data is not None:
-        success, model = load_model(MODEL_NAME)
-        if success and model is not None:
-            texts = chunk_corpus(data)
-            vector_store = create_vector_store(texts)
-            topics = [
-                "negligence",
-                "duty of care",
-                "standard of care",
-                "causation",
-                "remoteness",
-            ]
-            response = query_model(model, vector_store, topics)
-            print(f"Model Response: {response}")
-        else:
-            print("Error: Failed to load the model.")
+        model = start_model()
+        texts = chunk_corpus(data)
+        vector_store = create_vector_store(texts)
+        topics = [
+            "negligence",
+            "duty of care",
+            "standard of care",
+            "causation",
+            "remoteness",
+        ]
+        response = query_model(model, vector_store, topics)
+        print(f"Model Response: {response}")
     else:
         print("Failed to load the corpus.")

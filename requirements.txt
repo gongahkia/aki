@@ -5,4 +5,5 @@ pyinstaller==5.11.0
 pytest==7.1.2      
 langchain
 langchain-ollama 
+langchain-community
 faiss-cpu
