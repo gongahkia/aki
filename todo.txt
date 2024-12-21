@@ -1,14 +1,6 @@
-Recommended pipeline: 
-        
-1. Collect and sanitise dataset (pandas, nltk, spacy, re)
-2. Train your own model from scratch (pytorch, keras)
-3. Prepare dataset for training (datasets, transformers)
-4. Finetune the model (transformers, torch)
-5. Generate hypotheticals (transformers, torch)
-6. Evaluate and refine as needed
-    
 x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datasets and ask GPT what format I should present them in and how the workflow should work, use Pytorch or Keras or some other commonly used library as needed @core @basis
     
+(A) Add code to helper.py that scans hypos within the corpus for the relevant subject tags first against those specified by the user, then trains the model based on those only. This shouldn't necesarily require langchain and can be done with default programming and prompting locally trained models. @core @basis
 (A) Look into what available models there are similar to Ollama's local clients that can read existing text and 'learn' them to then produce different specified output @core @basis
 (A) Train these local Ollama models with long-term context by using tools like LANGCHAIN, LLAMAINDEX or MEMORYBANK so memory can be retained based on the hypo data across sessions @core @basis
 (A) Look into other alternatives that allow local LLM models to retain context and memory across query sessions, ask GPT and perplexity ai for help @core @basis
