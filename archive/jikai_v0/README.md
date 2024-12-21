@@ -1,3 +1,3 @@
 # `Jikai v0`
 
-Trying to train a model from scratch.
+Training a model from scratch.
