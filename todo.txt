@@ -2,6 +2,7 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 x (A) Add hardcoded function to helper.py that scans hypos within the corpus for the relevant subject tags first against the subject tags specified by the user, then trains and queries the local model based on those only. @basis @core
 x (A) Consider implementing the above idea but maintaining the langchain vector store for the hypos cherry-picked by topic for prompting so that the actual hypos fed can still be recalled by the pretrained internal ollama model's context @core @basis
 
+(A) Debug the code within helper.py first @core @basis
 (A) Train these local Ollama models with long-term context by using tools like LANGCHAIN, LLAMAINDEX or MEMORYBANK so memory can be retained based on the hypo data across sessions @core @basis
 (A) Look into other alternatives that allow local LLM models to retain context and memory across query sessions, ask GPT and perplexity ai for help @core @basis
 (A) Build Jikai's base of generating hypos based on specified topics with pretrained local LLM models like ollama client first @core @basis
