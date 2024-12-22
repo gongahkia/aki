@@ -7,7 +7,6 @@ import helper as h
 if __name__ == "__main__":
 
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
-    MODEL_NAME = "llama2:7b"
 
     data = h.load_corpus(TARGET_FILEPATH)
     if data is not None:

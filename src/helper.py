@@ -10,38 +10,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 # ----- helper functions -----
 
 
-def load_corpus(filepath):
-    """
-    reads the local corpus json file and
-    returns the data
-    """
-    try:
-        with open(filepath, "r") as file:
-            return json.load(file)
-    except Exception as e:
-        print(f"Error loading corpus: {e}")
-        return None
-
-
-def chunk_corpus(data):
-    """
-    processes corpus using chunking
-    """
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    texts = [entry["text"] for entry in data]
-    return text_splitter.split_text(texts)
-
-
-def create_vector_store(texts):
-    """
-    creates a vector store for
-    effective context retrieval
-    """
-    embeddings = OpenAIEmbeddings()  # Use appropriate embeddings for your model
-    vector_store = FAISS.from_texts(texts, embeddings)
-    return vector_store
-
-
 def start_model():
     """
     attempts to start and return an ollama model, else returns none
@@ -56,7 +24,7 @@ def start_model():
 def load_model(model_name):
     """
     attempts to load the specified
-    ollama client model
+    ollama client model, now deprecated
     """
     try:
         model = Ollama(model_name=model_name)
@@ -66,13 +34,64 @@ def load_model(model_name):
         return (False, None)
 
 
+def load_corpus(filepath):
+    """
+    reads the local corpus json file and
+    returns the data
+    """
+    try:
+        with open(filepath, "r") as file:
+            return json.load(file)
+    except Exception as e:
+        print(f"Error loading corpus: {e}")
+        return None
+
+
+def query_relevant_text(corpus, topics):
+    """
+    retrieves relevant texts from
+    the vector store based on topic
+    """
+    relevant_texts = []
+    for entry in corpus:
+        if all(topic in entry["topic"] for topic in topics):
+            relevant_texts.append(entry["text"])
+    return relevant_texts
+
+
+def chunk_corpus(relevant_texts_data):
+    """
+    processes corpus using chunking
+    """
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    return text_splitter.split_text(relevant_texts_data)
+
+
+def create_vector_store(chunked_texts):
+    """
+    creates a vector store for
+    effective context retrieval
+    """
+    embeddings = OpenAIEmbeddings()  # use appropriate embeddings for your model
+    vector_store = FAISS.from_texts(chunked_texts, embeddings)
+    return vector_store
+
+
 def query_model(model, vector_store, topics):
     """
     generates a query that is then
     used to prompt the model
+
+    FUA might need to remove the vector_store.similarity_search
+    line if it doesn't serve the purpose of assingning cosine
+    similarity to words that aren't exactly similar
+
+    FUA also consider tweaking k value as needed where k represents
+    number of nearest neighbours, higher k value returns more results
+    while lower k value returns fewer results
     """
     relevant_texts = vector_store.similarity_search(topics, k=3)
-    context = "\n".join([text.page_content for text in relevant_texts])
+    context = "\n".join([text["page_content"] for text in relevant_texts])
     topic_string = ", ".join(topics)
     prompt = f"""
     You are an AI tasked with generating law hypotheticals that contain specified topics. 
