@@ -87,26 +87,3 @@ def query_model(model, vector_store, topics):
     """
     response = model(prompt)
     return response
-
-
-# ----- sample execution -----
-
-if __name__ == "__main__":
-    TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
-    MODEL_NAME = "llama2:7b"
-    data = load_corpus(TARGET_FILEPATH)
-    if data is not None:
-        model = start_model()
-        texts = chunk_corpus(data)
-        vector_store = create_vector_store(texts)
-        topics = [
-            "negligence",
-            "duty of care",
-            "standard of care",
-            "causation",
-            "remoteness",
-        ]
-        response = query_model(model, vector_store, topics)
-        print(f"Model Response: {response}")
-    else:
-        print("Failed to load the corpus.")
