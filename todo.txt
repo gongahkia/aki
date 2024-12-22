@@ -7,7 +7,7 @@ x (A) Consider implementing the above idea but maintaining the langchain vector 
 (A) Build Jikai's base of generating hypos based on specified topics with pretrained local LLM models like ollama client first @core @basis
 (A) Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (A) Look into what available models there are similar to Ollama's local clients that can read existing text and 'learn' them to then produce different specified output @core @basis
-(A) Debug the local dockerfile and README workflow for using that dockerfile @core @deployment
+(A) Debug the local dockerfile especially in relation to the local filepath for execution of the ./src/main.py and README workflow for using that dockerfile @core @deployment
 
 (A) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (A) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
