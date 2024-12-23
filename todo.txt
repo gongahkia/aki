@@ -3,8 +3,13 @@ x (A) Add hardcoded function to helper.py that scans hypos within the corpus for
 x (A) Consider implementing the above idea but maintaining the langchain vector store for the hypos cherry-picked by topic for prompting so that the actual hypos fed can still be recalled by the pretrained internal ollama model's context @core @basis
 
 (A) Debug the code within helper.py first @core @basis
+(A) Add a function that chooses how many of the relevant_text_data to provide, then filters them by importance or integrate this into the query_relevant_text() function @core @basis
+(A) Implement another Ollama agent that then reviews the generated hypo and determines whether the specified topics are present, if even one is missing then regenerate hypo as part of an agentic workflow @core @basis
+(A) Implement a "test agent" that is then meant to read the generated hypo and answer a set of predetermined questions like number of parties, issue spotting etc and churn out possible topic sentencs @core @basis 
+(A) Determine if there are other possible variables I want to tweak in the prompt I generate for query_model, like number of parties, releavant issues, domain of law (contract, criminal, tort), etc, ask GPT for help with what other possible prompts there are @core @basis
+
+(A) Train these local Ollama models with long-term context by using tools like MEMORYBANK or HAYSTACK so memory can be retained based on the hypo data across sessions @core @basis
 (A) Consider using a venv to run everything instead of downloading it to my system root @core @basis
-(A) Train these local Ollama models with long-term context by using tools like LLAMAINDEX or MEMORYBANK so memory can be retained based on the hypo data across sessions @core @basis
 (A) Look into other alternatives that allow local LLM models to retain context and memory across query sessions, ask GPT and perplexity ai for help @core @basis
 (A) Build Jikai's base of generating hypos based on specified topics with pretrained local LLM models like ollama client first @core @basis
 (A) Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
@@ -14,7 +19,6 @@ x (A) Consider implementing the above idea but maintaining the langchain vector 
 (A) Additional: Look into bertopic (https://github.com/MaartenGr/BERTopic) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (A) Additional: Look into f5-tts (https://github.com/SWivid/F5-TTS) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
 (A) Additional: Look into bm25s (https://github.com/xhluca/bm25s) and see whether there's a way to integrate it in a value-adding manner to jikai @ideas @future
-(A) Additional: Look into LangChain (https://langchain.com/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (A) Additional: Look into Haystack (https://haystack.deepset.ai/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (A) Additional: Look into Fine-tuned LLaMA variants for conversational AI like Vicuna (https://lmsys.org/blog/2023-03-30-vicuna/) and Alpaca (https://crfm.stanford.edu/2023/03/13/alpaca.html) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
 (A) Additional: Look into FOSS models like Falcon (https://falconllm.tii.ae/) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
