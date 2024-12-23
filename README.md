@@ -6,12 +6,12 @@ Create law hypos.
 
 ## Architecture
 
-```mmd
+```mermaid
 graph TD
     Z([Raw data]) -->|Indexed and labelled| A
     A[(Labelled corpus)] -->|Extract Topic Specific Data|B
     Y(User-specified configuration) -->|Extract Topics|A
-    B[Reference data] --> M
+    B[Reference data as context] --> M
     Y -->|Reformat| U
     U[Templated prompt] --> M[Combined prompt and context]
     M -->|Prompt| C{LLM Hypothetical Generation Model}
