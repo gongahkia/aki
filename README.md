@@ -4,6 +4,27 @@
 
 Create law hypos.
 
+## Architecture
+
+```mmd
+graph TD
+    Z([Raw data]) -->|Indexed and labelled| A
+    A[(Labelled corpus)] -->|Extract Topic Specific Data|B
+    Y(User-specified configuration) -->|Extract Topics|A
+    B[Reference data] --> M
+    Y -->|Reformat| U
+    U[Templated prompt] --> M[Combined prompt and context]
+    M -->|Prompt| C{LLM Hypothetical Generation Model}
+    C -->|Generate scenario| X[Law hypothetical]
+    X --> D{LLM Agent 1:<br>Adherence to Parameters Check}
+    X --> E{LLM Agent 2:<br>Similarity to Corpus Check}
+    D -->|Pass| F{LLM Agent 3:<br>Performs Legal Analysis}
+    E -->|Pass| F
+    D -->|Fail| M
+    E -->|Fail| M
+    F -->|Issue generation| G(Recommended legal analysis)
+```
+
 ## Usage
 
 Build the local docker image.
@@ -12,7 +33,6 @@ Build the local docker image.
 $ docker build -t jikai
 $ docker run jikai
 ```
-
 
 ## References
 
