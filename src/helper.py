@@ -54,7 +54,9 @@ def query_relevant_text(corpus, topics, sample_size):
     return prioritized_texts
 
 
-def query_model(client, context, topics, law_domain="tort", number_parties=3):
+def query_model(
+    client, context, topics, law_domain="tort", number_parties=3, model_name="llama2:7b"
+):
     """
     generates a query that is then
     used to prompt the model
@@ -100,7 +102,7 @@ def query_model(client, context, topics, law_domain="tort", number_parties=3):
         7. Ensure that there are no overlaps in names, situations or content. 
         """
     print(complete_prompt)
-    raw_response = client.generate(prompt=complete_prompt, model="llama2:7b")
+    raw_response = client.generate(prompt=complete_prompt, model=model_name)
     return raw_response
 
 
