@@ -7,21 +7,19 @@ import helper as h
 if __name__ == "__main__":
 
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
-    TOPICS = [
-        "negligence",
-        "duty of care",
-        "standard of care",
-        "causation",
-        "remoteness",
-    ]
+    TOPICS = ["negligence", "trespass to land", "private nuisance"]
     SAMPLE_SIZE = 1
 
     corpus_data = h.load_corpus(TARGET_FILEPATH)
     if corpus_data is not None:
         context = h.query_relevant_text(corpus_data, TOPICS, 1)
-        print(f"relevant text identified as: {context}")
-        model = h.start_model()
-        response = h.query_model(model, context, TOPICS)
-        print(f"Model Response: {response}")
+        client = h.start_model()
+        if client:
+            raw_response = h.query_model(client, context, TOPICS)
+            fin = h.sanitise_data(raw_response)
+            print(fin)
+            print("Success: Ok all done")
+        else:
+            print("Error: Unable to load model")
     else:
-        print("Failed to load the corpus.")
+        print("Error: Failed to load the corpus.")
