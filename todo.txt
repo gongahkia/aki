@@ -3,7 +3,8 @@ x (A) Add hardcoded function to helper.py that scans hypos within the corpus for
 x (A) Consider implementing the above idea but maintaining the langchain vector store for the hypos cherry-picked by topic for prompting so that the actual hypos fed can still be recalled by the pretrained internal ollama model's context @core @basis
 
 (A) Debug the code within helper.py first @core @basis
-(A) Train these local Ollama models with long-term context by using tools like LANGCHAIN, LLAMAINDEX or MEMORYBANK so memory can be retained based on the hypo data across sessions @core @basis
+(A) Consider using a venv to run everything instead of downloading it to my system root @core @basis
+(A) Train these local Ollama models with long-term context by using tools like LLAMAINDEX or MEMORYBANK so memory can be retained based on the hypo data across sessions @core @basis
 (A) Look into other alternatives that allow local LLM models to retain context and memory across query sessions, ask GPT and perplexity ai for help @core @basis
 (A) Build Jikai's base of generating hypos based on specified topics with pretrained local LLM models like ollama client first @core @basis
 (A) Look into Ollama in particular for execllent CLI support ++ Hugging Face (https://huggingface.co/) and their pretrained models (GPT-J, GPT-Neo, LLaMA) and see whether there's a way to integrate it in in a value-adding manner to jikai @ideas @future
