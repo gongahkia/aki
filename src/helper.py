@@ -61,10 +61,20 @@ def query_relevant_text(corpus, topics):
 
 def chunk_corpus(relevant_texts_data):
     """
-    processes corpus using chunking
+    processes corpus using chunking and proceses each hypo seperately
     """
+    # print(f"chunking the following text:{relevant_texts_data}")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    return text_splitter.split_text(relevant_texts_data)
+    if isinstance(relevant_texts_data, list):
+        chunks = []
+        for passage in relevant_texts_data:
+            if isinstance(passage, str):
+                chunks.extend(text_splitter.split_text(passage))
+            else:
+                raise ValueError(
+                    f"Error: List item expected to be a string but datatype {type(passage)} found."
+                )
+        return chunks
 
 
 def create_vector_store(chunked_texts):
