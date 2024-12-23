@@ -2,7 +2,6 @@
 
 import json
 import ollama
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # ----- helper functions -----
 
@@ -31,37 +30,24 @@ def load_corpus(filepath):
         return None
 
 
-def query_relevant_text(corpus, topics):
+def query_relevant_text(corpus, topics, sample_size):
     """
-    retrieves relevant texts from
-    the vector store based on topic
+    retrieves relevant texts from the vector store based on topic,
+    prioritizing those with the most overlapping topics
     """
     relevant_texts = []
     for entry in corpus:
-        if all(topic in entry["topic"] for topic in topics):
-            relevant_texts.append(entry["text"])
-    return relevant_texts
+        entry_topics = entry["topic"]
+        overlap_count = len(set(entry_topics) & set(topics))
+        if overlap_count > 0:
+            relevant_texts.append((entry["text"], overlap_count))
+    relevant_texts.sort(key=lambda x: x[1], reverse=True)
+    print(f"relevant texts sorted are: {relevant_texts}")
+    prioritized_texts = [text for text, _ in relevant_texts[:sample_size]]
+    return prioritized_texts
 
 
-def chunk_corpus(relevant_texts_data):
-    """
-    processes corpus using chunking and proceses each hypo seperately
-    """
-    # print(f"chunking the following text:{relevant_texts_data}")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    if isinstance(relevant_texts_data, list):
-        chunks = []
-        for passage in relevant_texts_data:
-            if isinstance(passage, str):
-                chunks.extend(text_splitter.split_text(passage))
-            else:
-                raise ValueError(
-                    f"Error: List item expected to be a string but datatype {type(passage)} found."
-                )
-        return chunks
-
-
-def query_model(model, context, topics):
+def query_model(model, context, topics, law_domain="tort", number_parties=3):
     """
     generates a query that is then
     used to prompt the model
@@ -74,7 +60,7 @@ def query_model(model, context, topics):
 
     {context}
 
-    Now, generate a completely different, unique law hypothetical that includes the following topics:
+    Now, generate a completely different, unique {law_domain} law hypothetical involving {number_parties} parties that includes the following topics:
     
     {topic_string}
 

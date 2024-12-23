@@ -9,7 +9,9 @@ if __name__ == "__main__":
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
 
     corpus_data = h.load_corpus(TARGET_FILEPATH)
+
     if corpus_data is not None:
+
         topics = [
             "negligence",
             "duty of care",
@@ -17,12 +19,12 @@ if __name__ == "__main__":
             "causation",
             "remoteness",
         ]
+
         relevant_text = h.query_relevant_text(corpus_data, topics)
-        print(f"relevant text identified as: {relevant_text}")
+
+        # print(f"relevant text identified as: {relevant_text}")
 
         model = h.start_model()
-        texts = h.chunk_corpus(relevant_text)
-        print(texts)
 
         print("balls")
 
