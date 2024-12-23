@@ -4,7 +4,7 @@ import json
 import ollama
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # ----- helper functions -----
@@ -79,10 +79,11 @@ def chunk_corpus(relevant_texts_data):
 
 def create_vector_store(chunked_texts):
     """
-    creates a vector store for
-    effective context retrieval
+    creates a vector store for effective context retrieval
     """
-    embeddings = OpenAIEmbeddings()  # use appropriate embeddings for your model
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
     vector_store = FAISS.from_texts(chunked_texts, embeddings)
     return vector_store
 
