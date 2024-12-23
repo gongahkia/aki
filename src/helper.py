@@ -71,17 +71,15 @@ def query_model(client, context, topics, law_domain="tort", number_parties=3):
 
         {context_string}
 
-        Now, generate a completely different, unique {law_domain} law hypothetical involving {number_parties} parties that includes the following topics:
-        
-        {topic_string}
+        Now, do the following. 
 
-        Ensure the following.
-
-        1. Return only a single, detailed passage specifying all relevant facts. 
-        2. Ensure there are only {law_domain} law issues covered within the hypothetical.
-        3. Ensure the passage has ony {number_parties} parties involved.
-        4. Do not provide a breakdown of the issues or analysis of the issues within the passage. 
-        5. Ensure that there are no overlaps in names, situations or content. 
+        1. Generate a completely distinct {law_domain} law hypothetical involving {number_parties} parties that includes the following topics: {topic_string}
+        2. Return only one detailed law hypothetical
+        3. Do not provide a breakdown of issues within the passage
+        4. Do not provide anlaysis of the issues within the passage
+        5. Ensure there are only {law_domain} law issues covered within the hypothetical.
+        6. Ensure the passage has ony {number_parties} parties involved.
+        7. Ensure that there are no overlaps in names, situations or content. 
         """
     else:
         complete_prompt = f"""
@@ -91,17 +89,15 @@ def query_model(client, context, topics, law_domain="tort", number_parties=3):
 
         {context_string}
 
-        Now, generate a completely different, unique {law_domain} law hypothetical involving {number_parties} parties that includes the following topics:
-        
-        {topic_string}
+        Now, do the following. 
 
-        Ensure the following.
-
-        1. Return only a single, detailed passage specifying all relevant facts. 
-        2. Ensure there are only {law_domain} law issues covered within the hypothetical.
-        3. Ensure the passage has ony {number_parties} parties involved.
-        4. Do not provide a breakdown of the issues or analysis of the issues within the passage. 
-        5. Ensure that there are no overlaps in names, situations or content. 
+        1. Generate a completely distinct {law_domain} law hypothetical involving {number_parties} parties that includes the following topics: {topic_string}
+        2. Return only one detailed law hypothetical
+        3. Do not provide a breakdown of issues within the passage
+        4. Do not provide anlaysis of the issues within the passage
+        5. Ensure there are only {law_domain} law issues covered within the hypothetical.
+        6. Ensure the passage has ony {number_parties} parties involved.
+        7. Ensure that there are no overlaps in names, situations or content. 
         """
     print(complete_prompt)
     raw_response = client.generate(prompt=complete_prompt, model="llama2:7b")
