@@ -5,17 +5,36 @@
 
 # `Jikai`
 
-Create law hypos.
+Create, share and review law hypotheticals.
+
+> TODO add a handdrawn logo
+
+![]()
 
 ## Rationale
 
-> TODO add more details here once the project is done
+Over the finals season in December 2024, I found myself wishing I had more tort law [hypotheticals](https://successatmls.com/hypos/) to practise on aside from those [my professor](https://www.linkedin.com/in/jerroldsoh/?originalSubdomain=sg) had provided.
+  
+A [quick search](https://www.reddit.com/r/LawSchool/comments/16istgs/where_to_find_hypos/) reveals this sentiment is shared by many studying law, even [outside of Singapore](https://www.reddit.com/r/findareddit/comments/ssr9wk/a_community_for_hypothetical_legal_questions/).
+  
+Conducting a [Linkedin poll](https://www.linkedin.com/posts/gabriel-zmong_smu-law-linkedin-activity-7269531363463049217-DXUm?utm_source=share&utm_medium=member_desktop) drew roughly the same results.
+
+![](./asset/poll.png)
+
+With these considerations in mind, I created Jikai, a tool premised on the belief that legal principles are best understood when continuously practised and applied.  
+
+Jikai is a unified website-as-a-platform for *law [students](https://www.goodreads.com/quotes/3206899-a-man-cannot-understand-the-art-he-is-studying-if)* to generate, practise and contribute law hypotheticals.
+
+Current applications are focused on [Singapore Tort Law](https://www.sal.org.sg/Resources-Tools/Publications/Overview/PublicationsDetails/id/183) but [other domains of law](https://lawforcomputerscientists.pubpub.org/pub/d3mzwako/release/7) can be easily swapped in.
+
+> [!TIP]  
+> More domains of law might be added in the future. Open an issue to contribute suggestions!  
 
 ## Usage
 
 There are currently two ways to use Jikai.
 
-1. [Access the webapp](#web)
+1. [Access the webapp](#app)
 2. [Build it yourself](#build)
 
 ### App
@@ -71,12 +90,6 @@ graph TD
     F -->|Issue generation| G(Recommended legal analysis)
 ```
 
-## References
-
-The name `Jikai` is in reference to the sorcery of [Ikuto Hagiwara](https://kagurabachi.fandom.com/wiki/Ikuto_Hagiwara) (萩原 幾兎), the commander of the [Kamunabi's](https://kagurabachi.fandom.com/wiki/Kamunabi) [anti-cloud gouger special forces](https://kagurabachi.fandom.com/wiki/Kamunabi#Anti-Cloud_Gouger_Special_Forces), who opposed [Genichi Sojo](https://kagurabachi.fandom.com/wiki/Genichi_Sojo) in the [Vs. Sojo arc](https://kagurabachi.fandom.com/wiki/Vs._Sojo_Arc) of the manga series [Kagurabachi](https://kagurabachi.fandom.com/wiki/Kagurabachi_Wiki).
-
-![](https://static.wikia.nocookie.net/kagurabachi/images/f/f7/Ikuto_Hagiwara_Portrait.png/revision/latest?cb=20231206044607)
-
 ## Disclaimer
 
 All hypotheticals generated with [Jikai](https://github.com/gongahkia/jikai) are intended for educational and informational purposes only. They do not constitute legal advice and should not be relied upon as such. 
@@ -89,3 +102,19 @@ By using this tool, you acknowledge and agree that:
 2. Any reliance on the information provided by this tool is at your own risk. The creators make no representations or warranties regarding the accuracy, reliability, or completeness of any content generated.
 3. The content produced may not reflect current legal standards or interpretations and should not be used as a substitute for professional legal advice.
 4. You are encouraged to consult with a qualified legal professional regarding any specific legal questions or concerns you may have. Use of this tool signifies your acceptance of these terms.
+
+## References
+
+The name `Jikai` is in reference to the sorcery of [Ikuto Hagiwara](https://kagurabachi.fandom.com/wiki/Ikuto_Hagiwara) (萩原 幾兎), the commander of the [Kamunabi's](https://kagurabachi.fandom.com/wiki/Kamunabi) [anti-cloud gouger special forces](https://kagurabachi.fandom.com/wiki/Kamunabi#Anti-Cloud_Gouger_Special_Forces), who opposed [Genichi Sojo](https://kagurabachi.fandom.com/wiki/Genichi_Sojo) in the [Vs. Sojo arc](https://kagurabachi.fandom.com/wiki/Vs._Sojo_Arc) of the manga series [Kagurabachi](https://kagurabachi.fandom.com/wiki/Kagurabachi_Wiki).
+
+![](https://static.wikia.nocookie.net/kagurabachi/images/f/f7/Ikuto_Hagiwara_Portrait.png/revision/latest?cb=20231206044607)
+
+## Research
+
+Jikai would not be where it was today without existing academia.  
+
+* [*Focused and Fun: A How-to Guide for
+Creating Hypotheticals for Law
+Students*](https://scribes.org/wp-content/uploads/2022/10/Simon-8.23.21.pdf) by Diana J. Simon
+* [*Reactive Hypotheticals in Legal Education: Leveraging AI to Create Interactive Fact Patterns*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4763738) by Sean Steward
+* [*Legal Theory Lexicon: Hypotheticals*](https://lsolum.typepad.com/legaltheory/2023/01/legal-theory-lexicon-hypotheticals.html) by Legal Theory Blog
