@@ -67,23 +67,26 @@ def query_hypothetical_generation_model(
 
 
 def query_agent_1_model(
-    client, topics, law_domain="tort", number_parties=3, model_name="llama2:7b"
+    client,
+    topics,
+    hypothetical,
+    law_domain="tort",
+    number_parties=3,
+    model_name="llama2:7b",
 ):
     """
     performs agentic workflow to evaluate whether the generated hypo
     adheres to specified parameters
-
-    FUA
-    add parse hypothetical logic from the json
     """
     agent_role = "heuristic_adherence_agent"
     topic_string = ", ".join(topics)
+    hypothetical_string = hypothetical.strip()
     complete_prompt = f"""
     You are an AI tasked with evaluating a law hypotheticals against specified parameters.
 
     Here is the hypothetical:
     
-    {hyothetical_string} 
+    {hypothetical_string} 
 
     Now, return boolean True or False for each of these statements, and an explanation for why the answer is True or False.
 
@@ -98,15 +101,20 @@ def query_agent_1_model(
     return (agent_role, raw_response)
 
 
-def query_agent_2_model(client, law_domain="tort", model_name="llama2:7b"):
+def query_agent_2_model(
+    client,
+    reference_hypothetical,
+    generated_hypothetical,
+    law_domain="tort",
+    model_name="llama2:7b",
+):
     """
     performs agentic workflow to evaluate how similar the generated hypo is to the
     example hypos extracted from the corpus
-
-    FUA
-    add parse both hypothetical logic from the json
     """
     agent_role = "corpus_similarity_agent"
+    reference_hypothetical_string = reference_hypothetical.strip()
+    generated_hypothetical_string = generated_hypothetical.strip()
     complete_prompt = f"""
     You are an AI tasked with comparing how similar two {law_domain} law hypotheticals are.
     
@@ -132,17 +140,15 @@ def query_agent_2_model(client, law_domain="tort", model_name="llama2:7b"):
 
 
 def query_legal_analysis_model(
-    client, all_topics, law_domain="tort", model_name="llama2:7b"
+    client, all_topics, hypothetical, law_domain="tort", model_name="llama2:7b"
 ):
     """
     performs rudimentary legal analysis on the generated hypo
     to provide a recommended response for users
-
-    FUA
-    add parse the finalised hypothetical from the json
     """
     agent_role = "legal_analysis_agent"
     topics_string = ", ".join(all_topics)
+    hypothetical_string = hypothetical.strip()
     complete_prompt = f"""
     You are an AI tasked with performing legal analysis on a {law_domain} law hypothetical.
     
