@@ -4,6 +4,15 @@
 
 Create law hypos.
 
+## Usage
+
+Build the local docker image.
+
+```console
+$ docker build -t jikai
+$ docker run jikai
+```
+
 ## Architecture
 
 ```mermaid
@@ -30,15 +39,6 @@ graph TD
     D -->|Invalid| M
     E -->|Invalid| M
     F -->|Issue generation| G(Recommended legal analysis)
-```
-
-## Usage
-
-Build the local docker image.
-
-```console
-$ docker build -t jikai
-$ docker run jikai
 ```
 
 ## References
