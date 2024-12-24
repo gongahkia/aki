@@ -155,9 +155,7 @@ def update_generic_log(log_filepath, identifier="generic_metadata"):
         entry_wrapper["process_duration"] = (
             local_process_end - process_start
         ).total_seconds()
-        entry_wrapper["process_end"] = (
-            local_process_end.strftime("%Y-%m-%d %H:%M:%S"),
-        )
+        entry_wrapper["process_end"] = local_process_end.strftime("%Y-%m-%d %H:%M:%S")
         final_wrapper = {
             identifier: entry_wrapper,
             "query_metadata": wrapper["query_metadata"],
