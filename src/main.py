@@ -9,17 +9,19 @@ if __name__ == "__main__":
 
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
     LOG_FILEPATH = "./generated_log/log.json"
-    ALL_TOPICS = []  # FUA to add all topics here
     TOPICS = ["battery", "assault", "rylands v fletcher"]
     SAMPLE_SIZE = 1
 
     h.remove_file(LOG_FILEPATH)
 
     corpus_data = h.load_corpus(TARGET_FILEPATH)
+    ALL_TOPICS = h.extract_all_topics(corpus_data)
+
+    h.write_generic_log(LOG_FILEPATH, ALL_TOPICS)
 
     if corpus_data is not None:
         original_context = h.query_relevant_text(corpus_data, TOPICS, 1)
-        h.write_reference_log(LOG_FILEPATH, original_context, TOPICS)
+        h.write_query_metadata_log(LOG_FILEPATH, original_context, TOPICS)
         client = a.start_model()
         if client:
 

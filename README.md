@@ -24,16 +24,24 @@ Use the Jikai webapp here.
 
 > TODO add more details here upon deployment
 
-### Build
+### Build 
 
-Build the local docker image.
+Build Jikai from source.
+
+#### Dependancies
+
+> TODO add more details here
+
+#### Instructions
+
+> TODO add more details here upon project completion
+
+Construct the local docker image.
 
 ```console
 $ docker build -t jikai
 $ docker run jikai
 ```
-
-> TODO add more details here upon project completion
 
 ## Architecture
 

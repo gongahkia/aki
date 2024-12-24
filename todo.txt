@@ -18,6 +18,7 @@ x (A) Implement a third "test agent" that is then meant to read the generated hy
 (A) Check whether the query_relevant_text() function in helper.py is working as expected when sample_size is larger than 1 @core @basis
 (A) Add a summary function called execute_XXX_workflow() similar to the one in elegant_elefant which handles everything to bundle all execution code within main.py @core @basis
 (A) Continue tweaking the prompts within query_model() function in helper.py to make them as specific as necessary @core @basis
+(A) Is there anywhere I can integrate monte carlo sampling or some other random sampling that then allows for human-in-the-loop validation of the generated hypotheticals and the generated legal analysis @core @basis
 
 (A) Determine if there are other possible variables I want to tweak in the prompt I generate for query_model, like number of parties, releavant issues, domain of law (contract, criminal, tort), etc, ask GPT for help with what other possible prompts there are @core @basis
 (A) Consider using a venv to run everything instead of downloading it to my system root @core @basis
