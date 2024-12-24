@@ -13,9 +13,6 @@ def nanoseconds_to_seconds(nanoseconds):
     return nanoseconds / 1_000_000_000.0
 
 
-import os
-
-
 def remove_file(target_filepath):
     """
     removes a file at the specified filepath if it exists
@@ -46,6 +43,16 @@ def load_corpus(filepath):
     except Exception as e:
         print(f"Error loading corpus: {e}")
         return None
+
+
+def extract_all_topics(corpus):
+    """
+    extracts the complete range of topics from the corpus
+
+    FUA continue tweaking this function
+    """
+    print([entry["topic"] for entry in corpus])
+    return None
 
 
 def query_relevant_text(corpus, topics, sample_size):
@@ -96,7 +103,7 @@ def sanitise_data(raw_response):
 
 
 def write_reference_log(
-    log_filepath, reference_data, topics, identifier="request_metadata"
+    log_filepath, reference_data, topics, identifier="query_metadata"
 ):
     """
     writes reference data extracted from the corpus and user-specified topics

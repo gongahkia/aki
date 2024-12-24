@@ -113,7 +113,7 @@ def query_agent_2_model(
     example hypos extracted from the corpus
     """
     agent_role = "corpus_similarity_agent"
-    reference_hypothetical_string = reference_hypothetical.strip()
+    reference_hypothetical_string = reference_hypothetical[0].strip()
     generated_hypothetical_string = generated_hypothetical.strip()
     complete_prompt = f"""
     You are an AI tasked with comparing how similar two {law_domain} law hypotheticals are.
