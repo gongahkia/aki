@@ -9,6 +9,7 @@ x (A) Implement another Ollama agent that then reviews the generated hypo and de
 x (A) Implement a second agentic check where another agent checks how similar the example hypo(s) and the generated hypo are to each other @core @basis
 x (A) Implement a third "test agent" that is then meant to read the generated hypo and answer a set of predetermined questions like number of parties, issue spotting etc and churn out possible topic sentencs @core @basis 
 
+(A) Debug seemingly broken main.py execution flow @core @basis
 (A) Figure out a single unified interface to specify all the user-desired configurations so that I don't have to specify it as a predefined value in every function @core @basis
 (A) For documentation's sake, note down all possible tort law topics that can be used to prompt the model to begin with, might have to go into the corpus to see @core @basis
 (A) Now add additional logic to parse the response of agent1 and agent2, and conditional flows where if either one check fails then flagged but if both failed the hypo is regenerated @core @basis
@@ -48,7 +49,6 @@ x (A) Implement a third "test agent" that is then meant to read the generated hy
 (B) Implementing agentic workflows to test and randomly sample the generated hypos and issues being spotted to validate the quality of each hypo @core @testing
 (B) Consider implementing a textbox or textarea for users to actually type their responses in so they can practise on the website itself @core @testing
 
-(B) Add a disclaimer to the README.md excusing myself of any and all liability particularly relating to defamation under libel, ask GPT for further legal advice as required @legal @admin
 (B) Look into launching the webapp with Jinja (https://jinja.palletsprojects.com/en/stable/) or another convenient to work with Python Web framework @web @feature
 (B) Figure out what technologies I can use to migrate jikai to a full-stack webapp @web @feature
 (B) Consider using flask or bottle (https://github.com/bottlepy/bottle) to handle the database interaction and backend routing logic @web @feature @backend
