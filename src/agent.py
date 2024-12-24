@@ -25,6 +25,7 @@ def query_hypothetical_generation_model(
 
     FUA continue to tweak this function, especially the prompts
     """
+    agent_role = "hypothetical_generation_agent"
     topic_string = ", ".join(topics)
     context_string = "\n\nHere is a hypothetical:\n".join(context)
     if len(context) == 1:
@@ -65,7 +66,7 @@ def query_hypothetical_generation_model(
         """
     print(complete_prompt)
     raw_response = client.generate(prompt=complete_prompt, model=model_name)
-    return raw_response
+    return (agent_role, raw_response)
 
 
 def query_agent_1_model(client, model_name="llama2:7b"):

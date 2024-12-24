@@ -8,6 +8,7 @@ import helper as h
 if __name__ == "__main__":
 
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
+    LOG_FILEPATH = "./generated_log/log.json"
     TOPICS = ["negligence", "trespass to land", "private nuisance"]
     SAMPLE_SIZE = 1
 
@@ -16,9 +17,10 @@ if __name__ == "__main__":
         context = h.query_relevant_text(corpus_data, TOPICS, 1)
         client = a.start_model()
         if client:
-            raw_response = a.query_hypotetical_generation_model(client, context, TOPICS)
-            fin = h.sanitise_data(raw_response)
-            print(fin)
+            (agent_role, raw_response) = a.query_hypotetical_generation_model(
+                client, context, TOPICS
+            )
+            h.write_agent_log(LOG_FILEPATH, agent_role, h.sanitise_data(raw_response))
             print("Success: Ok all done")
         else:
             print("Error: Unable to load model")
