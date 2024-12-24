@@ -13,7 +13,7 @@ graph TD
         Tagged --> A
     end
     A[(Labelled corpus)] -->|Extract Topic Specific Data|B
-    Y(User-specified configuration) --->|Extract Topics|A
+    Y([User-specified configuration]) --->|Extract Topics|A
     B[Reference data as context] --> M
     Y -->|Reformat| U
     U[Templated prompt] --> M[Combined prompt and context]
@@ -25,15 +25,11 @@ graph TD
         D -->|Valid| W[Validated law hypothetical]
         E -->|Valid| W
     end
-    
     W --> F{LLM Agent 3:<br>Performs Legal Analysis}
     W --->|Reformat| V(Final law hypothetical)
     D -->|Invalid| M
     E -->|Invalid| M
     F -->|Issue generation| G(Recommended legal analysis)
-    G -.-> K((User))
-    V -.-> K((User))
-    
 ```
 
 ## Usage
