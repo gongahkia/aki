@@ -43,7 +43,7 @@ def query_hypothetical_generation_model(
         3. Do not provide a breakdown of issues within the passage
         4. Do not provide anlaysis of the issues within the passage
         5. Ensure there are only {law_domain} law issues covered within the hypothetical.
-        6. Ensure the passage has ony {number_parties} parties involved.
+        6. Ensure the passage has only {number_parties} parties involved.
         7. Ensure that there are no overlaps in names, situations or content. 
         """
     else:
@@ -61,7 +61,7 @@ def query_hypothetical_generation_model(
         3. Do not provide a breakdown of issues within the passage
         4. Do not provide anlaysis of the issues within the passage
         5. Ensure there are only {law_domain} law issues covered within the hypothetical.
-        6. Ensure the passage has ony {number_parties} parties involved.
+        6. Ensure the passage has only {number_parties} parties involved.
         7. Ensure that there are no overlaps in names, situations or content. 
         """
     print(complete_prompt)
