@@ -13,7 +13,7 @@ if __name__ == "__main__":
     TOPICS = ["battery", "assault", "rylands v fletcher"]
     SAMPLE_SIZE = 1
 
-    h.remove_file(TARGET_FILEPATH)
+    h.remove_file(LOG_FILEPATH)
 
     corpus_data = h.load_corpus(TARGET_FILEPATH)
 

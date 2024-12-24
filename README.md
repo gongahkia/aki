@@ -7,7 +7,24 @@
 
 Create law hypos.
 
+## Rationale
+
+> TODO add more details here once the project is done
+
 ## Usage
+
+There are currently two ways to use Jikai.
+
+1. [Access the webapp](#web)
+2. [Build it yourself](#build)
+
+### App
+
+Use the Jikai webapp here.
+
+> TODO add more details here upon deployment
+
+### Build
 
 Build the local docker image.
 
@@ -15,6 +32,8 @@ Build the local docker image.
 $ docker build -t jikai
 $ docker run jikai
 ```
+
+> TODO add more details here upon project completion
 
 ## Architecture
 
