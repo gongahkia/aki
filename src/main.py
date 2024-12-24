@@ -13,10 +13,13 @@ if __name__ == "__main__":
     TOPICS = ["battery", "assault", "rylands v fletcher"]
     SAMPLE_SIZE = 1
 
+    h.remove_file(TARGET_FILEPATH)
+
     corpus_data = h.load_corpus(TARGET_FILEPATH)
+
     if corpus_data is not None:
         original_context = h.query_relevant_text(corpus_data, TOPICS, 1)
-        h.write_reference_log(LOG_FILEPATH, original_context)
+        h.write_reference_log(LOG_FILEPATH, original_context, TOPICS)
         client = a.start_model()
         if client:
 
@@ -54,7 +57,10 @@ if __name__ == "__main__":
             h.write_agent_log(LOG_FILEPATH, agent_role, s4)
 
             print("Success: Ok all done")
+
         else:
+
             print("Error: Unable to load model")
+
     else:
         print("Error: Failed to load the corpus.")

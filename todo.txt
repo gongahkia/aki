@@ -9,6 +9,7 @@ x (A) Implement another Ollama agent that then reviews the generated hypo and de
 x (A) Implement a second agentic check where another agent checks how similar the example hypo(s) and the generated hypo are to each other @core @basis
 x (A) Implement a third "test agent" that is then meant to read the generated hypo and answer a set of predetermined questions like number of parties, issue spotting etc and churn out possible topic sentencs @core @basis 
 
+(A) Figure out a single unified interface to specify all the user-desired configurations so that I don't have to specify it as a predefined value in every function @core @basis
 (A) For documentation's sake, note down all possible tort law topics that can be used to prompt the model to begin with, might have to go into the corpus to see @core @basis
 (A) Now add additional logic to parse the response of agent1 and agent2, and conditional flows where if either one check fails then flagged but if both failed the hypo is regenerated @core @basis
 (A) Consider finetuning the prompt for the legal analysis agent to ask for it to also deliver its response in a structured fashion like IRAC and to deliver specific topic sentences @core @basis

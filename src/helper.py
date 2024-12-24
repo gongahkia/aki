@@ -13,6 +13,28 @@ def nanoseconds_to_seconds(nanoseconds):
     return nanoseconds / 1_000_000_000.0
 
 
+import os
+
+
+def remove_file(target_filepath):
+    """
+    removes a file at the specified filepath if it exists
+    """
+    try:
+        if os.path.isfile(target_filepath):
+            os.remove(target_filepath)
+            print(f"Success: File {target_filepath} has been removed.")
+            return True
+        else:
+            print(f"Warning: File {target_filepath} does not exist.")
+            return False
+    except Exception as e:
+        print(
+            f"Error: Unable to remove file {target_filepath} due to an exception: {e}"
+        )
+        return False
+
+
 def load_corpus(filepath):
     """
     reads the local corpus json file and
@@ -73,10 +95,12 @@ def sanitise_data(raw_response):
     }
 
 
-def write_reference_log(log_filepath, reference_data, identifier="reference_context"):
+def write_reference_log(
+    log_filepath, reference_data, topics, identifier="request_metadata"
+):
     """
-    writes reference data extracted from the corpus to the json
-    at the specified filepath
+    writes reference data extracted from the corpus and user-specified topics
+    to the json at the specified filepath
     """
     try:
         if not os.path.exists(log_filepath):
@@ -91,7 +115,7 @@ def write_reference_log(log_filepath, reference_data, identifier="reference_cont
             print(
                 f"Error: Component '{identifier}' already exists in log file at {log_filepath}. Overwriting existing entry with new data."
             )
-        wrapper[identifier] = reference_data
+        wrapper[identifier] = {"topics": topics, "context": reference_data}
         with open(log_filepath, "w") as json_file:
             json.dump(wrapper, json_file, indent=4)
         print(
