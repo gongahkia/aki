@@ -3,6 +3,7 @@ x (A) Add hardcoded function to helper.py that scans hypos within the corpus for
 x (A) Consider implementing the above idea but maintaining the langchain vector store for the hypos cherry-picked by topic for prompting so that the actual hypos fed can still be recalled by the pretrained internal ollama model's context @core @basis
 x (A) Add a function that chooses how many of the relevant_text_data to provide, then filters them by importance or integrate this into the query_relevant_text() function @core @basis
 
+(A) Add a summary function called execute_XXX_workflow() similar to the one in elegant_elefant which handles everything to bundle all execution code within main.py @core @basis
 (A) For debugging purposes, integrate a logging function that logs all parameters and outputs to local JSON files similar to what I did for Elefant's data validaiton pipeline @core @basis
 (A) For documentation's sake, note down all possible tort law topics that can be used to prompt the model to begin with, might have to go into the corpus to see @core @basis
 (A) Check whether the query_relevant_text() function in helper.py is working as expected when sample_size is larger than 1 @core @basis

@@ -1,5 +1,6 @@
 # ----- required imports -----
 
+import agent as a
 import helper as h
 
 # ----- sample execution code -----
@@ -13,9 +14,9 @@ if __name__ == "__main__":
     corpus_data = h.load_corpus(TARGET_FILEPATH)
     if corpus_data is not None:
         context = h.query_relevant_text(corpus_data, TOPICS, 1)
-        client = h.start_model()
+        client = a.start_model()
         if client:
-            raw_response = h.query_model(client, context, TOPICS)
+            raw_response = a.query_hypotetical_generation_model(client, context, TOPICS)
             fin = h.sanitise_data(raw_response)
             print(fin)
             print("Success: Ok all done")
