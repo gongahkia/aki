@@ -15,6 +15,7 @@ if __name__ == "__main__":
     corpus_data = h.load_corpus(TARGET_FILEPATH)
     if corpus_data is not None:
         context = h.query_relevant_text(corpus_data, TOPICS, 1)
+        h.write_reference_log(LOG_FILEPATH, context)
         client = a.start_model()
         if client:
             (agent_role, raw_response) = a.query_hypothetical_generation_model(
