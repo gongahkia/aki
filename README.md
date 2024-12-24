@@ -8,23 +8,32 @@ Create law hypos.
 
 ```mermaid
 graph TD
-    Z([Raw data]) -->|Indexed and labelled| A
+    subgraph "Data Preparation"
+        Corpus@{ shape: docs } -->|Indexed| Tagged@{ shape: tag-doc }
+        Tagged --> A
+    end
     A[(Labelled corpus)] -->|Extract Topic Specific Data|B
-    Y(User-specified configuration) -->|Extract Topics|A
+    Y(User-specified configuration) --->|Extract Topics|A
     B[Reference data as context] --> M
     Y -->|Reformat| U
     U[Templated prompt] --> M[Combined prompt and context]
-    M -->|Prompt| C{LLM Hypothetical Generation Model}
-    C -->|Generate scenario| X[Law hypothetical]
-    X --> D{LLM Agent 1:<br>Adherence to Parameters Check}
-    X --> E{LLM Agent 2:<br>Similarity to Corpus Check}
-    D -->|Valid| W[Validated law hypothetical]
-    E -->|Valid| W
+    subgraph "Agentic Checks"
+        M -->|Prompt| C{LLM Hypothetical Generation Model}
+        C -->|Generate scenario| X[Law hypothetical]
+        X --> D{LLM Agent 1:<br>Adherence to Parameters Check}
+        X --> E{LLM Agent 2:<br>Similarity to Corpus Check}
+        D -->|Valid| W[Validated law hypothetical]
+        E -->|Valid| W
+    end
+    
     W --> F{LLM Agent 3:<br>Performs Legal Analysis}
-    W -->|Reformat| V(Final law hypothetical)
+    W --->|Reformat| V(Final law hypothetical)
     D -->|Invalid| M
     E -->|Invalid| M
     F -->|Issue generation| G(Recommended legal analysis)
+    G -.-> K((User))
+    V -.-> K((User))
+    
 ```
 
 ## Usage
