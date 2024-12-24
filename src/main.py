@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     TARGET_FILEPATH = "./../corpus/clean/tort/corpus.json"
     LOG_FILEPATH = "./generated_log/log.json"
-    TOPICS = ["battery", "assault", "rylands v fletcher"]
+    TOPICS = ["harassment", "strict liability"]
     SAMPLE_SIZE = 1
 
     h.remove_file(LOG_FILEPATH)

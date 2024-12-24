@@ -120,10 +120,10 @@ def write_generic_log(log_filepath, all_topics, identifier="generic_metadata"):
             )
         start_time = datetime.now()
         wrapper[identifier] = {
-            "all_topics": all_topics,
             "process_start": start_time.strftime("%Y-%m-%d %H:%M:%S"),
             "process_end": None,
             "process_duration": None,
+            "all_topics": all_topics,
         }
         with open(log_filepath, "w") as json_file:
             json.dump(wrapper, json_file, indent=4)
@@ -151,10 +151,13 @@ def update_generic_log(log_filepath, identifier="generic_metadata"):
         entry_wrapper = wrapper[identifier]
         process_start = datetime.fromisoformat(entry_wrapper["process_start"])
         entry_wrapper["process_end"] = datetime.now().isoformat()
-        process_end = datetime.fromisoformat(entry_wrapper["process_end"])
+        local_process_end = datetime.fromisoformat(entry_wrapper["process_end"])
         entry_wrapper["process_duration"] = (
-            process_end - process_start
+            local_process_end - process_start
         ).total_seconds()
+        entry_wrapper["process_end"] = (
+            local_process_end.strftime("%Y-%m-%d %H:%M:%S"),
+        )
         final_wrapper = {
             identifier: entry_wrapper,
             "query_metadata": wrapper["query_metadata"],
