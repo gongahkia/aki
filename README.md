@@ -18,10 +18,12 @@ graph TD
     C -->|Generate scenario| X[Law hypothetical]
     X --> D{LLM Agent 1:<br>Adherence to Parameters Check}
     X --> E{LLM Agent 2:<br>Similarity to Corpus Check}
-    D -->|Pass| F{LLM Agent 3:<br>Performs Legal Analysis}
-    E -->|Pass| F
-    D -->|Fail| M
-    E -->|Fail| M
+    D -->|Valid| W[Validated law hypothetical]
+    E -->|Valid| W
+    W --> F{LLM Agent 3:<br>Performs Legal Analysis}
+    W -->|Reformat| V(Final law hypothetical)
+    D -->|Invalid| M
+    E -->|Invalid| M
     F -->|Issue generation| G(Recommended legal analysis)
 ```
 
