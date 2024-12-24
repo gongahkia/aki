@@ -2,22 +2,27 @@ x (A) Collate available Tort law, Contract 1, Contract 2 and Crim law hypo datas
 x (A) Add hardcoded function to helper.py that scans hypos within the corpus for the relevant subject tags first against the subject tags specified by the user, then trains and queries the local model based on those only. @basis @core
 x (A) Consider implementing the above idea but maintaining the langchain vector store for the hypos cherry-picked by topic for prompting so that the actual hypos fed can still be recalled by the pretrained internal ollama model's context @core @basis
 x (A) Add a function that chooses how many of the relevant_text_data to provide, then filters them by importance or integrate this into the query_relevant_text() function @core @basis
+x (A) For debugging purposes, integrate a logging function that logs all parameters and outputs to local JSON files similar to what I did for Elefant's data validaiton pipeline @core @basis
+x (A) For debugging's sake, add a logging function that logs these respective agent's outputs and judgements as well @core @basis
+x (A) Add a mermaid diagram that explains this workflow in the README.md @core @basis
 
-(A) Add a summary function called execute_XXX_workflow() similar to the one in elegant_elefant which handles everything to bundle all execution code within main.py @core @basis
-(A) For debugging purposes, integrate a logging function that logs all parameters and outputs to local JSON files similar to what I did for Elefant's data validaiton pipeline @core @basis
-(A) For documentation's sake, note down all possible tort law topics that can be used to prompt the model to begin with, might have to go into the corpus to see @core @basis
 (A) Check whether the query_relevant_text() function in helper.py is working as expected when sample_size is larger than 1 @core @basis
+(A) Add a summary function called execute_XXX_workflow() similar to the one in elegant_elefant which handles everything to bundle all execution code within main.py @core @basis
+(A) For documentation's sake, note down all possible tort law topics that can be used to prompt the model to begin with, might have to go into the corpus to see @core @basis
+
 (A) Continue tweaking the prompts within query_model() function in helper.py to make them as specific as necessary @core @basis
+
 (A) Implement another Ollama agent that then reviews the generated hypo and determines whether the specified topics are present, if even one is missing then regenerate hypo as part of an agentic workflow @core @basis
 (A) Implement a second agentic check where another agent checks how similar the example hypo(s) and the generated hypo are to each other @core @basis
 (A) Implement a third "test agent" that is then meant to read the generated hypo and answer a set of predetermined questions like number of parties, issue spotting etc and churn out possible topic sentencs @core @basis 
-(A) For debugging's sake, add a logging function that logs these respective agent's outputs and judgements as well @core @basis
+
 (A) Determine if there are other possible variables I want to tweak in the prompt I generate for query_model, like number of parties, releavant issues, domain of law (contract, criminal, tort), etc, ask GPT for help with what other possible prompts there are @core @basis
-(A) Add a mermaid diagram that explains this workflow in the README.md @core @basis
 (A) Consider using a venv to run everything instead of downloading it to my system root @core @basis
 (A) Also clean up the requirements.txt file to ensure unneeded dependancies are not being installed @core @basis
 
-(B) Also consider what other available ollama models there are that are better at creative and coherent text/scenario/hypotheticals generation, ask GPT for help with this as well @core @basis
+(A) Also consider what other available ollama models there are that are better at creative and coherent text/scenario/hypotheticals generation, ask GPT for help with this as well @core @basis
+
+
 
 (A) Train these local Ollama models with long-term context by using tools like MEMORYBANK or HAYSTACK so memory can be retained based on the hypo data across sessions @core @basis
 (A) Look into other alternatives that allow local LLM models to retain context and memory across query sessions, ask GPT and perplexity ai for help @core @basis
