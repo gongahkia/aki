@@ -67,17 +67,14 @@ def query_hypothetical_generation_model(
 
 
 def query_agent_1_model(
-    client, context, topics, law_domain="tort", number_parties=3, model_name="llama2:7b"
+    client, topics, law_domain="tort", number_parties=3, model_name="llama2:7b"
 ):
     """
     performs agentic workflow to evaluate whether the generated hypo
     adheres to specified parameters
 
     FUA
-    to add implementation and specify return type as a json consisting of a boolean
-    and string explanation
-
-    add parse hypothetical logic
+    add parse hypothetical logic from the json
     """
     agent_role = "heuristic_adherence_agent"
     topic_string = ", ".join(topics)
@@ -101,20 +98,17 @@ def query_agent_1_model(
     return (agent_role, raw_response)
 
 
-def query_agent_2_model(client, model_name="llama2:7b"):
+def query_agent_2_model(client, law_domain="tort", model_name="llama2:7b"):
     """
     performs agentic workflow to evaluate how similar the generated hypo is to the
     example hypos extracted from the corpus
 
     FUA
-    to add implementation and specify return type as a json consisting of a float that
-    then is checked against a hardcoded heuristic value and the model's string explanation
-
-    add parse hypothetical logic
+    add parse both hypothetical logic from the json
     """
     agent_role = "corpus_similarity_agent"
     complete_prompt = f"""
-    You are an AI tasked with comparing how similar two law hypotheticals are.
+    You are an AI tasked with comparing how similar two {law_domain} law hypotheticals are.
     
     Here is the first hypothetical:
     
@@ -128,35 +122,40 @@ def query_agent_2_model(client, model_name="llama2:7b"):
 
     1. The hypotheticals are more different than they are similar.
     2. The hypotheticals are more similar than they are different.
+    3. The hypotheticals have overlaps in names.
+    4. The hypotheticals have overlaps in situations.
+    5. The hypotheticals have overlaps in content. 
     """
     print(complete_prompt)
     raw_response = client.generate(prompt=complete_prompt, model=model_name)
     return (agent_role, raw_response)
 
 
-def query_legal_analysis_model(client, all_topics, model_name="llama2:7b"):
+def query_legal_analysis_model(
+    client, all_topics, law_domain="tort", model_name="llama2:7b"
+):
     """
     performs rudimentary legal analysis on the generated hypo
     to provide a recommended response for users
 
     FUA
-    to add implementation and specify return type as a json consisting of a string and see
-    if the prompt can be specified so that the return is point-form which can then be .split()
-    and sanitised further
+    add parse the finalised hypothetical from the json
     """
     agent_role = "legal_analysis_agent"
     topics_string = ", ".join(all_topics)
     complete_prompt = f"""
-    You are an AI tasked with performing legal analysis on a law hypothetical.
+    You are an AI tasked with performing legal analysis on a {law_domain} law hypothetical.
     
-    Here is the law hypothetical:
+    Here is the {law_domain} law hypothetical:
     
     {hypothetical_string}
 
     Now, answer exactly the following questions. Only include explanations when explicitly requested. 
 
-    1. What {law_domain} law issues are present? Mention only relevant issues from this list of topics: {topics_string}
-    2. Who could be liable for these legal issues under {law_domain} law?
+    1. How many parties are present in the hypothetical?
+    2. What {law_domain} law issues are present? Mention only relevant issues from this list of topics: {topics_string}
+    3. Which parties are liable for these legal issues under {law_domain} law? Provide explanations.
+    4. Which parties can claim damages for these legal issues under {law_domain} law? Provide explanations.
     """
     print(complete_prompt)
     raw_response = client.generate(prompt=complete_prompt, model=model_name)
