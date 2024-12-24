@@ -58,6 +58,9 @@ if __name__ == "__main__":
             s4 = h.sanitise_data(raw_response)
             h.write_agent_log(LOG_FILEPATH, agent_role, s4)
 
+            # --- process end ---
+
+            h.update_generic_log(LOG_FILEPATH)
             print("Success: Ok all done")
 
         else:
