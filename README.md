@@ -3,7 +3,7 @@
 > [!IMPORTANT]  
 > Please read through the [disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).  
 
-# `Jikai`
+# `Jikai` 🧲
 
 Create, share and review law hypotheticals.
 
