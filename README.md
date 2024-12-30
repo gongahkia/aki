@@ -1,27 +1,21 @@
-[![](https://img.shields.io/badge/jikai_1.0-build-orange)](https://github.com/gongahkia/jikai/releases/tag/1.0)
+[![](https://img.shields.io/badge/jikai_1.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0) [![](https://img.shields.io/badge/jikai_2.0-build-orange)](https://github.com/gongahkia/jikai/releases/tag/2.0)
 
 > [!IMPORTANT]  
-> Please read through the [disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).  
+> Please read through [this disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).  
 
 # `Jikai` 🧲
 
 Create, share and review law hypotheticals.
 
-> TODO add a handdrawn logo
-
-![]()
-
 ## Rationale
 
-Over the finals season in December 2024, I found myself wishing I had more tort law [hypotheticals](https://successatmls.com/hypos/) to practise on aside from those [my professor](https://www.linkedin.com/in/jerroldsoh/?originalSubdomain=sg) had provided.
+Over the finals season in December 2024, I found myself wishing I had more tort law [hypotheticals](https://successatmls.com/hypos/) to practise on aside from those [my professor](https://www.linkedin.com/in/jerroldsoh/?originalSubdomain=sg) had provided.  
   
-A [quick search](https://www.reddit.com/r/LawSchool/comments/16istgs/where_to_find_hypos/) reveals this sentiment is shared by many studying law, even [outside of Singapore](https://www.reddit.com/r/findareddit/comments/ssr9wk/a_community_for_hypothetical_legal_questions/).
-  
-Conducting a [Linkedin poll](https://www.linkedin.com/posts/gabriel-zmong_smu-law-linkedin-activity-7269531363463049217-DXUm?utm_source=share&utm_medium=member_desktop) drew roughly the same results.
+A [quick google search](https://www.reddit.com/r/LawSchool/comments/16istgs/where_to_find_hypos/) revealed this sentiment was shared by many studying law, even [outside of Singapore](https://www.reddit.com/r/findareddit/comments/ssr9wk/a_community_for_hypothetical_legal_questions/). Conducting a [Linkedin poll](https://www.linkedin.com/posts/gabriel-zmong_smu-law-linkedin-activity-7269531363463049217-DXUm?utm_source=share&utm_medium=member_desktop) confirmed these results.
 
 ![](./asset/poll.png)
 
-With these considerations in mind, I created Jikai, a tool premised on the belief that legal principles are best understood when continuously practised and applied.  
+With these considerations in mind, I created Jikai.
 
 Jikai is a unified website-as-a-platform for *law [students](https://www.goodreads.com/quotes/3206899-a-man-cannot-understand-the-art-he-is-studying-if)* to generate, practise and contribute law hypotheticals.
 
@@ -39,26 +33,26 @@ There are currently two ways to use Jikai.
 
 ### App
 
-Use the Jikai webapp here.
-
 > TODO add more details here upon deployment
 
-### Build 
+Use the Jikai webapp here.
 
-Build Jikai from source.
+### Build Jikai
 
-#### Dependancies
-
-> TODO add more details here
-
-#### Instructions
-
-> TODO add more details here upon project completion
-
-Construct the local docker image.
+#### Build from source
 
 ```console
-$ docker build -t jikai
+$ git clone https://github.com/gongahkia/jikai
+$ make config
+$ cd ./src
+$ python3 main.py
+```
+
+#### Build a Docker image
+
+```console
+$ git clone https://github.com/gongahkia/jikai
+$ docker build -t jikai ./jikai
 $ docker run jikai
 ```
 

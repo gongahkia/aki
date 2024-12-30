@@ -12,6 +12,7 @@ x (A) Finish the extract_all_topics() function within helper.py @core @basis
 x (A) Debug seemingly broken main.py execution flow @core @basis
 x (A) For documentation's sake, note down all possible tort law topics that can be used to prompt the model to begin with, might have to go into the corpus to see @core @basis
 
+(A) Add this "Because legal principles are best understood when continuously practised and applied." to the Jikai webapp when it launches @core @basis
 (A) Handdraw a logo similar to the yuho one but use a diffent icon, maybe a pillbug, then add to the README.md @core @basis
 (A) Now add additional logic to parse each of the responses from agent1 and agent2, and conditional flows where if either one check fails then flagged but if both failed the hypo is regenerated @core @basis
 (A) Figure out a single unified interface to specify all the user-desired configurations as constants so that I don't have to specify it as a predefined value in every function @core @basis
