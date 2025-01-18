@@ -5,7 +5,7 @@
 
 # `Jikai` 🧲
 
-Create, share and review law hypotheticals.
+Practise makes permenant.
 
 ## Rationale
 
