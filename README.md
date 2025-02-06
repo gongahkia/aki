@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0) [![](https://img.shields.io/badge/jikai_2.0.0-build-orange)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
+[![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0) [![](https://img.shields.io/badge/jikai_1.1.0-build-orange)](https://github.com/gongahkia/jikai/releases/tag/1.1.0)
 
 > [!IMPORTANT]  
 > Please read through [this disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).  
