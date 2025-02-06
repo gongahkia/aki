@@ -17,7 +17,7 @@ A [quick google search](https://www.reddit.com/r/LawSchool/comments/16istgs/wher
 
 With these considerations in mind, I created Jikai.
 
-Jikai is a unified website-as-a-platform for *law [students](https://www.goodreads.com/quotes/3206899-a-man-cannot-understand-the-art-he-is-studying-if)* to generate, practise and contribute law hypotheticals.
+Jikai is a tool for *law [students](https://www.goodreads.com/quotes/3206899-a-man-cannot-understand-the-art-he-is-studying-if)* to generate, practise and contribute law hypotheticals.
 
 Current applications are focused on [Singapore Tort Law](https://www.sal.org.sg/Resources-Tools/Publications/Overview/PublicationsDetails/id/183) but [other domains of law](https://lawforcomputerscientists.pubpub.org/pub/d3mzwako/release/7) can be easily swapped in.
 
@@ -26,20 +26,7 @@ Current applications are focused on [Singapore Tort Law](https://www.sal.org.sg/
 
 ## Usage
 
-There are currently two ways to use Jikai.
-
-1. [Access the webapp](#app)
-2. [Build it yourself](#build)
-
-### App
-
-> TODO add more details here upon deployment
-
-Use the Jikai webapp here.
-
-### Build Jikai
-
-#### Build from source
+### Build from source
 
 ```console
 $ git clone https://github.com/gongahkia/jikai
@@ -48,7 +35,7 @@ $ cd ./src
 $ python3 main.py
 ```
 
-#### Build a Docker image
+### Build a Docker image
 
 ```console
 $ git clone https://github.com/gongahkia/jikai
