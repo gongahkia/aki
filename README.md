@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0) [![](https://img.shields.io/badge/jikai_1.1.0-build-orange)](https://github.com/gongahkia/jikai/releases/tag/1.1.0)
+[![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0) 
 
 > [!IMPORTANT]  
 > Please read through [this disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).  
@@ -44,6 +44,56 @@ $ docker run jikai
 ```
 
 ## Architecture
+
+### DB
+
+Processed hypotheticals are stored in [ChromaDB](https://www.trychroma.com/) per the below schema.
+
+```mermaid
+erDiagram
+    HYPOTHETICAL {
+        int id PK
+        string content
+        vector embedding
+        timestamp created_at
+        timestamp updated_at
+    }
+    TAG {
+        int id PK
+        string name
+        string description
+    }
+    TOPIC {
+        int id PK
+        string name
+        string description
+    }
+    HYPOTHETICAL_TAG {
+        int hypothetical_id FK
+        int tag_id FK
+    }
+    HYPOTHETICAL_TOPIC {
+        int hypothetical_id FK
+        int topic_id FK
+    }
+    VALIDATION_RESULT {
+        int id PK
+        int hypothetical_id FK
+        boolean adherence_check
+        boolean similarity_check
+        float adherence_score
+        float similarity_score
+        timestamp validated_at
+    }
+
+    HYPOTHETICAL ||--o{ HYPOTHETICAL_TAG : "has"
+    TAG ||--o{ HYPOTHETICAL_TAG : "belongs to"
+    HYPOTHETICAL ||--o{ HYPOTHETICAL_TOPIC : "relates to"
+    TOPIC ||--o{ HYPOTHETICAL_TOPIC : "categorizes"
+    HYPOTHETICAL ||--o{ VALIDATION_RESULT : "undergoes"
+```
+
+### Overview
 
 ```mermaid
 graph TD
