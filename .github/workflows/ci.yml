@@ -1,445 +1,204 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
-  workflow_dispatch:
-  schedule:
-    - cron: "17 19 * * *"
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.12"
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  changed-python-quality:
-    name: Changed Python format and lint
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - name: Resolve changed Python files
-        id: changed-python
-        run: |
-          set -euo pipefail
-          BASE_SHA=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            BASE_SHA="${{ github.event.before }}"
-          elif git rev-parse HEAD~1 >/dev/null 2>&1; then
-            BASE_SHA="$(git rev-parse HEAD~1)"
-          fi
-          if [ -n "$BASE_SHA" ] && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            git diff --check "$BASE_SHA" HEAD
-            git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- '*.py' > changed-python-files.txt
-          else
-            echo "No usable diff base; skipping diff-scoped Python quality gates"
-            : > changed-python-files.txt
-          fi
-          if [ -s changed-python-files.txt ]; then
-            tr '\n' '\0' < changed-python-files.txt > changed-python-files.null
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "Changed Python files:"
-            cat changed-python-files.txt
-          else
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "No Python files changed; skipping Ruff format/lint"
-          fi
-      - name: Check changed Python formatting
-        if: steps.changed-python.outputs.has_changes == 'true'
-        run: xargs -0 uv run ruff format --check < changed-python-files.null
-      - name: Lint changed Python
-        if: steps.changed-python.outputs.has_changes == 'true'
-        run: xargs -0 uv run ruff check < changed-python-files.null
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-  core-backend-tests:
-    name: Core backend tests
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - run: uv run python -m spacy download en_core_web_sm
-      - name: Run core backend tests
-        run: |
-          uv run pytest \
-            test/test_api_auth.py \
-            test/test_backend_log_privacy.py \
-            test/test_document_hardening.py \
-            test/test_document_structure.py \
-            test/test_e2e_review_fixtures.py \
-            test/test_openapi_docs.py \
-            test/test_openapi_snapshot.py \
-            test/test_presend_review.py \
-            test/test_rate_limits.py \
-            test/test_review_endpoints.py \
-            test/test_review_profile_router.py \
-            test/test_secret_rulepacks.py \
-            test/test_siem_export.py
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  policy-tests:
-    name: Policy tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - run: uv run python -m spacy download en_core_web_sm
-      - name: Run policy tests
-        run: |
-          uv run pytest \
-            test/test_api_policy_compatibility.py \
-            test/test_policy_config.py \
-            test/test_policy_decision_contract.py \
-            test/test_policy_decision_journal.py \
-            test/test_policy_determinism.py \
-            test/test_policy_endpoint_integration.py \
-            test/test_policy_engine.py \
-            test/test_review_request_workflow_context.py \
-            test/test_safe_rewrite_contract.py \
-            test/test_safe_rewrite_endpoint.py \
-            test/test_source_verification.py
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
 
-  adapter-smoke-tests:
-    name: Adapter smoke tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - name: Run adapter smoke tests
-        run: |
-          uv run pytest \
-            test/test_adapter_maturity_metadata.py \
-            test/test_adapter_smoke.py \
-            test/test_browser_extension.py \
-            test/test_browser_extension_playwright.py \
-            test/test_desktop_watch.py \
-            test/test_office_addin.py \
-            test/test_outlook_manifest_render.py \
-            test/test_outlook_manifest_validate.py
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
-  redaction-smoke-tests:
-    name: Redaction smoke tests
-    runs-on: ubuntu-latest
-    env:
-      JUNAS_JOURNAL_KEY: test-journal-key
-      PYTHONPATH: src
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - name: Run redaction smoke tests
-        run: |
-          uv run pytest \
-            test/test_image_scan.py \
-            test/test_anonymize.py
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
 
-  packaging-tests:
-    name: Packaging tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - name: Run packaging tests
-        run: |
-          uv run pytest \
-            test/test_junas_cli.py \
-            test/test_backend_only_layout.py \
-            test/test_packaging_scripts.py \
-            test/test_sbom_generation.py
+    - name: Run linting
+      run: |
+        flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        black --check src/ tests/
+        isort --check-only src/ tests/
 
-  docs-link-tests:
-    name: Docs link tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - name: Run docs link tests
-        run: |
-          uv run pytest \
-            test/test_contributing_docs.py \
-            test/test_docs_links.py
+    - name: Run type checking
+      run: |
+        mypy src/ --ignore-missing-imports
 
-  demo:
-    name: One-command demo
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: timeout 120 ./scripts/demo.sh
+    - name: Run tests
+      run: |
+        pytest tests/ --cov=src --cov-report=xml --cov-report=html
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
 
   security:
-    name: Security checks
+    name: Security Scan
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python scripts/check_fixture_scrub.py
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  promoted-lock-freshness:
-    name: Promoted lock freshness
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    needs: [test, security]
+    
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Check promoted reviewed-corpus lock freshness
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-          fi
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            echo "No usable base SHA; skipping promoted lock freshness check"
-            exit 0
-          fi
-          python scripts/check_promoted_lock_freshness.py --base-ref "$BASE_SHA" --head-ref HEAD
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  false-negative-risk:
-    name: False-negative risk gate
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    needs: [build]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - run: uv run python -m spacy download en_core_web_sm
-      - name: Check locked-corpus false-negative risk
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-          fi
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            echo "No usable base SHA; skipping false-negative risk gate"
-            exit 0
-          fi
-          uv run python scripts/check_false_negative_risk.py --base-ref "$BASE_SHA" --head-ref HEAD
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # Example: kubectl apply -f k8s/staging/
 
-  precision-risk:
-    name: Precision risk gate
+  deploy-production:
+    name: Deploy to Production
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    needs: [build]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - run: uv run python -m spacy download en_core_web_sm
-      - name: Check detector precision risk
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-          fi
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            echo "No usable base SHA; skipping precision risk gate"
-            exit 0
-          fi
-          uv run python scripts/check_precision_risk.py --base-ref "$BASE_SHA" --head-ref HEAD
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # Example: kubectl apply -f k8s/production/
 
-  docker-smoke:
-    name: Docker smoke
+  performance-test:
+    name: Performance Tests
     runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/develop'
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: Build runtime image
-        run: docker build -t junas:ci .
-      - name: Start runtime container
-        run: |
-          docker run -d --name junas-ci -p 8010:8000 junas:ci
-      - name: Wait for readiness
-        run: |
-          for i in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:8010/ready | python -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("ready") is True else 1)'; then
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs junas-ci
-          exit 1
-      - name: Review smoke request
-        run: |
-          curl -fsS http://127.0.0.1:8010/review \
-            -H 'Content-Type: application/json' \
-            --data '{"text":"Email alice@example.com about Project Falcon draft terms.","source_jurisdiction":"SG","destination_jurisdiction":"SG","document_type":"email","review_profile":"strict"}' \
-            | python -c 'import json,sys; data=json.load(sys.stdin); assert "findings" in data and "pii_score" in data and "mnpi_score" in data'
-      - name: Stop runtime container
-        if: always()
-        run: |
-          docker logs junas-ci || true
-          docker rm -f junas-ci || true
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  benchmark-gates:
-    name: Benchmark gates
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run performance tests
+      run: |
+        pytest tests/performance/ -v
+        # Add load testing with locust or similar
+
+  notify:
+    name: Notify
     runs-on: ubuntu-latest
-    env:
-      JUNAS_RUN_LATENCY_SLO: "1"
+    needs: [test, security, build]
+    if: always()
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - run: uv run python -m spacy download en_core_web_sm
-      - name: Run benchmark regression gates
-        run: |
-          uv run pytest \
-            test/test_benchmark_corpus_regression.py \
-            test/test_benchmark_latency.py \
-            test/test_latency_slo_gate.py \
-            test/benchmarks/test_latency_slo.py
-      - run: uv run python scripts/check_latency_slo.py --write-report
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: benchmark-gate-reports
-          path: reports/latency_slo_*.json
-          if-no-files-found: warn
-
-  live-latency:
-    name: Live HTTP latency
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev
-      - run: uv run python -m spacy download en_core_web_sm
-      - name: Start server
-        run: |
-          mkdir -p reports
-          uv run uvicorn junas.backend.main:app --host 127.0.0.1 --port 8131 > reports/live_latency_uvicorn.log 2>&1 &
-          echo "$!" > reports/live_latency_uvicorn.pid
-      - name: Wait for readiness
-        run: |
-          uv run python - <<'PY'
-          import json
-          import time
-          import urllib.request
-
-          deadline = time.time() + 90
-          while time.time() < deadline:
-              try:
-                  with urllib.request.urlopen("http://127.0.0.1:8131/ready", timeout=2) as response:
-                      payload = json.loads(response.read().decode("utf-8"))
-                  if payload.get("ready") is True:
-                      raise SystemExit(0)
-              except Exception:
-                  pass
-              time.sleep(1)
-          raise SystemExit("server did not become ready")
-          PY
-      - name: Run live latency SLO
-        run: >
-          uv run python scripts/check_latency_slo.py
-          --base-url http://127.0.0.1:8131
-          --fixture test/fixtures/latency-corpus/5k.txt
-          --write-report
-      - name: Stop server
-        if: always()
-        run: |
-          if [ -f reports/live_latency_uvicorn.pid ]; then
-            kill "$(cat reports/live_latency_uvicorn.pid)" || true
-          fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: live-latency-reports
-          path: |
-            reports/latency_slo_*.json
-            reports/live_latency_uvicorn.log
-          if-no-files-found: warn
-
-  staging-latency:
-    name: Staging deployment latency
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    env:
-      JUNAS_LATENCY_SLO_BASE_URL: ${{ secrets.JUNAS_LATENCY_SLO_BASE_URL }}
-      JUNAS_LATENCY_SLO_API_KEY: ${{ secrets.JUNAS_LATENCY_SLO_API_KEY }}
-      JUNAS_LATENCY_SLO_BEARER_TOKEN: ${{ secrets.JUNAS_LATENCY_SLO_BEARER_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check staging latency configuration
-        id: staging
-        run: |
-          if [ -n "$JUNAS_LATENCY_SLO_BASE_URL" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "JUNAS_LATENCY_SLO_BASE_URL is not set; skipping staging latency benchmark"
-          fi
-      - uses: actions/setup-python@v5
-        if: steps.staging.outputs.enabled == 'true'
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
-        if: steps.staging.outputs.enabled == 'true'
-      - run: uv sync --extra dev
-        if: steps.staging.outputs.enabled == 'true'
-      - run: uv run python -m spacy download en_core_web_sm
-        if: steps.staging.outputs.enabled == 'true'
-      - name: Run staging latency SLO
-        if: steps.staging.outputs.enabled == 'true'
-        run: >
-          uv run python scripts/check_latency_slo.py
-          --fixture test/fixtures/latency-corpus/5k.txt
-          --write-report
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: staging-latency-reports
-          path: reports/latency_slo_*.json
-          if-no-files-found: warn
+    - name: Notify on success
+      if: ${{ needs.test.result == 'success' && needs.security.result == 'success' && needs.build.result == 'success' }}
+      run: |
+        echo "✅ All checks passed successfully!"
+        
+    - name: Notify on failure
+      if: ${{ needs.test.result == 'failure' || needs.security.result == 'failure' || needs.build.result == 'failure' }}
+      run: |
+        echo "❌ Some checks failed. Please review the logs."

@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # Development Jikai API service
+  jikai-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: jikai-api-dev
+    ports:
+      - "8000:8000"
+    environment:
+      # API Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_DEBUG=true
+      - API_CORS_ORIGINS=["*"]
+      
+      # LLM Configuration
+      - LLM_PROVIDER=ollama
+      - LLM_MODEL=llama2:7b
+      - LLM_TEMPERATURE=0.7
+      - LLM_MAX_TOKENS=2048
+      - OLLAMA_HOST=http://ollama:11434
+      
+      # Database Configuration
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - CHROMA_COLLECTION=tort_hypotheticals
+      
+      # Logging Configuration
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=json
+      
+      # Application Configuration
+      - ENVIRONMENT=development
+      - APP_NAME=Jikai
+      - APP_VERSION=2.0.0
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      - ollama
+      - chromadb
+    restart: unless-stopped
+    command: ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    networks:
+      - jikai-dev-network
+
+  # Ollama LLM service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: jikai-ollama-dev
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_dev_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - jikai-dev-network
+
+  # ChromaDB vector database
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: jikai-chromadb-dev
+    ports:
+      - "8001:8000"
+    volumes:
+      - chromadb_dev_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+    networks:
+      - jikai-dev-network
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: jikai-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - jikai-dev-network
+
+volumes:
+  ollama_dev_data:
+    driver: local
+  chromadb_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  jikai-dev-network:
+    driver: bridge
