@@ -1,4 +1,5 @@
 [![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0) 
+[![](https://img.shields.io/badge/jikai_2.0.0-passing-dark_green)](https://github.com/gongahkia/jikai/releases/tag/2.0.0) 
 
 > [!IMPORTANT]  
 > Please read through [this disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).  
@@ -354,4 +355,5 @@ Jikai would not be where it was today without existing academia.
 Creating Hypotheticals for Law
 Students*](https://scribes.org/wp-content/uploads/2022/10/Simon-8.23.21.pdf) by Diana J. Simon
 * [*Reactive Hypotheticals in Legal Education: Leveraging AI to Create Interactive Fact Patterns*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4763738) by Sean Steward
+
 * [*Legal Theory Lexicon: Hypotheticals*](https://lsolum.typepad.com/legaltheory/2023/01/legal-theory-lexicon-hypotheticals.html) by Legal Theory Blog
