@@ -7,6 +7,7 @@ import asyncio
 import json
 from typing import Dict, List, Optional, Any, Union
 from abc import ABC, abstractmethod
+from functools import wraps
 import httpx
 import structlog
 from pydantic import BaseModel, Field
@@ -14,6 +15,35 @@ from pydantic import BaseModel, Field
 from ..config import settings
 
 logger = structlog.get_logger(__name__)
+
+
+def retry_on_failure(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """
+    Decorator for retrying async functions with exponential backoff.
+
+    Args:
+        max_attempts: Maximum number of attempts
+        delay: Initial delay in seconds
+        backoff: Backoff multiplier
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts:
+                        logger.error(f"{func.__name__} failed after {max_attempts} attempts", error=str(e))
+                        raise
+                    logger.warning(f"{func.__name__} failed (attempt {attempt}/{max_attempts}), retrying in {current_delay}s",
+                                 error=str(e))
+                    await asyncio.sleep(current_delay)
+                    current_delay *= backoff
+            return None  # Should never reach here
+        return wrapper
+    return decorator
 
 
 class LLMRequest(BaseModel):
@@ -58,8 +88,9 @@ class OllamaProvider(LLMProvider):
         self.timeout = timeout
         self.client = httpx.AsyncClient(timeout=timeout)
     
+    @retry_on_failure(max_attempts=3, delay=2.0, backoff=2.0)
     async def generate(self, request: LLMRequest) -> LLMResponse:
-        """Generate response using Ollama."""
+        """Generate response using Ollama with automatic retries."""
         try:
             import time
             start_time = time.time()
@@ -141,8 +172,9 @@ class OpenAIProvider(LLMProvider):
             headers={"Authorization": f"Bearer {api_key}"}
         )
     
+    @retry_on_failure(max_attempts=3, delay=2.0, backoff=2.0)
     async def generate(self, request: LLMRequest) -> LLMResponse:
-        """Generate response using OpenAI API."""
+        """Generate response using OpenAI API with automatic retries."""
         try:
             import time
             start_time = time.time()

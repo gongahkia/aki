@@ -66,15 +66,25 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+      - ./docker-init.sh:/docker-init.sh
     environment:
       - OLLAMA_HOST=0.0.0.0
     restart: unless-stopped
+    command: >
+      sh -c "ollama serve &
+      OLLAMA_PID=$$!
+      echo 'Waiting for Ollama to start...'
+      sleep 10
+      echo 'Pulling llama2:7b model...'
+      ollama pull llama2:7b
+      echo 'Model ready!'
+      wait $$OLLAMA_PID"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 120s
     networks:
       - jikai-network
 

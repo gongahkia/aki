@@ -337,36 +337,22 @@ async def llm_health_check(
 async def get_generation_stats(
     service: hypothetical_service = Depends(get_hypothetical_service)
 ):
-    """Get generation statistics."""
+    """Get generation statistics from database."""
     try:
-        history = await service.get_generation_history(limit=100)
-        
-        if not history:
-            return GenerationStatsResponse(
-                total_generations=0,
-                average_generation_time=0.0,
-                success_rate=0.0,
-                recent_generations=[]
-            )
-        
-        # Calculate statistics
-        total_generations = len(history)
-        total_time = sum(gen["response"]["generation_time"] for gen in history)
-        average_generation_time = total_time / total_generations if total_generations > 0 else 0.0
-        
-        successful_generations = sum(
-            1 for gen in history 
-            if gen["response"]["validation_results"].get("passed", False)
-        )
-        success_rate = (successful_generations / total_generations) * 100 if total_generations > 0 else 0.0
-        
+        # Get statistics from database (persistent across restarts)
+        from src.services.database_service import database_service
+        db_stats = await database_service.get_statistics()
+
+        # Get recent generations
+        recent = await service.get_generation_history(limit=10)
+
         return GenerationStatsResponse(
-            total_generations=total_generations,
-            average_generation_time=average_generation_time,
-            success_rate=success_rate,
-            recent_generations=history[-10:]  # Last 10 generations
+            total_generations=db_stats['total_generations'],
+            average_generation_time=db_stats['average_generation_time'],
+            success_rate=db_stats['success_rate'],
+            recent_generations=recent
         )
-        
+
     except Exception as e:
         logger.error("Failed to get statistics", error=str(e))
         raise HTTPException(

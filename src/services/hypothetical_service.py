@@ -13,6 +13,7 @@ import structlog
 from .llm_service import LLMService, LLMRequest, LLMResponse, llm_service
 from .corpus_service import CorpusService, HypotheticalEntry, CorpusQuery, corpus_service
 from .validation_service import validation_service
+from .database_service import database_service
 from .prompt_engineering import (
     PromptTemplateManager,
     PromptContext,
@@ -62,8 +63,9 @@ class HypotheticalService:
         self.llm_service = llm_service
         self.corpus_service = corpus_service
         self.validation_service = validation_service
+        self.database_service = database_service
         self.prompt_manager = PromptTemplateManager()
-        self._generation_history: List[Dict[str, Any]] = []
+        self._generation_history: List[Dict[str, Any]] = []  # In-memory cache
     
     async def generate_hypothetical(self, request: GenerationRequest) -> GenerationResponse:
         """Generate a complete legal hypothetical with analysis."""
@@ -106,17 +108,28 @@ class HypotheticalService:
                 validation_results=validation_results.dict()
             )
             
-            # Store in history
-            self._generation_history.append({
+            # Store in in-memory history (for quick access)
+            generation_record = {
                 "timestamp": start_time.isoformat(),
                 "request": request.dict(),
                 "response": response.dict()
-            })
-            
-            logger.info("Hypothetical generation completed", 
+            }
+            self._generation_history.append(generation_record)
+
+            # Persist to database (async, don't block on this)
+            try:
+                await self.database_service.save_generation(
+                    request_data=request.dict(),
+                    response_data=response.dict()
+                )
+            except Exception as db_error:
+                logger.error("Failed to persist to database (non-fatal)", error=str(db_error))
+                # Don't raise - generation succeeded, only persistence failed
+
+            logger.info("Hypothetical generation completed",
                        generation_time=generation_time,
                        validation_passed=validation_results.passed)
-            
+
             return response
             
         except Exception as e:
@@ -320,28 +333,85 @@ class HypotheticalService:
             return f"Legal analysis generation failed: {e}"
     
     def _extract_hypothetical_from_response(self, response_content: str) -> str:
-        """Extract the hypothetical text from LLM response."""
-        # Look for the hypothetical section
-        if "HYPOTHETICAL SCENARIO:" in response_content:
-            start_marker = "HYPOTHETICAL SCENARIO:"
-            end_marker = "SCENARIO METADATA:"
-            
-            start_idx = response_content.find(start_marker) + len(start_marker)
-            end_idx = response_content.find(end_marker)
-            
-            if end_idx == -1:
+        """
+        Extract the hypothetical text from LLM response with robust fallbacks.
+        Handles various response formats gracefully.
+        """
+        try:
+            # Try primary format: Look for "HYPOTHETICAL SCENARIO:" section
+            if "HYPOTHETICAL SCENARIO:" in response_content:
+                start_marker = "HYPOTHETICAL SCENARIO:"
+                start_idx = response_content.find(start_marker) + len(start_marker)
+
+                # Look for end marker
+                end_markers = ["SCENARIO METADATA:", "METADATA:", "---", "###"]
                 end_idx = len(response_content)
-            
-            hypothetical = response_content[start_idx:end_idx].strip()
-        else:
-            # Fallback: use the entire response
+
+                for marker in end_markers:
+                    marker_idx = response_content.find(marker, start_idx)
+                    if marker_idx != -1 and marker_idx < end_idx:
+                        end_idx = marker_idx
+
+                hypothetical = response_content[start_idx:end_idx].strip()
+
+                # Validate extraction
+                if len(hypothetical) > 100:  # Reasonable minimum length
+                    logger.info("Extracted hypothetical using markers", length=len(hypothetical))
+                    return hypothetical
+
+            # Fallback 1: Look for scenario text between headers
+            lines = response_content.split('\n')
+            scenario_lines = []
+            in_scenario = False
+
+            for line in lines:
+                line_lower = line.lower()
+                if any(marker in line_lower for marker in ['scenario:', 'hypothetical:', 'case study:']):
+                    in_scenario = True
+                    continue
+                elif any(marker in line_lower for marker in ['metadata:', 'analysis:', 'topics:', '---']):
+                    in_scenario = False
+                    break
+                elif in_scenario and line.strip():
+                    scenario_lines.append(line)
+
+            if scenario_lines:
+                hypothetical = '\n'.join(scenario_lines).strip()
+                if len(hypothetical) > 100:
+                    logger.info("Extracted hypothetical using line parsing", length=len(hypothetical))
+                    return hypothetical
+
+            # Fallback 2: Use first substantial paragraph
+            paragraphs = [p.strip() for p in response_content.split('\n\n') if len(p.strip()) > 100]
+            if paragraphs:
+                hypothetical = paragraphs[0]
+                logger.warning("Using first paragraph as hypothetical (fallback)", length=len(hypothetical))
+                return hypothetical
+
+            # Last resort: Return full response (likely contains the scenario)
             hypothetical = response_content.strip()
-        
-        return hypothetical
+            logger.warning("Using full response as hypothetical (last resort)", length=len(hypothetical))
+            return hypothetical
+
+        except Exception as e:
+            logger.error("Failed to extract hypothetical, using full response", error=str(e))
+            return response_content.strip()
     
     
     async def get_generation_history(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent generation history."""
+        """
+        Get recent generation history.
+        First tries database, falls back to in-memory history.
+        """
+        try:
+            # Get from database (persistent)
+            history = await self.database_service.get_recent_generations(limit)
+            if history:
+                return history
+        except Exception as e:
+            logger.warning("Failed to get history from database, using in-memory", error=str(e))
+
+        # Fallback to in-memory history
         return self._generation_history[-limit:]
     
     async def health_check(self) -> Dict[str, Any]:
