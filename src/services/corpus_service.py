@@ -13,6 +13,7 @@ import structlog
 from pydantic import BaseModel, Field
 
 from ..config import settings
+from .vector_service import vector_service, VectorServiceError
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +47,8 @@ class CorpusService:
     def __init__(self):
         self._local_corpus_path = Path("corpus/clean/tort/corpus.json")
         self._s3_client = None
+        self._vector_service = vector_service
+        self._corpus_indexed = False
         self._initialize_s3()
     
     def _initialize_s3(self):
@@ -208,34 +211,92 @@ class CorpusService:
             raise CorpusServiceError(f"Error saving to S3: {e}")
     
     async def query_relevant_hypotheticals(self, query: CorpusQuery) -> List[HypotheticalEntry]:
-        """Query corpus for relevant hypotheticals based on topics."""
+        """
+        Query corpus for relevant hypotheticals using semantic search.
+        Falls back to simple topic matching if vector search unavailable.
+        """
         try:
+            # Ensure corpus is indexed in vector DB
+            if not self._corpus_indexed:
+                await self._index_corpus()
+
+            # Try semantic search first (ChromaDB + embeddings)
+            try:
+                results = await self._vector_service.semantic_search(
+                    query_topics=query.topics,
+                    n_results=query.sample_size,
+                    exclude_ids=query.exclude_ids
+                )
+
+                if results:
+                    # Convert vector search results back to HypotheticalEntry
+                    relevant_entries = []
+                    for result in results:
+                        entry = HypotheticalEntry(
+                            id=result['id'],
+                            text=result['text'],
+                            topics=result['topics'],
+                            metadata=result['metadata']
+                        )
+                        relevant_entries.append(entry)
+
+                    logger.info("Semantic search completed",
+                               query_topics=query.topics,
+                               results_count=len(relevant_entries))
+                    return relevant_entries
+
+            except (VectorServiceError, Exception) as ve:
+                logger.warning("Vector search failed, falling back to simple search", error=str(ve))
+
+            # Fallback: Simple topic overlap (original method)
             corpus = await self.load_corpus()
-            
-            # Filter out excluded IDs
             available_entries = [entry for entry in corpus if entry.id not in query.exclude_ids]
-            
-            # Score entries based on topic overlap
+
             scored_entries = []
             for entry in available_entries:
                 overlap_count = len(set(entry.topics) & set(query.topics))
                 if overlap_count >= query.min_topic_overlap:
                     scored_entries.append((entry, overlap_count))
-            
-            # Sort by overlap count (descending) and take top N
+
             scored_entries.sort(key=lambda x: x[1], reverse=True)
             relevant_entries = [entry for entry, _ in scored_entries[:query.sample_size]]
-            
-            logger.info("Corpus query completed", 
+
+            logger.info("Fallback search completed",
                        query_topics=query.topics,
                        results_count=len(relevant_entries),
-                       total_available=len(available_entries))
-            
+                       method="topic_overlap")
+
             return relevant_entries
-            
+
         except Exception as e:
             logger.error("Corpus query failed", error=str(e))
             raise CorpusServiceError(f"Corpus query failed: {e}")
+
+    async def _index_corpus(self):
+        """Index corpus in vector database for semantic search."""
+        try:
+            corpus = await self.load_corpus()
+
+            # Convert to format expected by vector service
+            hypotheticals_data = []
+            for entry in corpus:
+                hypotheticals_data.append({
+                    'id': entry.id,
+                    'text': entry.text,
+                    'topics': entry.topics,
+                    'metadata': entry.metadata
+                })
+
+            # Index in vector database
+            count = await self._vector_service.index_hypotheticals(hypotheticals_data)
+            self._corpus_indexed = True
+
+            logger.info("Corpus indexed in vector database", count=count)
+
+        except Exception as e:
+            logger.warning("Failed to index corpus in vector database", error=str(e))
+            self._corpus_indexed = False
+            # Don't raise - allow fallback to simple search
     
     async def extract_all_topics(self) -> List[str]:
         """Extract all unique topics from the corpus."""
