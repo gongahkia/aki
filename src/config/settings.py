@@ -4,7 +4,8 @@ Uses Pydantic Settings for type-safe configuration with environment variable sup
 """
 
 from typing import List, Optional
-from pydantic import BaseSettings, Field, validator
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 import os
 
 
@@ -67,7 +68,8 @@ class LoggingSettings(BaseSettings):
     format: str = Field(default="json", env="LOG_FORMAT")
     file_path: Optional[str] = Field(default=None, env="LOG_FILE_PATH")
     
-    @validator('level')
+    @field_validator('level')
+    @classmethod
     def validate_log_level(cls, v):
         valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         if v.upper() not in valid_levels:
@@ -113,7 +115,8 @@ class Settings(BaseSettings):
     logging: LoggingSettings = LoggingSettings()
     tort_law: TortLawSettings = TortLawSettings()
     
-    @validator('environment')
+    @field_validator('environment')
+    @classmethod
     def validate_environment(cls, v):
         valid_envs = ['development', 'staging', 'production']
         if v.lower() not in valid_envs:
