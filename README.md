@@ -26,6 +26,15 @@ Jikai is a production-ready, [microservices-based](#container-diagram) applicati
 
 Current applications are focused on [Singapore Tort Law](https://www.sal.org.sg/Resources-Tools/Publications/Overview/PublicationsDetails/id/183) but [other domains of law](https://lawforcomputerscientists.pubpub.org/pub/d3mzwako/release/7) can be easily swapped in.
 
+## Stack
+
+* *Backend*: [Python](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/)
+* *AI/ML*: [LangChain](https://www.langchain.com/), [Ollama](https://ollama.ai/), [HuggingFace](https://huggingface.co/), [Sentence Transformers](https://www.sbert.net/)
+* *Database*: [ChromaDB](https://www.trychroma.com/), [SQLAlchemy](https://www.sqlalchemy.org/), [FAISS](https://github.com/facebookresearch/faiss)
+* *Container*: [Docker](https://www.docker.com/)
+* *Testing*: [pytest](https://pytest.org/)
+* *Monitoring*: [structlog](https://www.structlog.org/), [Prometheus](https://prometheus.io/), [Sentry](https://sentry.io/)
+
 ## Usage
 
 ### Build from source
@@ -43,7 +52,7 @@ $ python3 main.py
 $ git clone https://github.com/gongahkia/jikai && cd jikai
 $ cp env.example .env
 $ docker-compose up -d
-$ curl http://localhost:8000/health # check service health
+$ curl http://localhost:8000/health 
 ```
 
 ### Local Development with Docker
@@ -53,7 +62,7 @@ $ pip install -r requirements.txt
 $ cp env.example .env
 $ docker run -d -p 11434:11434 ollama/ollama
 $ docker exec -it <ollama-container> ollama pull llama2:7b
-$ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000 # start the API
+$ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000 
 ```
 
 ## API
