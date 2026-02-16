@@ -127,7 +127,6 @@ module = [
     "botocore.*",
     "anthropic.*",
     "google.*",
-    "textual.*",
     "sklearn.*",
     "joblib.*",
     "sentence_transformers.*",

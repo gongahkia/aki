@@ -12,11 +12,10 @@ def run_api():
 
 
 def run_tui():
-    """Run Textual TUI."""
-    from src.tui.app import JikaiApp
+    """Run Rich TUI."""
+    from src.tui.rich_app import JikaiTUI
 
-    app = JikaiApp()
-    app.run()
+    JikaiTUI().run()
 
 
 def main():
