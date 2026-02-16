@@ -22,3 +22,22 @@
 [ ] hypo variations: add "Create variation" option after viewing a generated or historical hypothetical — let user toggle one parameter (swap topic, add/remove party, change complexity, change difficulty), regenerate with seeded prompt referencing original
 [ ] bulk labelling: add bulk_label_flow — show entry text in panel, single-keystroke quality (1-9), difficulty (e/m/h), auto-advance to next entry, show running count, save in batches of 10
 [ ] stats dashboard: add stats_flow to main menu — read history.json + labelled CSV + model metrics, display tables for: total generations, avg quality score, topic frequency distribution, cost estimate from llm_service token tracking, model training status
+
+## TUI flow improvements
+
+[ ] first-run wizard: on launch, detect empty state (no .env, no corpus.json, no models). walk user through: configure API keys → preprocess corpus → label a few entries → first generation. skip steps that are already done. show progress checklist.
+[ ] quick-generate mode: add "Quick generate" vs "Custom generate" choice at top of generate_flow. quick mode: pick topic only, use last-used or smart defaults (provider, model, complexity 3, 2 parties, pure_llm). custom mode: existing full flow. persist quick-mode defaults to .jikai_state.
+[ ] contextual status bar: persistent Rich footer panel showing: active provider/model, corpus count, models trained ✓/✗, embeddings ✓/✗, last generation quality score. render before every main menu iteration via console.print.
+[ ] remember last config: persist last-used generation settings (provider, model, complexity, parties, method, temperature) to .jikai_state JSON. load as defaults on next launch. update after each successful generation.
+
+## UX polish
+
+[ ] keyboard shortcuts: add global hotkeys to main menu select — g=generate, h=history, s=settings, p=providers. extend _select_quit keybindings with additional key mappings that return corresponding menu values.
+[ ] breadcrumb nav: track navigation path as a list (e.g. ["Main", "Generate", "Config"]). print as dim header before each menu render. push on submenu entry, pop on back/return.
+[ ] help overlay: on ? keypress in any _select menu, show a Rich panel with: description of each visible option, current workflow status, recommended next action based on readiness checks. dismiss on any key.
+
+## API enhancements
+
+[ ] auth + rate limiting: add APIKey header middleware to src/api/main.py. validate against JIKAI_API_KEY env var. implement token-bucket rate limiter using the existing settings.api.rate_limit config (100 req/min default). return 401/429 with clear error messages.
+[ ] batch endpoint: POST /generate/batch — accept {configs: [{topic, provider, model, complexity, parties, method}], count: int}. generate sequentially, return [{hypothetical, analysis, validation_score}]. reuse hypothetical_service. cap at 10 per request.
+[ ] export endpoint: GET /export/{history_id}?format=docx|pdf — look up generation from history DB, render to DOCX via python-docx (reuse export_flow logic), return as file download. requires generation history feature first.
