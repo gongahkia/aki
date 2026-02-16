@@ -10,13 +10,19 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.services import (
-    CorpusQuery,
-    CorpusService,
-    HypotheticalEntry,
-    LLMResponse,
-    LLMService,
-)
+from src.services.llm_service import LLMResponse, LLMService
+
+# lazy imports to avoid chromadb dependency at collection time
+try:
+    from src.services.corpus_service import (
+        CorpusQuery,
+        CorpusService,
+        HypotheticalEntry,
+    )
+
+    _HAS_CORPUS = True
+except ImportError:
+    _HAS_CORPUS = False
 
 
 @pytest.fixture(scope="session")
@@ -69,6 +75,8 @@ def mock_llm_response():
 @pytest.fixture
 def mock_corpus_entries():
     """Mock corpus entries for testing."""
+    if not _HAS_CORPUS:
+        pytest.skip("chromadb/corpus_service not available")
     return [
         HypotheticalEntry(
             id="1",
@@ -98,6 +106,8 @@ def mock_llm_service():
 @pytest.fixture
 def mock_corpus_service():
     """Mock corpus service for testing."""
+    if not _HAS_CORPUS:
+        pytest.skip("chromadb/corpus_service not available")
     service = AsyncMock(spec=CorpusService)
     service.load_corpus = AsyncMock()
     service.query_relevant_hypotheticals = AsyncMock()
@@ -133,6 +143,8 @@ def sample_generation_request():
 @pytest.fixture
 def sample_corpus_query():
     """Sample corpus query for testing."""
+    if not _HAS_CORPUS:
+        pytest.skip("chromadb/corpus_service not available")
     return CorpusQuery(
         topics=["negligence", "duty of care"], sample_size=2, min_topic_overlap=1
     )
