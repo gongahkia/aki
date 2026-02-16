@@ -2,3 +2,10 @@ __pycache__
 results
 logs
 log.json
+.venv/
+.env
+*.pyc
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
