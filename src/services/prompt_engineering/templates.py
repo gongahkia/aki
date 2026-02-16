@@ -13,6 +13,24 @@ from enum import Enum
 from dataclasses import dataclass
 from pydantic import BaseModel
 
+# topic-specific prompt hints for expanded subtopics
+TOPIC_HINTS: Dict[str, str] = {
+    "occupiers_liability": "Include premises description, visitor classification (invitee/licensee/trespasser), and state of the premises.",
+    "product_liability": "Include product description, manufacturing process, defect type (design/manufacturing/warning), and supply chain.",
+    "contributory_negligence": "Include claimant's own conduct contributing to their injury, apportionment of fault.",
+    "economic_loss": "Distinguish between pure economic loss and consequential economic loss; include financial impact details.",
+    "psychiatric_harm": "Include proximity to event, relationship to victim, means of perception (sight/hearing/aftermath).",
+    "employers_liability": "Include workplace conditions, safe system of work, training provided, and employer's knowledge.",
+    "breach_of_statutory_duty": "Specify the relevant statute/regulation, the duty imposed, and how it was breached.",
+    "rylands_v_fletcher": "Include non-natural use of land, accumulation of dangerous thing, and escape from defendant's land.",
+    "consent_defence": "Include express or implied consent, scope of consent, and whether risk was voluntarily assumed.",
+    "illegality_defence": "Include the illegal act by the claimant and its connection to the tort claim.",
+    "limitation_periods": "Include timeline of events, date of knowledge, and relevant limitation period under Singapore law.",
+    "res_ipsa_loquitur": "Include facts where the thing causing injury was under defendant's control and the event would not normally occur without negligence.",
+    "novus_actus_interveniens": "Include an intervening act that may break the chain of causation.",
+    "volenti_non_fit_injuria": "Include voluntary participation in activity, awareness and acceptance of specific risks.",
+}
+
 
 class PromptTemplateType(str, Enum):
     """Types of prompt templates available."""
@@ -127,6 +145,8 @@ STEP 3: LEGAL ISSUE INTEGRATION
 - Create multiple potential legal claims
 - Include both primary and secondary issues
 
+{topic_hints}
+
 STEP 4: QUALITY VERIFICATION
 - Verify factual consistency
 - Check legal accuracy
@@ -173,14 +193,19 @@ SCENARIO METADATA:
         if context.reference_hypotheticals:
             for i, hypo in enumerate(context.reference_hypotheticals[:2], 1):
                 reference_examples += f"Example {i}:\n{hypo}\n\n"
-        
+        hints = []
+        for topic in context.topics:
+            if topic in TOPIC_HINTS:
+                hints.append(f"- {topic}: {TOPIC_HINTS[topic]}")
+        topic_hints = "TOPIC-SPECIFIC GUIDANCE:\n" + "\n".join(hints) if hints else ""
         user_prompt = self.user_prompt_template.format(
             law_domain=context.law_domain,
             topics=", ".join(context.topics),
             number_parties=context.number_parties,
             complexity_level=context.complexity_level,
             reference_examples=reference_examples,
-            output_format=self.output_format
+            output_format=self.output_format,
+            topic_hints=topic_hints,
         )
         
         return {
