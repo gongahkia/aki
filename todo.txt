@@ -1,5 +1,3 @@
-(B) Fix SQL injection vulnerability in src/services/database_service.py: replace string interpolation in search_by_topics method (around line 251) with parameterized query using ? placeholders +security
-(B) Cap _generation_history list in src/services/hypothetical_service.py to max 100 entries, evict oldest when full; add configurable max_history_size to settings +stability
 (B) Add configurable timeout to all LLM generate calls in src/services/llm_service.py: default 120s for generation, 30s for health checks; raise TimeoutError with descriptive message +stability
 (B) Move hardcoded corpus path (corpus/clean/tort/corpus.json) in src/services/corpus_service.py to settings.corpus_path; move hardcoded DB path (data/jikai.db) in src/services/database_service.py to settings.database_path; move embedding model name in src/services/vector_service.py to settings +refactor
 (B) Add API endpoints for new features in src/api/main.py: POST /ml/train (trigger training), GET /ml/status (model status+metrics), GET /providers (list providers+models), PUT /providers/default (set default), GET /generate with provider+model query params +feature

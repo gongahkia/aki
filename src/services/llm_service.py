@@ -1,6 +1,7 @@
 """
 LLM Service using provider registry for multi-provider support.
 """
+import asyncio
 import structlog
 from typing import Dict, List, Optional, Any
 from .llm_providers import registry, LLMRequest, LLMResponse, LLMServiceError
@@ -8,6 +9,9 @@ from .llm_providers import registry, LLMRequest, LLMResponse, LLMServiceError
 from ..config import settings
 
 logger = structlog.get_logger(__name__)
+
+GENERATION_TIMEOUT = 120  # seconds
+HEALTH_CHECK_TIMEOUT = 30  # seconds
 
 
 class LLMService:
@@ -97,12 +101,17 @@ class LLMService:
             request = request.model_copy(update={"model": self._default_model})
         provider_instance = registry.get(provider_name)
         try:
-            response = await provider_instance.generate(request)
+            response = await asyncio.wait_for(
+                provider_instance.generate(request),
+                timeout=GENERATION_TIMEOUT,
+            )
             logger.info("LLM generation completed",
                        provider=provider_name, model=response.model,
                        response_time=response.response_time,
                        tokens=response.usage.get("total_tokens", 0))
             return response
+        except asyncio.TimeoutError:
+            raise LLMServiceError(f"Generation timed out after {GENERATION_TIMEOUT}s on provider '{provider_name}'")
         except Exception as e:
             logger.error("LLM generation failed", provider=provider_name, error=str(e))
             raise
@@ -112,10 +121,16 @@ class LLMService:
         if provider:
             if provider not in registry.list_instances():
                 return {provider: {"healthy": False, "error": "not initialized"}}
-            return {provider: await registry.get(provider).health_check()}
+            try:
+                return {provider: await asyncio.wait_for(registry.get(provider).health_check(), timeout=HEALTH_CHECK_TIMEOUT)}
+            except asyncio.TimeoutError:
+                return {provider: {"healthy": False, "error": f"health check timed out after {HEALTH_CHECK_TIMEOUT}s"}}
         results = {}
         for name in registry.list_instances():
-            results[name] = await registry.get(name).health_check()
+            try:
+                results[name] = await asyncio.wait_for(registry.get(name).health_check(), timeout=HEALTH_CHECK_TIMEOUT)
+            except asyncio.TimeoutError:
+                results[name] = {"healthy": False, "error": f"health check timed out after {HEALTH_CHECK_TIMEOUT}s"}
         return results
 
     async def list_models(self, provider: str = None) -> Dict[str, List[str]]:
