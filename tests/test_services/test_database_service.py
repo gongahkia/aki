@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
 from src.services.database_service import DatabaseService
 
@@ -13,7 +14,7 @@ from src.services.database_service import DatabaseService
 class TestDatabaseService:
     """Test DatabaseService."""
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def database_service(self):
         """Create DatabaseService instance with temporary database."""
         # Use temporary database for testing

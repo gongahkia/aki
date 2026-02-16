@@ -1,6 +1,6 @@
 """Tests for LLM providers: Anthropic, Google Gemini, Local."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -17,55 +17,47 @@ def llm_request():
 class TestAnthropicProvider:
     @pytest.mark.asyncio
     async def test_generate_success(self, llm_request):
-        with patch(
-            "src.services.llm_providers.anthropic_provider.anthropic"
-        ) as mock_anthropic:
-            mock_client = AsyncMock()
-            mock_message = MagicMock()
-            mock_message.content = [MagicMock(text="response text")]
-            mock_message.model = "claude-sonnet-4-5-20250929"
-            mock_message.usage.input_tokens = 10
-            mock_message.usage.output_tokens = 20
-            mock_message.stop_reason = "stop"
-            mock_message.id = "msg_123"
-            mock_client.messages.create = AsyncMock(return_value=mock_message)
-            mock_anthropic.AsyncAnthropic.return_value = mock_client
-            from src.services.llm_providers.anthropic_provider import AnthropicProvider
+        from src.services.llm_providers.anthropic_provider import AnthropicProvider
 
-            provider = AnthropicProvider.__new__(AnthropicProvider)
-            provider.default_model = "claude-sonnet-4-5-20250929"
-            provider.timeout = 120
-            provider.client = mock_client
-            provider._api_key = "test-key"
-            resp = await provider.generate(llm_request)
-            assert resp.content == "response text"
-            assert resp.model == "claude-sonnet-4-5-20250929"
+        mock_client = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text="response text")]
+        mock_message.model = "claude-sonnet-4-5-20250929"
+        mock_message.usage.input_tokens = 10
+        mock_message.usage.output_tokens = 20
+        mock_message.stop_reason = "stop"
+        mock_message.id = "msg_123"
+        mock_client.messages.create = AsyncMock(return_value=mock_message)
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        provider.default_model = "claude-sonnet-4-5-20250929"
+        provider.timeout = 120
+        provider.client = mock_client
+        provider._api_key = "test-key"
+        resp = await provider.generate(llm_request)
+        assert resp.content == "response text"
+        assert resp.model == "claude-sonnet-4-5-20250929"
 
     @pytest.mark.asyncio
     async def test_list_models(self):
-        with patch("src.services.llm_providers.anthropic_provider.anthropic"):
-            from src.services.llm_providers.anthropic_provider import (
-                ANTHROPIC_MODELS,
-                AnthropicProvider,
-            )
+        from src.services.llm_providers.anthropic_provider import (
+            ANTHROPIC_MODELS,
+            AnthropicProvider,
+        )
 
-            provider = AnthropicProvider.__new__(AnthropicProvider)
-            models = await provider.list_models()
-            assert models == ANTHROPIC_MODELS
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        models = await provider.list_models()
+        assert models == ANTHROPIC_MODELS
 
     @pytest.mark.asyncio
     async def test_health_check_failure(self):
-        with patch("src.services.llm_providers.anthropic_provider.anthropic"):
-            from src.services.llm_providers.anthropic_provider import AnthropicProvider
+        from src.services.llm_providers.anthropic_provider import AnthropicProvider
 
-            provider = AnthropicProvider.__new__(AnthropicProvider)
-            provider.default_model = "claude-sonnet-4-5-20250929"
-            provider.client = AsyncMock()
-            provider.client.messages.create = AsyncMock(
-                side_effect=Exception("api error")
-            )
-            result = await provider.health_check()
-            assert result["healthy"] is False
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        provider.default_model = "claude-sonnet-4-5-20250929"
+        provider.client = AsyncMock()
+        provider.client.messages.create = AsyncMock(side_effect=Exception("api error"))
+        result = await provider.health_check()
+        assert result["healthy"] is False
 
 
 class TestGoogleGeminiProvider:

@@ -2,7 +2,7 @@
 Tests for LLM Service.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -92,10 +92,13 @@ class TestOllamaProvider:
             "total_duration": 3500000000,
         }
 
-        with patch.object(ollama_provider.client, "post") as mock_post:
-            mock_post.return_value.json.return_value = mock_response_data
-            mock_post.return_value.raise_for_status.return_value = None
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_response_data
+        mock_resp.raise_for_status.return_value = None
 
+        with patch.object(
+            ollama_provider.client, "post", new=AsyncMock(return_value=mock_resp)
+        ):
             request = LLMRequest(prompt="Test prompt")
             response = await ollama_provider.generate(request)
 
@@ -107,9 +110,14 @@ class TestOllamaProvider:
     @pytest.mark.asyncio
     async def test_ollama_generate_http_error(self, ollama_provider):
         """Test Ollama generation with HTTP error."""
-        with patch.object(ollama_provider.client, "post") as mock_post:
-            mock_post.side_effect = httpx.HTTPError("Connection error")
-
+        with (
+            patch.object(
+                ollama_provider.client,
+                "post",
+                new=AsyncMock(side_effect=httpx.HTTPError("Connection error")),
+            ),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             request = LLMRequest(prompt="Test prompt")
 
             with pytest.raises(LLMServiceError):
@@ -118,20 +126,22 @@ class TestOllamaProvider:
     @pytest.mark.asyncio
     async def test_ollama_health_check_success(self, ollama_provider):
         """Test successful Ollama health check."""
-        with patch.object(ollama_provider.client, "get") as mock_get:
+        with patch.object(ollama_provider.client, "get", new=AsyncMock()) as mock_get:
             mock_get.return_value.status_code = 200
 
             result = await ollama_provider.health_check()
-            assert result is True
+            assert result["healthy"] is True
 
     @pytest.mark.asyncio
     async def test_ollama_health_check_failure(self, ollama_provider):
         """Test failed Ollama health check."""
-        with patch.object(ollama_provider.client, "get") as mock_get:
-            mock_get.side_effect = httpx.HTTPError("Connection error")
-
+        with patch.object(
+            ollama_provider.client,
+            "get",
+            new=AsyncMock(side_effect=httpx.HTTPError("Connection error")),
+        ):
             result = await ollama_provider.health_check()
-            assert result is False
+            assert result["healthy"] is False
 
 
 class TestOpenAIProvider:
@@ -157,10 +167,13 @@ class TestOpenAIProvider:
             },
         }
 
-        with patch.object(openai_provider.client, "post") as mock_post:
-            mock_post.return_value.json.return_value = mock_response_data
-            mock_post.return_value.raise_for_status.return_value = None
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_response_data
+        mock_resp.raise_for_status.return_value = None
 
+        with patch.object(
+            openai_provider.client, "post", new=AsyncMock(return_value=mock_resp)
+        ):
             request = LLMRequest(prompt="Test prompt")
             response = await openai_provider.generate(request)
 
@@ -172,11 +185,11 @@ class TestOpenAIProvider:
     @pytest.mark.asyncio
     async def test_openai_health_check_success(self, openai_provider):
         """Test successful OpenAI health check."""
-        with patch.object(openai_provider.client, "get") as mock_get:
+        with patch.object(openai_provider.client, "get", new=AsyncMock()) as mock_get:
             mock_get.return_value.status_code = 200
 
             result = await openai_provider.health_check()
-            assert result is True
+            assert result["healthy"] is True
 
 
 class TestLLMService:
@@ -184,15 +197,28 @@ class TestLLMService:
 
     @pytest.fixture
     def llm_service(self):
-        """Create LLMService instance for testing."""
-        service = LLMService()
-        # Mock the providers
-        service._providers = {
-            "ollama": AsyncMock(spec=OllamaProvider),
-            "openai": AsyncMock(spec=OpenAIProvider),
-        }
-        service._default_provider = "ollama"
-        return service
+        """Create LLMService instance for testing with mocked registry."""
+        mock_ollama = AsyncMock(spec=OllamaProvider)
+        mock_openai = AsyncMock(spec=OpenAIProvider)
+        mock_ollama.list_models.return_value = ["llama2:7b"]
+        mock_openai.list_models.return_value = ["gpt-4o"]
+        providers = {"ollama": mock_ollama, "openai": mock_openai}
+
+        mock_reg = MagicMock()
+        mock_reg.list_instances.return_value = ["ollama", "openai"]
+        mock_reg.get.side_effect = lambda name, **kw: providers[name]
+        mock_reg.close_all = AsyncMock()
+
+        with (
+            patch.object(LLMService, "_initialize_providers"),
+            patch("src.services.llm_service.registry", mock_reg),
+        ):
+            service = LLMService()
+            service._default_provider = "ollama"
+            service._default_model = None
+            service._providers = providers
+            service._registry = mock_reg
+            yield service
 
     @pytest.mark.asyncio
     async def test_generate_with_default_provider(self, llm_service, mock_llm_response):
@@ -260,5 +286,4 @@ class TestLLMService:
         """Test closing all providers."""
         await llm_service.close()
 
-        llm_service._providers["ollama"].close.assert_called_once()
-        llm_service._providers["openai"].close.assert_called_once()
+        llm_service._registry.close_all.assert_called_once()
