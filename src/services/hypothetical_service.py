@@ -3,23 +3,19 @@ Hypothetical Generation Service - Main orchestration service for generating lega
 Combines prompt engineering, LLM service, and corpus service to create high-quality legal scenarios.
 """
 
-import asyncio
-import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import structlog
 from pydantic import BaseModel, Field
 
 from .corpus_service import (
     CorpusQuery,
-    CorpusService,
     HypotheticalEntry,
     corpus_service,
 )
 from .database_service import database_service
-from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
-from .prompt_engineering import HypotheticalEntry as PromptHypotheticalEntry
+from .llm_service import LLMRequest, llm_service
 from .prompt_engineering import (
     PromptContext,
     PromptTemplateManager,
@@ -68,7 +64,6 @@ class ValidationResult(BaseModel):
 class HypotheticalServiceError(Exception):
     """Custom exception for hypothetical service errors."""
 
-    pass
 
 
 class HypotheticalService:

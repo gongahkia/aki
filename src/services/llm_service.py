@@ -234,7 +234,6 @@ class LLMService:
         self, request: LLMRequest, provider: str = None, model: str = None
     ):
         """Stream tokens from provider. Yields str chunks."""
-        from typing import AsyncIterator
 
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():

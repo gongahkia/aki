@@ -1,7 +1,6 @@
 """CLI entry point for Jikai TUI/API."""
 
 import argparse
-import sys
 import threading
 
 

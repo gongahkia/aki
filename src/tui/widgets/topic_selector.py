@@ -1,7 +1,6 @@
 """Multi-select topic selector widget grouped by tort category."""
 
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widgets import Checkbox, Static
 

@@ -3,14 +3,13 @@ Corpus Service for managing legal hypothetical corpus data.
 Handles both local file storage and AWS S3 integration.
 """
 
-import asyncio
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import boto3
 import structlog
-from botocore.exceptions import ClientError, NoCredentialsError
+from botocore.exceptions import ClientError
 from pydantic import BaseModel, Field
 
 from ..config import settings
@@ -42,7 +41,6 @@ class CorpusQuery(BaseModel):
 class CorpusServiceError(Exception):
     """Custom exception for corpus service errors."""
 
-    pass
 
 
 class CorpusService:

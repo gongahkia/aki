@@ -2,7 +2,6 @@
 
 from typing import Callable, Optional, Tuple
 
-import numpy as np
 import pandas as pd
 import structlog
 from sklearn.feature_extraction.text import TfidfVectorizer

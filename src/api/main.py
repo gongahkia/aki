@@ -3,7 +3,6 @@ FastAPI application for Jikai legal hypothetical generation service.
 Provides REST API endpoints for generating, validating, and managing legal hypotheticals.
 """
 
-import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 

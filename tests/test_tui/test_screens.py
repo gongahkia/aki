@@ -1,6 +1,5 @@
 """Tests for TUI screens (basic render tests)."""
 
-import pytest
 
 
 class TestTUIScreens:

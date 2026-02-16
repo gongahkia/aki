@@ -1,8 +1,6 @@
 """Tests for ML pipeline."""
 
 import csv
-import os
-import tempfile
 
 import pytest
 

@@ -1,7 +1,7 @@
 """Google Gemini LLM provider using google-generativeai SDK."""
 
 import time
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List
 
 import structlog
 

@@ -3,7 +3,6 @@ Vector Service for semantic search using ChromaDB and sentence transformers.
 Provides semantic similarity search for legal hypotheticals.
 """
 
-import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -20,7 +19,6 @@ logger = structlog.get_logger(__name__)
 class VectorServiceError(Exception):
     """Custom exception for vector service errors."""
 
-    pass
 
 
 class VectorService:

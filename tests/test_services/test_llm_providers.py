@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.services.llm_providers.base import LLMRequest, LLMResponse, LLMServiceError
+from src.services.llm_providers.base import LLMRequest
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ class TestGoogleGeminiProvider:
 class TestLocalLLMProvider:
     @pytest.mark.asyncio
     async def test_generate_success(self, llm_request):
-        import httpx
+        pass
 
         from src.services.llm_providers.local_provider import LocalLLMProvider
 

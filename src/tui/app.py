@@ -2,8 +2,7 @@
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
-from textual.widget import Widget
+from textual.containers import Horizontal
 from textual.widgets import Footer, Header, Static
 
 

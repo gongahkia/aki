@@ -14,7 +14,6 @@ from textual.widgets import (
     RadioSet,
     Select,
     Static,
-    TextArea,
 )
 
 

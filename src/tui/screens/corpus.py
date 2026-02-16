@@ -5,7 +5,7 @@ import json
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -13,7 +13,6 @@ from textual.widgets import (
     Footer,
     Header,
     Input,
-    Label,
     Select,
     Static,
 )

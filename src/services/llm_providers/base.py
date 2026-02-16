@@ -66,7 +66,6 @@ class LLMResponse(BaseModel):
 class LLMServiceError(Exception):
     """Custom exception for LLM service errors."""
 
-    pass
 
 
 class LLMProvider(ABC):
@@ -75,17 +74,14 @@ class LLMProvider(ABC):
     @abstractmethod
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate a response from the LLM."""
-        pass
 
     @abstractmethod
     async def list_models(self) -> List[str]:
         """List available models for this provider."""
-        pass
 
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
         """Check provider health. Returns dict with 'healthy' bool and details."""
-        pass
 
     async def stream_generate(self, request: LLMRequest) -> AsyncIterator[str]:
         """Stream generate tokens. Default: yield full response at once."""
@@ -94,7 +90,6 @@ class LLMProvider(ABC):
 
     async def close(self):
         """Cleanup resources."""
-        pass
 
 
 class ProviderRegistry:

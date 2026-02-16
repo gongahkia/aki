@@ -6,18 +6,14 @@ import asyncio
 import json
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from src.config import settings
 from src.services import (
     CorpusQuery,
     CorpusService,
     HypotheticalEntry,
-    HypotheticalService,
-    LLMRequest,
     LLMResponse,
     LLMService,
 )

@@ -1,7 +1,7 @@
 """Anthropic LLM provider using anthropic SDK."""
 
 import time
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List
 
 import structlog
 

@@ -3,12 +3,11 @@ Database Service for persisting generation history using SQLite.
 Lightweight, local-only storage perfect for internal tools.
 """
 
-import asyncio
 import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import structlog
 
