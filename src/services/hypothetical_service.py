@@ -9,11 +9,17 @@ from typing import Any, Dict, List, Optional
 import structlog
 from pydantic import BaseModel, Field
 
-from .corpus_service import (
-    CorpusQuery,
-    HypotheticalEntry,
-    corpus_service,
-)
+try:
+    from .corpus_service import (
+        CorpusQuery,
+        HypotheticalEntry,
+        corpus_service,
+    )
+
+    _HAS_CORPUS = True
+except Exception:
+    _HAS_CORPUS = False
+    corpus_service = None
 from .database_service import database_service
 from .llm_service import LLMRequest, llm_service
 from .prompt_engineering import (
