@@ -5,26 +5,27 @@ Combines prompt engineering, LLM service, and corpus service to create high-qual
 
 import asyncio
 import json
-from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
-from pydantic import BaseModel, Field
-import structlog
+from typing import Any, Dict, List, Optional, Tuple
 
-from .llm_service import LLMService, LLMRequest, LLMResponse, llm_service
+import structlog
+from pydantic import BaseModel, Field
+
 from .corpus_service import (
+    CorpusQuery,
     CorpusService,
     HypotheticalEntry,
-    CorpusQuery,
     corpus_service,
 )
-from .validation_service import validation_service
 from .database_service import database_service
+from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
+from .prompt_engineering import HypotheticalEntry as PromptHypotheticalEntry
 from .prompt_engineering import (
-    PromptTemplateManager,
     PromptContext,
+    PromptTemplateManager,
     PromptTemplateType,
-    HypotheticalEntry as PromptHypotheticalEntry,
 )
+from .validation_service import validation_service
 
 logger = structlog.get_logger(__name__)
 

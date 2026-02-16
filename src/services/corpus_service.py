@@ -3,17 +3,18 @@ Corpus Service for managing legal hypothetical corpus data.
 Handles both local file storage and AWS S3 integration.
 """
 
-import json
 import asyncio
-from typing import Dict, List, Optional, Any, Tuple
+import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
 import structlog
+from botocore.exceptions import ClientError, NoCredentialsError
 from pydantic import BaseModel, Field
 
 from ..config import settings
-from .vector_service import vector_service, VectorServiceError
+from .vector_service import VectorServiceError, vector_service
 
 logger = structlog.get_logger(__name__)
 

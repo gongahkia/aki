@@ -48,7 +48,7 @@ class TestTUIScreens:
         assert StatusChecklist is not None
 
     def test_import_topic_selector(self):
-        from src.tui.widgets.topic_selector import TopicSelector, TOPIC_CATEGORIES
+        from src.tui.widgets.topic_selector import TOPIC_CATEGORIES, TopicSelector
 
         assert TopicSelector is not None
         assert len(TOPIC_CATEGORIES) == 5

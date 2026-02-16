@@ -1,10 +1,11 @@
 """Hypothetical clustering using sklearn KMeans and DBSCAN."""
 
-import numpy as np
-from typing import Dict, Optional, Callable
-from sklearn.cluster import KMeans, DBSCAN
+from typing import Callable, Dict, Optional
+
 import joblib
+import numpy as np
 import structlog
+from sklearn.cluster import DBSCAN, KMeans
 
 logger = structlog.get_logger(__name__)
 

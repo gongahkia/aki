@@ -1,7 +1,9 @@
 """Tests for LLM providers: Anthropic, Google Gemini, Local."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from src.services.llm_providers.base import LLMRequest, LLMResponse, LLMServiceError
 
 
@@ -43,8 +45,8 @@ class TestAnthropicProvider:
     async def test_list_models(self):
         with patch("src.services.llm_providers.anthropic_provider.anthropic"):
             from src.services.llm_providers.anthropic_provider import (
-                AnthropicProvider,
                 ANTHROPIC_MODELS,
+                AnthropicProvider,
             )
 
             provider = AnthropicProvider.__new__(AnthropicProvider)
@@ -70,8 +72,8 @@ class TestGoogleGeminiProvider:
     @pytest.mark.asyncio
     async def test_list_models(self):
         from src.services.llm_providers.google_provider import (
-            GoogleGeminiProvider,
             GEMINI_MODELS,
+            GoogleGeminiProvider,
         )
 
         provider = GoogleGeminiProvider.__new__(GoogleGeminiProvider)
@@ -96,6 +98,7 @@ class TestLocalLLMProvider:
     @pytest.mark.asyncio
     async def test_generate_success(self, llm_request):
         import httpx
+
         from src.services.llm_providers.local_provider import LocalLLMProvider
 
         provider = LocalLLMProvider.__new__(LocalLLMProvider)

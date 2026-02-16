@@ -1,12 +1,13 @@
 """Multi-label topic classifier using sklearn OneVsRestClassifier."""
 
+from typing import Callable, Dict, List, Optional
+
+import joblib
 import numpy as np
-from typing import Dict, List, Optional, Callable
+import structlog
+from sklearn.metrics import precision_recall_fscore_support
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import LinearSVC
-from sklearn.metrics import precision_recall_fscore_support
-import joblib
-import structlog
 
 logger = structlog.get_logger(__name__)
 

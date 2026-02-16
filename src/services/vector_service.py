@@ -4,12 +4,13 @@ Provides semantic similarity search for legal hypotheticals.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import chromadb
+import structlog
 from chromadb.config import Settings as ChromaSettings
 from sentence_transformers import SentenceTransformer
-import structlog
-from pathlib import Path
 
 from ..config import settings
 

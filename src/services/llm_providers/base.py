@@ -2,8 +2,9 @@
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, Dict, List, Optional
 from functools import wraps
+from typing import Any, AsyncIterator, Dict, List, Optional
+
 import structlog
 from pydantic import BaseModel, Field
 

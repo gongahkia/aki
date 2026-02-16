@@ -1,10 +1,10 @@
 """Jikai TUI - Main Textual App."""
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Static
-from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
+from textual.widgets import Footer, Header, Static
 
 
 class Sidebar(Static):

@@ -4,11 +4,12 @@ LLM Service using provider registry for multi-provider support.
 
 import asyncio
 import time
+from typing import Any, Dict, List, Optional
+
 import structlog
-from typing import Dict, List, Optional, Any
-from .llm_providers import registry, LLMRequest, LLMResponse, LLMServiceError
 
 from ..config import settings
+from .llm_providers import LLMRequest, LLMResponse, LLMServiceError, registry
 
 logger = structlog.get_logger(__name__)
 

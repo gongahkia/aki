@@ -4,8 +4,9 @@ Replaces expensive LLM-based validation with fast, reliable programmatic checks.
 """
 
 import re
-from typing import Dict, List, Any, Tuple
 from collections import Counter
+from typing import Any, Dict, List, Tuple
+
 import structlog
 
 logger = structlog.get_logger(__name__)

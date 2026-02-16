@@ -1,7 +1,7 @@
 """Tests for ML clustering."""
 
-import pytest
 import numpy as np
+import pytest
 from scipy.sparse import csr_matrix
 
 

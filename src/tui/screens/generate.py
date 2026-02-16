@@ -1,21 +1,21 @@
 """Generate screen for hypothetical generation."""
 
 from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.screen import Screen
 from textual.widgets import (
-    Header,
-    Footer,
-    Static,
     Button,
-    Select,
+    Footer,
+    Header,
     Input,
-    RadioSet,
-    RadioButton,
     Label,
+    RadioButton,
+    RadioSet,
+    Select,
+    Static,
     TextArea,
 )
-from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.binding import Binding
 
 
 class GenerateScreen(Screen):
@@ -112,10 +112,10 @@ class GenerateScreen(Screen):
             output.update("[bold yellow]Generating...[/bold yellow]")
             try:
                 from ...services.hypothetical_service import (
-                    hypothetical_service,
                     GenerationRequest,
+                    hypothetical_service,
                 )
-                from ...services.llm_service import llm_service, LLMRequest
+                from ...services.llm_service import LLMRequest, llm_service
 
                 topic_sel = self.query_one("#topic-select", Select)
                 topic = (

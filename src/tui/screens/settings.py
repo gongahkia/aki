@@ -1,10 +1,10 @@
 """Settings screen for app configuration."""
 
 from textual.app import ComposeResult
-from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Button, Input, Label, Select
-from textual.containers import Vertical, ScrollableContainer
 from textual.binding import Binding
+from textual.containers import ScrollableContainer, Vertical
+from textual.screen import Screen
+from textual.widgets import Button, Footer, Header, Input, Label, Select, Static
 
 
 class SettingsScreen(Screen):

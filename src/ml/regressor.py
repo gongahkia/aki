@@ -1,11 +1,12 @@
 """Quality score regressor using sklearn ensemble methods."""
 
-import numpy as np
-from typing import Dict, Optional, Callable
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from typing import Callable, Dict, Optional
+
 import joblib
+import numpy as np
 import structlog
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 logger = structlog.get_logger(__name__)
 

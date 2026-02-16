@@ -1,8 +1,8 @@
 """Reusable loading, progress, and status widgets."""
 
-from textual.widgets import Static, ProgressBar
 from textual.app import ComposeResult
 from textual.containers import Vertical
+from textual.widgets import ProgressBar, Static
 
 
 class LoadingSpinner(Static):

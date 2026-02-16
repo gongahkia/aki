@@ -2,18 +2,19 @@
 Tests for LLM Service.
 """
 
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 from src.services.llm_service import (
-    LLMService,
-    OllamaProvider,
-    OpenAIProvider,
     LLMRequest,
     LLMResponse,
+    LLMService,
     LLMServiceError,
+    OllamaProvider,
+    OpenAIProvider,
 )
 
 

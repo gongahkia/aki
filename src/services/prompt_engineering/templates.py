@@ -8,9 +8,10 @@ Implements various prompt engineering techniques including:
 - Context-aware prompting
 """
 
-from typing import Dict, List, Optional, Any
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
 # topic-specific prompt hints for expanded subtopics

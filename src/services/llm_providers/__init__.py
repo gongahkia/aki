@@ -13,11 +13,11 @@ registry = ProviderRegistry()
 
 def _auto_register():
     """Auto-discover and register all provider classes."""
-    from .ollama_provider import OllamaProvider
-    from .openai_provider import OpenAIProvider
     from .anthropic_provider import AnthropicProvider
     from .google_provider import GoogleGeminiProvider
     from .local_provider import LocalLLMProvider
+    from .ollama_provider import OllamaProvider
+    from .openai_provider import OpenAIProvider
 
     registry.register("ollama", OllamaProvider)
     registry.register("openai", OpenAIProvider)

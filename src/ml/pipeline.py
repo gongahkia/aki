@@ -1,12 +1,14 @@
 """Unified ML pipeline orchestrator."""
 
 import os
-from typing import Dict, Optional, Callable
-from .data import load_data, extract_features, binarize_labels
-from .classifier import TopicClassifier
-from .regressor import QualityRegressor
-from .clustering import HypotheticalClusterer
+from typing import Callable, Dict, Optional
+
 import structlog
+
+from .classifier import TopicClassifier
+from .clustering import HypotheticalClusterer
+from .data import binarize_labels, extract_features, load_data
+from .regressor import QualityRegressor
 
 logger = structlog.get_logger(__name__)
 

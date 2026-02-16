@@ -2,10 +2,12 @@
 Tests for DatabaseService.
 """
 
-import pytest
 import asyncio
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+import pytest
+
 from src.services.database_service import DatabaseService
 
 

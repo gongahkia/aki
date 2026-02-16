@@ -3,10 +3,11 @@ Configuration management for Jikai application.
 Uses Pydantic Settings for type-safe configuration with environment variable support.
 """
 
+import os
 from typing import List, Optional
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
-import os
 
 
 class DatabaseSettings(BaseSettings):

@@ -4,24 +4,25 @@ Provides REST API endpoints for generating, validating, and managing legal hypot
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
+from typing import Any, Dict, List, Optional
+
+import structlog
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-import structlog
 from pydantic import BaseModel, Field
 
 from ..config import settings
 from ..services import (
-    hypothetical_service,
-    llm_service,
-    corpus_service,
+    CorpusQuery,
     GenerationRequest,
     GenerationResponse,
     HypotheticalEntry,
-    CorpusQuery,
+    corpus_service,
+    hypothetical_service,
+    llm_service,
 )
 
 # Configure structured logging

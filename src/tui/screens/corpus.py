@@ -1,21 +1,22 @@
 """Corpus browsing screen with import/export."""
 
-import json
 import csv
+import json
+
 from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.screen import Screen
 from textual.widgets import (
-    Header,
-    Footer,
-    Static,
-    Input,
+    Button,
     DataTable,
+    Footer,
+    Header,
+    Input,
     Label,
     Select,
-    Button,
+    Static,
 )
-from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.binding import Binding
 
 
 class CorpusScreen(Screen):

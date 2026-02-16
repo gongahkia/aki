@@ -1,19 +1,19 @@
 """Train screen for ML model training."""
 
 from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.screen import Screen
 from textual.widgets import (
-    Header,
-    Footer,
-    Static,
     Button,
-    Input,
     Checkbox,
+    Footer,
+    Header,
+    Input,
     Label,
     ProgressBar,
+    Static,
 )
-from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.binding import Binding
 
 
 class TrainScreen(Screen):

@@ -1,10 +1,10 @@
 """Providers management screen."""
 
 from textual.app import ComposeResult
-from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Button, Label, ListView, ListItem
-from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.binding import Binding
+from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.screen import Screen
+from textual.widgets import Button, Footer, Header, Label, ListItem, ListView, Static
 
 
 class ProvidersScreen(Screen):

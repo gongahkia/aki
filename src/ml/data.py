@@ -1,12 +1,13 @@
 """Data loading, feature extraction, and preprocessing for ML pipeline."""
 
-import pandas as pd
+from typing import Callable, Optional, Tuple
+
 import numpy as np
-from typing import Tuple, Optional, Callable
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import MultiLabelBinarizer
+import pandas as pd
 import structlog
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MultiLabelBinarizer
 
 logger = structlog.get_logger(__name__)
 

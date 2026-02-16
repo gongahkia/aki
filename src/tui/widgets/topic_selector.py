@@ -1,9 +1,9 @@
 """Multi-select topic selector widget grouped by tort category."""
 
-from textual.widgets import Static, Checkbox
 from textual.app import ComposeResult
-from textual.containers import Vertical
 from textual.binding import Binding
+from textual.containers import Vertical
+from textual.widgets import Checkbox, Static
 
 TOPIC_CATEGORIES = {
     "General Negligence": [

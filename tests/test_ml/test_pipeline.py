@@ -1,9 +1,10 @@
 """Tests for ML pipeline."""
 
-import pytest
+import csv
 import os
 import tempfile
-import csv
+
+import pytest
 
 
 @pytest.fixture
