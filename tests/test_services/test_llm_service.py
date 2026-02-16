@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
+from src.services.llm_providers.ollama_provider import OllamaProvider
+from src.services.llm_providers.openai_provider import OpenAIProvider
 from src.services.llm_service import (
     LLMRequest,
     LLMResponse,
     LLMService,
     LLMServiceError,
-    OllamaProvider,
-    OpenAIProvider,
 )
 
 
