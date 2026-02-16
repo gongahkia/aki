@@ -23,6 +23,8 @@ from .prompt_engineering import (
 
 logger = structlog.get_logger(__name__)
 
+MAX_HISTORY_SIZE = 100
+
 
 class GenerationRequest(BaseModel):
     """Request model for hypothetical generation."""
@@ -32,6 +34,9 @@ class GenerationRequest(BaseModel):
     complexity_level: str = Field(default="intermediate")
     sample_size: int = Field(default=3, ge=1, le=10)
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    method: str = Field(default="pure_llm")  # pure_llm, ml_assisted, hybrid
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
 
 class GenerationResponse(BaseModel):
@@ -65,7 +70,19 @@ class HypotheticalService:
         self.validation_service = validation_service
         self.database_service = database_service
         self.prompt_manager = PromptTemplateManager()
-        self._generation_history: List[Dict[str, Any]] = []  # In-memory cache
+        self._generation_history: List[Dict[str, Any]] = []
+        self._ml_pipeline = None
+
+    def _get_ml_pipeline(self):
+        """Lazy-load ML pipeline."""
+        if self._ml_pipeline is None:
+            try:
+                from ..ml.pipeline import MLPipeline
+                self._ml_pipeline = MLPipeline()
+                self._ml_pipeline.load_all()
+            except Exception:
+                pass
+        return self._ml_pipeline
     
     async def generate_hypothetical(self, request: GenerationRequest) -> GenerationResponse:
         """Generate a complete legal hypothetical with analysis."""
@@ -82,7 +99,11 @@ class HypotheticalService:
             
             # Step 2: Generate the hypothetical
             hypothetical = await self._generate_hypothetical_text(request, context_entries)
-            
+
+            # Step 2.5: ML-assisted post-processing
+            if request.method in ("ml_assisted", "hybrid"):
+                hypothetical = await self._ml_post_process(request, hypothetical)
+
             # Step 3: Validate the generated hypothetical
             validation_results = await self._validate_hypothetical(request, hypothetical, context_entries)
             
@@ -115,6 +136,8 @@ class HypotheticalService:
                 "response": response.dict()
             }
             self._generation_history.append(generation_record)
+            if len(self._generation_history) > MAX_HISTORY_SIZE:
+                self._generation_history = self._generation_history[-MAX_HISTORY_SIZE:]
 
             # Persist to database (async, don't block on this)
             try:
@@ -136,6 +159,35 @@ class HypotheticalService:
             logger.error("Hypothetical generation failed", error=str(e))
             raise HypotheticalServiceError(f"Generation failed: {e}")
     
+    async def _ml_post_process(self, request: GenerationRequest, hypothetical: str) -> str:
+        """ML-assisted post-processing: validate topics, score quality, check diversity."""
+        pipeline = self._get_ml_pipeline()
+        if not pipeline or not pipeline.classifier.is_trained:
+            return hypothetical
+        try:
+            prediction = pipeline.predict(hypothetical)
+            # check topic alignment
+            if "topics" in prediction:
+                ml_topics = set(prediction["topics"])
+                req_topics = set(request.topics)
+                if ml_topics and not ml_topics & req_topics:
+                    logger.warning("ML topic mismatch", ml=ml_topics, requested=req_topics)
+            # check quality score
+            if "quality" in prediction and prediction["quality"] < 3.0:
+                logger.warning("ML quality score low", score=prediction["quality"])
+            # check cluster diversity against recent history
+            if "cluster" in prediction and self._generation_history:
+                recent_clusters = []
+                for h in self._generation_history[-10:]:
+                    rc = h.get("ml_cluster")
+                    if rc is not None:
+                        recent_clusters.append(rc)
+                if recent_clusters and all(c == prediction["cluster"] for c in recent_clusters[-3:]):
+                    logger.warning("Low diversity: same cluster as last 3 generations", cluster=prediction["cluster"])
+        except Exception as e:
+            logger.warning("ML post-processing failed (non-fatal)", error=str(e))
+        return hypothetical
+
     async def _get_relevant_context(self, request: GenerationRequest) -> List[HypotheticalEntry]:
         """Get relevant context from corpus based on topics."""
         try:
@@ -185,7 +237,11 @@ class HypotheticalService:
             )
             
             # Generate response
-            llm_response = await self.llm_service.generate(llm_request)
+            llm_response = await self.llm_service.generate(
+                llm_request,
+                provider=request.provider,
+                model=request.model,
+            )
             
             # Extract hypothetical from response
             hypothetical = self._extract_hypothetical_from_response(llm_response.content)

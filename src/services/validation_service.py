@@ -272,6 +272,18 @@ class ValidationService:
             logger.error("Score calculation failed", error=str(e))
             return 0.0, False
 
+    def _get_ml_pipeline(self):
+        """Lazy-load ML pipeline for enhanced validation."""
+        if not hasattr(self, '_ml_pipeline'):
+            self._ml_pipeline = None
+            try:
+                from ..ml.pipeline import MLPipeline
+                self._ml_pipeline = MLPipeline()
+                self._ml_pipeline.load_all()
+            except Exception:
+                pass
+        return self._ml_pipeline
+
     def validate_hypothetical(
         self,
         text: str,
@@ -303,6 +315,12 @@ class ValidationService:
             # Calculate overall score
             overall_score, passed = self.calculate_overall_score(all_results)
 
+            # ML-enhanced checks (non-blocking)
+            ml_checks = self._run_ml_checks(text, required_topics)
+            if ml_checks:
+                all_results["ml_topic_check"] = ml_checks.get("ml_topic_check", {})
+                all_results["ml_quality_check"] = ml_checks.get("ml_quality_check", {})
+
             return {
                 'passed': passed,
                 'overall_score': overall_score,
@@ -324,6 +342,33 @@ class ValidationService:
                 'summary': {},
                 'error': str(e)
             }
+
+    def _run_ml_checks(self, text: str, required_topics: List[str]) -> Dict:
+        """Run ML-based validation checks if models are trained."""
+        pipeline = self._get_ml_pipeline()
+        if not pipeline:
+            return {}
+        result = {}
+        try:
+            prediction = pipeline.predict(text)
+            if "topics" in prediction:
+                ml_topics = set(prediction["topics"])
+                req_topics = set(required_topics)
+                match = bool(ml_topics & req_topics) if ml_topics else True
+                result["ml_topic_check"] = {
+                    "passed": match,
+                    "ml_predicted_topics": list(ml_topics),
+                    "requested_topics": required_topics,
+                    "message": f"ML predicted {list(ml_topics)}, requested {required_topics}",
+                }
+            if "quality" in prediction:
+                result["ml_quality_check"] = {
+                    "ml_quality_score": prediction["quality"],
+                    "message": f"ML predicted quality: {prediction['quality']:.2f}",
+                }
+        except Exception as e:
+            logger.warning("ML checks failed (non-fatal)", error=str(e))
+        return result
 
 
 # Global validation service instance
