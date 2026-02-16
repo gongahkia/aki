@@ -1,7 +1,6 @@
 """Tests for TUI screens (basic render tests)."""
 
 
-
 class TestTUIScreens:
     """Basic import and instantiation tests for TUI screens."""
 

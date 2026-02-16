@@ -20,7 +20,6 @@ class VectorServiceError(Exception):
     """Custom exception for vector service errors."""
 
 
-
 class VectorService:
     """Service for semantic vector search using ChromaDB."""
 

@@ -42,7 +42,6 @@ class CorpusServiceError(Exception):
     """Custom exception for corpus service errors."""
 
 
-
 class CorpusService:
     """Service for managing legal hypothetical corpus data."""
 

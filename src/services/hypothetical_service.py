@@ -65,7 +65,6 @@ class HypotheticalServiceError(Exception):
     """Custom exception for hypothetical service errors."""
 
 
-
 class HypotheticalService:
     """Main service for generating and validating legal hypotheticals."""
 

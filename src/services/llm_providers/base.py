@@ -67,7 +67,6 @@ class LLMServiceError(Exception):
     """Custom exception for LLM service errors."""
 
 
-
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
 
