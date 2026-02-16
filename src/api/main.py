@@ -361,6 +361,65 @@ async def get_generation_stats(
         )
 
 
+# ML endpoints
+@app.post("/ml/train")
+async def train_ml_models(
+    data_path: Optional[str] = None,
+    n_clusters: int = 5,
+):
+    """Trigger ML model training."""
+    try:
+        from ..ml.pipeline import MLPipeline
+        pipeline = MLPipeline()
+        import asyncio
+        path = data_path or settings.ml.training_data_path
+        metrics = await asyncio.to_thread(pipeline.train_all, path, n_clusters=n_clusters)
+        return {"status": "trained", "metrics": metrics}
+    except Exception as e:
+        logger.error("ML training failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Training failed: {e}")
+
+
+@app.get("/ml/status")
+async def ml_status():
+    """Get ML model status and metrics."""
+    try:
+        from ..ml.pipeline import MLPipeline
+        pipeline = MLPipeline()
+        pipeline.load_all()
+        return pipeline.get_status()
+    except Exception as e:
+        return {"classifier_trained": False, "regressor_trained": False, "clusterer_trained": False, "error": str(e)}
+
+
+@app.get("/providers")
+async def list_providers():
+    """List all providers and their models."""
+    try:
+        models = await llm_service.list_models()
+        health = await llm_service.health_check()
+        return {"providers": {name: {"models": m, "health": health.get(name, {})} for name, m in models.items()}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SetDefaultProviderRequest(BaseModel):
+    provider: str
+    model: Optional[str] = None
+
+
+@app.put("/providers/default")
+async def set_default_provider(req: SetDefaultProviderRequest):
+    """Set default LLM provider and model."""
+    try:
+        llm_service.select_provider(req.provider)
+        if req.model:
+            llm_service.select_model(req.model)
+        return {"default_provider": req.provider, "default_model": req.model}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # Error handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
