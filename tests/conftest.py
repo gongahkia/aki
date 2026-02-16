@@ -12,18 +12,6 @@ import pytest
 
 from src.services.llm_service import LLMResponse, LLMService
 
-# lazy imports to avoid chromadb dependency at collection time
-try:
-    from src.services.corpus_service import (
-        CorpusQuery,
-        CorpusService,
-        HypotheticalEntry,
-    )
-
-    _HAS_CORPUS = True
-except ImportError:
-    _HAS_CORPUS = False
-
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -75,8 +63,10 @@ def mock_llm_response():
 @pytest.fixture
 def mock_corpus_entries():
     """Mock corpus entries for testing."""
-    if not _HAS_CORPUS:
-        pytest.skip("chromadb/corpus_service not available")
+    try:
+        from src.services.corpus_service import HypotheticalEntry
+    except Exception:
+        pytest.skip("chromadb not available")
     return [
         HypotheticalEntry(
             id="1",
@@ -106,8 +96,10 @@ def mock_llm_service():
 @pytest.fixture
 def mock_corpus_service():
     """Mock corpus service for testing."""
-    if not _HAS_CORPUS:
-        pytest.skip("chromadb/corpus_service not available")
+    try:
+        from src.services.corpus_service import CorpusService
+    except Exception:
+        pytest.skip("chromadb not available")
     service = AsyncMock(spec=CorpusService)
     service.load_corpus = AsyncMock()
     service.query_relevant_hypotheticals = AsyncMock()
