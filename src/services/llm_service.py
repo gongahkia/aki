@@ -2,6 +2,7 @@
 LLM Service using provider registry for multi-provider support.
 """
 import asyncio
+import time
 import structlog
 from typing import Dict, List, Optional, Any
 from .llm_providers import registry, LLMRequest, LLMResponse, LLMServiceError
@@ -10,8 +11,10 @@ from ..config import settings
 
 logger = structlog.get_logger(__name__)
 
-GENERATION_TIMEOUT = 120  # seconds
-HEALTH_CHECK_TIMEOUT = 30  # seconds
+GENERATION_TIMEOUT = 120
+HEALTH_CHECK_TIMEOUT = 30
+CIRCUIT_BREAKER_THRESHOLD = 3  # consecutive failures before marking unhealthy
+CIRCUIT_BREAKER_COOLDOWN = 60  # seconds before retrying unhealthy provider
 
 
 class LLMService:
@@ -20,6 +23,8 @@ class LLMService:
     def __init__(self):
         self._default_provider: Optional[str] = None
         self._default_model: Optional[str] = None
+        self._failure_counts: Dict[str, int] = {}
+        self._unhealthy_until: Dict[str, float] = {}
         self._initialize_providers()
 
     def _initialize_providers(self):
@@ -90,11 +95,45 @@ class LLMService:
         """Set default model."""
         self._default_model = name
 
+    def _is_provider_healthy(self, name: str) -> bool:
+        """Check if provider is not circuit-broken."""
+        if name in self._unhealthy_until:
+            if time.time() < self._unhealthy_until[name]:
+                return False
+            del self._unhealthy_until[name]
+            self._failure_counts[name] = 0
+        return True
+
+    def _record_failure(self, name: str):
+        """Record a failure; trip circuit breaker after threshold."""
+        self._failure_counts[name] = self._failure_counts.get(name, 0) + 1
+        if self._failure_counts[name] >= CIRCUIT_BREAKER_THRESHOLD:
+            self._unhealthy_until[name] = time.time() + CIRCUIT_BREAKER_COOLDOWN
+            logger.warning("Circuit breaker tripped", provider=name, cooldown=CIRCUIT_BREAKER_COOLDOWN)
+
+    def _record_success(self, name: str):
+        self._failure_counts[name] = 0
+
+    def _get_fallback_provider(self, exclude: str) -> Optional[str]:
+        """Get next available healthy provider."""
+        for name in registry.list_instances():
+            if name != exclude and self._is_provider_healthy(name):
+                return name
+        return None
+
     async def generate(self, request: LLMRequest, provider: str = None, model: str = None) -> LLMResponse:
-        """Generate using specified or default provider+model."""
+        """Generate using specified or default provider+model. Auto-fallback on circuit break."""
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
             raise LLMServiceError(f"Provider '{provider_name}' not available")
+        # circuit breaker check
+        if not self._is_provider_healthy(provider_name):
+            fallback = self._get_fallback_provider(provider_name)
+            if fallback:
+                logger.warning("Provider unhealthy, falling back", unhealthy=provider_name, fallback=fallback)
+                provider_name = fallback
+            else:
+                raise LLMServiceError(f"Provider '{provider_name}' is circuit-broken and no fallback available")
         if model:
             request = request.model_copy(update={"model": model})
         elif self._default_model and not request.model:
@@ -105,14 +144,17 @@ class LLMService:
                 provider_instance.generate(request),
                 timeout=GENERATION_TIMEOUT,
             )
+            self._record_success(provider_name)
             logger.info("LLM generation completed",
                        provider=provider_name, model=response.model,
                        response_time=response.response_time,
                        tokens=response.usage.get("total_tokens", 0))
             return response
         except asyncio.TimeoutError:
+            self._record_failure(provider_name)
             raise LLMServiceError(f"Generation timed out after {GENERATION_TIMEOUT}s on provider '{provider_name}'")
         except Exception as e:
+            self._record_failure(provider_name)
             logger.error("LLM generation failed", provider=provider_name, error=str(e))
             raise
 

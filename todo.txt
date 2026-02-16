@@ -1,4 +1,3 @@
-(B) Remove all Docker references from README.md: remove Docker setup instructions, add local setup instructions (python -m venv, pip install, make setup, make tui), add section on API key configuration, add section on ML training +infra
 (B) Add error boundary and circuit breaker pattern to LLM provider calls: after 3 consecutive failures on a provider, mark it as unhealthy for 60s, auto-fallback to next available provider, show status in TUI provider screen +stability
 (B) Create src/services/llm_providers/__init__.py that auto-discovers and registers all provider classes from the package, exports ProviderRegistry singleton +refactor
 (B) Add cost tracking to LLM providers: estimate token costs per provider/model (configurable price table in settings), accumulate per-session cost, display in TUI footer and generation results +feature
