@@ -9,3 +9,4 @@ log.json
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+bandit-report.json
