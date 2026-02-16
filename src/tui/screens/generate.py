@@ -28,9 +28,9 @@ GenerateScreen {
 }
 #output-panel {
     height: 1fr;
-    border: tall #bdc3c7;
+    border: tall #cccccc;
     padding: 1;
-    background: #f8f9fa;
+    background: #ffffff;
     color: #1a1a1a;
 }
 .form-row {
@@ -40,8 +40,9 @@ GenerateScreen {
 #hint-bar {
     height: auto;
     padding: 0 1;
-    background: #ecf0f1;
-    color: #7f8c8d;
+    background: #ffffff;
+    color: #888888;
+    border-bottom: tall #cccccc;
 }
 """
 
