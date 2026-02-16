@@ -4,7 +4,22 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, Select, Static
+from textual.widgets import Footer, Header, Input, Label, Select, Static
+
+SCREEN_CSS = """
+SettingsScreen {
+    layout: vertical;
+    background: #ffffff;
+    color: #1a1a1a;
+}
+#settings-form { padding: 1; background: #ffffff; }
+.setting-group { margin-bottom: 1; }
+#save-status {
+    height: auto; padding: 0 1;
+    background: #f8f9fa; color: #1a1a1a;
+}
+#hint-bar { height: auto; padding: 0 1; background: #ecf0f1; color: #7f8c8d; }
+"""
 
 
 class SettingsScreen(Screen):
@@ -14,31 +29,32 @@ class SettingsScreen(Screen):
         Binding("escape", "pop_screen", "Back", priority=True),
         Binding("q", "pop_screen", "Back", show=False, priority=True),
         Binding("left", "pop_screen", "Back", show=False),
+        Binding("f2", "save", "Save", priority=True),
     ]
 
-    CSS = """
-    SettingsScreen { layout: vertical; }
-    #settings-form { padding: 1; }
-    .setting-group { margin-bottom: 1; }
-    """
+    CSS = SCREEN_CSS
 
     def compose(self) -> ComposeResult:
         yield Header()
+        yield Static(
+            "Tab: next field  ↑↓: select options  F2: save  Esc: back",
+            id="hint-bar",
+        )
         with ScrollableContainer():
             with Vertical(id="settings-form"):
-                yield Label("[bold]API Keys[/bold]")
+                yield Label("API Keys")
                 yield Label("Anthropic API Key:")
                 yield Input(placeholder="sk-ant-...", password=True, id="anthropic-key")
                 yield Label("OpenAI API Key:")
                 yield Input(placeholder="sk-...", password=True, id="openai-key")
                 yield Label("Google API Key:")
                 yield Input(placeholder="AI...", password=True, id="google-key")
-                yield Label("[bold]Hosts[/bold]")
+                yield Label("Hosts")
                 yield Label("Ollama Host:")
                 yield Input(value="http://localhost:11434", id="ollama-host")
                 yield Label("Local LLM Host:")
                 yield Input(value="http://localhost:8080", id="local-host")
-                yield Label("[bold]Defaults[/bold]")
+                yield Label("Defaults")
                 yield Label("Default Temperature (0.0-2.0):")
                 yield Input(value="0.7", id="temperature")
                 yield Label("Default Max Tokens:")
@@ -58,44 +74,26 @@ class SettingsScreen(Screen):
                     value="INFO",
                     id="log-level",
                 )
-                yield Button("Save Settings", variant="primary", id="save-btn")
                 yield Static("", id="save-status")
         yield Footer()
 
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "save-btn":
-            status = self.query_one("#save-status", Static)
-            try:
-                lines = []
-                lines.append(
-                    f"ANTHROPIC_API_KEY={self.query_one('#anthropic-key', Input).value}"
-                )
-                lines.append(
-                    f"OPENAI_API_KEY={self.query_one('#openai-key', Input).value}"
-                )
-                lines.append(
-                    f"GOOGLE_API_KEY={self.query_one('#google-key', Input).value}"
-                )
-                lines.append(
-                    f"OLLAMA_HOST={self.query_one('#ollama-host', Input).value}"
-                )
-                lines.append(
-                    f"LOCAL_LLM_HOST={self.query_one('#local-host', Input).value}"
-                )
-                lines.append(
-                    f"DEFAULT_TEMPERATURE={self.query_one('#temperature', Input).value}"
-                )
-                lines.append(
-                    f"DEFAULT_MAX_TOKENS={self.query_one('#max-tokens', Input).value}"
-                )
-                lines.append(
-                    f"CORPUS_PATH={self.query_one('#corpus-path', Input).value}"
-                )
-                lines.append(f"DATABASE_PATH={self.query_one('#db-path', Input).value}")
-                log_sel = self.query_one("#log-level", Select)
-                lines.append(f"LOG_LEVEL={log_sel.value}")
-                with open(".env", "w") as f:
-                    f.write("\n".join(lines) + "\n")
-                status.update("[bold green]Settings saved to .env[/bold green]")
-            except Exception as e:
-                status.update(f"[bold red]Error: {e}[/bold red]")
+    async def action_save(self) -> None:
+        status = self.query_one("#save-status", Static)
+        try:
+            lines = [
+                f"ANTHROPIC_API_KEY={self.query_one('#anthropic-key', Input).value}",
+                f"OPENAI_API_KEY={self.query_one('#openai-key', Input).value}",
+                f"GOOGLE_API_KEY={self.query_one('#google-key', Input).value}",
+                f"OLLAMA_HOST={self.query_one('#ollama-host', Input).value}",
+                f"LOCAL_LLM_HOST={self.query_one('#local-host', Input).value}",
+                f"DEFAULT_TEMPERATURE={self.query_one('#temperature', Input).value}",
+                f"DEFAULT_MAX_TOKENS={self.query_one('#max-tokens', Input).value}",
+                f"CORPUS_PATH={self.query_one('#corpus-path', Input).value}",
+                f"DATABASE_PATH={self.query_one('#db-path', Input).value}",
+                f"LOG_LEVEL={self.query_one('#log-level', Select).value}",
+            ]
+            with open(".env", "w") as f:
+                f.write("\n".join(lines) + "\n")
+            status.update("Settings saved to .env")
+        except Exception as e:
+            status.update(f"Error: {e}")
