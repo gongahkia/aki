@@ -1,2 +1,1 @@
-(B) Update src/services/prompt_engineering/templates.py: make templates aware of expanded subtopics, add topic-specific prompt hints for new subtopics (e.g. occupiers_liability -> include premises description, visitor classification) +feature
 (B) Implement async streaming in TUI generate screen: if provider supports streaming, show tokens appearing in real-time in output panel; fallback to loading spinner + full response for non-streaming providers +feature

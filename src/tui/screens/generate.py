@@ -77,17 +77,35 @@ class GenerateScreen(Screen):
             output.update("[bold yellow]Generating...[/bold yellow]")
             try:
                 from ...services.hypothetical_service import hypothetical_service, GenerationRequest
+                from ...services.llm_service import llm_service, LLMRequest
                 topic_sel = self.query_one("#topic-select", Select)
                 topic = topic_sel.value if topic_sel.value != Select.BLANK else "negligence"
                 complexity = int(self.query_one("#complexity-input", Input).value or "3")
                 parties = int(self.query_one("#parties-input", Input).value or "3")
-                request = GenerationRequest(
-                    topics=[topic],
-                    number_parties=max(2, min(5, parties)),
-                    complexity_level=max(1, min(5, complexity)),
-                )
-                response = await hypothetical_service.generate_hypothetical(request)
-                text = response.hypothetical if hasattr(response, "hypothetical") else str(response)
-                output.update(text)
+                provider_sel = self.query_one("#provider-select", Select)
+                provider = provider_sel.value if provider_sel.value != Select.BLANK else None
+                model_val = self.query_one("#model-input", Input).value or None
+                # try streaming first
+                try:
+                    request = LLMRequest(
+                        prompt=f"Generate a Singapore tort law hypothetical about {topic} with {parties} parties at complexity {complexity}/5.",
+                        stream=True,
+                    )
+                    chunks = []
+                    async for chunk in llm_service.stream_generate(request, provider=provider, model=model_val):
+                        chunks.append(chunk)
+                        output.update("".join(chunks))
+                    if not chunks:
+                        output.update("[dim]No output received[/dim]")
+                except Exception:
+                    # fallback to non-streaming
+                    request = GenerationRequest(
+                        topics=[topic],
+                        number_parties=max(2, min(5, parties)),
+                        complexity_level=max(1, min(5, complexity)),
+                    )
+                    response = await hypothetical_service.generate_hypothetical(request)
+                    text = response.hypothetical if hasattr(response, "hypothetical") else str(response)
+                    output.update(text)
             except Exception as e:
                 output.update(f"[bold red]Error: {e}[/bold red]")

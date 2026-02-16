@@ -194,6 +194,31 @@ class LLMService:
             logger.error("LLM generation failed", provider=provider_name, error=str(e))
             raise
 
+    async def stream_generate(self, request: LLMRequest, provider: str = None, model: str = None):
+        """Stream tokens from provider. Yields str chunks."""
+        from typing import AsyncIterator
+        provider_name = provider or self._default_provider
+        if not provider_name or provider_name not in registry.list_instances():
+            raise LLMServiceError(f"Provider '{provider_name}' not available")
+        if not self._is_provider_healthy(provider_name):
+            fallback = self._get_fallback_provider(provider_name)
+            if fallback:
+                provider_name = fallback
+            else:
+                raise LLMServiceError(f"Provider '{provider_name}' is circuit-broken and no fallback available")
+        if model:
+            request = request.model_copy(update={"model": model, "stream": True})
+        else:
+            request = request.model_copy(update={"stream": True})
+        provider_instance = registry.get(provider_name)
+        try:
+            async for chunk in provider_instance.stream_generate(request):
+                yield chunk
+            self._record_success(provider_name)
+        except Exception as e:
+            self._record_failure(provider_name)
+            raise LLMServiceError(f"Stream failed on '{provider_name}': {e}")
+
     async def health_check(self, provider: str = None) -> Dict[str, Any]:
         """Check health of all or specific provider."""
         if provider:
