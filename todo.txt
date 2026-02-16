@@ -1,5 +1,3 @@
-(B) Add error boundary and circuit breaker pattern to LLM provider calls: after 3 consecutive failures on a provider, mark it as unhealthy for 60s, auto-fallback to next available provider, show status in TUI provider screen +stability
-(B) Create src/services/llm_providers/__init__.py that auto-discovers and registers all provider classes from the package, exports ProviderRegistry singleton +refactor
 (B) Add cost tracking to LLM providers: estimate token costs per provider/model (configurable price table in settings), accumulate per-session cost, display in TUI footer and generation results +feature
 (B) Add corpus import/export in TUI corpus screen: import from CSV/JSON file, export selected entries to CSV/JSON, validate schema on import +feature
 (B) Update src/services/prompt_engineering/templates.py: make templates aware of expanded subtopics, add topic-specific prompt hints for new subtopics (e.g. occupiers_liability -> include premises description, visitor classification) +feature

@@ -14,7 +14,20 @@ logger = structlog.get_logger(__name__)
 GENERATION_TIMEOUT = 120
 HEALTH_CHECK_TIMEOUT = 30
 CIRCUIT_BREAKER_THRESHOLD = 3  # consecutive failures before marking unhealthy
-CIRCUIT_BREAKER_COOLDOWN = 60  # seconds before retrying unhealthy provider
+CIRCUIT_BREAKER_COOLDOWN = 60
+
+# cost per 1K tokens (USD) - configurable
+TOKEN_COSTS = {
+    "claude-sonnet-4-5-20250929": {"input": 0.003, "output": 0.015},
+    "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
+    "claude-opus-4-6": {"input": 0.015, "output": 0.075},
+    "gpt-4o": {"input": 0.005, "output": 0.015},
+    "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+    "o1": {"input": 0.015, "output": 0.06},
+    "o3-mini": {"input": 0.0011, "output": 0.0044},
+    "gemini-2.0-flash": {"input": 0.0001, "output": 0.0004},
+    "gemini-2.5-pro": {"input": 0.00125, "output": 0.005},
+}
 
 
 class LLMService:
@@ -25,6 +38,8 @@ class LLMService:
         self._default_model: Optional[str] = None
         self._failure_counts: Dict[str, int] = {}
         self._unhealthy_until: Dict[str, float] = {}
+        self._session_cost: float = 0.0
+        self._session_tokens: Dict[str, int] = {"input": 0, "output": 0}
         self._initialize_providers()
 
     def _initialize_providers(self):
@@ -114,6 +129,25 @@ class LLMService:
     def _record_success(self, name: str):
         self._failure_counts[name] = 0
 
+    def _track_cost(self, model: str, usage: Dict[str, int]):
+        """Estimate and accumulate token costs."""
+        costs = TOKEN_COSTS.get(model, {"input": 0, "output": 0})
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        cost = (input_tokens / 1000 * costs["input"]) + (output_tokens / 1000 * costs["output"])
+        self._session_cost += cost
+        self._session_tokens["input"] += input_tokens
+        self._session_tokens["output"] += output_tokens
+        return cost
+
+    def get_session_cost(self) -> Dict[str, Any]:
+        """Get accumulated session cost info."""
+        return {
+            "total_cost_usd": round(self._session_cost, 6),
+            "total_input_tokens": self._session_tokens["input"],
+            "total_output_tokens": self._session_tokens["output"],
+        }
+
     def _get_fallback_provider(self, exclude: str) -> Optional[str]:
         """Get next available healthy provider."""
         for name in registry.list_instances():
@@ -145,10 +179,12 @@ class LLMService:
                 timeout=GENERATION_TIMEOUT,
             )
             self._record_success(provider_name)
+            cost = self._track_cost(response.model, response.usage)
             logger.info("LLM generation completed",
                        provider=provider_name, model=response.model,
                        response_time=response.response_time,
-                       tokens=response.usage.get("total_tokens", 0))
+                       tokens=response.usage.get("total_tokens", 0),
+                       cost_usd=round(cost, 6))
             return response
         except asyncio.TimeoutError:
             self._record_failure(provider_name)
