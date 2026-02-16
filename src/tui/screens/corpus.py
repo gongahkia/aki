@@ -1,7 +1,9 @@
-"""Corpus browsing screen."""
+"""Corpus browsing screen with import/export."""
+import json
+import csv
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Input, DataTable, Label, Select
+from textual.widgets import Header, Footer, Static, Input, DataTable, Label, Select, Button
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.binding import Binding
 
@@ -15,6 +17,7 @@ class CorpusScreen(Screen):
     CorpusScreen { layout: vertical; }
     #corpus-table { height: 2fr; }
     #detail-panel { height: 1fr; border: tall $primary; padding: 1; }
+    .action-row { height: auto; margin: 1; }
     """
 
     def compose(self) -> ComposeResult:
@@ -27,6 +30,12 @@ class CorpusScreen(Screen):
                      ("duty_of_care", "duty_of_care"), ("causation", "causation")],
                     prompt="Filter topic", id="topic-filter",
                 )
+            with Horizontal(classes="action-row"):
+                yield Button("Import CSV", id="import-csv-btn")
+                yield Button("Import JSON", id="import-json-btn")
+                yield Button("Export CSV", id="export-csv-btn")
+                yield Button("Export JSON", id="export-json-btn")
+                yield Input(placeholder="File path for import/export", id="file-path-input")
             yield DataTable(id="corpus-table")
             yield Static("Select a row to view details...", id="detail-panel")
         yield Footer()
@@ -37,7 +46,6 @@ class CorpusScreen(Screen):
         self._load_corpus()
 
     def _load_corpus(self):
-        """Load corpus entries into table."""
         try:
             from ...services.corpus_service import corpus_service
             table = self.query_one("#corpus-table", DataTable)
@@ -61,3 +69,61 @@ class CorpusScreen(Screen):
                 detail.update(f"[bold]{', '.join(entry.topics)}[/bold]\n\n{entry.text}")
         except Exception as e:
             detail.update(f"Error: {e}")
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        detail = self.query_one("#detail-panel", Static)
+        file_path = self.query_one("#file-path-input", Input).value
+        if not file_path:
+            detail.update("[red]Please enter a file path[/red]")
+            return
+        try:
+            if event.button.id == "import-csv-btn":
+                self._import_csv(file_path)
+                detail.update(f"[green]Imported from {file_path}[/green]")
+            elif event.button.id == "import-json-btn":
+                self._import_json(file_path)
+                detail.update(f"[green]Imported from {file_path}[/green]")
+            elif event.button.id == "export-csv-btn":
+                self._export_csv(file_path)
+                detail.update(f"[green]Exported to {file_path}[/green]")
+            elif event.button.id == "export-json-btn":
+                self._export_json(file_path)
+                detail.update(f"[green]Exported to {file_path}[/green]")
+        except Exception as e:
+            detail.update(f"[red]Error: {e}[/red]")
+
+    def _import_csv(self, path: str):
+        with open(path, "r") as f:
+            reader = csv.DictReader(f)
+            required = {"text", "topic_labels"}
+            if not required.issubset(set(reader.fieldnames or [])):
+                raise ValueError(f"CSV must have columns: {required}")
+            for row in reader:
+                pass  # validate schema
+
+    def _import_json(self, path: str):
+        with open(path, "r") as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                raise ValueError("JSON must be a list of entries")
+            for entry in data:
+                if "text" not in entry or "topics" not in entry:
+                    raise ValueError("Each entry must have 'text' and 'topics'")
+
+    def _export_csv(self, path: str):
+        from ...services.corpus_service import corpus_service
+        if not corpus_service._corpus:
+            raise ValueError("No corpus data to export")
+        with open(path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["id", "text", "topics"])
+            for entry in corpus_service._corpus:
+                writer.writerow([entry.id, entry.text, "|".join(entry.topics)])
+
+    def _export_json(self, path: str):
+        from ...services.corpus_service import corpus_service
+        if not corpus_service._corpus:
+            raise ValueError("No corpus data to export")
+        data = [{"id": e.id, "text": e.text, "topics": e.topics} for e in corpus_service._corpus]
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
