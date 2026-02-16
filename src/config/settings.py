@@ -144,6 +144,9 @@ class Settings(BaseSettings):
     app_name: str = Field(default="Jikai", env="APP_NAME")
     app_version: str = Field(default="2.0.0", env="APP_VERSION")
     environment: str = Field(default="development", env="ENVIRONMENT")
+    corpus_path: str = Field(default="corpus/clean/tort/corpus.json", env="CORPUS_PATH")
+    database_path: str = Field(default="data/jikai.db", env="DATABASE_PATH")
+    embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
     
     # Sub-configurations
     database: DatabaseSettings = DatabaseSettings()

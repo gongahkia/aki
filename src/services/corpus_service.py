@@ -45,7 +45,8 @@ class CorpusService:
     """Service for managing legal hypothetical corpus data."""
     
     def __init__(self):
-        self._local_corpus_path = Path("corpus/clean/tort/corpus.json")
+        from ..config import settings as app_settings
+        self._local_corpus_path = Path(app_settings.corpus_path)
         self._s3_client = None
         self._vector_service = vector_service
         self._corpus_indexed = False

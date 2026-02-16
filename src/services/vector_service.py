@@ -34,9 +34,10 @@ class VectorService:
     def _initialize(self):
         """Initialize ChromaDB client and embedding model."""
         try:
-            # Initialize sentence transformer for embeddings (local, free)
-            logger.info("Loading embedding model", model="all-MiniLM-L6-v2")
-            self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            from ..config import settings as app_settings
+            model_name = app_settings.embedding_model
+            logger.info("Loading embedding model", model=model_name)
+            self._embedding_model = SentenceTransformer(model_name)
 
             # Initialize ChromaDB client (local persistent storage)
             persist_directory = Path("./chroma_db")

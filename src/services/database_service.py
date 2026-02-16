@@ -17,8 +17,9 @@ logger = structlog.get_logger(__name__)
 class DatabaseService:
     """Service for managing SQLite database for generation history."""
 
-    def __init__(self, db_path: str = "data/jikai.db"):
-        self._db_path = Path(db_path)
+    def __init__(self, db_path: str = None):
+        from ..config import settings as app_settings
+        self._db_path = Path(db_path or app_settings.database_path)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize_database()
 
