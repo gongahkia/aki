@@ -1,6 +1,6 @@
 {
   "errors": [],
-  "generated_at": "2026-02-16T15:29:26Z",
+  "generated_at": "2026-02-16T15:29:46Z",
   "metrics": {
     "_totals": {
       "CONFIDENCE.HIGH": 3,
@@ -532,70 +532,6 @@
       "test_name": "hardcoded_bind_all_interfaces"
     },
     {
-      "code": "264             query = (\n265                 \"SELECT timestamp, topics, hypothetical, quality_score \"\n266                 \"FROM generation_history \"\n267                 \"WHERE \" + conditions + \" \"\n268                 \"ORDER BY timestamp DESC \"\n",
-      "col_offset": 16,
-      "end_col_offset": 24,
-      "filename": "src/services/database_service.py",
-      "issue_confidence": "LOW",
-      "issue_cwe": {
-        "id": 89,
-        "link": "https://cwe.mitre.org/data/definitions/89.html"
-      },
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible SQL injection vector through string-based query construction.",
-      "line_number": 265,
-      "line_range": [
-        265,
-        266,
-        267
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html",
-      "test_id": "B608",
-      "test_name": "hardcoded_sql_expressions"
-    },
-    {
-      "code": "93                 self._ml_pipeline.load_all()\n94             except Exception:\n95                 pass\n96         return self._ml_pipeline\n",
-      "col_offset": 12,
-      "end_col_offset": 20,
-      "filename": "src/services/hypothetical_service.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 94,
-      "line_range": [
-        94,
-        95
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "453                 self._ml_pipeline.load_all()\n454             except Exception:\n455                 pass\n456         return self._ml_pipeline\n",
-      "col_offset": 12,
-      "end_col_offset": 20,
-      "filename": "src/services/validation_service.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 454,
-      "line_range": [
-        454,
-        455
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
       "code": "10 \n11     uvicorn.run(\"src.api.main:app\", host=\"0.0.0.0\", port=8000, reload=False)\n12 \n",
       "col_offset": 41,
       "end_col_offset": 50,
@@ -614,27 +550,6 @@
       "more_info": "https://bandit.readthedocs.io/en/1.9.3/plugins/b104_hardcoded_bind_all_interfaces.html",
       "test_id": "B104",
       "test_name": "hardcoded_bind_all_interfaces"
-    },
-    {
-      "code": "78                     table.add_row(str(entry.id), topics, str(quality), str(words), text)\n79         except Exception:\n80             pass\n81 \n",
-      "col_offset": 8,
-      "end_col_offset": 16,
-      "filename": "src/tui/screens/corpus.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 79,
-      "line_range": [
-        79,
-        80
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
     }
   ]
 }
