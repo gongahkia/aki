@@ -59,7 +59,7 @@ class TopicSelector(Vertical):
         self._selected: set = set()
 
     def compose(self) -> ComposeResult:
-        yield Static(f"[bold]Topics[/bold] (0 selected)", id="topic-count")
+        yield Static("[bold]Topics[/bold] (0 selected)", id="topic-count")
         for category, topics in TOPIC_CATEGORIES.items():
             yield Static(f"[bold]{category}[/bold]", classes="category-header")
             for topic in topics:
