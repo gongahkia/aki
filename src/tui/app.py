@@ -63,12 +63,12 @@ class JikaiApp(App):
     """
 
     BINDINGS = [
-        Binding("q", "quit", "Quit"),
-        Binding("g", "show_generate", "Generate"),
-        Binding("t", "show_train", "Train ML"),
-        Binding("b", "show_corpus", "Browse Corpus"),
-        Binding("s", "show_settings", "Settings"),
-        Binding("p", "show_providers", "Providers"),
+        Binding("q", "quit", "Quit", priority=True),
+        Binding("g", "show_generate", "Generate", priority=True),
+        Binding("t", "show_train", "Train ML", priority=True),
+        Binding("b", "show_corpus", "Browse Corpus", priority=True),
+        Binding("s", "show_settings", "Settings", priority=True),
+        Binding("p", "show_providers", "Providers", priority=True),
         Binding("enter", "activate_selected", "Select", show=False),
     ]
 
