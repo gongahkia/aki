@@ -136,12 +136,8 @@ class GenerateScreen(Screen):
             from ...services.llm_service import LLMRequest, llm_service
 
             topic_sel = self.query_one("#topic-select", Select)
-            topic = (
-                topic_sel.value if topic_sel.value != Select.BLANK else "negligence"
-            )
-            complexity = int(
-                self.query_one("#complexity-input", Input).value or "3"
-            )
+            topic = topic_sel.value if topic_sel.value != Select.BLANK else "negligence"
+            complexity = int(self.query_one("#complexity-input", Input).value or "3")
             parties = int(self.query_one("#parties-input", Input).value or "3")
             provider_sel = self.query_one("#provider-select", Select)
             provider = (

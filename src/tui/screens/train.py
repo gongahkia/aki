@@ -78,9 +78,7 @@ class TrainScreen(Screen):
 
             data_path = self.query_one("#data-path", Input).value
             n_clusters = int(self.query_one("#n-clusters", Input).value or "5")
-            max_features = int(
-                self.query_one("#max-features", Input).value or "5000"
-            )
+            max_features = int(self.query_one("#max-features", Input).value or "5000")
             pipeline = MLPipeline()
 
             def on_progress(pct, msg):
