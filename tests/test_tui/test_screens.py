@@ -1,52 +1,47 @@
-"""Tests for TUI screens (basic render tests)."""
+"""Tests for Rich TUI (basic import and structure tests)."""
 
 
 class TestTUIScreens:
-    """Basic import and instantiation tests for TUI screens."""
+    """Basic import and instantiation tests for Rich TUI."""
 
     def test_import_app(self):
-        from src.tui.app import JikaiApp
+        from src.tui.rich_app import JikaiTUI
+        assert JikaiTUI is not None
 
-        assert JikaiApp is not None
+    def test_instantiate_app(self):
+        from src.tui.rich_app import JikaiTUI
+        tui = JikaiTUI()
+        assert hasattr(tui, "run")
+        assert hasattr(tui, "main_menu")
 
-    def test_import_generate_screen(self):
-        from src.tui.screens.generate import GenerateScreen
+    def test_topics_list(self):
+        from src.tui.rich_app import TOPICS
+        assert len(TOPICS) >= 18
 
-        assert GenerateScreen is not None
+    def test_providers_list(self):
+        from src.tui.rich_app import PROVIDERS
+        assert PROVIDERS == ["ollama", "openai", "anthropic", "google", "local"]
 
-    def test_import_train_screen(self):
-        from src.tui.screens.train import TrainScreen
+    def test_all_flows_exist(self):
+        from src.tui.rich_app import JikaiTUI
+        tui = JikaiTUI()
+        for method in ["generate_flow", "train_flow", "corpus_flow",
+                        "settings_flow", "providers_flow"]:
+            assert hasattr(tui, method)
 
-        assert TrainScreen is not None
+    def test_corpus_parsers_exist(self):
+        from src.tui.rich_app import JikaiTUI
+        tui = JikaiTUI()
+        for method in ["_parse_json", "_parse_csv", "_parse_txt"]:
+            assert callable(getattr(tui, method))
 
-    def test_import_corpus_screen(self):
-        from src.tui.screens.corpus import CorpusScreen
+    def test_run_async_helper(self):
+        from src.tui.rich_app import _run_async
+        import asyncio
+        async def _coro():
+            return 42
+        assert _run_async(_coro()) == 42
 
-        assert CorpusScreen is not None
-
-    def test_import_settings_screen(self):
-        from src.tui.screens.settings import SettingsScreen
-
-        assert SettingsScreen is not None
-
-    def test_import_providers_screen(self):
-        from src.tui.screens.providers import ProvidersScreen
-
-        assert ProvidersScreen is not None
-
-    def test_import_loading_widgets(self):
-        from src.tui.widgets.loading import (
-            LoadingSpinner,
-            ProgressBarWithETA,
-            StatusChecklist,
-        )
-
-        assert LoadingSpinner is not None
-        assert ProgressBarWithETA is not None
-        assert StatusChecklist is not None
-
-    def test_import_topic_selector(self):
-        from src.tui.widgets.topic_selector import TOPIC_CATEGORIES, TopicSelector
-
-        assert TopicSelector is not None
-        assert len(TOPIC_CATEGORIES) == 5
+    def test_package_exports(self):
+        from src.tui import JikaiTUI
+        assert JikaiTUI is not None
