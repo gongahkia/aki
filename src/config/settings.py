@@ -89,7 +89,12 @@ class TortLawSettings(BaseSettings):
             "negligence", "duty of care", "standard of care", "causation", 
             "remoteness", "battery", "assault", "false imprisonment",
             "defamation", "private nuisance", "trespass to land", 
-            "vicarious liability", "strict liability", "harassment"
+            "vicarious liability", "strict liability", "harassment",
+            "occupiers_liability", "product_liability", "contributory_negligence",
+            "economic_loss", "psychiatric_harm", "employers_liability",
+            "breach_of_statutory_duty", "rylands_v_fletcher", "consent_defence",
+            "illegality_defence", "limitation_periods", "res_ipsa_loquitur",
+            "novus_actus_interveniens", "volenti_non_fit_injuria",
         ],
         env="DEFAULT_TOPICS"
     )
@@ -98,6 +103,39 @@ class TortLawSettings(BaseSettings):
     
     class Config:
         env_prefix = "TORT_"
+
+
+class LLMProviderSettings(BaseSettings):
+    """LLM provider API keys and hosts."""
+    anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
+    google_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
+    openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
+    ollama_host: str = Field(default="http://localhost:11434", env="OLLAMA_HOST")
+    local_llm_host: Optional[str] = Field(default=None, env="LOCAL_LLM_HOST")
+    default_provider: str = Field(default="ollama", env="DEFAULT_PROVIDER")
+    default_model: str = Field(default="llama2:7b", env="DEFAULT_MODEL")
+
+    class Config:
+        env_prefix = ""
+
+
+class MLSettings(BaseSettings):
+    """ML pipeline configuration."""
+    models_dir: str = Field(default="models", env="ML_MODELS_DIR")
+    training_data_path: str = Field(default="corpus/labelled/sample.csv", env="ML_TRAINING_DATA")
+    default_n_clusters: int = Field(default=5, env="ML_N_CLUSTERS")
+
+    class Config:
+        env_prefix = "ML_"
+
+
+class TUISettings(BaseSettings):
+    """TUI configuration."""
+    theme: str = Field(default="dark", env="TUI_THEME")
+    keybindings: str = Field(default="default", env="TUI_KEYBINDINGS")
+
+    class Config:
+        env_prefix = "TUI_"
 
 
 class Settings(BaseSettings):
@@ -114,6 +152,9 @@ class Settings(BaseSettings):
     api: APISettings = APISettings()
     logging: LoggingSettings = LoggingSettings()
     tort_law: TortLawSettings = TortLawSettings()
+    llm_providers: LLMProviderSettings = LLMProviderSettings()
+    ml: MLSettings = MLSettings()
+    tui: TUISettings = TUISettings()
     
     @field_validator('environment')
     @classmethod
@@ -122,6 +163,22 @@ class Settings(BaseSettings):
         if v.lower() not in valid_envs:
             raise ValueError(f'Environment must be one of {valid_envs}')
         return v.lower()
+
+    @property
+    def anthropic_api_key(self):
+        return self.llm_providers.anthropic_api_key
+
+    @property
+    def google_api_key(self):
+        return self.llm_providers.google_api_key
+
+    @property
+    def openai_api_key(self):
+        return self.llm_providers.openai_api_key
+
+    @property
+    def local_llm_host(self):
+        return self.llm_providers.local_llm_host
     
     class Config:
         env_file = ".env"

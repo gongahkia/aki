@@ -37,7 +37,21 @@ class ValidationService:
             'trespass to land': ['trespass', 'entered', 'land', 'property', 'without permission'],
             'vicarious liability': ['vicarious', 'employer', 'employee', 'course of employment'],
             'strict liability': ['strict liability', 'no fault', 'absolute', 'inherently dangerous'],
-            'harassment': ['harassment', 'harass', 'alarm', 'distress']
+            'harassment': ['harassment', 'harass', 'alarm', 'distress'],
+            'occupiers_liability': ['occupier', 'visitor', 'premises', 'invitee', 'licensee', 'trespasser'],
+            'product_liability': ['manufacturer', 'product', 'defect', 'consumer', 'safety'],
+            'contributory_negligence': ['contributory', 'claimant', 'own fault', 'contributed', 'apportionment'],
+            'economic_loss': ['economic loss', 'pure economic', 'financial loss', 'pecuniary'],
+            'psychiatric_harm': ['psychiatric', 'nervous shock', 'mental injury', 'ptsd', 'psychological'],
+            'employers_liability': ['employer', 'workplace', 'occupational', 'safe system', 'employee injury'],
+            'breach_of_statutory_duty': ['statutory duty', 'statute', 'breach of duty', 'legislative', 'regulation'],
+            'rylands_v_fletcher': ['rylands', 'fletcher', 'escape', 'non-natural use', 'accumulation'],
+            'consent_defence': ['consent', 'volenti', 'agreed', 'assumption of risk', 'willing'],
+            'illegality_defence': ['illegality', 'ex turpi', 'illegal act', 'unlawful', 'criminal'],
+            'limitation_periods': ['limitation', 'time bar', 'statute of limitations', 'accrual', 'prescribed period'],
+            'res_ipsa_loquitur': ['res ipsa', 'speaks for itself', 'inference', 'control', 'without explanation'],
+            'novus_actus_interveniens': ['novus actus', 'intervening', 'break in chain', 'superseding cause', 'new act'],
+            'volenti_non_fit_injuria': ['volenti', 'voluntary assumption', 'consent to risk', 'willing participant'],
         }
 
     def validate_party_count(self, text: str, expected_count: int) -> Dict[str, Any]:
