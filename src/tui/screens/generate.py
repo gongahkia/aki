@@ -20,7 +20,10 @@ from textual.widgets import (
 class GenerateScreen(Screen):
     """Screen for generating legal hypotheticals."""
 
-    BINDINGS = [Binding("escape", "pop_screen", "Back")]
+    BINDINGS = [
+        Binding("escape", "pop_screen", "Back"),
+        Binding("left", "pop_screen", "Back", show=False),
+    ]
 
     CSS = """
     GenerateScreen {

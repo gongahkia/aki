@@ -10,7 +10,10 @@ from textual.widgets import Button, Footer, Header, Label, ListItem, ListView, S
 class ProvidersScreen(Screen):
     """Screen for LLM provider management."""
 
-    BINDINGS = [Binding("escape", "pop_screen", "Back")]
+    BINDINGS = [
+        Binding("escape", "pop_screen", "Back"),
+        Binding("left", "pop_screen", "Back", show=False),
+    ]
 
     CSS = """
     ProvidersScreen { layout: vertical; }

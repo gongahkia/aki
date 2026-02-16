@@ -21,7 +21,10 @@ from textual.widgets import (
 class CorpusScreen(Screen):
     """Screen for browsing the hypothetical corpus."""
 
-    BINDINGS = [Binding("escape", "pop_screen", "Back")]
+    BINDINGS = [
+        Binding("escape", "pop_screen", "Back"),
+        Binding("left", "pop_screen", "Back", show=False),
+    ]
 
     CSS = """
     CorpusScreen { layout: vertical; }

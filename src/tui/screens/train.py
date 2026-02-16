@@ -19,7 +19,10 @@ from textual.widgets import (
 class TrainScreen(Screen):
     """Screen for ML model training."""
 
-    BINDINGS = [Binding("escape", "pop_screen", "Back")]
+    BINDINGS = [
+        Binding("escape", "pop_screen", "Back"),
+        Binding("left", "pop_screen", "Back", show=False),
+    ]
 
     CSS = """
     TrainScreen { layout: vertical; }

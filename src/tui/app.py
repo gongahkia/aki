@@ -2,34 +2,42 @@
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
-from textual.widgets import Footer, Header, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Footer, Header, Label, ListItem, ListView, Static
+
+NAV_ITEMS = [
+    ("generate", "Generate", "g"),
+    ("train", "Train ML", "t"),
+    ("corpus", "Browse Corpus", "b"),
+    ("settings", "Settings", "s"),
+    ("providers", "Providers", "p"),
+]
 
 
-class Sidebar(Static):
-    """Navigation sidebar."""
-
-    def compose(self) -> ComposeResult:
-        yield Static(
-            "[b]Navigation[/b]\n\n"
-            "[g] Generate\n"
-            "[t] Train ML\n"
-            "[b] Browse Corpus\n"
-            "[s] Settings\n"
-            "[p] Providers\n"
-            "[q] Quit",
-            id="nav-content",
-        )
+class Sidebar(Vertical):
+    """Navigation sidebar with arrow key support."""
 
     DEFAULT_CSS = """
     Sidebar {
-        width: 24;
+        width: 26;
         dock: left;
         background: $surface;
         border-right: tall $primary;
         padding: 1;
     }
+    #nav-hint { color: $text-muted; margin-top: 1; }
     """
+
+    def compose(self) -> ComposeResult:
+        yield Label("[b]Navigation[/b]")
+        yield ListView(
+            *[
+                ListItem(Label(f"[{key}] {label}"), id=f"nav-{name}")
+                for name, label, key in NAV_ITEMS
+            ],
+            id="nav-list",
+        )
+        yield Static("[dim]↑↓ move  Enter select  q quit[/dim]", id="nav-hint")
 
 
 class ContentArea(Static):
@@ -61,16 +69,41 @@ class JikaiApp(App):
         Binding("b", "show_corpus", "Browse Corpus"),
         Binding("s", "show_settings", "Settings"),
         Binding("p", "show_providers", "Providers"),
+        Binding("enter", "activate_selected", "Select", show=False),
     ]
+
+    _NAV_ACTIONS = {
+        "nav-generate": "show_generate",
+        "nav-train": "show_train",
+        "nav-corpus": "show_corpus",
+        "nav-settings": "show_settings",
+        "nav-providers": "show_providers",
+    }
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
             yield Sidebar()
             yield ContentArea(
-                "Welcome to Jikai. Use keybindings to navigate.", id="content"
+                "Welcome to Jikai. Use arrow keys or letter keys to navigate.",
+                id="content",
             )
         yield Footer()
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle Enter on a nav list item."""
+        action = self._NAV_ACTIONS.get(str(event.item.id))
+        if action:
+            getattr(self, f"action_{action}")()
+
+    def action_activate_selected(self) -> None:
+        """Forward Enter to the nav list if focused."""
+        try:
+            lv = self.query_one("#nav-list", ListView)
+            if lv.index is not None and lv.has_focus:
+                lv.action_select_cursor()
+        except Exception:
+            pass
 
     def action_show_generate(self) -> None:
         from .screens.generate import GenerateScreen
