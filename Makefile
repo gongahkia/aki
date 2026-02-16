@@ -48,7 +48,13 @@ pre-commit-update: ## Update pre-commit hooks
 	pre-commit autoupdate
 
 # Application commands
-run: ## Run the application locally
+run: ## Run both API and TUI
+	python -m src.tui --both
+
+tui: ## Run TUI only
+	python -m src.tui --tui-only
+
+api: ## Run API server only
 	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 run-prod: ## Run the application in production mode
@@ -60,6 +66,14 @@ health: ## Check application health
 
 health-llm: ## Check LLM service health
 	curl -f http://localhost:8000/llm/health || echo "LLM service not available"
+
+# ML Training
+train: ## Train ML models on labelled corpus
+	python -m src.ml.pipeline --data corpus/labelled/sample.csv
+
+# Setup
+setup: ## Install all dependencies
+	pip install -r requirements.txt
 
 # Cleanup
 clean: ## Clean up temporary files
