@@ -22,11 +22,15 @@ TrainScreen {
 }
 #train-form { height: auto; padding: 1; background: #ffffff; }
 #train-output {
-    height: 1fr; border: tall #bdc3c7;
-    padding: 1; background: #f8f9fa; color: #1a1a1a;
+    height: 1fr; border: tall #cccccc;
+    padding: 1; background: #ffffff; color: #1a1a1a;
 }
 .form-row { height: auto; margin-bottom: 1; }
-#hint-bar { height: auto; padding: 0 1; background: #ecf0f1; color: #7f8c8d; }
+#hint-bar {
+    height: auto; padding: 0 1;
+    background: #ffffff; color: #888888;
+    border-bottom: tall #cccccc;
+}
 """
 
 

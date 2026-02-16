@@ -32,18 +32,22 @@ CorpusScreen {
 #browser-row { height: 1fr; }
 #file-tree {
     width: 1fr; min-width: 28; max-width: 40;
-    border-right: tall #bdc3c7;
-    background: #f8f9fa;
+    border-right: tall #cccccc;
+    background: #ffffff;
 }
 #corpus-panel { width: 3fr; background: #ffffff; }
 #corpus-table { height: 2fr; }
 #detail-panel {
-    height: 1fr; border: tall #bdc3c7;
+    height: 1fr; border: tall #cccccc;
     padding: 1; overflow-y: auto;
-    background: #f8f9fa; color: #1a1a1a;
+    background: #ffffff; color: #1a1a1a;
 }
-#path-bar { height: auto; padding: 0 1; background: #ecf0f1; color: #1a1a1a; }
-#hint-bar { height: auto; padding: 0 1; background: #ecf0f1; color: #7f8c8d; }
+#path-bar { height: auto; padding: 0 1; background: #ffffff; color: #1a1a1a; }
+#hint-bar {
+    height: auto; padding: 0 1;
+    background: #ffffff; color: #888888;
+    border-bottom: tall #cccccc;
+}
 """
 
 

@@ -16,9 +16,13 @@ SettingsScreen {
 .setting-group { margin-bottom: 1; }
 #save-status {
     height: auto; padding: 0 1;
-    background: #f8f9fa; color: #1a1a1a;
+    background: #ffffff; color: #1a1a1a;
 }
-#hint-bar { height: auto; padding: 0 1; background: #ecf0f1; color: #7f8c8d; }
+#hint-bar {
+    height: auto; padding: 0 1;
+    background: #ffffff; color: #888888;
+    border-bottom: tall #cccccc;
+}
 """
 
 
