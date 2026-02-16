@@ -1,1 +1,0 @@
-(B) Implement async streaming in TUI generate screen: if provider supports streaming, show tokens appearing in real-time in output panel; fallback to loading spinner + full response for non-streaming providers +feature
