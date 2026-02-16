@@ -1,0 +1,161 @@
+JIKAI TUI MIGRATION: Textual → Rich (caipng-style procedural pipeline)
+======================================================================
+
+Goal: Replace Textual screen-based TUI with Rich procedural sequential
+      TUI (single class, blocking prompts, linear flow, console.print).
+      Preserve ALL current functionality and jikai's value prop
+      (AI-powered Singapore tort law hypothetical generation).
+
+----------------------------------------------------------------------
+PHASE 0: SCAFFOLDING
+----------------------------------------------------------------------
+[ ] Create src/tui/rich_app.py with JikaiTUI class (mirrors caipng TrainingTUI pattern)
+[ ] Add Rich Console singleton at module level
+[ ] Add dual logging (console + file) like caipng's tlog pattern
+[ ] Add __main__.py entry point: JikaiTUI().run()
+[ ] Verify rich>=13.0.0 in requirements; remove textual dependency
+
+----------------------------------------------------------------------
+PHASE 1: MAIN MENU LOOP
+----------------------------------------------------------------------
+[ ] Implement display_banner() — Panel with app title + description
+[ ] Implement main_menu() — numbered Prompt.ask loop replacing sidebar nav
+      Options: [1] Generate [2] Train ML [3] Browse Corpus [4] Settings [5] Providers [6] Quit
+[ ] Loop back to menu after each action completes (unlike caipng's one-shot)
+[ ] Handle invalid input gracefully (re-prompt)
+
+----------------------------------------------------------------------
+PHASE 2: GENERATE HYPOTHETICALS (replaces GenerateScreen)
+----------------------------------------------------------------------
+[ ] Implement configure_generation() with sequential Prompt.ask:
+      - Topic: Prompt.ask with default, show all 18 tort topics in Table first
+      - Provider: Prompt.ask from [ollama/openai/anthropic/google/local]
+      - Model: Prompt.ask (optional, default empty)
+      - Complexity (1-5): Prompt.ask with default "3"
+      - Parties (2-5): Prompt.ask with default "3"
+      - Method: Prompt.ask from [pure_llm/ml_assisted/hybrid]
+[ ] Show config summary Table before confirming (caipng pattern)
+[ ] Confirm.ask before generation
+[ ] Implement generate() with console.status spinner during LLM call
+[ ] Stream LLM output to console with Rich Live display (real-time token streaming)
+[ ] Fallback to HypotheticalService.generate_hypothetical on stream failure
+[ ] Display generation result in Panel with border styling
+[ ] Show validation results (quality score, topic match, party count) in Table
+[ ] Prompt: generate another? (loop) or back to menu
+
+----------------------------------------------------------------------
+PHASE 3: TRAIN ML MODELS (replaces TrainScreen)
+----------------------------------------------------------------------
+[ ] Implement configure_training() with sequential Prompt.ask:
+      - Training data path: Prompt.ask with default "corpus/labelled/sample.csv"
+      - Train classifier? Confirm.ask (default True)
+      - Train regressor? Confirm.ask (default True)
+      - Train clusterer? Confirm.ask (default True)
+      - n_clusters: Prompt.ask with default "5"
+      - test_split: Prompt.ask with default "0.2"
+      - max_features: Prompt.ask with default "5000"
+[ ] Show config summary Table + Confirm.ask before training
+[ ] Implement train() with Rich Progress bar (SpinnerColumn + BarColumn + percentage)
+      - Wire progress_callback to progress.update (like caipng's epoch loop)
+[ ] Display training metrics in summary Table on completion
+[ ] Log training results to file (tlog pattern)
+
+----------------------------------------------------------------------
+PHASE 4: BROWSE CORPUS (replaces CorpusScreen)
+----------------------------------------------------------------------
+[ ] Implement browse_corpus() entry point
+[ ] Prompt.ask for corpus file path (default: corpus/clean/tort/corpus.json)
+[ ] Load + parse JSON/CSV/TXT files (reuse existing _parse_* logic)
+[ ] Display corpus entries in Rich Table (columns: ID, Topics, Quality, Words, Preview)
+      - Paginate: show 20 entries at a time, prompt for next/prev/select/quit
+[ ] Implement entry detail view: Prompt.ask for row ID → display full text in Panel
+[ ] Implement search: Prompt.ask for search term → filter + redisplay Table
+[ ] Implement topic filter: Prompt.ask for topic → filter + redisplay Table
+[ ] Implement export CSV: Confirm.ask → write file → show path
+[ ] Implement export JSON: Confirm.ask → write file → show path
+[ ] Implement preprocess raw: Confirm.ask → console.status spinner → show count
+[ ] Sub-menu loop: [1] View entry [2] Search [3] Filter [4] Export CSV [5] Export JSON [6] Preprocess [7] Load different file [8] Back
+
+----------------------------------------------------------------------
+PHASE 5: SETTINGS (replaces SettingsScreen)
+----------------------------------------------------------------------
+[ ] Implement configure_settings() — load current .env values as defaults
+[ ] Sequential Prompt.ask for each setting:
+      - Anthropic API Key (show masked current value)
+      - OpenAI API Key (show masked current value)
+      - Google API Key (show masked current value)
+      - Ollama Host (default: http://localhost:11434)
+      - Local LLM Host (default: http://localhost:8080)
+      - Default Temperature (default: 0.7)
+      - Default Max Tokens (default: 2048)
+      - Corpus Path (default: corpus/clean/tort/corpus.json)
+      - Database Path (default: data/jikai.db)
+      - Log Level: Prompt.ask from [DEBUG/INFO/WARNING/ERROR]
+[ ] Show settings summary Table
+[ ] Confirm.ask before saving to .env
+[ ] Display save confirmation with file path
+
+----------------------------------------------------------------------
+PHASE 6: PROVIDERS (replaces ProvidersScreen)
+----------------------------------------------------------------------
+[ ] Implement manage_providers() entry point
+[ ] Display provider list in Table (name + status columns)
+[ ] Implement health check: console.status spinner → call llm_service.health_check()
+      - Display results in Table: provider | status | models
+[ ] Implement set default: Prompt.ask for provider name → update
+[ ] Sub-menu loop: [1] Check Health [2] Set Default [3] Back
+
+----------------------------------------------------------------------
+PHASE 7: STYLING & UX CONSISTENCY (match caipng patterns)
+----------------------------------------------------------------------
+[ ] Use consistent Rich markup: [bold yellow] for section headers
+[ ] Use "=" * 60 separators between sections (caipng pattern)
+[ ] Use [green]✓[/green] for success, [red]✗[/red] for errors
+[ ] Use [cyan] for parameter names, [yellow] for values in Tables
+[ ] Use box.ROUNDED for data Tables, box.DOUBLE for banner/summary Panels
+[ ] Use console.status with spinner="dots" for all blocking operations
+[ ] Use [dim] for hints and secondary text
+[ ] Ensure all errors show actionable hint messages
+
+----------------------------------------------------------------------
+PHASE 8: SERVICE LAYER WIRING
+----------------------------------------------------------------------
+[ ] Wire generate flow to LLMService.stream_generate (sync wrapper or asyncio.run)
+[ ] Wire generate flow to HypotheticalService.generate_hypothetical (fallback)
+[ ] Wire train flow to MLPipeline.train_all with progress_callback
+[ ] Wire corpus flow to corpus_preprocessor.build_corpus
+[ ] Wire providers flow to llm_service.health_check + list_models
+[ ] Wire settings flow to .env read/write
+[ ] Handle async service calls: wrap with asyncio.run() in synchronous TUI context
+[ ] Preserve circuit breaker, cost tracking, token tracking from LLMService
+
+----------------------------------------------------------------------
+PHASE 9: CLEANUP & REMOVAL
+----------------------------------------------------------------------
+[ ] Delete src/tui/app.py (old Textual app)
+[ ] Delete src/tui/screens/ directory (all 5 screen files)
+[ ] Delete src/tui/widgets/ directory (loading.py, topic_selector.py)
+[ ] Update src/tui/__init__.py to export JikaiTUI
+[ ] Update src/tui/__main__.py to use JikaiTUI().run()
+[ ] Remove textual from requirements/pyproject.toml
+[ ] Ensure rich is listed as dependency
+[ ] Verify no remaining textual imports anywhere in codebase
+
+----------------------------------------------------------------------
+PHASE 10: VALIDATION & TESTING
+----------------------------------------------------------------------
+[ ] Run full TUI end-to-end: menu → generate → back → menu
+[ ] Run full TUI end-to-end: menu → train → back → menu
+[ ] Run full TUI end-to-end: menu → corpus browse → search → export → back
+[ ] Run full TUI end-to-end: menu → settings → save → back
+[ ] Run full TUI end-to-end: menu → providers → health check → set default → back
+[ ] Verify .env settings persist correctly across TUI restarts
+[ ] Verify LLM streaming output renders progressively
+[ ] Verify ML training progress bar updates in real-time
+[ ] Verify corpus pagination works for large files (200+ entries)
+[ ] Verify graceful error handling (no provider available, bad path, etc.)
+[ ] Verify all 18 tort law topics are selectable
+[ ] Verify all 5 LLM providers are accessible
+[ ] Verify all 3 ML models trainable (classifier, regressor, clusterer)
+[ ] Verify CSV + JSON export produces valid files
+[ ] Verify corpus preprocessing from raw files works
