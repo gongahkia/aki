@@ -57,6 +57,7 @@ class CorpusScreen(Screen):
         Binding("f5", "load_corpus", "Load", priority=True),
         Binding("f6", "export_csv", "Export CSV", priority=True),
         Binding("f7", "export_json", "Export JSON", priority=True),
+        Binding("f8", "preprocess", "Preprocess Raw", priority=True),
     ]
 
     CSS = SCREEN_CSS
@@ -79,8 +80,8 @@ class CorpusScreen(Screen):
         yield Header()
         yield Static(
             "↑↓: navigate tree/table  Enter: select file  "
-            "Tab: switch panes  F5: load path  F6: export CSV  F7: export JSON  "
-            "Esc: back",
+            "Tab: switch panes  F5: load  F6: CSV  F7: JSON  "
+            "F8: preprocess raw  Esc: back",
             id="hint-bar",
         )
         with Horizontal(id="path-bar"):
@@ -259,3 +260,18 @@ class CorpusScreen(Screen):
     def _export_json(self, path: str) -> None:
         with open(path, "w") as f:
             json.dump(self._entries, f, indent=2)
+
+    async def action_preprocess(self) -> None:
+        """Rebuild corpus from raw files (TXT/PDF/PNG/DOCX)."""
+        detail = self.query_one("#detail-panel", Static)
+        detail.update("Preprocessing raw corpus files...")
+        try:
+            import asyncio
+
+            from ...services.corpus_preprocessor import CORPUS_FILE, build_corpus
+
+            count = await asyncio.to_thread(build_corpus)
+            detail.update(f"Preprocessed {count} entries → {CORPUS_FILE}")
+            self._load_file(str(self._project_root / CORPUS_FILE))
+        except Exception as e:
+            detail.update(f"Preprocess error: {e}")

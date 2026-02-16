@@ -19,48 +19,50 @@ Screen {
     color: #1a1a1a;
 }
 Header {
-    background: #2c3e50;
-    color: #ffffff;
+    background: #ffffff;
+    color: #1a1a1a;
+    border-bottom: tall #cccccc;
 }
 Footer {
-    background: #ecf0f1;
-    color: #2c3e50;
+    background: #ffffff;
+    color: #1a1a1a;
+    border-top: tall #cccccc;
 }
 FooterKey {
-    background: #2c3e50;
-    color: #ffffff;
+    background: #ffffff;
+    color: #1a1a1a;
 }
 Sidebar {
-    background: #f8f9fa;
-    border-right: tall #bdc3c7;
+    background: #ffffff;
+    border-right: tall #cccccc;
     color: #1a1a1a;
 }
 ListView {
-    background: #f8f9fa;
+    background: #ffffff;
     color: #1a1a1a;
 }
 ListView > ListItem {
-    background: #f8f9fa;
+    background: #ffffff;
     color: #1a1a1a;
 }
 ListView > ListItem.--highlight {
-    background: #3498db;
-    color: #ffffff;
+    background: #e8e8e8;
+    color: #1a1a1a;
 }
 ContentArea {
     background: #ffffff;
     color: #1a1a1a;
 }
 Input {
-    background: #f8f9fa;
+    background: #ffffff;
     color: #1a1a1a;
-    border: tall #bdc3c7;
+    border: tall #cccccc;
 }
 Input:focus {
-    border: tall #3498db;
+    border: tall #1a1a1a;
 }
 Select {
-    background: #f8f9fa;
+    background: #ffffff;
     color: #1a1a1a;
 }
 DataTable {
@@ -68,46 +70,48 @@ DataTable {
     color: #1a1a1a;
 }
 DataTable > .datatable--header {
-    background: #ecf0f1;
-    color: #2c3e50;
+    background: #ffffff;
+    color: #1a1a1a;
+    text-style: bold;
 }
 DataTable > .datatable--cursor {
-    background: #3498db;
-    color: #ffffff;
+    background: #e8e8e8;
+    color: #1a1a1a;
 }
 DirectoryTree {
-    background: #f8f9fa;
+    background: #ffffff;
     color: #1a1a1a;
 }
 ProgressBar {
-    background: #ecf0f1;
+    background: #ffffff;
 }
 Checkbox {
-    background: transparent;
+    background: #ffffff;
     color: #1a1a1a;
 }
 RadioButton {
-    background: transparent;
+    background: #ffffff;
     color: #1a1a1a;
 }
 Static {
-    background: transparent;
+    background: #ffffff;
     color: #1a1a1a;
 }
 Label {
+    background: #ffffff;
     color: #1a1a1a;
 }
 ScrollableContainer {
     background: #ffffff;
 }
 Vertical {
-    background: transparent;
+    background: #ffffff;
 }
 Horizontal {
-    background: transparent;
+    background: #ffffff;
 }
 #nav-hint {
-    color: #7f8c8d;
+    color: #888888;
     margin-top: 1;
 }
 """

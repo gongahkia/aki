@@ -71,6 +71,13 @@ health-llm: ## Check LLM service health
 train: ## Train ML models on labelled corpus
 	python -m src.ml.pipeline --data corpus/labelled/sample.csv
 
+# Corpus Preprocessing
+preprocess: ## Build corpus from raw files (TXT/PDF/PNG/DOCX)
+	python -m src.services.corpus_preprocessor
+
+convert: ## Convert a single file to txt: make convert FILE=path/to/file.pdf
+	python -m src.services.corpus_preprocessor convert $(FILE)
+
 # Setup
 setup: ## Install all dependencies
 	pip install -r requirements.txt
