@@ -14,13 +14,18 @@ ProvidersScreen {
 }
 #provider-list-panel {
     width: 1fr; min-width: 24; max-width: 32;
-    background: #f8f9fa;
+    background: #ffffff;
+    border-right: tall #cccccc;
 }
 #provider-detail {
-    height: 1fr; border: tall #bdc3c7;
-    padding: 1; background: #f8f9fa; color: #1a1a1a;
+    height: 1fr; border: tall #cccccc;
+    padding: 1; background: #ffffff; color: #1a1a1a;
 }
-#hint-bar { height: auto; padding: 0 1; background: #ecf0f1; color: #7f8c8d; }
+#hint-bar {
+    height: auto; padding: 0 1;
+    background: #ffffff; color: #888888;
+    border-bottom: tall #cccccc;
+}
 """
 
 
