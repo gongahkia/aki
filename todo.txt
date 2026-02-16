@@ -1,5 +1,3 @@
-(A) Wire ML prediction into generation pipeline in src/services/hypothetical_service.py: when method=ml_assisted, use classifier to validate/suggest topics, use regressor to pre-score and reject low-quality outputs, use clusterer to ensure diversity against recent generations +feature
-(A) Wire ML prediction into validation_service.py: if trained classifier exists, add ml_topic_check (compare LLM-generated topics vs ML-predicted topics, flag mismatches); if trained regressor exists, add ml_quality_check (predict quality score, compare with deterministic score) +feature
 (B) Fix SQL injection vulnerability in src/services/database_service.py: replace string interpolation in search_by_topics method (around line 251) with parameterized query using ? placeholders +security
 (B) Cap _generation_history list in src/services/hypothetical_service.py to max 100 entries, evict oldest when full; add configurable max_history_size to settings +stability
 (B) Add configurable timeout to all LLM generate calls in src/services/llm_service.py: default 120s for generation, 30s for health checks; raise TimeoutError with descriptive message +stability

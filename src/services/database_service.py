@@ -242,20 +242,18 @@ class DatabaseService:
             conn = self._get_connection()
             cursor = conn.cursor()
 
-            # Build search query (simple substring matching)
-            # For production, consider FTS (Full-Text Search)
+            # build parameterized query
             conditions = " OR ".join(["topics LIKE ?" for _ in topics])
             search_params = [f'%{topic}%' for topic in topics]
             search_params.append(limit)
-
-            cursor.execute(f"""
-                SELECT
-                    timestamp, topics, hypothetical, quality_score
-                FROM generation_history
-                WHERE {conditions}
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """, search_params)
+            query = (
+                "SELECT timestamp, topics, hypothetical, quality_score "
+                "FROM generation_history "
+                "WHERE " + conditions + " "
+                "ORDER BY timestamp DESC "
+                "LIMIT ?"
+            )
+            cursor.execute(query, search_params)
 
             rows = cursor.fetchall()
             conn.close()
