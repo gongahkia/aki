@@ -135,8 +135,10 @@ def sample_generation_request():
 @pytest.fixture
 def sample_corpus_query():
     """Sample corpus query for testing."""
-    if not _HAS_CORPUS:
-        pytest.skip("chromadb/corpus_service not available")
+    try:
+        from src.services.corpus_service import CorpusQuery
+    except Exception:
+        pytest.skip("chromadb not available")
     return CorpusQuery(
         topics=["negligence", "duty of care"], sample_size=2, min_topic_overlap=1
     )
