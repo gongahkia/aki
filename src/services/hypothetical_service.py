@@ -10,23 +10,15 @@ import structlog
 from pydantic import BaseModel, Field
 
 try:
-    from .corpus_service import (
-        CorpusQuery,
-        HypotheticalEntry,
-        corpus_service,
-    )
+    from .corpus_service import CorpusQuery, HypotheticalEntry, corpus_service
 
     _HAS_CORPUS = True
 except Exception:
     _HAS_CORPUS = False
-    corpus_service = None
+    corpus_service = None  # type: ignore[assignment]
 from .database_service import database_service
 from .llm_service import LLMRequest, llm_service
-from .prompt_engineering import (
-    PromptContext,
-    PromptTemplateManager,
-    PromptTemplateType,
-)
+from .prompt_engineering import PromptContext, PromptTemplateManager, PromptTemplateType
 from .validation_service import validation_service
 
 logger = structlog.get_logger(__name__)
@@ -554,25 +546,26 @@ class HypotheticalService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Check the health of the hypothetical service."""
-        health_status = {
+        deps: Dict[str, Any] = {}
+        health_status: Dict[str, Any] = {
             "service": "hypothetical_service",
             "status": "healthy",
-            "dependencies": {},
+            "dependencies": deps,
         }
 
         try:
             # Check LLM service
             llm_health = await self.llm_service.health_check()
-            health_status["dependencies"]["llm_service"] = llm_health
+            deps["llm_service"] = llm_health
 
             # Check corpus service
             corpus_health = await self.corpus_service.health_check()
-            health_status["dependencies"]["corpus_service"] = corpus_health
+            deps["corpus_service"] = corpus_health
 
             # Overall status
             all_healthy = all(
                 any(status for status in dep.values()) if isinstance(dep, dict) else dep
-                for dep in health_status["dependencies"].values()
+                for dep in deps.values()
             )
 
             if not all_healthy:

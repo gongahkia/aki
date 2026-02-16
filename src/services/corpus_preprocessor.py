@@ -118,7 +118,7 @@ def scan_raw_directory(
     Returns list of {"text": ..., "topic": [...], "metadata": {...}} dicts.
     """
     raw_dir = raw_dir or RAW_DIR
-    entries = []
+    entries: List[Dict] = []
     if not raw_dir.exists():
         logger.warning("Raw directory not found: %s", raw_dir)
         return entries

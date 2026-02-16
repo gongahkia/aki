@@ -116,6 +116,7 @@ class CorpusService:
     async def _load_from_s3(self) -> List[HypotheticalEntry]:
         """Load corpus from S3 bucket."""
         try:
+            assert self._s3_client is not None
             response = self._s3_client.get_object(
                 Bucket=settings.aws.s3_bucket, Key="corpus/tort/corpus.json"
             )
@@ -205,6 +206,7 @@ class CorpusService:
 
             json_data = json.dumps(data, indent=2, ensure_ascii=False)
 
+            assert self._s3_client is not None
             self._s3_client.put_object(
                 Bucket=settings.aws.s3_bucket,
                 Key="corpus/tort/corpus.json",

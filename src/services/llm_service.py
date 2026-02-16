@@ -179,7 +179,10 @@ class LLMService:
         return None
 
     async def generate(
-        self, request: LLMRequest, provider: str = None, model: str = None
+        self,
+        request: LLMRequest,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> LLMResponse:
         """Generate using specified or default provider+model. Auto-fallback on circuit break."""
         provider_name = provider or self._default_provider
@@ -231,7 +234,10 @@ class LLMService:
             raise
 
     async def stream_generate(
-        self, request: LLMRequest, provider: str = None, model: str = None
+        self,
+        request: LLMRequest,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
     ):
         """Stream tokens from provider. Yields str chunks."""
 
@@ -259,7 +265,7 @@ class LLMService:
             self._record_failure(provider_name)
             raise LLMServiceError(f"Stream failed on '{provider_name}': {e}")
 
-    async def health_check(self, provider: str = None) -> Dict[str, Any]:
+    async def health_check(self, provider: Optional[str] = None) -> Dict[str, Any]:
         """Check health of all or specific provider."""
         if provider:
             if provider not in registry.list_instances():
@@ -291,7 +297,7 @@ class LLMService:
                 }
         return results
 
-    async def list_models(self, provider: str = None) -> Dict[str, List[str]]:
+    async def list_models(self, provider: Optional[str] = None) -> Dict[str, List[str]]:
         """List models per provider."""
         if provider:
             if provider not in registry.list_instances():

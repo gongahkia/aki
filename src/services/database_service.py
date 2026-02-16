@@ -7,7 +7,7 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class DatabaseService:
     """Service for managing SQLite database for generation history."""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         from ..config import settings as app_settings
 
         self._db_path = Path(db_path or app_settings.database_path)
@@ -37,7 +37,8 @@ class DatabaseService:
             cursor = conn.cursor()
 
             # Create generation_history table
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS generation_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -54,19 +55,24 @@ class DatabaseService:
                     response_data TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+            """
+            )
 
             # Create index on timestamp for faster queries
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_timestamp
                 ON generation_history(timestamp DESC)
-            """)
+            """
+            )
 
             # Create index on topics for searching
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_topics
                 ON generation_history(topics)
-            """)
+            """
+            )
 
             conn.commit()
             conn.close()
@@ -124,7 +130,7 @@ class DatabaseService:
             conn.close()
 
             logger.info("Generation saved to database", id=record_id)
-            return record_id
+            return record_id  # type: ignore[return-value]
 
         except Exception as e:
             logger.error("Failed to save generation", error=str(e))
@@ -188,7 +194,8 @@ class DatabaseService:
             cursor = conn.cursor()
 
             # Get overall statistics
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     COUNT(*) as total_generations,
                     AVG(generation_time) as avg_generation_time,
@@ -197,19 +204,22 @@ class DatabaseService:
                     MIN(timestamp) as first_generation,
                     MAX(timestamp) as last_generation
                 FROM generation_history
-            """)
+            """
+            )
 
             row = cursor.fetchone()
 
             # Get topic distribution
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     topics, COUNT(*) as count
                 FROM generation_history
                 GROUP BY topics
                 ORDER BY count DESC
                 LIMIT 10
-            """)
+            """
+            )
 
             topic_rows = cursor.fetchall()
             conn.close()
@@ -259,7 +269,7 @@ class DatabaseService:
 
             # build parameterized query
             conditions = " OR ".join(["topics LIKE ?" for _ in topics])
-            search_params = [f"%{topic}%" for topic in topics]
+            search_params: List[Any] = [f"%{topic}%" for topic in topics]
             search_params.append(limit)
             query = (
                 "SELECT timestamp, topics, hypothetical, quality_score "

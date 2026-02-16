@@ -16,7 +16,7 @@ class TopicClassifier:
     """Multi-label topic classifier."""
 
     def __init__(self):
-        self.model = None
+        self.model: Optional[OneVsRestClassifier] = None
         self.is_trained = False
         self._metrics: Dict = {}
 
@@ -33,7 +33,7 @@ class TopicClassifier:
 
     def predict(self, X) -> np.ndarray:
         """Predict topic labels. Returns binarized label matrix."""
-        if not self.is_trained:
+        if not self.is_trained or self.model is None:
             raise RuntimeError("Classifier not trained")
         return self.model.predict(X)
 
@@ -46,7 +46,7 @@ class TopicClassifier:
             results.append(topics)
         return results
 
-    def evaluate(self, X, y, label_names: List[str] = None) -> Dict:
+    def evaluate(self, X, y, label_names: Optional[List[str]] = None) -> Dict:
         """Evaluate returning precision, recall, f1 per topic."""
         preds = self.predict(X)
         p, r, f, s = precision_recall_fscore_support(

@@ -1,7 +1,7 @@
 """Google Gemini LLM provider using google-generativeai SDK."""
 
 import time
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import structlog
 
@@ -26,7 +26,7 @@ class GoogleGeminiProvider(LLMProvider):
 
     def __init__(
         self,
-        api_key: str = None,
+        api_key: Optional[str] = None,
         default_model: str = "gemini-2.0-flash",
         timeout: int = 120,
     ):

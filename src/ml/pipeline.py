@@ -1,9 +1,10 @@
 """Unified ML pipeline orchestrator."""
 
 import os
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import structlog
+from sklearn.preprocessing import MultiLabelBinarizer
 
 from .classifier import TopicClassifier
 from .clustering import HypotheticalClusterer
@@ -21,8 +22,8 @@ class MLPipeline:
         self.classifier = TopicClassifier()
         self.regressor = QualityRegressor()
         self.clusterer = HypotheticalClusterer()
-        self._vectorizer = None
-        self._binarizer = None
+        self._vectorizer: Any = None
+        self._binarizer: Optional[MultiLabelBinarizer] = None
         self._metrics: Dict = {}
         os.makedirs(models_dir, exist_ok=True)
 
@@ -118,7 +119,7 @@ class MLPipeline:
         if self._vectorizer is None:
             raise RuntimeError("Pipeline not trained or vectorizer not loaded")
         X = self._vectorizer.transform([text])
-        result = {}
+        result: Dict[str, Any] = {}
         if self.classifier.is_trained and self._binarizer is not None:
             topics = self.classifier.predict_topics(X, list(self._binarizer.classes_))
             result["topics"] = topics[0]

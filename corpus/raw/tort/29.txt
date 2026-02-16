@@ -9,7 +9,7 @@ environment (PvE) mode, the human player fights against computer enemies, which 
 be ninjas, zombies, or even huge monsters. In the player-versus-player (PvP) mode, people
 can fight with other humans online. The two game modes are linked. As players advance
 further in PvE, they unlock more powerful weapons, armour,a and skills and they can use
-in PvP. Players can then specialise in specific weapon types from spears to broadswords. 
+in PvP. Players can then specialise in specific weapon types from spears to broadswords.
 This game became very popular because of how realistic the fighting was. Our engineers
 created a very advanced system for perfectly translating players’ real life movements into
 game movements. This includes both their sword swings and their body movements for

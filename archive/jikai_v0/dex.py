@@ -1,4 +1,4 @@
-from llama_index import ListIndex, Document
+from llama_index import Document, ListIndex
 
 
 def index_corpus(relevant_texts_data):
@@ -9,5 +9,5 @@ def index_corpus(relevant_texts_data):
         documents = [Document(text=passage) for passage in relevant_texts_data]
         index = ListIndex(documents)
         return (True, index)
-    except:
+    except Exception:
         return (False, None)

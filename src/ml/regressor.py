@@ -15,7 +15,7 @@ class QualityRegressor:
     """Quality score regressor."""
 
     def __init__(self):
-        self.model = None
+        self.model: Optional[GradientBoostingRegressor] = None
         self.is_trained = False
         self._metrics: Dict = {}
 
@@ -34,7 +34,7 @@ class QualityRegressor:
 
     def predict(self, X) -> np.ndarray:
         """Predict quality scores."""
-        if not self.is_trained:
+        if not self.is_trained or self.model is None:
             raise RuntimeError("Regressor not trained")
         return self.model.predict(X)
 

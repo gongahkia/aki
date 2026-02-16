@@ -1,6 +1,6 @@
 """Hypothetical clustering using sklearn KMeans and DBSCAN."""
 
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Union
 
 import joblib
 import numpy as np
@@ -15,7 +15,7 @@ class HypotheticalClusterer:
 
     def __init__(self, method: str = "kmeans"):
         self.method = method
-        self.model = None
+        self.model: Optional[Union[KMeans, DBSCAN]] = None
         self.is_trained = False
         self._cluster_stats: Dict = {}
 
@@ -39,7 +39,7 @@ class HypotheticalClusterer:
 
     def predict_cluster(self, X) -> int:
         """Predict cluster for a single sample."""
-        if not self.is_trained:
+        if not self.is_trained or self.model is None:
             raise RuntimeError("Clusterer not trained")
         if self.method == "kmeans":
             arr = X.toarray() if hasattr(X, "toarray") else X

@@ -306,8 +306,8 @@ RECOMMENDATIONS:
 CRITICAL ISSUES:
 [List any critical problems that must be addressed]"""
 
-    def format_prompt(
-        self, context: PromptContext, hypothetical: str, **kwargs
+    def format_prompt(  # type: ignore[override]
+        self, context: PromptContext, hypothetical: str, **kwargs: Any
     ) -> Dict[str, str]:
         """Format the adherence check prompt."""
         user_prompt = self.user_prompt_template.format(
@@ -415,12 +415,12 @@ RECOMMENDATIONS:
 UNIQUE ELEMENTS:
 [Highlight what makes this hypothetical distinct and valuable]"""
 
-    def format_prompt(
+    def format_prompt(  # type: ignore[override]
         self,
         context: PromptContext,
         generated_hypothetical: str,
         reference_examples: List[str],
-        **kwargs,
+        **kwargs: Any,
     ) -> Dict[str, str]:
         """Format the similarity check prompt."""
         reference_text = ""
@@ -554,12 +554,12 @@ DETAILED ANALYSIS:
 LEARNING OBJECTIVES ACHIEVED:
 [Summary of key legal concepts demonstrated in this hypothetical]"""
 
-    def format_prompt(
+    def format_prompt(  # type: ignore[override]
         self,
         context: PromptContext,
         hypothetical: str,
         available_topics: List[str],
-        **kwargs,
+        **kwargs: Any,
     ) -> Dict[str, str]:
         """Format the legal analysis prompt."""
         user_prompt = self.user_prompt_template.format(

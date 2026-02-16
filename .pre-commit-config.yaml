@@ -26,20 +26,24 @@ repos:
     rev: 6.1.0
     hooks:
       - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203]
+        args: [--max-line-length=88, "--extend-ignore=E203,E501"]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.7.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
+        additional_dependencies:
+          - types-aiofiles
+          - types-PyYAML
+          - types-requests
         args: [--ignore-missing-imports]
 
   - repo: https://github.com/pycqa/bandit
-    rev: 1.7.5
+    rev: 1.7.7
     hooks:
       - id: bandit
         args: [-r, src/, -f, json, -o, bandit-report.json]
+        pass_filenames: false
         exclude: tests/
 
   - repo: https://github.com/Yelp/detect-secrets

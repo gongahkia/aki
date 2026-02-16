@@ -1,9 +1,10 @@
 import os
+
 from datasets import Dataset
 from transformers import (
-    GPT2Tokenizer,
-    GPT2LMHeadModel,
     GPT2Config,
+    GPT2LMHeadModel,
+    GPT2Tokenizer,
     Trainer,
     TrainingArguments,
 )
@@ -12,7 +13,6 @@ from transformers import (
 def prepare_corpus(target_directory_filepath):
     if not os.path.exists(target_directory):
         raise FileNotFoundError(f"The directory '{target_directory}' does not exist.")
-        return None
     else:
         text_files = [f for f in os.listdir(target_directory) if f.endswith(".txt")]
         corpus = []

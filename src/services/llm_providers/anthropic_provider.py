@@ -1,7 +1,7 @@
 """Anthropic LLM provider using anthropic SDK."""
 
 import time
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import structlog
 
@@ -27,7 +27,7 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(
         self,
-        api_key: str = None,
+        api_key: Optional[str] = None,
         default_model: str = "claude-sonnet-4-5-20250929",
         timeout: int = 120,
     ):

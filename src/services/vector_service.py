@@ -24,9 +24,9 @@ class VectorService:
     """Service for semantic vector search using ChromaDB."""
 
     def __init__(self):
-        self._client = None
-        self._collection = None
-        self._embedding_model = None
+        self._client: Optional[chromadb.ClientAPI] = None
+        self._collection: Optional[chromadb.Collection] = None
+        self._embedding_model: Optional[SentenceTransformer] = None
         self._initialized = False
         self._initialize()
 
@@ -101,7 +101,8 @@ class VectorService:
 
         try:
             # Clear existing collection
-            if self._collection.count() > 0:
+            if self._collection is not None and self._collection.count() > 0:
+                assert self._client is not None
                 self._client.delete_collection(settings.database.chroma_collection_name)
                 self._collection = self._client.create_collection(
                     name=settings.database.chroma_collection_name,
@@ -134,6 +135,7 @@ class VectorService:
             batch_size = 100
             for i in range(0, len(ids), batch_size):
                 batch_end = min(i + batch_size, len(ids))
+                assert self._collection is not None
                 self._collection.add(
                     ids=ids[i:batch_end],
                     documents=documents[i:batch_end],
@@ -177,16 +179,18 @@ class VectorService:
             query_embedding = self._embed_text(query_text)
 
             # Perform semantic search
+            assert self._collection is not None
             results = self._collection.query(
                 query_embeddings=[query_embedding],
                 n_results=min(
-                    n_results * 2, self._collection.count()
+                    n_results * 2,
+                    self._collection.count(),
                 ),  # Get extra for filtering
                 include=["documents", "metadatas", "distances"],
             )
 
             # Process and filter results
-            relevant_hypotheticals = []
+            relevant_hypotheticals: List[Dict[str, Any]] = []
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
             for i, doc_id in enumerate(results["ids"][0]):
@@ -228,10 +232,10 @@ class VectorService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Check health of vector service."""
-        health_status = {
+        health_status: Dict[str, Any] = {
             "initialized": self._initialized,
             "collection_count": 0,
-            "embedding_model_loaded": self._embedding_model is not None,
+            "embedding_model_loaded": (self._embedding_model is not None),
         }
 
         try:

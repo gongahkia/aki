@@ -1,7 +1,7 @@
 """OpenAI LLM provider conforming to base interface."""
 
 import time
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 import structlog
@@ -24,7 +24,7 @@ class OpenAIProvider(LLMProvider):
 
     def __init__(
         self,
-        api_key: str = None,
+        api_key: Optional[str] = None,
         base_url: str = "https://api.openai.com/v1",
         default_model: str = "gpt-4o",
         timeout: int = 120,
