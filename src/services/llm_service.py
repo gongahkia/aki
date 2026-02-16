@@ -1,6 +1,7 @@
 """
 LLM Service using provider registry for multi-provider support.
 """
+
 import asyncio
 import time
 import structlog
@@ -49,7 +50,10 @@ class LLMService:
             ollama_host = getattr(settings.llm, "ollama_host", "http://localhost:11434")
             model_name = getattr(settings.llm, "model_name", "llama2:7b")
             from .llm_providers.ollama_provider import OllamaProvider
-            registry.set_instance("ollama", OllamaProvider(base_url=ollama_host, default_model=model_name))
+
+            registry.set_instance(
+                "ollama", OllamaProvider(base_url=ollama_host, default_model=model_name)
+            )
             if not self._default_provider:
                 self._default_provider = "ollama"
                 self._default_model = model_name
@@ -61,6 +65,7 @@ class LLMService:
         if openai_key:
             try:
                 from .llm_providers.openai_provider import OpenAIProvider
+
                 registry.set_instance("openai", OpenAIProvider(api_key=openai_key))
                 if not self._default_provider:
                     self._default_provider = "openai"
@@ -72,7 +77,10 @@ class LLMService:
         if anthropic_key:
             try:
                 from .llm_providers.anthropic_provider import AnthropicProvider
-                registry.set_instance("anthropic", AnthropicProvider(api_key=anthropic_key))
+
+                registry.set_instance(
+                    "anthropic", AnthropicProvider(api_key=anthropic_key)
+                )
                 if not self._default_provider:
                     self._default_provider = "anthropic"
             except Exception as e:
@@ -83,7 +91,10 @@ class LLMService:
         if google_key:
             try:
                 from .llm_providers.google_provider import GoogleGeminiProvider
-                registry.set_instance("google", GoogleGeminiProvider(api_key=google_key))
+
+                registry.set_instance(
+                    "google", GoogleGeminiProvider(api_key=google_key)
+                )
                 if not self._default_provider:
                     self._default_provider = "google"
             except Exception as e:
@@ -94,11 +105,16 @@ class LLMService:
         if local_host:
             try:
                 from .llm_providers.local_provider import LocalLLMProvider
+
                 registry.set_instance("local", LocalLLMProvider(base_url=local_host))
             except Exception as e:
                 logger.warning("Failed to init Local LLM provider", error=str(e))
 
-        logger.info("LLM providers initialized", active=registry.list_instances(), default=self._default_provider)
+        logger.info(
+            "LLM providers initialized",
+            active=registry.list_instances(),
+            default=self._default_provider,
+        )
 
     def select_provider(self, name: str):
         """Set default provider by name."""
@@ -124,7 +140,11 @@ class LLMService:
         self._failure_counts[name] = self._failure_counts.get(name, 0) + 1
         if self._failure_counts[name] >= CIRCUIT_BREAKER_THRESHOLD:
             self._unhealthy_until[name] = time.time() + CIRCUIT_BREAKER_COOLDOWN
-            logger.warning("Circuit breaker tripped", provider=name, cooldown=CIRCUIT_BREAKER_COOLDOWN)
+            logger.warning(
+                "Circuit breaker tripped",
+                provider=name,
+                cooldown=CIRCUIT_BREAKER_COOLDOWN,
+            )
 
     def _record_success(self, name: str):
         self._failure_counts[name] = 0
@@ -134,7 +154,9 @@ class LLMService:
         costs = TOKEN_COSTS.get(model, {"input": 0, "output": 0})
         input_tokens = usage.get("prompt_tokens", 0)
         output_tokens = usage.get("completion_tokens", 0)
-        cost = (input_tokens / 1000 * costs["input"]) + (output_tokens / 1000 * costs["output"])
+        cost = (input_tokens / 1000 * costs["input"]) + (
+            output_tokens / 1000 * costs["output"]
+        )
         self._session_cost += cost
         self._session_tokens["input"] += input_tokens
         self._session_tokens["output"] += output_tokens
@@ -155,7 +177,9 @@ class LLMService:
                 return name
         return None
 
-    async def generate(self, request: LLMRequest, provider: str = None, model: str = None) -> LLMResponse:
+    async def generate(
+        self, request: LLMRequest, provider: str = None, model: str = None
+    ) -> LLMResponse:
         """Generate using specified or default provider+model. Auto-fallback on circuit break."""
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
@@ -164,10 +188,16 @@ class LLMService:
         if not self._is_provider_healthy(provider_name):
             fallback = self._get_fallback_provider(provider_name)
             if fallback:
-                logger.warning("Provider unhealthy, falling back", unhealthy=provider_name, fallback=fallback)
+                logger.warning(
+                    "Provider unhealthy, falling back",
+                    unhealthy=provider_name,
+                    fallback=fallback,
+                )
                 provider_name = fallback
             else:
-                raise LLMServiceError(f"Provider '{provider_name}' is circuit-broken and no fallback available")
+                raise LLMServiceError(
+                    f"Provider '{provider_name}' is circuit-broken and no fallback available"
+                )
         if model:
             request = request.model_copy(update={"model": model})
         elif self._default_model and not request.model:
@@ -180,23 +210,31 @@ class LLMService:
             )
             self._record_success(provider_name)
             cost = self._track_cost(response.model, response.usage)
-            logger.info("LLM generation completed",
-                       provider=provider_name, model=response.model,
-                       response_time=response.response_time,
-                       tokens=response.usage.get("total_tokens", 0),
-                       cost_usd=round(cost, 6))
+            logger.info(
+                "LLM generation completed",
+                provider=provider_name,
+                model=response.model,
+                response_time=response.response_time,
+                tokens=response.usage.get("total_tokens", 0),
+                cost_usd=round(cost, 6),
+            )
             return response
         except asyncio.TimeoutError:
             self._record_failure(provider_name)
-            raise LLMServiceError(f"Generation timed out after {GENERATION_TIMEOUT}s on provider '{provider_name}'")
+            raise LLMServiceError(
+                f"Generation timed out after {GENERATION_TIMEOUT}s on provider '{provider_name}'"
+            )
         except Exception as e:
             self._record_failure(provider_name)
             logger.error("LLM generation failed", provider=provider_name, error=str(e))
             raise
 
-    async def stream_generate(self, request: LLMRequest, provider: str = None, model: str = None):
+    async def stream_generate(
+        self, request: LLMRequest, provider: str = None, model: str = None
+    ):
         """Stream tokens from provider. Yields str chunks."""
         from typing import AsyncIterator
+
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
             raise LLMServiceError(f"Provider '{provider_name}' not available")
@@ -205,7 +243,9 @@ class LLMService:
             if fallback:
                 provider_name = fallback
             else:
-                raise LLMServiceError(f"Provider '{provider_name}' is circuit-broken and no fallback available")
+                raise LLMServiceError(
+                    f"Provider '{provider_name}' is circuit-broken and no fallback available"
+                )
         if model:
             request = request.model_copy(update={"model": model, "stream": True})
         else:
@@ -225,15 +265,30 @@ class LLMService:
             if provider not in registry.list_instances():
                 return {provider: {"healthy": False, "error": "not initialized"}}
             try:
-                return {provider: await asyncio.wait_for(registry.get(provider).health_check(), timeout=HEALTH_CHECK_TIMEOUT)}
+                return {
+                    provider: await asyncio.wait_for(
+                        registry.get(provider).health_check(),
+                        timeout=HEALTH_CHECK_TIMEOUT,
+                    )
+                }
             except asyncio.TimeoutError:
-                return {provider: {"healthy": False, "error": f"health check timed out after {HEALTH_CHECK_TIMEOUT}s"}}
+                return {
+                    provider: {
+                        "healthy": False,
+                        "error": f"health check timed out after {HEALTH_CHECK_TIMEOUT}s",
+                    }
+                }
         results = {}
         for name in registry.list_instances():
             try:
-                results[name] = await asyncio.wait_for(registry.get(name).health_check(), timeout=HEALTH_CHECK_TIMEOUT)
+                results[name] = await asyncio.wait_for(
+                    registry.get(name).health_check(), timeout=HEALTH_CHECK_TIMEOUT
+                )
             except asyncio.TimeoutError:
-                results[name] = {"healthy": False, "error": f"health check timed out after {HEALTH_CHECK_TIMEOUT}s"}
+                results[name] = {
+                    "healthy": False,
+                    "error": f"health check timed out after {HEALTH_CHECK_TIMEOUT}s",
+                }
         return results
 
     async def list_models(self, provider: str = None) -> Dict[str, List[str]]:

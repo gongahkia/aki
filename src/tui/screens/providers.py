@@ -1,4 +1,5 @@
 """Providers management screen."""
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Button, Label, ListView, ListItem
@@ -41,18 +42,27 @@ class ProvidersScreen(Screen):
             detail.update("[yellow]Checking provider health...[/yellow]")
             try:
                 from ...services.llm_service import llm_service
+
                 health = await llm_service.health_check()
                 models = await llm_service.list_models()
                 lines = []
                 for name, status in health.items():
-                    healthy = status.get("healthy", False) if isinstance(status, dict) else status
+                    healthy = (
+                        status.get("healthy", False)
+                        if isinstance(status, dict)
+                        else status
+                    )
                     icon = "🟢" if healthy else "🔴"
                     model_list = models.get(name, [])
-                    lines.append(f"{icon} [bold]{name}[/bold]: {'healthy' if healthy else 'unavailable'}")
+                    lines.append(
+                        f"{icon} [bold]{name}[/bold]: {'healthy' if healthy else 'unavailable'}"
+                    )
                     if model_list:
                         lines.append(f"   Models: {', '.join(model_list[:5])}")
                 detail.update("\n".join(lines))
             except Exception as e:
                 detail.update(f"[bold red]Error: {e}[/bold red]")
         elif event.button.id == "set-default-btn":
-            detail.update("[yellow]Use keybinding or settings to set default provider.[/yellow]")
+            detail.update(
+                "[yellow]Use keybinding or settings to set default provider.[/yellow]"
+            )

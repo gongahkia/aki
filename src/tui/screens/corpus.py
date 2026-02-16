@@ -1,9 +1,19 @@
 """Corpus browsing screen with import/export."""
+
 import json
 import csv
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Input, DataTable, Label, Select, Button
+from textual.widgets import (
+    Header,
+    Footer,
+    Static,
+    Input,
+    DataTable,
+    Label,
+    Select,
+    Button,
+)
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.binding import Binding
 
@@ -26,16 +36,23 @@ class CorpusScreen(Screen):
             with Horizontal():
                 yield Input(placeholder="Search corpus...", id="search-input")
                 yield Select(
-                    [("All Topics", "all"), ("negligence", "negligence"),
-                     ("duty_of_care", "duty_of_care"), ("causation", "causation")],
-                    prompt="Filter topic", id="topic-filter",
+                    [
+                        ("All Topics", "all"),
+                        ("negligence", "negligence"),
+                        ("duty_of_care", "duty_of_care"),
+                        ("causation", "causation"),
+                    ],
+                    prompt="Filter topic",
+                    id="topic-filter",
                 )
             with Horizontal(classes="action-row"):
                 yield Button("Import CSV", id="import-csv-btn")
                 yield Button("Import JSON", id="import-json-btn")
                 yield Button("Export CSV", id="export-csv-btn")
                 yield Button("Export JSON", id="export-json-btn")
-                yield Input(placeholder="File path for import/export", id="file-path-input")
+                yield Input(
+                    placeholder="File path for import/export", id="file-path-input"
+                )
             yield DataTable(id="corpus-table")
             yield Static("Select a row to view details...", id="detail-panel")
         yield Footer()
@@ -48,10 +65,13 @@ class CorpusScreen(Screen):
     def _load_corpus(self):
         try:
             from ...services.corpus_service import corpus_service
+
             table = self.query_one("#corpus-table", DataTable)
             if corpus_service._corpus:
                 for entry in corpus_service._corpus[:100]:
-                    text = entry.text[:80] + "..." if len(entry.text) > 80 else entry.text
+                    text = (
+                        entry.text[:80] + "..." if len(entry.text) > 80 else entry.text
+                    )
                     topics = ", ".join(entry.topics[:3])
                     words = len(entry.text.split())
                     quality = getattr(entry, "quality_score", "N/A")
@@ -63,6 +83,7 @@ class CorpusScreen(Screen):
         detail = self.query_one("#detail-panel", Static)
         try:
             from ...services.corpus_service import corpus_service
+
             row_idx = event.cursor_row
             if corpus_service._corpus and row_idx < len(corpus_service._corpus):
                 entry = corpus_service._corpus[row_idx]
@@ -112,6 +133,7 @@ class CorpusScreen(Screen):
 
     def _export_csv(self, path: str):
         from ...services.corpus_service import corpus_service
+
         if not corpus_service._corpus:
             raise ValueError("No corpus data to export")
         with open(path, "w", newline="") as f:
@@ -122,8 +144,12 @@ class CorpusScreen(Screen):
 
     def _export_json(self, path: str):
         from ...services.corpus_service import corpus_service
+
         if not corpus_service._corpus:
             raise ValueError("No corpus data to export")
-        data = [{"id": e.id, "text": e.text, "topics": e.topics} for e in corpus_service._corpus]
+        data = [
+            {"id": e.id, "text": e.text, "topics": e.topics}
+            for e in corpus_service._corpus
+        ]
         with open(path, "w") as f:
             json.dump(data, f, indent=2)

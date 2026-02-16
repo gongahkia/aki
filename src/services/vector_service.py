@@ -18,6 +18,7 @@ logger = structlog.get_logger(__name__)
 
 class VectorServiceError(Exception):
     """Custom exception for vector service errors."""
+
     pass
 
 
@@ -35,6 +36,7 @@ class VectorService:
         """Initialize ChromaDB client and embedding model."""
         try:
             from ..config import settings as app_settings
+
             model_name = app_settings.embedding_model
             logger.info("Loading embedding model", model=model_name)
             self._embedding_model = SentenceTransformer(model_name)
@@ -43,26 +45,31 @@ class VectorService:
             persist_directory = Path("./chroma_db")
             persist_directory.mkdir(parents=True, exist_ok=True)
 
-            self._client = chromadb.Client(ChromaSettings(
-                persist_directory=str(persist_directory),
-                anonymized_telemetry=False
-            ))
+            self._client = chromadb.Client(
+                ChromaSettings(
+                    persist_directory=str(persist_directory), anonymized_telemetry=False
+                )
+            )
 
             # Get or create collection
             try:
                 self._collection = self._client.get_collection(
                     name=settings.database.chroma_collection_name
                 )
-                logger.info("Loaded existing ChromaDB collection",
-                           name=settings.database.chroma_collection_name,
-                           count=self._collection.count())
+                logger.info(
+                    "Loaded existing ChromaDB collection",
+                    name=settings.database.chroma_collection_name,
+                    count=self._collection.count(),
+                )
             except Exception:
                 self._collection = self._client.create_collection(
                     name=settings.database.chroma_collection_name,
-                    metadata={"description": "Singapore Tort Law Hypotheticals"}
+                    metadata={"description": "Singapore Tort Law Hypotheticals"},
                 )
-                logger.info("Created new ChromaDB collection",
-                           name=settings.database.chroma_collection_name)
+                logger.info(
+                    "Created new ChromaDB collection",
+                    name=settings.database.chroma_collection_name,
+                )
 
             self._initialized = True
             logger.info("Vector service initialized successfully")
@@ -100,7 +107,7 @@ class VectorService:
                 self._client.delete_collection(settings.database.chroma_collection_name)
                 self._collection = self._client.create_collection(
                     name=settings.database.chroma_collection_name,
-                    metadata={"description": "Singapore Tort Law Hypotheticals"}
+                    metadata={"description": "Singapore Tort Law Hypotheticals"},
                 )
 
             # Prepare data for indexing
@@ -111,15 +118,19 @@ class VectorService:
 
             for hypo in hypotheticals:
                 # Generate embedding for the hypothetical text
-                embedding = self._embed_text(hypo['text'])
+                embedding = self._embed_text(hypo["text"])
 
-                ids.append(hypo['id'])
-                documents.append(hypo['text'])
+                ids.append(hypo["id"])
+                documents.append(hypo["text"])
                 embeddings.append(embedding)
-                metadatas.append({
-                    'topics': ','.join(hypo.get('topics', [])),
-                    'complexity': hypo.get('metadata', {}).get('complexity', 'intermediate')
-                })
+                metadatas.append(
+                    {
+                        "topics": ",".join(hypo.get("topics", [])),
+                        "complexity": hypo.get("metadata", {}).get(
+                            "complexity", "intermediate"
+                        ),
+                    }
+                )
 
             # Add to ChromaDB in batches
             batch_size = 100
@@ -129,7 +140,7 @@ class VectorService:
                     ids=ids[i:batch_end],
                     documents=documents[i:batch_end],
                     embeddings=embeddings[i:batch_end],
-                    metadatas=metadatas[i:batch_end]
+                    metadatas=metadatas[i:batch_end],
                 )
 
             logger.info("Indexed hypotheticals", count=len(ids))
@@ -143,7 +154,7 @@ class VectorService:
         self,
         query_topics: List[str],
         n_results: int = 5,
-        exclude_ids: Optional[List[str]] = None
+        exclude_ids: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Perform semantic search for relevant hypotheticals.
@@ -170,15 +181,17 @@ class VectorService:
             # Perform semantic search
             results = self._collection.query(
                 query_embeddings=[query_embedding],
-                n_results=min(n_results * 2, self._collection.count()),  # Get extra for filtering
-                include=['documents', 'metadatas', 'distances']
+                n_results=min(
+                    n_results * 2, self._collection.count()
+                ),  # Get extra for filtering
+                include=["documents", "metadatas", "distances"],
             )
 
             # Process and filter results
             relevant_hypotheticals = []
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
-            for i, doc_id in enumerate(results['ids'][0]):
+            for i, doc_id in enumerate(results["ids"][0]):
                 if doc_id in exclude_set:
                     continue
 
@@ -186,22 +199,28 @@ class VectorService:
                     break
 
                 # Convert distance to similarity score (smaller distance = more similar)
-                distance = results['distances'][0][i]
+                distance = results["distances"][0][i]
                 similarity_score = 1.0 / (1.0 + distance)  # Convert to 0-1 range
 
-                relevant_hypotheticals.append({
-                    'id': doc_id,
-                    'text': results['documents'][0][i],
-                    'topics': results['metadatas'][0][i]['topics'].split(','),
-                    'metadata': {
-                        'complexity': results['metadatas'][0][i].get('complexity', 'intermediate')
-                    },
-                    'similarity_score': similarity_score
-                })
+                relevant_hypotheticals.append(
+                    {
+                        "id": doc_id,
+                        "text": results["documents"][0][i],
+                        "topics": results["metadatas"][0][i]["topics"].split(","),
+                        "metadata": {
+                            "complexity": results["metadatas"][0][i].get(
+                                "complexity", "intermediate"
+                            )
+                        },
+                        "similarity_score": similarity_score,
+                    }
+                )
 
-            logger.info("Semantic search completed",
-                       query_topics=query_topics,
-                       results_count=len(relevant_hypotheticals))
+            logger.info(
+                "Semantic search completed",
+                query_topics=query_topics,
+                results_count=len(relevant_hypotheticals),
+            )
 
             return relevant_hypotheticals
 
@@ -214,7 +233,7 @@ class VectorService:
         health_status = {
             "initialized": self._initialized,
             "collection_count": 0,
-            "embedding_model_loaded": self._embedding_model is not None
+            "embedding_model_loaded": self._embedding_model is not None,
         }
 
         try:

@@ -1,7 +1,19 @@
 """Generate screen for hypothetical generation."""
+
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Button, Select, Input, RadioSet, RadioButton, Label, TextArea
+from textual.widgets import (
+    Header,
+    Footer,
+    Static,
+    Button,
+    Select,
+    Input,
+    RadioSet,
+    RadioButton,
+    Label,
+    TextArea,
+)
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.binding import Binding
 
@@ -36,22 +48,45 @@ class GenerateScreen(Screen):
             with Vertical(id="generate-form"):
                 yield Label("Topic Selection")
                 yield Select(
-                    [(t, t) for t in [
-                        "negligence", "duty_of_care", "causation", "remoteness",
-                        "battery", "assault", "false_imprisonment", "defamation",
-                        "private_nuisance", "trespass_to_land", "vicarious_liability",
-                        "strict_liability", "harassment", "occupiers_liability",
-                        "product_liability", "contributory_negligence", "economic_loss",
-                        "psychiatric_harm", "employers_liability",
-                    ]],
-                    prompt="Select topic", id="topic-select",
+                    [
+                        (t, t)
+                        for t in [
+                            "negligence",
+                            "duty_of_care",
+                            "causation",
+                            "remoteness",
+                            "battery",
+                            "assault",
+                            "false_imprisonment",
+                            "defamation",
+                            "private_nuisance",
+                            "trespass_to_land",
+                            "vicarious_liability",
+                            "strict_liability",
+                            "harassment",
+                            "occupiers_liability",
+                            "product_liability",
+                            "contributory_negligence",
+                            "economic_loss",
+                            "psychiatric_harm",
+                            "employers_liability",
+                        ]
+                    ],
+                    prompt="Select topic",
+                    id="topic-select",
                 )
                 with Horizontal(classes="form-row"):
                     yield Label("Provider:")
                     yield Select(
-                        [("ollama", "ollama"), ("openai", "openai"),
-                         ("anthropic", "anthropic"), ("google", "google"), ("local", "local")],
-                        prompt="Provider", id="provider-select",
+                        [
+                            ("ollama", "ollama"),
+                            ("openai", "openai"),
+                            ("anthropic", "anthropic"),
+                            ("google", "google"),
+                            ("local", "local"),
+                        ],
+                        prompt="Provider",
+                        id="provider-select",
                     )
                 with Horizontal(classes="form-row"):
                     yield Label("Model:")
@@ -76,14 +111,24 @@ class GenerateScreen(Screen):
             output = self.query_one("#output-panel", Static)
             output.update("[bold yellow]Generating...[/bold yellow]")
             try:
-                from ...services.hypothetical_service import hypothetical_service, GenerationRequest
+                from ...services.hypothetical_service import (
+                    hypothetical_service,
+                    GenerationRequest,
+                )
                 from ...services.llm_service import llm_service, LLMRequest
+
                 topic_sel = self.query_one("#topic-select", Select)
-                topic = topic_sel.value if topic_sel.value != Select.BLANK else "negligence"
-                complexity = int(self.query_one("#complexity-input", Input).value or "3")
+                topic = (
+                    topic_sel.value if topic_sel.value != Select.BLANK else "negligence"
+                )
+                complexity = int(
+                    self.query_one("#complexity-input", Input).value or "3"
+                )
                 parties = int(self.query_one("#parties-input", Input).value or "3")
                 provider_sel = self.query_one("#provider-select", Select)
-                provider = provider_sel.value if provider_sel.value != Select.BLANK else None
+                provider = (
+                    provider_sel.value if provider_sel.value != Select.BLANK else None
+                )
                 model_val = self.query_one("#model-input", Input).value or None
                 # try streaming first
                 try:
@@ -92,7 +137,9 @@ class GenerateScreen(Screen):
                         stream=True,
                     )
                     chunks = []
-                    async for chunk in llm_service.stream_generate(request, provider=provider, model=model_val):
+                    async for chunk in llm_service.stream_generate(
+                        request, provider=provider, model=model_val
+                    ):
                         chunks.append(chunk)
                         output.update("".join(chunks))
                     if not chunks:
@@ -105,7 +152,11 @@ class GenerateScreen(Screen):
                         complexity_level=max(1, min(5, complexity)),
                     )
                     response = await hypothetical_service.generate_hypothetical(request)
-                    text = response.hypothetical if hasattr(response, "hypothetical") else str(response)
+                    text = (
+                        response.hypothetical
+                        if hasattr(response, "hypothetical")
+                        else str(response)
+                    )
                     output.update(text)
             except Exception as e:
                 output.update(f"[bold red]Error: {e}[/bold red]")

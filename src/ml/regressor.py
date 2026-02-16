@@ -1,4 +1,5 @@
 """Quality score regressor using sklearn ensemble methods."""
+
 import numpy as np
 from typing import Dict, Optional, Callable
 from sklearn.ensemble import GradientBoostingRegressor
@@ -21,7 +22,9 @@ class QualityRegressor:
         """Train regressor on feature matrix X and quality scores y."""
         if progress_callback:
             progress_callback(0.1, "Training quality regressor")
-        self.model = GradientBoostingRegressor(n_estimators=100, max_depth=5, random_state=42)
+        self.model = GradientBoostingRegressor(
+            n_estimators=100, max_depth=5, random_state=42
+        )
         self.model.fit(X, y)
         self.is_trained = True
         if progress_callback:

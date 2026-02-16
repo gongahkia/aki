@@ -34,6 +34,7 @@ TOPIC_HINTS: Dict[str, str] = {
 
 class PromptTemplateType(str, Enum):
     """Types of prompt templates available."""
+
     HYPOTHETICAL_GENERATION = "hypothetical_generation"
     ADHERENCE_CHECK = "adherence_check"
     SIMILARITY_CHECK = "similarity_check"
@@ -44,6 +45,7 @@ class PromptTemplateType(str, Enum):
 
 class PromptTechnique(str, Enum):
     """Prompt engineering techniques used."""
+
     CHAIN_OF_THOUGHT = "chain_of_thought"
     FEW_SHOT_LEARNING = "few_shot_learning"
     ROLE_BASED = "role_based"
@@ -55,6 +57,7 @@ class PromptTechnique(str, Enum):
 @dataclass
 class PromptContext:
     """Context information for prompt generation."""
+
     topics: List[str]
     law_domain: str = "tort"
     number_parties: int = 3
@@ -65,6 +68,7 @@ class PromptContext:
 
 class PromptTemplate(BaseModel):
     """Base class for prompt templates."""
+
     name: str
     template_type: PromptTemplateType
     technique: PromptTechnique
@@ -72,7 +76,7 @@ class PromptTemplate(BaseModel):
     user_prompt_template: str
     examples: Optional[List[Dict[str, str]]] = None
     output_format: Optional[str] = None
-    
+
     def format_prompt(self, context: PromptContext, **kwargs) -> Dict[str, str]:
         """Format the prompt with given context."""
         raise NotImplementedError
@@ -80,7 +84,7 @@ class PromptTemplate(BaseModel):
 
 class HypotheticalGenerationTemplate(PromptTemplate):
     """Template for generating legal hypotheticals using modern prompt engineering."""
-    
+
     def __init__(self):
         super().__init__(
             name="Advanced Hypothetical Generator",
@@ -89,9 +93,9 @@ class HypotheticalGenerationTemplate(PromptTemplate):
             system_prompt=self._get_system_prompt(),
             user_prompt_template=self._get_user_prompt_template(),
             examples=self._get_examples(),
-            output_format=self._get_output_format()
+            output_format=self._get_output_format(),
         )
-    
+
     def _get_system_prompt(self) -> str:
         return """You are an expert legal educator specializing in Singapore Tort Law. Your role is to create realistic, educational hypothetical scenarios that help law students understand complex legal concepts.
 
@@ -168,12 +172,12 @@ OUTPUT FORMAT:
         return [
             {
                 "input": "Topics: negligence, duty of care, causation. Parties: 3",
-                "output": "A detailed hypothetical involving a restaurant owner, customer, and supplier..."
+                "output": "A detailed hypothetical involving a restaurant owner, customer, and supplier...",
             },
             {
-                "input": "Topics: battery, assault, false imprisonment. Parties: 4", 
-                "output": "A scenario involving security personnel, customers, and management..."
-            }
+                "input": "Topics: battery, assault, false imprisonment. Parties: 4",
+                "output": "A scenario involving security personnel, customers, and management...",
+            },
         ]
 
     def _get_output_format(self) -> str:
@@ -207,16 +211,13 @@ SCENARIO METADATA:
             output_format=self.output_format,
             topic_hints=topic_hints,
         )
-        
-        return {
-            "system": self.system_prompt,
-            "user": user_prompt
-        }
+
+        return {"system": self.system_prompt, "user": user_prompt}
 
 
 class AdherenceCheckTemplate(PromptTemplate):
     """Template for checking adherence to generation parameters."""
-    
+
     def __init__(self):
         super().__init__(
             name="Parameter Adherence Checker",
@@ -224,9 +225,9 @@ class AdherenceCheckTemplate(PromptTemplate):
             technique=PromptTechnique.STRUCTURED_OUTPUT,
             system_prompt=self._get_system_prompt(),
             user_prompt_template=self._get_user_prompt_template(),
-            output_format=self._get_output_format()
+            output_format=self._get_output_format(),
         )
-    
+
     def _get_system_prompt(self) -> str:
         return """You are a meticulous legal quality assurance specialist. Your role is to evaluate generated legal hypotheticals against specific parameters to ensure they meet educational standards.
 
@@ -304,7 +305,9 @@ RECOMMENDATIONS:
 CRITICAL ISSUES:
 [List any critical problems that must be addressed]"""
 
-    def format_prompt(self, context: PromptContext, hypothetical: str, **kwargs) -> Dict[str, str]:
+    def format_prompt(
+        self, context: PromptContext, hypothetical: str, **kwargs
+    ) -> Dict[str, str]:
         """Format the adherence check prompt."""
         user_prompt = self.user_prompt_template.format(
             law_domain=context.law_domain,
@@ -312,18 +315,15 @@ CRITICAL ISSUES:
             number_parties=context.number_parties,
             complexity_level=context.complexity_level,
             hypothetical=hypothetical,
-            output_format=self.output_format
+            output_format=self.output_format,
         )
-        
-        return {
-            "system": self.system_prompt,
-            "user": user_prompt
-        }
+
+        return {"system": self.system_prompt, "user": user_prompt}
 
 
 class SimilarityCheckTemplate(PromptTemplate):
     """Template for checking similarity to existing corpus."""
-    
+
     def __init__(self):
         super().__init__(
             name="Corpus Similarity Checker",
@@ -331,9 +331,9 @@ class SimilarityCheckTemplate(PromptTemplate):
             technique=PromptTechnique.CONTEXT_AWARE,
             system_prompt=self._get_system_prompt(),
             user_prompt_template=self._get_user_prompt_template(),
-            output_format=self._get_output_format()
+            output_format=self._get_output_format(),
         )
-    
+
     def _get_system_prompt(self) -> str:
         return """You are an expert in legal text analysis and plagiarism detection. Your role is to assess the originality and distinctiveness of generated legal hypotheticals compared to existing corpus examples.
 
@@ -414,27 +414,30 @@ RECOMMENDATIONS:
 UNIQUE ELEMENTS:
 [Highlight what makes this hypothetical distinct and valuable]"""
 
-    def format_prompt(self, context: PromptContext, generated_hypothetical: str, reference_examples: List[str], **kwargs) -> Dict[str, str]:
+    def format_prompt(
+        self,
+        context: PromptContext,
+        generated_hypothetical: str,
+        reference_examples: List[str],
+        **kwargs,
+    ) -> Dict[str, str]:
         """Format the similarity check prompt."""
         reference_text = ""
         for i, example in enumerate(reference_examples[:3], 1):
             reference_text += f"Reference Example {i}:\n{example}\n\n"
-        
+
         user_prompt = self.user_prompt_template.format(
             reference_examples=reference_text,
             generated_hypothetical=generated_hypothetical,
-            output_format=self.output_format
+            output_format=self.output_format,
         )
-        
-        return {
-            "system": self.system_prompt,
-            "user": user_prompt
-        }
+
+        return {"system": self.system_prompt, "user": user_prompt}
 
 
 class LegalAnalysisTemplate(PromptTemplate):
     """Template for legal analysis of generated hypotheticals."""
-    
+
     def __init__(self):
         super().__init__(
             name="Legal Analysis Expert",
@@ -442,9 +445,9 @@ class LegalAnalysisTemplate(PromptTemplate):
             technique=PromptTechnique.CHAIN_OF_THOUGHT,
             system_prompt=self._get_system_prompt(),
             user_prompt_template=self._get_user_prompt_template(),
-            output_format=self._get_output_format()
+            output_format=self._get_output_format(),
         )
-    
+
     def _get_system_prompt(self) -> str:
         return """You are a distinguished Singapore Tort Law expert and legal educator. Your role is to provide comprehensive legal analysis of hypothetical scenarios to guide student learning.
 
@@ -550,23 +553,26 @@ DETAILED ANALYSIS:
 LEARNING OBJECTIVES ACHIEVED:
 [Summary of key legal concepts demonstrated in this hypothetical]"""
 
-    def format_prompt(self, context: PromptContext, hypothetical: str, available_topics: List[str], **kwargs) -> Dict[str, str]:
+    def format_prompt(
+        self,
+        context: PromptContext,
+        hypothetical: str,
+        available_topics: List[str],
+        **kwargs,
+    ) -> Dict[str, str]:
         """Format the legal analysis prompt."""
         user_prompt = self.user_prompt_template.format(
             hypothetical=hypothetical,
             available_topics=", ".join(available_topics),
-            output_format=self.output_format
+            output_format=self.output_format,
         )
-        
-        return {
-            "system": self.system_prompt,
-            "user": user_prompt
-        }
+
+        return {"system": self.system_prompt, "user": user_prompt}
 
 
 class PromptTemplateManager:
     """Manager class for handling different prompt templates."""
-    
+
     def __init__(self):
         self._templates = {
             PromptTemplateType.HYPOTHETICAL_GENERATION: HypotheticalGenerationTemplate(),
@@ -574,18 +580,20 @@ class PromptTemplateManager:
             PromptTemplateType.SIMILARITY_CHECK: SimilarityCheckTemplate(),
             PromptTemplateType.LEGAL_ANALYSIS: LegalAnalysisTemplate(),
         }
-    
+
     def get_template(self, template_type: PromptTemplateType) -> PromptTemplate:
         """Get a specific prompt template."""
         if template_type not in self._templates:
             raise ValueError(f"Template type {template_type} not found")
         return self._templates[template_type]
-    
+
     def list_available_templates(self) -> List[PromptTemplateType]:
         """List all available template types."""
         return list(self._templates.keys())
-    
-    def format_prompt(self, template_type: PromptTemplateType, context: PromptContext, **kwargs) -> Dict[str, str]:
+
+    def format_prompt(
+        self, template_type: PromptTemplateType, context: PromptContext, **kwargs
+    ) -> Dict[str, str]:
         """Format a prompt using the specified template."""
         template = self.get_template(template_type)
         return template.format_prompt(context, **kwargs)

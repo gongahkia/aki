@@ -1,4 +1,5 @@
 """Tests for ML regressor."""
+
 import pytest
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -14,6 +15,7 @@ def regression_dataset():
 class TestQualityRegressor:
     def test_train_and_predict(self, regression_dataset):
         from src.ml.regressor import QualityRegressor
+
         X, y = regression_dataset
         reg = QualityRegressor()
         reg.train(X, y)
@@ -23,6 +25,7 @@ class TestQualityRegressor:
 
     def test_evaluate(self, regression_dataset):
         from src.ml.regressor import QualityRegressor
+
         X, y = regression_dataset
         reg = QualityRegressor()
         reg.train(X, y)
@@ -33,6 +36,7 @@ class TestQualityRegressor:
 
     def test_save_load(self, regression_dataset, tmp_path):
         from src.ml.regressor import QualityRegressor
+
         X, y = regression_dataset
         reg = QualityRegressor()
         reg.train(X, y)

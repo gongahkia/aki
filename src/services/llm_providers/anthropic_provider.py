@@ -1,8 +1,15 @@
 """Anthropic LLM provider using anthropic SDK."""
+
 import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 import structlog
-from .base import LLMProvider, LLMRequest, LLMResponse, LLMServiceError, retry_on_failure
+from .base import (
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMServiceError,
+    retry_on_failure,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -16,11 +23,17 @@ ANTHROPIC_MODELS = [
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider implementation."""
 
-    def __init__(self, api_key: str = None, default_model: str = "claude-sonnet-4-5-20250929", timeout: int = 120):
+    def __init__(
+        self,
+        api_key: str = None,
+        default_model: str = "claude-sonnet-4-5-20250929",
+        timeout: int = 120,
+    ):
         self.default_model = default_model
         self.timeout = timeout
         try:
             import anthropic
+
             self._api_key = api_key
             self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout)
         except ImportError:
@@ -48,7 +61,8 @@ class AnthropicProvider(LLMProvider):
                 usage={
                     "prompt_tokens": message.usage.input_tokens,
                     "completion_tokens": message.usage.output_tokens,
-                    "total_tokens": message.usage.input_tokens + message.usage.output_tokens,
+                    "total_tokens": message.usage.input_tokens
+                    + message.usage.output_tokens,
                 },
                 finish_reason=message.stop_reason or "stop",
                 response_time=response_time,

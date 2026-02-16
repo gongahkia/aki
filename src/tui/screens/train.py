@@ -1,7 +1,17 @@
 """Train screen for ML model training."""
+
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Button, Input, Checkbox, Label, ProgressBar
+from textual.widgets import (
+    Header,
+    Footer,
+    Static,
+    Button,
+    Input,
+    Checkbox,
+    Label,
+    ProgressBar,
+)
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.binding import Binding
 
@@ -49,21 +59,28 @@ class TrainScreen(Screen):
             output.update("[bold yellow]Training...[/bold yellow]")
             try:
                 from ...ml.pipeline import MLPipeline
+
                 data_path = self.query_one("#data-path", Input).value
                 n_clusters = int(self.query_one("#n-clusters", Input).value or "5")
-                max_features = int(self.query_one("#max-features", Input).value or "5000")
+                max_features = int(
+                    self.query_one("#max-features", Input).value or "5000"
+                )
                 pipeline = MLPipeline()
 
                 def on_progress(pct, msg):
                     self.call_from_thread(progress.update, progress=int(pct * 100))
 
                 import asyncio
+
                 metrics = await asyncio.to_thread(
-                    pipeline.train_all, data_path,
+                    pipeline.train_all,
+                    data_path,
                     progress_callback=on_progress,
                     n_clusters=n_clusters,
                     max_features=max_features,
                 )
-                output.update(f"[bold green]Training complete![/bold green]\n\n{metrics}")
+                output.update(
+                    f"[bold green]Training complete![/bold green]\n\n{metrics}"
+                )
             except Exception as e:
                 output.update(f"[bold red]Error: {e}[/bold red]")

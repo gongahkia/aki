@@ -1,8 +1,15 @@
 """Google Gemini LLM provider using google-generativeai SDK."""
+
 import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 import structlog
-from .base import LLMProvider, LLMRequest, LLMResponse, LLMServiceError, retry_on_failure
+from .base import (
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMServiceError,
+    retry_on_failure,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -15,11 +22,17 @@ GEMINI_MODELS = [
 class GoogleGeminiProvider(LLMProvider):
     """Google Gemini provider implementation."""
 
-    def __init__(self, api_key: str = None, default_model: str = "gemini-2.0-flash", timeout: int = 120):
+    def __init__(
+        self,
+        api_key: str = None,
+        default_model: str = "gemini-2.0-flash",
+        timeout: int = 120,
+    ):
         self.default_model = default_model
         self.timeout = timeout
         try:
             import google.generativeai as genai
+
             self._genai = genai
             if api_key:
                 genai.configure(api_key=api_key)
@@ -29,6 +42,7 @@ class GoogleGeminiProvider(LLMProvider):
     @retry_on_failure(max_attempts=3, delay=2.0, backoff=2.0)
     async def generate(self, request: LLMRequest) -> LLMResponse:
         import asyncio
+
         start_time = time.time()
         model_name = request.model or self.default_model
         try:
@@ -70,14 +84,22 @@ class GoogleGeminiProvider(LLMProvider):
     async def health_check(self) -> Dict[str, Any]:
         try:
             import asyncio
+
             model = self._genai.GenerativeModel(self.default_model)
-            await asyncio.to_thread(model.generate_content, "ping", generation_config=self._genai.types.GenerationConfig(max_output_tokens=1))
+            await asyncio.to_thread(
+                model.generate_content,
+                "ping",
+                generation_config=self._genai.types.GenerationConfig(
+                    max_output_tokens=1
+                ),
+            )
             return {"healthy": True, "provider": "google"}
         except Exception as e:
             return {"healthy": False, "provider": "google", "error": str(e)}
 
     async def stream_generate(self, request: LLMRequest) -> AsyncIterator[str]:
         import asyncio
+
         model_name = request.model or self.default_model
         model = self._genai.GenerativeModel(
             model_name=model_name,
@@ -88,7 +110,10 @@ class GoogleGeminiProvider(LLMProvider):
             max_output_tokens=request.max_tokens,
         )
         response = await asyncio.to_thread(
-            model.generate_content, request.prompt, generation_config=config, stream=True
+            model.generate_content,
+            request.prompt,
+            generation_config=config,
+            stream=True,
         )
         for chunk in response:
             if chunk.text:

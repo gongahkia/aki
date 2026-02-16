@@ -1,9 +1,16 @@
 """Ollama LLM provider conforming to base interface."""
+
 import time
 from typing import Any, AsyncIterator, Dict, List
 import httpx
 import structlog
-from .base import LLMProvider, LLMRequest, LLMResponse, LLMServiceError, retry_on_failure
+from .base import (
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMServiceError,
+    retry_on_failure,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -11,7 +18,12 @@ logger = structlog.get_logger(__name__)
 class OllamaProvider(LLMProvider):
     """Ollama LLM provider with dynamic model listing."""
 
-    def __init__(self, base_url: str = "http://localhost:11434", default_model: str = "llama2:7b", timeout: int = 120):
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        default_model: str = "llama2:7b",
+        timeout: int = 120,
+    ):
         self.base_url = base_url
         self.default_model = default_model
         self.timeout = timeout
@@ -25,7 +37,10 @@ class OllamaProvider(LLMProvider):
             "model": model,
             "prompt": request.prompt,
             "stream": False,
-            "options": {"temperature": request.temperature, "num_predict": request.max_tokens},
+            "options": {
+                "temperature": request.temperature,
+                "num_predict": request.max_tokens,
+            },
         }
         if request.system_prompt:
             payload["system"] = request.system_prompt
@@ -39,7 +54,8 @@ class OllamaProvider(LLMProvider):
                 usage={
                     "prompt_tokens": data.get("prompt_eval_count", 0),
                     "completion_tokens": data.get("eval_count", 0),
-                    "total_tokens": data.get("prompt_eval_count", 0) + data.get("eval_count", 0),
+                    "total_tokens": data.get("prompt_eval_count", 0)
+                    + data.get("eval_count", 0),
                 },
                 finish_reason="stop" if data.get("done", True) else "incomplete",
                 response_time=time.time() - start_time,
@@ -77,12 +93,18 @@ class OllamaProvider(LLMProvider):
             "model": model,
             "prompt": request.prompt,
             "stream": True,
-            "options": {"temperature": request.temperature, "num_predict": request.max_tokens},
+            "options": {
+                "temperature": request.temperature,
+                "num_predict": request.max_tokens,
+            },
         }
         if request.system_prompt:
             payload["system"] = request.system_prompt
         import json
-        async with self.client.stream("POST", f"{self.base_url}/api/generate", json=payload) as resp:
+
+        async with self.client.stream(
+            "POST", f"{self.base_url}/api/generate", json=payload
+        ) as resp:
             async for line in resp.aiter_lines():
                 if line:
                     data = json.loads(line)

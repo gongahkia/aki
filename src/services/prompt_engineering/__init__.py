@@ -14,7 +14,7 @@ from .templates import (
 
 __all__ = [
     "PromptTemplate",
-    "PromptTemplateType", 
+    "PromptTemplateType",
     "PromptTechnique",
     "PromptContext",
     "HypotheticalGenerationTemplate",

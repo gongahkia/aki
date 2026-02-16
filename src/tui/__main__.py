@@ -1,4 +1,5 @@
 """CLI entry point for Jikai TUI/API."""
+
 import argparse
 import sys
 import threading
@@ -7,12 +8,14 @@ import threading
 def run_api():
     """Run FastAPI server."""
     import uvicorn
+
     uvicorn.run("src.api.main:app", host="0.0.0.0", port=8000, reload=False)
 
 
 def run_tui():
     """Run Textual TUI."""
     from src.tui.app import JikaiApp
+
     app = JikaiApp()
     app.run()
 

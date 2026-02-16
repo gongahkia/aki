@@ -1,4 +1,5 @@
 """Settings screen for app configuration."""
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Button, Input, Label, Select
@@ -44,8 +45,14 @@ class SettingsScreen(Screen):
                 yield Input(value="data/jikai.db", id="db-path")
                 yield Label("Log Level:")
                 yield Select(
-                    [("DEBUG", "DEBUG"), ("INFO", "INFO"), ("WARNING", "WARNING"), ("ERROR", "ERROR")],
-                    value="INFO", id="log-level",
+                    [
+                        ("DEBUG", "DEBUG"),
+                        ("INFO", "INFO"),
+                        ("WARNING", "WARNING"),
+                        ("ERROR", "ERROR"),
+                    ],
+                    value="INFO",
+                    id="log-level",
                 )
                 yield Button("Save Settings", variant="primary", id="save-btn")
                 yield Static("", id="save-status")
@@ -56,14 +63,30 @@ class SettingsScreen(Screen):
             status = self.query_one("#save-status", Static)
             try:
                 lines = []
-                lines.append(f"ANTHROPIC_API_KEY={self.query_one('#anthropic-key', Input).value}")
-                lines.append(f"OPENAI_API_KEY={self.query_one('#openai-key', Input).value}")
-                lines.append(f"GOOGLE_API_KEY={self.query_one('#google-key', Input).value}")
-                lines.append(f"OLLAMA_HOST={self.query_one('#ollama-host', Input).value}")
-                lines.append(f"LOCAL_LLM_HOST={self.query_one('#local-host', Input).value}")
-                lines.append(f"DEFAULT_TEMPERATURE={self.query_one('#temperature', Input).value}")
-                lines.append(f"DEFAULT_MAX_TOKENS={self.query_one('#max-tokens', Input).value}")
-                lines.append(f"CORPUS_PATH={self.query_one('#corpus-path', Input).value}")
+                lines.append(
+                    f"ANTHROPIC_API_KEY={self.query_one('#anthropic-key', Input).value}"
+                )
+                lines.append(
+                    f"OPENAI_API_KEY={self.query_one('#openai-key', Input).value}"
+                )
+                lines.append(
+                    f"GOOGLE_API_KEY={self.query_one('#google-key', Input).value}"
+                )
+                lines.append(
+                    f"OLLAMA_HOST={self.query_one('#ollama-host', Input).value}"
+                )
+                lines.append(
+                    f"LOCAL_LLM_HOST={self.query_one('#local-host', Input).value}"
+                )
+                lines.append(
+                    f"DEFAULT_TEMPERATURE={self.query_one('#temperature', Input).value}"
+                )
+                lines.append(
+                    f"DEFAULT_MAX_TOKENS={self.query_one('#max-tokens', Input).value}"
+                )
+                lines.append(
+                    f"CORPUS_PATH={self.query_one('#corpus-path', Input).value}"
+                )
                 lines.append(f"DATABASE_PATH={self.query_one('#db-path', Input).value}")
                 log_sel = self.query_one("#log-level", Select)
                 lines.append(f"LOG_LEVEL={log_sel.value}")

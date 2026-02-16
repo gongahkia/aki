@@ -1,4 +1,5 @@
 """Tests for ML classifier."""
+
 import pytest
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -17,6 +18,7 @@ def small_dataset():
 class TestTopicClassifier:
     def test_train_and_predict(self, small_dataset):
         from src.ml.classifier import TopicClassifier
+
         X, y = small_dataset
         clf = TopicClassifier()
         clf.train(X, y)
@@ -26,6 +28,7 @@ class TestTopicClassifier:
 
     def test_evaluate(self, small_dataset):
         from src.ml.classifier import TopicClassifier
+
         X, y = small_dataset
         clf = TopicClassifier()
         clf.train(X, y)
@@ -35,6 +38,7 @@ class TestTopicClassifier:
 
     def test_predict_topics(self, small_dataset):
         from src.ml.classifier import TopicClassifier
+
         X, y = small_dataset
         clf = TopicClassifier()
         clf.train(X, y)
@@ -44,6 +48,7 @@ class TestTopicClassifier:
 
     def test_save_load(self, small_dataset, tmp_path):
         from src.ml.classifier import TopicClassifier
+
         X, y = small_dataset
         clf = TopicClassifier()
         clf.train(X, y)

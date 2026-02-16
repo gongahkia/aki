@@ -1,9 +1,16 @@
 """OpenAI LLM provider conforming to base interface."""
+
 import time
 from typing import Any, AsyncIterator, Dict, List
 import httpx
 import structlog
-from .base import LLMProvider, LLMRequest, LLMResponse, LLMServiceError, retry_on_failure
+from .base import (
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMServiceError,
+    retry_on_failure,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -13,8 +20,13 @@ OPENAI_MODELS = ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini"]
 class OpenAIProvider(LLMProvider):
     """OpenAI provider with dynamic model listing."""
 
-    def __init__(self, api_key: str = None, base_url: str = "https://api.openai.com/v1",
-                 default_model: str = "gpt-4o", timeout: int = 120):
+    def __init__(
+        self,
+        api_key: str = None,
+        base_url: str = "https://api.openai.com/v1",
+        default_model: str = "gpt-4o",
+        timeout: int = 120,
+    ):
         self.api_key = api_key or ""
         self.base_url = base_url
         self.default_model = default_model
@@ -39,7 +51,9 @@ class OpenAIProvider(LLMProvider):
             "max_tokens": request.max_tokens,
         }
         try:
-            resp = await self.client.post(f"{self.base_url}/chat/completions", json=payload)
+            resp = await self.client.post(
+                f"{self.base_url}/chat/completions", json=payload
+            )
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
@@ -92,7 +106,10 @@ class OpenAIProvider(LLMProvider):
             "stream": True,
         }
         import json as json_mod
-        async with self.client.stream("POST", f"{self.base_url}/chat/completions", json=payload) as resp:
+
+        async with self.client.stream(
+            "POST", f"{self.base_url}/chat/completions", json=payload
+        ) as resp:
             async for line in resp.aiter_lines():
                 if line.startswith("data: ") and line != "data: [DONE]":
                     data = json_mod.loads(line[6:])

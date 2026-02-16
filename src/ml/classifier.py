@@ -1,4 +1,5 @@
 """Multi-label topic classifier using sklearn OneVsRestClassifier."""
+
 import numpy as np
 from typing import Dict, List, Optional, Callable
 from sklearn.multiclass import OneVsRestClassifier
@@ -47,12 +48,21 @@ class TopicClassifier:
     def evaluate(self, X, y, label_names: List[str] = None) -> Dict:
         """Evaluate returning precision, recall, f1 per topic."""
         preds = self.predict(X)
-        p, r, f, s = precision_recall_fscore_support(y, preds, average=None, zero_division=0)
-        overall_p, overall_r, overall_f, _ = precision_recall_fscore_support(y, preds, average="micro", zero_division=0)
+        p, r, f, s = precision_recall_fscore_support(
+            y, preds, average=None, zero_division=0
+        )
+        overall_p, overall_r, overall_f, _ = precision_recall_fscore_support(
+            y, preds, average="micro", zero_division=0
+        )
         per_topic = {}
         if label_names:
             for i, name in enumerate(label_names):
-                per_topic[name] = {"precision": float(p[i]), "recall": float(r[i]), "f1": float(f[i]), "support": int(s[i])}
+                per_topic[name] = {
+                    "precision": float(p[i]),
+                    "recall": float(r[i]),
+                    "f1": float(f[i]),
+                    "support": int(s[i]),
+                }
         self._metrics = {
             "per_topic": per_topic,
             "micro_precision": float(overall_p),

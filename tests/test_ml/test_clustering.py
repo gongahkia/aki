@@ -1,4 +1,5 @@
 """Tests for ML clustering."""
+
 import pytest
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -12,6 +13,7 @@ def clustering_dataset():
 class TestHypotheticalClusterer:
     def test_fit_kmeans(self, clustering_dataset):
         from src.ml.clustering import HypotheticalClusterer
+
         clusterer = HypotheticalClusterer(method="kmeans")
         labels = clusterer.fit(clustering_dataset, n_clusters=3)
         assert clusterer.is_trained
@@ -19,6 +21,7 @@ class TestHypotheticalClusterer:
 
     def test_predict_cluster(self, clustering_dataset):
         from src.ml.clustering import HypotheticalClusterer
+
         clusterer = HypotheticalClusterer(method="kmeans")
         clusterer.fit(clustering_dataset, n_clusters=3)
         cluster = clusterer.predict_cluster(clustering_dataset[:1])
@@ -26,6 +29,7 @@ class TestHypotheticalClusterer:
 
     def test_cluster_summary(self, clustering_dataset):
         from src.ml.clustering import HypotheticalClusterer
+
         clusterer = HypotheticalClusterer(method="kmeans")
         clusterer.fit(clustering_dataset, n_clusters=3)
         summary = clusterer.get_cluster_summary()
@@ -33,6 +37,7 @@ class TestHypotheticalClusterer:
 
     def test_visualize(self, clustering_dataset):
         from src.ml.clustering import HypotheticalClusterer
+
         clusterer = HypotheticalClusterer(method="kmeans")
         clusterer.fit(clustering_dataset, n_clusters=3)
         table = clusterer.visualize_clusters()
@@ -40,6 +45,7 @@ class TestHypotheticalClusterer:
 
     def test_save_load(self, clustering_dataset, tmp_path):
         from src.ml.clustering import HypotheticalClusterer
+
         clusterer = HypotheticalClusterer(method="kmeans")
         clusterer.fit(clustering_dataset, n_clusters=3)
         path = str(tmp_path / "clu.joblib")

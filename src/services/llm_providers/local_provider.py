@@ -1,9 +1,16 @@
 """Local LLM provider supporting llama.cpp server HTTP API."""
+
 import time
 from typing import Any, AsyncIterator, Dict, List
 import httpx
 import structlog
-from .base import LLMProvider, LLMRequest, LLMResponse, LLMServiceError, retry_on_failure
+from .base import (
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMServiceError,
+    retry_on_failure,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -11,7 +18,12 @@ logger = structlog.get_logger(__name__)
 class LocalLLMProvider(LLMProvider):
     """Local LLM provider via llama.cpp server HTTP API."""
 
-    def __init__(self, base_url: str = "http://localhost:8080", default_model: str = "local", timeout: int = 120):
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8080",
+        default_model: str = "local",
+        timeout: int = 120,
+    ):
         self.base_url = base_url
         self.default_model = default_model
         self.timeout = timeout
@@ -27,7 +39,9 @@ class LocalLLMProvider(LLMProvider):
             "stream": False,
         }
         if request.system_prompt:
-            payload["prompt"] = f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
+            payload["prompt"] = (
+                f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
+            )
         try:
             resp = await self.client.post(f"{self.base_url}/completion", json=payload)
             resp.raise_for_status()
@@ -38,7 +52,8 @@ class LocalLLMProvider(LLMProvider):
                 usage={
                     "prompt_tokens": data.get("tokens_evaluated", 0),
                     "completion_tokens": data.get("tokens_predicted", 0),
-                    "total_tokens": data.get("tokens_evaluated", 0) + data.get("tokens_predicted", 0),
+                    "total_tokens": data.get("tokens_evaluated", 0)
+                    + data.get("tokens_predicted", 0),
                 },
                 finish_reason=data.get("stop_type", "stop"),
                 response_time=time.time() - start_time,
@@ -75,9 +90,14 @@ class LocalLLMProvider(LLMProvider):
             "stream": True,
         }
         if request.system_prompt:
-            payload["prompt"] = f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
+            payload["prompt"] = (
+                f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
+            )
         import json
-        async with self.client.stream("POST", f"{self.base_url}/completion", json=payload) as resp:
+
+        async with self.client.stream(
+            "POST", f"{self.base_url}/completion", json=payload
+        ) as resp:
             async for line in resp.aiter_lines():
                 if line.startswith("data: "):
                     data = json.loads(line[6:])

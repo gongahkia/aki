@@ -19,6 +19,7 @@ class DatabaseService:
 
     def __init__(self, db_path: str = None):
         from ..config import settings as app_settings
+
         self._db_path = Path(db_path or app_settings.database_path)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize_database()
@@ -77,9 +78,7 @@ class DatabaseService:
             raise
 
     async def save_generation(
-        self,
-        request_data: Dict[str, Any],
-        response_data: Dict[str, Any]
+        self, request_data: Dict[str, Any], response_data: Dict[str, Any]
     ) -> int:
         """
         Save a generation to the database.
@@ -92,26 +91,33 @@ class DatabaseService:
             cursor = conn.cursor()
 
             # Extract key fields for indexing/searching
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO generation_history (
                     timestamp, topics, law_domain, number_parties, complexity_level,
                     hypothetical, analysis, generation_time, validation_passed,
                     quality_score, request_data, response_data
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                response_data.get('metadata', {}).get('generation_timestamp', datetime.utcnow().isoformat()),
-                json.dumps(request_data.get('topics', [])),
-                request_data.get('law_domain'),
-                request_data.get('number_parties'),
-                request_data.get('complexity_level'),
-                response_data.get('hypothetical', ''),
-                response_data.get('analysis', ''),
-                response_data.get('generation_time', 0.0),
-                response_data.get('validation_results', {}).get('passed', False),
-                response_data.get('validation_results', {}).get('quality_score', 0.0),
-                json.dumps(request_data),
-                json.dumps(response_data)
-            ))
+            """,
+                (
+                    response_data.get("metadata", {}).get(
+                        "generation_timestamp", datetime.utcnow().isoformat()
+                    ),
+                    json.dumps(request_data.get("topics", [])),
+                    request_data.get("law_domain"),
+                    request_data.get("number_parties"),
+                    request_data.get("complexity_level"),
+                    response_data.get("hypothetical", ""),
+                    response_data.get("analysis", ""),
+                    response_data.get("generation_time", 0.0),
+                    response_data.get("validation_results", {}).get("passed", False),
+                    response_data.get("validation_results", {}).get(
+                        "quality_score", 0.0
+                    ),
+                    json.dumps(request_data),
+                    json.dumps(response_data),
+                ),
+            )
 
             record_id = cursor.lastrowid
             conn.commit()
@@ -138,13 +144,16 @@ class DatabaseService:
             conn = self._get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     timestamp, request_data, response_data
                 FROM generation_history
                 ORDER BY timestamp DESC
                 LIMIT ?
-            """, (limit,))
+            """,
+                (limit,),
+            )
 
             rows = cursor.fetchall()
             conn.close()
@@ -152,11 +161,13 @@ class DatabaseService:
             # Convert to list of dicts
             generations = []
             for row in rows:
-                generations.append({
-                    'timestamp': row['timestamp'],
-                    'request': json.loads(row['request_data']),
-                    'response': json.loads(row['response_data'])
-                })
+                generations.append(
+                    {
+                        "timestamp": row["timestamp"],
+                        "request": json.loads(row["request_data"]),
+                        "response": json.loads(row["response_data"]),
+                    }
+                )
 
             logger.info("Retrieved recent generations", count=len(generations))
             return generations
@@ -204,31 +215,34 @@ class DatabaseService:
             conn.close()
 
             stats = {
-                'total_generations': row['total_generations'] or 0,
-                'average_generation_time': row['avg_generation_time'] or 0.0,
-                'success_rate': (row['success_rate'] or 0.0) * 100,  # Convert to percentage
-                'average_quality_score': row['avg_quality_score'] or 0.0,
-                'first_generation': row['first_generation'],
-                'last_generation': row['last_generation'],
-                'popular_topics': [
-                    {'topics': json.loads(t['topics']), 'count': t['count']}
+                "total_generations": row["total_generations"] or 0,
+                "average_generation_time": row["avg_generation_time"] or 0.0,
+                "success_rate": (row["success_rate"] or 0.0)
+                * 100,  # Convert to percentage
+                "average_quality_score": row["avg_quality_score"] or 0.0,
+                "first_generation": row["first_generation"],
+                "last_generation": row["last_generation"],
+                "popular_topics": [
+                    {"topics": json.loads(t["topics"]), "count": t["count"]}
                     for t in topic_rows
-                ]
+                ],
             }
 
-            logger.info("Retrieved statistics", total=stats['total_generations'])
+            logger.info("Retrieved statistics", total=stats["total_generations"])
             return stats
 
         except Exception as e:
             logger.error("Failed to get statistics", error=str(e))
             return {
-                'total_generations': 0,
-                'average_generation_time': 0.0,
-                'success_rate': 0.0,
-                'average_quality_score': 0.0
+                "total_generations": 0,
+                "average_generation_time": 0.0,
+                "success_rate": 0.0,
+                "average_quality_score": 0.0,
             }
 
-    async def search_by_topics(self, topics: List[str], limit: int = 10) -> List[Dict[str, Any]]:
+    async def search_by_topics(
+        self, topics: List[str], limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """
         Search generations by topics.
 
@@ -245,7 +259,7 @@ class DatabaseService:
 
             # build parameterized query
             conditions = " OR ".join(["topics LIKE ?" for _ in topics])
-            search_params = [f'%{topic}%' for topic in topics]
+            search_params = [f"%{topic}%" for topic in topics]
             search_params.append(limit)
             query = (
                 "SELECT timestamp, topics, hypothetical, quality_score "
@@ -261,12 +275,14 @@ class DatabaseService:
 
             results = []
             for row in rows:
-                results.append({
-                    'timestamp': row['timestamp'],
-                    'topics': json.loads(row['topics']),
-                    'hypothetical': row['hypothetical'][:200] + '...',  # Preview
-                    'quality_score': row['quality_score']
-                })
+                results.append(
+                    {
+                        "timestamp": row["timestamp"],
+                        "topics": json.loads(row["topics"]),
+                        "hypothetical": row["hypothetical"][:200] + "...",  # Preview
+                        "quality_score": row["quality_score"],
+                    }
+                )
 
             logger.info("Search completed", topics=topics, results=len(results))
             return results
@@ -278,23 +294,23 @@ class DatabaseService:
     async def health_check(self) -> Dict[str, Any]:
         """Check database health."""
         health_status = {
-            'database_exists': self._db_path.exists(),
-            'database_path': str(self._db_path),
-            'connection_ok': False,
-            'record_count': 0
+            "database_exists": self._db_path.exists(),
+            "database_path": str(self._db_path),
+            "connection_ok": False,
+            "record_count": 0,
         }
 
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM generation_history")
-            health_status['record_count'] = cursor.fetchone()[0]
-            health_status['connection_ok'] = True
+            health_status["record_count"] = cursor.fetchone()[0]
+            health_status["connection_ok"] = True
             conn.close()
 
         except Exception as e:
             logger.error("Database health check failed", error=str(e))
-            health_status['error'] = str(e)
+            health_status["error"] = str(e)
 
         return health_status
 

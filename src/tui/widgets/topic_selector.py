@@ -1,4 +1,5 @@
 """Multi-select topic selector widget grouped by tort category."""
+
 from textual.widgets import Static, Checkbox
 from textual.app import ComposeResult
 from textual.containers import Vertical
@@ -6,23 +7,41 @@ from textual.binding import Binding
 
 TOPIC_CATEGORIES = {
     "General Negligence": [
-        "negligence", "duty_of_care", "standard_of_care", "causation",
-        "remoteness", "res_ipsa_loquitur", "novus_actus_interveniens",
-        "contributory_negligence", "economic_loss", "psychiatric_harm",
+        "negligence",
+        "duty_of_care",
+        "standard_of_care",
+        "causation",
+        "remoteness",
+        "res_ipsa_loquitur",
+        "novus_actus_interveniens",
+        "contributory_negligence",
+        "economic_loss",
+        "psychiatric_harm",
     ],
     "Intentional Torts": [
-        "battery", "assault", "false_imprisonment", "defamation", "harassment",
+        "battery",
+        "assault",
+        "false_imprisonment",
+        "defamation",
+        "harassment",
     ],
     "Land Torts": [
-        "private_nuisance", "trespass_to_land", "occupiers_liability",
+        "private_nuisance",
+        "trespass_to_land",
+        "occupiers_liability",
         "rylands_v_fletcher",
     ],
     "Strict Liability": [
-        "strict_liability", "vicarious_liability", "employers_liability",
-        "product_liability", "breach_of_statutory_duty",
+        "strict_liability",
+        "vicarious_liability",
+        "employers_liability",
+        "product_liability",
+        "breach_of_statutory_duty",
     ],
     "Defences": [
-        "consent_defence", "illegality_defence", "limitation_periods",
+        "consent_defence",
+        "illegality_defence",
+        "limitation_periods",
         "volenti_non_fit_injuria",
     ],
 }
@@ -30,6 +49,7 @@ TOPIC_CATEGORIES = {
 
 class TopicSelector(Vertical):
     """Multi-select checkbox tree grouped by tort category."""
+
     DEFAULT_CSS = """
     TopicSelector { height: auto; padding: 1; }
     .category-header { text-style: bold; margin-top: 1; }

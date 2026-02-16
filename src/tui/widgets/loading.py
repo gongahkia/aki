@@ -1,4 +1,5 @@
 """Reusable loading, progress, and status widgets."""
+
 from textual.widgets import Static, ProgressBar
 from textual.app import ComposeResult
 from textual.containers import Vertical
@@ -6,6 +7,7 @@ from textual.containers import Vertical
 
 class LoadingSpinner(Static):
     """Simple loading spinner widget."""
+
     DEFAULT_CSS = "LoadingSpinner { height: auto; }"
 
     def __init__(self, message: str = "Loading..."):
@@ -25,6 +27,7 @@ class LoadingSpinner(Static):
 
 class ProgressBarWithETA(Vertical):
     """Progress bar with percentage and ETA display."""
+
     DEFAULT_CSS = "ProgressBarWithETA { height: auto; }"
 
     def compose(self) -> ComposeResult:
@@ -41,6 +44,7 @@ class ProgressBarWithETA(Vertical):
 
 class StatusChecklist(Vertical):
     """Status checklist with green check / red x / yellow spinner per item."""
+
     DEFAULT_CSS = "StatusChecklist { height: auto; padding: 1; }"
 
     def __init__(self):

@@ -18,7 +18,7 @@ from src.services import (
     LLMRequest,
     LLMResponse,
     HypotheticalEntry,
-    CorpusQuery
+    CorpusQuery,
 )
 
 
@@ -37,21 +37,21 @@ def temp_corpus_file():
         {
             "text": "Sample tort law hypothetical involving negligence and duty of care.",
             "topic": ["negligence", "duty of care", "causation"],
-            "metadata": {"complexity": "intermediate"}
+            "metadata": {"complexity": "intermediate"},
         },
         {
             "text": "Another hypothetical involving battery and assault claims.",
             "topic": ["battery", "assault", "false imprisonment"],
-            "metadata": {"complexity": "advanced"}
-        }
+            "metadata": {"complexity": "advanced"},
+        },
     ]
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(sample_corpus, f)
         temp_path = Path(f.name)
-    
+
     yield temp_path
-    
+
     # Cleanup
     temp_path.unlink(missing_ok=True)
 
@@ -62,14 +62,10 @@ def mock_llm_response():
     return LLMResponse(
         content="This is a generated hypothetical scenario involving negligence and duty of care.",
         model="llama2:7b",
-        usage={
-            "prompt_tokens": 100,
-            "completion_tokens": 50,
-            "total_tokens": 150
-        },
+        usage={"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
         finish_reason="stop",
         response_time=2.5,
-        metadata={"load_duration": 1000000000}
+        metadata={"load_duration": 1000000000},
     )
 
 
@@ -81,14 +77,14 @@ def mock_corpus_entries():
             id="1",
             text="Sample tort law hypothetical involving negligence and duty of care.",
             topics=["negligence", "duty of care", "causation"],
-            metadata={"complexity": "intermediate"}
+            metadata={"complexity": "intermediate"},
         ),
         HypotheticalEntry(
-            id="2", 
+            id="2",
             text="Another hypothetical involving battery and assault claims.",
             topics=["battery", "assault", "false imprisonment"],
-            metadata={"complexity": "advanced"}
-        )
+            metadata={"complexity": "advanced"},
+        ),
     ]
 
 
@@ -108,11 +104,20 @@ def mock_corpus_service():
     service = AsyncMock(spec=CorpusService)
     service.load_corpus = AsyncMock()
     service.query_relevant_hypotheticals = AsyncMock()
-    service.extract_all_topics = AsyncMock(return_value=[
-        "negligence", "duty of care", "causation", "battery", "assault", "false imprisonment"
-    ])
+    service.extract_all_topics = AsyncMock(
+        return_value=[
+            "negligence",
+            "duty of care",
+            "causation",
+            "battery",
+            "assault",
+            "false imprisonment",
+        ]
+    )
     service.add_hypothetical = AsyncMock(return_value="new_id")
-    service.health_check = AsyncMock(return_value={"local_corpus": True, "total_entries": 2})
+    service.health_check = AsyncMock(
+        return_value={"local_corpus": True, "total_entries": 2}
+    )
     return service
 
 
@@ -124,7 +129,7 @@ def sample_generation_request():
         "law_domain": "tort",
         "number_parties": 3,
         "complexity_level": "intermediate",
-        "sample_size": 2
+        "sample_size": 2,
     }
 
 
@@ -132,9 +137,7 @@ def sample_generation_request():
 def sample_corpus_query():
     """Sample corpus query for testing."""
     return CorpusQuery(
-        topics=["negligence", "duty of care"],
-        sample_size=2,
-        min_topic_overlap=1
+        topics=["negligence", "duty of care"], sample_size=2, min_topic_overlap=1
     )
 
 
@@ -145,20 +148,9 @@ def test_settings():
         "app_name": "Jikai Test",
         "app_version": "2.0.0-test",
         "environment": "test",
-        "api": {
-            "host": "0.0.0.0",
-            "port": 8000,
-            "debug": True
-        },
-        "llm": {
-            "provider": "ollama",
-            "model_name": "llama2:7b",
-            "temperature": 0.7
-        },
-        "database": {
-            "chroma_host": "localhost",
-            "chroma_port": 8000
-        }
+        "api": {"host": "0.0.0.0", "port": 8000, "debug": True},
+        "llm": {"provider": "ollama", "model_name": "llama2:7b", "temperature": 0.7},
+        "database": {"chroma_host": "localhost", "chroma_port": 8000},
     }
 
 
@@ -169,7 +161,7 @@ def setup_test_environment(monkeypatch, test_settings):
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("API_DEBUG", "true")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-    
+
     # Mock settings
     for key, value in test_settings.items():
         if isinstance(value, dict):
@@ -186,13 +178,13 @@ def mock_validation_response():
         "adherence_check": {
             "overall_compliance": "PASS",
             "score": 8.5,
-            "full_response": "Validation passed with high quality"
+            "full_response": "Validation passed with high quality",
         },
         "similarity_check": {
-            "overall_originality": "PASS", 
+            "overall_originality": "PASS",
             "score": 9.0,
-            "full_response": "Content is original and distinct"
+            "full_response": "Content is original and distinct",
         },
         "quality_score": 8.75,
-        "passed": True
+        "passed": True,
     }

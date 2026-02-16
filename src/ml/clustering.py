@@ -1,4 +1,5 @@
 """Hypothetical clustering using sklearn KMeans and DBSCAN."""
+
 import numpy as np
 from typing import Dict, Optional, Callable
 from sklearn.cluster import KMeans, DBSCAN
@@ -30,7 +31,9 @@ class HypotheticalClusterer:
         self._compute_stats(labels)
         if progress_callback:
             progress_callback(1.0, "Clustering complete")
-        logger.info("Clusterer fitted", method=self.method, n_clusters=len(set(labels) - {-1}))
+        logger.info(
+            "Clusterer fitted", method=self.method, n_clusters=len(set(labels) - {-1})
+        )
         return labels
 
     def predict_cluster(self, X) -> int:
@@ -61,7 +64,10 @@ class HypotheticalClusterer:
         self._cluster_stats = {int(u): {"size": int(c)} for u, c in zip(unique, counts)}
 
     def save_model(self, path: str):
-        joblib.dump({"model": self.model, "method": self.method, "stats": self._cluster_stats}, path)
+        joblib.dump(
+            {"model": self.model, "method": self.method, "stats": self._cluster_stats},
+            path,
+        )
         logger.info("Clusterer saved", path=path)
 
     def load_model(self, path: str):

@@ -1,4 +1,5 @@
 """Abstract LLM provider interface and provider registry."""
+
 import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterator, Dict, List, Optional
@@ -11,6 +12,7 @@ logger = structlog.get_logger(__name__)
 
 def retry_on_failure(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
     """Decorator for retrying async functions with exponential backoff."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -20,18 +22,27 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0, backoff: float =
                     return await func(*args, **kwargs)
                 except Exception as e:
                     if attempt == max_attempts:
-                        logger.error(f"{func.__name__} failed after {max_attempts} attempts", error=str(e))
+                        logger.error(
+                            f"{func.__name__} failed after {max_attempts} attempts",
+                            error=str(e),
+                        )
                         raise
-                    logger.warning(f"{func.__name__} attempt {attempt}/{max_attempts} failed, retrying in {current_delay}s", error=str(e))
+                    logger.warning(
+                        f"{func.__name__} attempt {attempt}/{max_attempts} failed, retrying in {current_delay}s",
+                        error=str(e),
+                    )
                     await asyncio.sleep(current_delay)
                     current_delay *= backoff
             return None
+
         return wrapper
+
     return decorator
 
 
 class LLMRequest(BaseModel):
     """Request model for LLM calls."""
+
     prompt: str
     system_prompt: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
@@ -42,6 +53,7 @@ class LLMRequest(BaseModel):
 
 class LLMResponse(BaseModel):
     """Response model for LLM calls."""
+
     content: str
     model: str
     usage: Dict[str, int] = Field(default_factory=dict)
@@ -52,6 +64,7 @@ class LLMResponse(BaseModel):
 
 class LLMServiceError(Exception):
     """Custom exception for LLM service errors."""
+
     pass
 
 
