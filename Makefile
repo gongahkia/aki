@@ -1,6 +1,6 @@
 # Jikai Makefile - Development and deployment commands
 
-.PHONY: help install dev test lint format clean build run docker-build docker-run docker-compose-up docker-compose-down
+.PHONY: help install dev test lint format clean build run
 
 # Default target
 help: ## Show this help message
@@ -47,38 +47,12 @@ pre-commit: ## Run pre-commit hooks
 pre-commit-update: ## Update pre-commit hooks
 	pre-commit autoupdate
 
-# Docker commands
-docker-build: ## Build Docker image
-	docker build -t jikai:latest .
-
-docker-run: ## Run Docker container
-	docker run -p 8000:8000 --env-file .env jikai:latest
-
-docker-compose-up: ## Start all services with docker-compose
-	docker-compose up -d
-
-docker-compose-down: ## Stop all services
-	docker-compose down
-
-docker-compose-logs: ## View logs
-	docker-compose logs -f
-
-docker-compose-dev: ## Start development environment
-	docker-compose -f docker-compose.dev.yml up -d
-
 # Application commands
 run: ## Run the application locally
 	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 run-prod: ## Run the application in production mode
 	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# Database commands
-db-migrate: ## Run database migrations
-	alembic upgrade head
-
-db-revision: ## Create new database revision
-	alembic revision --autogenerate -m "$(message)"
 
 # Health checks
 health: ## Check application health
@@ -98,10 +72,6 @@ clean: ## Clean up temporary files
 	rm -rf htmlcov/
 	rm -rf .pytest_cache/
 	rm -rf .mypy_cache/
-
-clean-docker: ## Clean up Docker resources
-	docker system prune -f
-	docker volume prune -f
 
 # Security
 security-scan: ## Run security scans
@@ -129,8 +99,8 @@ dev-setup: env-setup dev ## Complete development setup
 	@echo "Development environment setup complete!"
 	@echo "Next steps:"
 	@echo "  1. Edit .env file with your configuration"
-	@echo "  2. Start Ollama: docker run -d -p 11434:11434 ollama/ollama"
-	@echo "  3. Pull model: docker exec -it <container> ollama pull llama2:7b"
+	@echo "  2. Start Ollama locally: ollama serve"
+	@echo "  3. Pull model: ollama pull llama2:7b"
 	@echo "  4. Run tests: make test"
 	@echo "  5. Start app: make run"
 
@@ -149,7 +119,7 @@ deploy-prod: ## Deploy to production
 
 # Monitoring
 logs: ## View application logs
-	docker-compose logs -f jikai-api
+	tail -f logs/jikai.log
 
 metrics: ## View application metrics
 	@echo "Metrics available at:"
@@ -159,8 +129,7 @@ metrics: ## View application metrics
 # Backup and restore
 backup: ## Backup application data
 	@echo "Creating backup..."
-	docker-compose exec chromadb tar -czf /tmp/chromadb-backup.tar.gz /chroma/chroma
-	docker cp $$(docker-compose ps -q chromadb):/tmp/chromadb-backup.tar.gz ./backup-$$(date +%Y%m%d-%H%M%S).tar.gz
+	tar -czf backup-$$(date +%Y%m%d-%H%M%S).tar.gz data/ corpus/
 
 restore: ## Restore application data
 	@echo "Restoring from backup..."
@@ -169,5 +138,4 @@ restore: ## Restore application data
 		echo "Error: BACKUP_FILE not specified"; \
 		exit 1; \
 	fi
-	docker cp $(BACKUP_FILE) $$(docker-compose ps -q chromadb):/tmp/restore.tar.gz
-	docker-compose exec chromadb tar -xzf /tmp/restore.tar.gz -C /
+	tar -xzf $(BACKUP_FILE)
