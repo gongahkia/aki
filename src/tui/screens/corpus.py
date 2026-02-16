@@ -29,7 +29,8 @@ class CorpusScreen(Screen):
     """Screen for browsing the hypothetical corpus."""
 
     BINDINGS = [
-        Binding("escape", "pop_screen", "Back"),
+        Binding("escape", "pop_screen", "Back", priority=True),
+        Binding("q", "pop_screen", "Back", show=False, priority=True),
         Binding("left", "pop_screen", "Back", show=False),
     ]
 
