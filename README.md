@@ -22,47 +22,57 @@ A [quick google search](https://www.reddit.com/r/LawSchool/comments/16istgs/wher
 
 With these considerations in mind, I created Jikai.
 
-Jikai is a production-ready, [microservices-based](#container-diagram) application that generates high-quality legal hypotheticals for Singapore Tort Law education with [prompt engineering](#prompt-engineering-architecture) and a *(somewhat)* scalable architecture.
+Jikai is a [microservices-based](#container-diagram) application that generates high-quality legal hypotheticals for Singapore Tort Law education with [prompt engineering](#prompt-engineering-architecture), multi-provider LLM support, and an ML-assisted validation pipeline.
 
 Current applications are focused on [Singapore Tort Law](https://www.sal.org.sg/Resources-Tools/Publications/Overview/PublicationsDetails/id/183) but [other domains of law](https://lawforcomputerscientists.pubpub.org/pub/d3mzwako/release/7) can be easily swapped in.
 
 ## Stack
 
 * *Backend*: [Python](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/)
-* *AI/ML*: [LangChain](https://www.langchain.com/), [Ollama](https://ollama.ai/), [HuggingFace](https://huggingface.co/), [Sentence Transformers](https://www.sbert.net/)
-* *Database*: [ChromaDB](https://www.trychroma.com/), [SQLAlchemy](https://www.sqlalchemy.org/), [FAISS](https://github.com/facebookresearch/faiss)
-* *Container*: [Docker](https://www.docker.com/)
+* *TUI*: [Textual](https://textual.textualize.io/), [Rich](https://rich.readthedocs.io/)
+* *AI/ML*: [Ollama](https://ollama.ai/), [Anthropic](https://www.anthropic.com/), [Google Gemini](https://ai.google.dev/), [OpenAI](https://openai.com/), [scikit-learn](https://scikit-learn.org/)
+* *Embeddings*: [Sentence Transformers](https://www.sbert.net/), [ChromaDB](https://www.trychroma.com/)
+* *Database*: [SQLite](https://www.sqlite.org/), [ChromaDB](https://www.trychroma.com/)
 * *Testing*: [pytest](https://pytest.org/)
-* *Monitoring*: [structlog](https://www.structlog.org/), [Prometheus](https://prometheus.io/), [Sentry](https://sentry.io/)
+* *Monitoring*: [structlog](https://www.structlog.org/)
 
 ## Usage
 
-### Build from source
+### Local Setup
 
 ```console
 $ git clone https://github.com/gongahkia/jikai && cd jikai
-$ make config
-$ cd ./src
-$ python3 main.py
+$ python -m venv .venv && source .venv/bin/activate
+$ make setup
+$ cp env.example .env
+$ make tui
 ```
 
-### Build with Docker Compose
+### API Key Configuration
 
-```console
-$ git clone https://github.com/gongahkia/jikai && cd jikai
-$ cp env.example .env
-$ docker-compose up -d
-$ curl http://localhost:8000/health 
+Edit `.env` with your provider API keys:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=AI...
+OLLAMA_HOST=http://localhost:11434
 ```
 
-### Local Development with Docker
+### ML Training
 
 ```console
-$ pip install -r requirements.txt
-$ cp env.example .env
-$ docker run -d -p 11434:11434 ollama/ollama
-$ docker exec -it <ollama-container> ollama pull llama2:7b
-$ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000 
+$ make train
+```
+
+Or from the TUI: press `t` to open the Train screen.
+
+### Run Modes
+
+```console
+$ make tui          # TUI only (default)
+$ make api          # API server only
+$ make run          # Both TUI + API
 ```
 
 ## API
@@ -79,6 +89,10 @@ $ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 | `/stats` | GET | Generation statistics |
 | `/llm/models` | GET | Available LLM models |
 | `/llm/health` | GET | LLM service health |
+| `/providers` | GET | List providers and models |
+| `/providers/default` | PUT | Set default provider |
+| `/ml/train` | POST | Trigger ML training |
+| `/ml/status` | GET | ML model status and metrics |
 
 ### Example API Usage
 
@@ -205,7 +219,6 @@ graph TB
         
         subgraph "External Services"
             OllamaService[Ollama LLM<br/>Port 11434]
-            RedisCache[(Redis Cache<br/>Port 6379)]
         end
     end
     
@@ -222,8 +235,6 @@ graph TB
     CorpusService --> LocalFiles
     CorpusService --> S3Storage
     
-    FastAPI --> RedisCache
-    
     classDef client fill:#e8f5e8
     classDef api fill:#fff3e0
     classDef service fill:#f3e5f5
@@ -234,7 +245,7 @@ graph TB
     class FastAPI api
     class HypService,LLMService,CorpusService,PromptService service
     class ChromaDB,LocalFiles,S3Storage data
-    class OllamaService,RedisCache external
+    class OllamaService external
 ```
 
 #### Hypothetical Service Component Diagram
