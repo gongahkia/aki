@@ -13,6 +13,105 @@ NAV_ITEMS = [
     ("providers", "Providers", "p"),
 ]
 
+LIGHT_THEME = """
+Screen {
+    background: #ffffff;
+    color: #1a1a1a;
+}
+Header {
+    background: #2c3e50;
+    color: #ffffff;
+}
+Footer {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+FooterKey {
+    background: #2c3e50;
+    color: #ffffff;
+}
+Sidebar {
+    background: #f8f9fa;
+    border-right: tall #bdc3c7;
+    color: #1a1a1a;
+}
+ListView {
+    background: #f8f9fa;
+    color: #1a1a1a;
+}
+ListView > ListItem {
+    background: #f8f9fa;
+    color: #1a1a1a;
+}
+ListView > ListItem.--highlight {
+    background: #3498db;
+    color: #ffffff;
+}
+ContentArea {
+    background: #ffffff;
+    color: #1a1a1a;
+}
+Input {
+    background: #f8f9fa;
+    color: #1a1a1a;
+    border: tall #bdc3c7;
+}
+Input:focus {
+    border: tall #3498db;
+}
+Select {
+    background: #f8f9fa;
+    color: #1a1a1a;
+}
+DataTable {
+    background: #ffffff;
+    color: #1a1a1a;
+}
+DataTable > .datatable--header {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+DataTable > .datatable--cursor {
+    background: #3498db;
+    color: #ffffff;
+}
+DirectoryTree {
+    background: #f8f9fa;
+    color: #1a1a1a;
+}
+ProgressBar {
+    background: #ecf0f1;
+}
+Checkbox {
+    background: transparent;
+    color: #1a1a1a;
+}
+RadioButton {
+    background: transparent;
+    color: #1a1a1a;
+}
+Static {
+    background: transparent;
+    color: #1a1a1a;
+}
+Label {
+    color: #1a1a1a;
+}
+ScrollableContainer {
+    background: #ffffff;
+}
+Vertical {
+    background: transparent;
+}
+Horizontal {
+    background: transparent;
+}
+#nav-hint {
+    color: #7f8c8d;
+    margin-top: 1;
+}
+"""
+
 
 class Sidebar(Vertical):
     """Navigation sidebar with arrow key support."""
@@ -21,11 +120,8 @@ class Sidebar(Vertical):
     Sidebar {
         width: 26;
         dock: left;
-        background: $surface;
-        border-right: tall $primary;
         padding: 1;
     }
-    #nav-hint { color: $text-muted; margin-top: 1; }
     """
 
     def compose(self) -> ComposeResult:
@@ -37,7 +133,7 @@ class Sidebar(Vertical):
             ],
             id="nav-list",
         )
-        yield Static("[dim]↑↓ move  Enter select  q quit[/dim]", id="nav-hint")
+        yield Static("↑↓ move  Enter select  q quit", id="nav-hint")
 
 
 class ContentArea(Static):
@@ -56,11 +152,7 @@ class JikaiApp(App):
     """Jikai TUI Application."""
 
     TITLE = "Jikai - Legal Hypothetical Generator"
-    CSS = """
-    Screen {
-        background: $surface-darken-1;
-    }
-    """
+    CSS = LIGHT_THEME
 
     BINDINGS = [
         Binding("q", "quit", "Quit", priority=True),
@@ -85,7 +177,10 @@ class JikaiApp(App):
         with Horizontal():
             yield Sidebar()
             yield ContentArea(
-                "Welcome to Jikai. Use arrow keys or letter keys to navigate.",
+                "Welcome to Jikai.\n\n"
+                "Use ↑↓ arrows to navigate the sidebar, Enter to select.\n"
+                "Or press g/t/b/s/p to jump directly.\n"
+                "Press q to quit.",
                 id="content",
             )
         yield Footer()
