@@ -1,13 +1,2 @@
 # jikai — audit-driven improvement tasks
 # Priority (B) = audit-suggested. Ordered by impact, grouped by concern.
-
-
-
-
-
-
-
-## code quality
-
-[ ] normalize topic keys: add a helper function normalize_topic(topic: str) -> str that does topic.lower().replace("_", " ").strip() — use it consistently in validation_service topic lookups, template case loading, and history filtering to eliminate the underscore/space mismatch bug +refactor
-[ ] extract generation config dataclass: in rich_app.py, create a GenerationConfig dataclass (topic, provider, model, temperature, complexity, parties, method, red_herrings) to replace the 8-parameter _do_generate signature and the scattered dict construction for history/state +refactor
