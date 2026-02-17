@@ -252,6 +252,19 @@ class JikaiTUI:
         self._raw_dir = "corpus/raw"
         self._models_dir = "models"
         self._train_data = "corpus/labelled/sample.csv"
+        self._nav_path: list = []
+
+    def _push_nav(self, label: str):
+        self._nav_path.append(label)
+
+    def _pop_nav(self):
+        if self._nav_path:
+            self._nav_path.pop()
+
+    def _render_breadcrumb(self):
+        if self._nav_path:
+            crumbs = " > ".join(self._nav_path)
+            console.print(f"[dim]{crumbs}[/dim]")
 
     def display_banner(self):
         tlog.info("=== TUI session started ===")
@@ -316,7 +329,9 @@ class JikaiTUI:
         )
 
     def main_menu(self):
+        self._nav_path = ["Main"]
         while True:
+            self._render_breadcrumb()
             self._render_status_bar()
             console.print("\n[bold yellow]Main Menu[/bold yellow]")
             corpus_ok = self._corpus_ready()
@@ -371,6 +386,16 @@ class JikaiTUI:
                 console.print("[dim]Goodbye.[/dim]")
                 tlog.info("=== TUI session ended ===")
                 break
+            _flow_labels = {
+                "ocr": "OCR", "corpus": "Corpus", "label": "Label",
+                "train": "Train", "embed": "Embed", "gen": "Generate",
+                "batch_gen": "Batch", "export": "Export",
+                "import_cases": "Import", "bulk_label": "Bulk Label",
+                "stats": "Stats", "history": "History",
+                "settings": "Settings", "providers": "Providers",
+            }
+            if choice in _flow_labels:
+                self._push_nav(_flow_labels[choice])
             if choice == "ocr":
                 self.ocr_flow()
             elif choice == "corpus":
@@ -399,6 +424,9 @@ class JikaiTUI:
                 self.settings_flow()
             elif choice == "providers":
                 self.providers_flow()
+            # Pop nav after returning from submenu
+            if choice in _flow_labels:
+                self._pop_nav()
 
     # ── ocr / preprocess ──────────────────────────────────────
     def ocr_flow(self):
