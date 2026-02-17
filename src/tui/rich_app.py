@@ -297,6 +297,7 @@ class JikaiTUI:
                     Choice("Export DOCX/PDF", value="export"),
                     Choice("Import SG Cases", value="import_cases"),
                     Choice("Bulk Label", value="bulk_label"),
+                    Choice("Stats Dashboard", value="stats"),
                     Choice("History", value="history"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
@@ -326,6 +327,8 @@ class JikaiTUI:
                 self.import_cases_flow()
             elif choice == "bulk_label":
                 self.bulk_label_flow()
+            elif choice == "stats":
+                self.stats_flow()
             elif choice == "history":
                 self.history_flow()
             elif choice == "settings":
@@ -1322,6 +1325,102 @@ class JikaiTUI:
                 self._offer_variation(rec)
             except (ValueError, IndexError):
                 console.print("[red]Invalid selection[/red]")
+
+    # ── stats dashboard ─────────────────────────────────────────
+    def stats_flow(self):
+        """Display stats from history, labelled data, and model metrics."""
+        console.print("\n[bold yellow]Stats Dashboard[/bold yellow]")
+        console.print("=" * 60)
+
+        # Generation stats from history
+        history = self._load_history()
+        gt = Table(title="Generation Stats", box=box.ROUNDED)
+        gt.add_column("Metric", style="cyan")
+        gt.add_column("Value", style="yellow")
+        gt.add_row("Total Generations", str(len(history)))
+        if history:
+            scores = [
+                h.get("validation_score", h.get("score", 0))
+                for h in history
+                if isinstance(h.get("validation_score", h.get("score")), (int, float))
+            ]
+            avg_score = sum(scores) / len(scores) if scores else 0
+            gt.add_row("Avg Quality Score", f"{avg_score:.1f}")
+            # Topic frequency
+            topic_counts: Dict[str, int] = {}
+            for h in history:
+                cfg = h.get("config", {})
+                t = cfg.get("topic", "")
+                if t:
+                    topic_counts[t] = topic_counts.get(t, 0) + 1
+            if topic_counts:
+                top3 = sorted(topic_counts.items(), key=lambda x: -x[1])[:3]
+                gt.add_row(
+                    "Top Topics",
+                    ", ".join(f"{t}({c})" for t, c in top3),
+                )
+        console.print(gt)
+
+        # Labelled data stats
+        if Path(self._train_data).exists():
+            with open(self._train_data) as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            lt = Table(title="Labelled Data Stats", box=box.ROUNDED)
+            lt.add_column("Metric", style="cyan")
+            lt.add_column("Value", style="yellow")
+            lt.add_row("Labelled Entries", str(len(rows)))
+            if rows:
+                q_scores = []
+                for r in rows:
+                    try:
+                        q_scores.append(float(r.get("quality_score", 0)))
+                    except (ValueError, TypeError):
+                        pass
+                if q_scores:
+                    lt.add_row("Avg Quality", f"{sum(q_scores)/len(q_scores):.1f}")
+                diff_counts: Dict[str, int] = {}
+                for r in rows:
+                    d = r.get("difficulty_level", "unknown")
+                    diff_counts[d] = diff_counts.get(d, 0) + 1
+                lt.add_row(
+                    "Difficulty Dist",
+                    ", ".join(f"{k}: {v}" for k, v in diff_counts.items()),
+                )
+            console.print(lt)
+        else:
+            console.print("[dim]No labelled data found[/dim]")
+
+        # Model status
+        mt = Table(title="ML Model Status", box=box.ROUNDED)
+        mt.add_column("Model", style="cyan")
+        mt.add_column("Status", style="yellow")
+        md = Path(self._models_dir)
+        for name in ("classifier.joblib", "regressor.joblib", "clusterer.joblib"):
+            exists = (md / name).exists()
+            mt.add_row(
+                name.replace(".joblib", "").title(),
+                "[green]Trained[/green]" if exists else "[dim]Not trained[/dim]",
+            )
+        mt.add_row(
+            "Embeddings",
+            "[green]Ready[/green]" if self._embeddings_ready() else "[dim]Not indexed[/dim]",
+        )
+        console.print(mt)
+
+        # Cost estimate from LLM service
+        try:
+            from ..services.llm_service import llm_service
+            cost = llm_service.get_session_cost()
+            ct = Table(title="Session Cost", box=box.ROUNDED)
+            ct.add_column("Metric", style="cyan")
+            ct.add_column("Value", style="yellow")
+            ct.add_row("Total Cost (USD)", f"${cost['total_cost_usd']:.4f}")
+            ct.add_row("Input Tokens", str(cost["total_input_tokens"]))
+            ct.add_row("Output Tokens", str(cost["total_output_tokens"]))
+            console.print(ct)
+        except Exception:
+            pass
 
     def _offer_variation(self, original_record: Dict):
         """Offer to create a variation of a generated or historical hypothetical."""
