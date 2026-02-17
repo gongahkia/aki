@@ -296,6 +296,7 @@ class JikaiTUI:
                     Choice("Batch Generate", value="batch_gen"),
                     Choice("Export DOCX/PDF", value="export"),
                     Choice("Import SG Cases", value="import_cases"),
+                    Choice("Bulk Label", value="bulk_label"),
                     Choice("History", value="history"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
@@ -323,6 +324,8 @@ class JikaiTUI:
                 self.export_flow()
             elif choice == "import_cases":
                 self.import_cases_flow()
+            elif choice == "bulk_label":
+                self.bulk_label_flow()
             elif choice == "history":
                 self.history_flow()
             elif choice == "settings":
@@ -500,6 +503,110 @@ class JikaiTUI:
             tlog.info("LABEL  %d new, %d total → %s", count, len(labelled), out_path)
         else:
             console.print("[dim]No new labels added[/dim]")
+
+    # ── bulk label ──────────────────────────────────────────────
+    def bulk_label_flow(self):
+        """Fast bulk labelling: show text, single-keystroke quality + difficulty, auto-advance."""
+        console.print("\n[bold yellow]Bulk Label Corpus[/bold yellow]")
+        console.print("=" * 60)
+        console.print(
+            "[dim]Fast labelling: rate quality (1-9) and difficulty (e/m/h) per entry.\n"
+            "Press 'q' to save and quit. Labels auto-save in batches of 10.[/dim]\n"
+        )
+        corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
+        if corpus_path is None:
+            return
+        out_path = _path("Output labelled CSV", default=self._train_data)
+        if out_path is None:
+            return
+        try:
+            with open(corpus_path) as f:
+                data = json.load(f)
+            entries = data if isinstance(data, list) else data.get("entries", [])
+        except Exception as e:
+            console.print(f"[red]✗ Failed to load corpus: {e}[/red]")
+            return
+        if not entries:
+            console.print("[red]✗ No entries[/red]")
+            return
+
+        existing = []
+        skip_texts = set()
+        if Path(out_path).exists():
+            with open(out_path) as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    existing.append(row)
+                    skip_texts.add(row.get("text", "")[:100])
+        unlabelled = [e for e in entries if e.get("text", "")[:100] not in skip_texts]
+        if not unlabelled:
+            console.print("[green]All entries already labelled[/green]")
+            return
+        console.print(f"[cyan]{len(unlabelled)} entries to label[/cyan]")
+
+        diff_map = {"e": "easy", "m": "medium", "h": "hard"}
+        labelled = list(existing)
+        count = 0
+
+        for i, entry in enumerate(unlabelled):
+            text = entry.get("text", "")
+            topics_hint = entry.get("topic", entry.get("topics", ""))
+            if isinstance(topics_hint, list):
+                topics_hint = ", ".join(topics_hint)
+            console.print(
+                Panel(
+                    text[:800] + ("..." if len(text) > 800 else ""),
+                    title=f"[{i+1}/{len(unlabelled)}] Topics: {topics_hint}",
+                    box=box.ROUNDED,
+                    border_style="cyan",
+                )
+            )
+            quality = _text("Quality (1-9, q to quit)", default="7")
+            if quality is None or quality.lower() == "q":
+                break
+            try:
+                q = int(quality)
+                if q < 1 or q > 9:
+                    console.print("[red]Must be 1-9[/red]")
+                    continue
+            except ValueError:
+                console.print("[red]Must be a number 1-9[/red]")
+                continue
+            diff = _text("Difficulty (e/m/h)", default="m")
+            if diff is None or diff.lower() == "q":
+                break
+            if diff.lower() not in diff_map:
+                console.print("[red]Must be e, m, or h[/red]")
+                continue
+            labelled.append({
+                "text": text,
+                "topic_labels": topics_hint if isinstance(topics_hint, str) else "|".join(topics_hint),
+                "quality_score": str(q),
+                "difficulty_level": diff_map[diff.lower()],
+            })
+            count += 1
+            console.print(f"[green]✓ {count} labelled[/green]")
+
+            # Auto-save every 10
+            if count % 10 == 0:
+                self._write_labels(out_path, labelled)
+                console.print(f"[dim]Auto-saved {len(labelled)} rows[/dim]")
+
+        if count > 0:
+            self._write_labels(out_path, labelled)
+            console.print(f"[green]✓ Saved {len(labelled)} rows → {out_path}[/green]")
+            tlog.info("BULK_LABEL  %d new, %d total", count, len(labelled))
+        else:
+            console.print("[dim]No new labels added[/dim]")
+
+    def _write_labels(self, out_path, labelled):
+        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", newline="") as f:
+            w = csv.DictWriter(
+                f, fieldnames=["text", "topic_labels", "quality_score", "difficulty_level"]
+            )
+            w.writeheader()
+            w.writerows(labelled)
 
     # ── batch generate ──────────────────────────────────────────
     def batch_generate_flow(self):
