@@ -256,7 +256,9 @@ class ValidationService:
 
             for topic in required_topics:
                 # Get keywords for this topic, normalize underscores to spaces
-                normalized = topic.lower().replace("_", " ").strip()
+                from . import normalize_topic
+
+                normalized = normalize_topic(topic)
                 keywords = self._topic_keywords.get(
                     normalized, self._topic_keywords.get(topic.lower(), [topic.lower()])
                 )

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -276,6 +277,20 @@ def _run_async(coro):
 
 
 HISTORY_PATH = "data/history.json"
+
+
+@dataclass
+class GenerationConfig:
+    """Encapsulates all generation parameters."""
+
+    topic: str
+    provider: str
+    model: Optional[str]
+    complexity: int
+    parties: int
+    method: str
+    temperature: float = 0.7
+    red_herrings: bool = False
 
 
 class JikaiTUI:
@@ -1167,14 +1182,16 @@ class JikaiTUI:
                 method,
             )
             self._do_generate(
-                topic,
-                provider,
-                model_name or None,
-                int(complexity),
-                int(parties),
-                method,
-                float(temperature),
-                red_herrings,
+                GenerationConfig(
+                    topic=topic,
+                    provider=provider,
+                    model=model_name or None,
+                    complexity=int(complexity),
+                    parties=int(parties),
+                    method=method,
+                    temperature=float(temperature),
+                    red_herrings=red_herrings,
+                )
             )
             # Persist last-used config for quick-generate
             state = self._load_state()
@@ -1190,17 +1207,10 @@ class JikaiTUI:
             if not _confirm("Generate another?", default=False):
                 return
 
-    def _do_generate(
-        self,
-        topic,
-        provider,
-        model,
-        complexity,
-        parties,
-        method,
-        temperature=0.7,
-        red_herrings=False,
-    ):
+    def _do_generate(self, cfg: "GenerationConfig"):
+        topic, provider, model = cfg.topic, cfg.provider, cfg.model
+        complexity, parties, method = cfg.complexity, cfg.parties, cfg.method
+        temperature, red_herrings = cfg.temperature, cfg.red_herrings
         max_retries = 3
         try:
             from ..services.llm_service import LLMRequest, llm_service

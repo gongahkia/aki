@@ -1,5 +1,11 @@
 """Services package for Jikai application."""
 
+
+def normalize_topic(topic: str) -> str:
+    """Normalize topic key: lowercase, underscores to spaces, stripped."""
+    return topic.lower().replace("_", " ").strip()
+
+
 try:
     from .corpus_service import (
         CorpusQuery,
@@ -25,6 +31,7 @@ from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
 from .validation_service import ValidationService, validation_service
 
 __all__ = [
+    "normalize_topic",
     "LLMService",
     "LLMRequest",
     "LLMResponse",
