@@ -296,6 +296,59 @@ async def generate_hypothetical(
         )
 
 
+# Batch generation endpoint
+class BatchGenerateConfig(BaseModel):
+    topic: str
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    complexity: str = "intermediate"
+    parties: int = 3
+    method: str = "pure_llm"
+
+
+class BatchGenerateRequest(BaseModel):
+    configs: List[BatchGenerateConfig] = Field(..., min_items=1, max_items=10)
+
+
+class BatchGenerateResult(BaseModel):
+    hypothetical: str
+    analysis: str
+    validation_score: float
+
+
+@app.post("/generate/batch")
+async def batch_generate(
+    request: BatchGenerateRequest,
+    service: hypothetical_service = Depends(get_hypothetical_service),
+):
+    """Generate multiple hypotheticals sequentially. Max 10 per request."""
+    results = []
+    for cfg in request.configs[:10]:
+        try:
+            gen_req = GenerationRequest(
+                topics=[cfg.topic],
+                number_parties=cfg.parties,
+                complexity_level=cfg.complexity,
+                method=cfg.method,
+                provider=cfg.provider,
+                model=cfg.model,
+            )
+            resp = await service.generate_hypothetical(gen_req)
+            results.append({
+                "hypothetical": resp.hypothetical,
+                "analysis": resp.analysis,
+                "validation_score": resp.validation_results.get("quality_score", 0.0),
+            })
+        except Exception as e:
+            results.append({
+                "hypothetical": "",
+                "analysis": "",
+                "validation_score": 0.0,
+                "error": str(e),
+            })
+    return {"results": results, "count": len(results)}
+
+
 # Topics endpoint
 @app.get("/topics", response_model=TopicsResponse)
 async def get_available_topics(service: corpus_service = Depends(get_corpus_service)):
