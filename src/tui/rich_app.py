@@ -5,6 +5,7 @@ import csv
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -289,6 +290,7 @@ class JikaiTUI:
                     Choice(
                         "3.  Generate Hypothetical", value="gen", disabled=gen_disabled
                     ),
+                    Choice("Import SG Cases", value="import_cases"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
                 ],
@@ -309,6 +311,8 @@ class JikaiTUI:
                 self.embed_flow()
             elif choice == "gen":
                 self.generate_flow()
+            elif choice == "import_cases":
+                self.import_cases_flow()
             elif choice == "settings":
                 self.settings_flow()
             elif choice == "providers":
@@ -484,6 +488,73 @@ class JikaiTUI:
             tlog.info("LABEL  %d new, %d total → %s", count, len(labelled), out_path)
         else:
             console.print("[dim]No new labels added[/dim]")
+
+    # ── import cases ─────────────────────────────────────────────
+    def import_cases_flow(self):
+        """Import SG case summaries from PDF/DOCX into corpus/cases/ as structured JSON."""
+        console.print("\n[bold yellow]Import SG Case Summaries[/bold yellow]")
+        console.print("=" * 60)
+        console.print(
+            "[dim]Import PDF/DOCX files containing SG case summaries.\n"
+            "Text will be extracted and stored as structured JSON in corpus/cases/.[/dim]\n"
+        )
+        file_path = _path("Path to case file (PDF/DOCX)", default="")
+        if not file_path:
+            return
+        p = Path(file_path)
+        if not p.exists():
+            console.print(f"[red]✗ File not found: {file_path}[/red]")
+            return
+        if p.suffix.lower() not in (".pdf", ".docx", ".txt"):
+            console.print("[red]✗ Unsupported format. Use PDF, DOCX, or TXT.[/red]")
+            return
+        try:
+            from ..services.corpus_preprocessor import extract_text, normalize_text
+
+            with console.status("[bold green]Extracting text...", spinner="dots"):
+                raw_text = normalize_text(extract_text(p))
+            if not raw_text or len(raw_text) < 50:
+                console.print("[red]✗ No usable text extracted from file[/red]")
+                return
+            console.print(
+                Panel(
+                    raw_text[:1500] + ("..." if len(raw_text) > 1500 else ""),
+                    title=f"Extracted from {p.name}",
+                    box=box.ROUNDED,
+                    border_style="green",
+                )
+            )
+            case_name = _text("Case name", default=p.stem.replace("_", " ").title())
+            if case_name is None:
+                return
+            citation = _text("Citation (e.g. [2020] SGCA 1)", default="")
+            if citation is None:
+                return
+            summary = _text(
+                "Brief summary (or press Enter to use full text)", default=""
+            )
+            topics = _checkbox("Related topics", choices=_topic_choices())
+            if topics is None:
+                return
+            case_entry = {
+                "case_name": case_name,
+                "citation": citation,
+                "summary": summary if summary else raw_text,
+                "full_text": raw_text,
+                "topics": topics,
+                "source_file": str(p),
+            }
+            cases_dir = Path("corpus/cases")
+            cases_dir.mkdir(parents=True, exist_ok=True)
+            safe_name = re.sub(r"[^\w\-]", "_", case_name.lower())[:60]
+            out_path = cases_dir / f"{safe_name}.json"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(case_entry, f, indent=2, ensure_ascii=False)
+            console.print(f"[green]✓ Case saved → {out_path}[/green]")
+            tlog.info("IMPORT_CASE  %s → %s", case_name, out_path)
+        except Exception as e:
+            console.print(f"[red]✗ Import failed: {e}[/red]")
+            tlog.info("ERROR  import_cases: %s", e)
 
     # ── generate ────────────────────────────────────────────────
     def generate_flow(self):
