@@ -329,6 +329,20 @@ async def batch_generate(
     service: hypothetical_service = Depends(get_hypothetical_service),
 ):
     """Generate multiple hypotheticals sequentially. Max 10 per request."""
+    # validate topics upfront
+    try:
+        available_topics = await corpus_service.extract_all_topics()
+    except Exception:
+        available_topics = []
+    if available_topics:
+        invalid = [
+            (i, cfg.topic)
+            for i, cfg in enumerate(request.configs)
+            if cfg.topic not in available_topics
+        ]
+        if invalid:
+            detail = "; ".join(f"config[{i}]: unknown topic '{t}'" for i, t in invalid)
+            raise HTTPException(status_code=400, detail=detail)
     results = []
     for cfg in request.configs[:10]:
         try:
@@ -524,13 +538,17 @@ async def ml_status():
 
 # Export endpoint
 @app.get("/export/{history_id}")
-async def export_generation(history_id: int, format: str = "docx"):
+async def export_generation(
+    history_id: int, format: str = "docx", background_tasks: BackgroundTasks = None
+):
     """Export a generation from history as DOCX or PDF file download."""
     import json
     from pathlib import Path
 
     if format not in ("docx", "pdf"):
         raise HTTPException(status_code=400, detail="Format must be 'docx' or 'pdf'")
+    if history_id < 0:
+        raise HTTPException(status_code=400, detail="history_id must be a non-negative integer")
 
     # Load history
     history_path = Path("data/history.json")
@@ -590,8 +608,18 @@ async def export_generation(history_id: int, format: str = "docx"):
         media = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         if format == "pdf":
             media = "application/pdf"
+
+        def _cleanup_tmp(path: str):
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+        resp_path = tmp.name
+        if background_tasks:
+            background_tasks.add_task(_cleanup_tmp, resp_path)
         return FileResponse(
-            tmp.name,
+            resp_path,
             media_type=media,
             filename=f"hypothetical_{history_id}.{format}",
         )
