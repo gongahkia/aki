@@ -290,6 +290,7 @@ class JikaiTUI:
                     Choice(
                         "3.  Generate Hypothetical", value="gen", disabled=gen_disabled
                     ),
+                    Choice("Batch Generate", value="batch_gen"),
                     Choice("Import SG Cases", value="import_cases"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
@@ -311,6 +312,8 @@ class JikaiTUI:
                 self.embed_flow()
             elif choice == "gen":
                 self.generate_flow()
+            elif choice == "batch_gen":
+                self.batch_generate_flow()
             elif choice == "import_cases":
                 self.import_cases_flow()
             elif choice == "settings":
@@ -488,6 +491,125 @@ class JikaiTUI:
             tlog.info("LABEL  %d new, %d total → %s", count, len(labelled), out_path)
         else:
             console.print("[dim]No new labels added[/dim]")
+
+    # ── batch generate ──────────────────────────────────────────
+    def batch_generate_flow(self):
+        """Generate multiple hypotheticals in batch."""
+        console.print("\n[bold yellow]Batch Generate Hypotheticals[/bold yellow]")
+        console.print("=" * 60)
+        count = _validated_text(
+            "Number to generate (2-10)", default="3", validate=_validate_number(2, 10)
+        )
+        if count is None:
+            return
+        count = int(count)
+        strategy = _select(
+            "Topic spread",
+            choices=[
+                Choice("Random — pick topics randomly", value="random"),
+                Choice("Specified — choose topics", value="specified"),
+                Choice("Balanced — cycle through all topics", value="balanced"),
+            ],
+        )
+        if strategy is None:
+            return
+        topics_list: List[str] = []
+        if strategy == "specified":
+            selected = _checkbox("Select topics", choices=_topic_choices())
+            if not selected:
+                return
+            topics_list = selected
+        elif strategy == "balanced":
+            topics_list = list(TOPICS)
+        elif strategy == "random":
+            import random
+            topics_list = random.sample(TOPICS, min(count, len(TOPICS)))
+
+        provider = _select("Provider", choices=PROVIDER_CHOICES)
+        if provider is None:
+            return
+        model_name = _select("Model", choices=_model_choices(provider))
+        if model_name is None:
+            return
+        if model_name == "__custom__":
+            model_name = _text("Custom model name", default="")
+            if model_name is None:
+                return
+        complexity = _select("Complexity", choices=COMPLEXITY_CHOICES)
+        if complexity is None:
+            return
+        parties = _select("Parties", choices=PARTIES_CHOICES)
+        if parties is None:
+            return
+        method = _select("Method", choices=METHOD_CHOICES)
+        if method is None:
+            return
+        if not _confirm(f"Generate {count} hypotheticals?", default=True):
+            return
+
+        from ..services.hypothetical_service import (
+            GenerationRequest,
+            hypothetical_service,
+        )
+
+        results = []
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Generating batch", total=count)
+            for i in range(count):
+                # Pick topic based on strategy
+                if strategy == "balanced":
+                    topic = topics_list[i % len(topics_list)]
+                elif strategy == "specified":
+                    topic = topics_list[i % len(topics_list)]
+                else:
+                    import random
+                    topic = random.choice(topics_list)
+                progress.update(
+                    task,
+                    description=f"[cyan]Generating {i+1}/{count}: {topic}",
+                )
+                try:
+                    async def _gen(t=topic):
+                        req = GenerationRequest(
+                            topics=[t],
+                            number_parties=max(2, min(5, int(parties))),
+                            complexity_level=str(complexity),
+                            method=method,
+                            provider=provider,
+                            model=model_name or None,
+                        )
+                        return await hypothetical_service.generate_hypothetical(req)
+
+                    resp = _run_async(_gen(topic))
+                    score = resp.validation_results.get("quality_score", 0.0)
+                    results.append(
+                        {"topic": topic, "score": score, "words": len(resp.hypothetical.split())}
+                    )
+                except Exception as e:
+                    results.append({"topic": topic, "score": 0.0, "words": 0, "error": str(e)})
+                progress.advance(task)
+
+        # Summary table
+        st = Table(title=f"Batch Results ({count} hypotheticals)", box=box.ROUNDED)
+        st.add_column("#", style="cyan", width=3)
+        st.add_column("Topic", style="yellow")
+        st.add_column("Score", style="green")
+        st.add_column("Words", style="dim")
+        st.add_column("Status", style="cyan")
+        for i, r in enumerate(results, 1):
+            status = "[green]OK[/green]" if r.get("score", 0) >= 7.0 else "[red]LOW[/red]"
+            if "error" in r:
+                status = f"[red]ERR: {r['error'][:30]}[/red]"
+            st.add_row(str(i), r["topic"], f"{r['score']:.1f}", str(r["words"]), status)
+        console.print(st)
+        tlog.info("BATCH  generated %d hypotheticals", count)
 
     # ── import cases ─────────────────────────────────────────────
     def import_cases_flow(self):
