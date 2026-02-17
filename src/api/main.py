@@ -3,15 +3,19 @@ FastAPI application for Jikai legal hypothetical generation service.
 Provides REST API endpoints for generating, validating, and managing legal hypotheticals.
 """
 
+import os
+import time
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..config import settings
 from ..services import (
@@ -66,6 +70,65 @@ app.add_middleware(
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["*"] if settings.api.debug else ["localhost", "127.0.0.1"],
+)
+
+
+# API Key authentication middleware
+JIKAI_API_KEY = os.environ.get("JIKAI_API_KEY", "")
+_EXEMPT_PATHS = {"/", "/health", "/docs", "/redoc", "/openapi.json"}
+
+
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    """Validate JIKAI_API_KEY header on every request (except exempt paths)."""
+
+    async def dispatch(self, request: Request, call_next):
+        if not JIKAI_API_KEY:
+            # No key configured — skip auth
+            return await call_next(request)
+        if request.url.path in _EXEMPT_PATHS:
+            return await call_next(request)
+        key = request.headers.get("X-API-Key", "")
+        if key != JIKAI_API_KEY:
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Invalid or missing API key. Set X-API-Key header."},
+            )
+        return await call_next(request)
+
+
+# Token-bucket rate limiter middleware
+class RateLimiterMiddleware(BaseHTTPMiddleware):
+    """Token-bucket rate limiter per client IP."""
+
+    def __init__(self, app, rate_limit: int = 100, window: int = 60):
+        super().__init__(app)
+        self.rate_limit = rate_limit
+        self.window = window
+        self._buckets: Dict[str, list] = defaultdict(list)
+
+    async def dispatch(self, request: Request, call_next):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        # Prune old timestamps
+        self._buckets[client_ip] = [
+            ts for ts in self._buckets[client_ip] if now - ts < self.window
+        ]
+        if len(self._buckets[client_ip]) >= self.rate_limit:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": f"Rate limit exceeded. Max {self.rate_limit} requests per {self.window}s."
+                },
+            )
+        self._buckets[client_ip].append(now)
+        return await call_next(request)
+
+
+app.add_middleware(APIKeyMiddleware)
+app.add_middleware(
+    RateLimiterMiddleware,
+    rate_limit=settings.api.rate_limit,
+    window=60,
 )
 
 
