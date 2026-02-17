@@ -1,20 +1,52 @@
-# jikai — feature todo
-# ordered by implementation dependency (earlier tasks unblock later ones)
+# jikai — audit-driven improvement tasks
+# Priority (B) = audit-suggested. Ordered by impact, grouped by concern.
 
-## generation robustness (do first — improves all downstream features)
+## data integrity (addresses: data loss/corruption pain point)
 
+[ ] atomic history writes: in rich_app.py _save_to_history, write to data/history.json.tmp then os.rename() to data/history.json — prevents partial writes from corrupting the file on crash +stability
+[ ] atomic state writes: in rich_app.py _save_state, write to .jikai_state.tmp then os.rename() to .jikai_state — same atomic write pattern +stability
+[ ] history corruption recovery: in rich_app.py _load_history, catch json.JSONDecodeError specifically, backup the corrupted file as history.json.bak, log a warning to console, and return empty list +stability
+[ ] state corruption recovery: in rich_app.py _load_state, catch json.JSONDecodeError specifically, backup as .jikai_state.bak, warn user, return empty dict +stability
+[ ] env file permissions: in rich_app.py settings_flow where .env is written (os.open with 0o600 mode instead of open()), ensure API keys are not world-readable +security
+[ ] history size cap: in rich_app.py _save_to_history, if history exceeds 500 entries, trim oldest entries before writing — prevents unbounded growth of history.json +stability
 
-## lawyer-facing features
+## LLM output quality (addresses: output quality pain point)
 
+[ ] empty response guard: in hypothetical_service.py _generate_hypothetical_text, after calling _extract_hypothetical_from_response, check if result is empty or <50 chars and raise HypotheticalServiceError("LLM returned empty/too-short response") instead of passing empty string to validation +quality
+[ ] prompt feedback injection: in hypothetical_service.py _generate_hypothetical_text, if request.user_preferences contains "feedback" key, append it to the user prompt before LLM call — currently only done for red_herrings, make feedback always append +quality
+[ ] temperature clamping: in hypothetical_service.py _generate_hypothetical_text, clamp temperature to [0.0, 2.0] range before creating LLMRequest — prevents provider errors from out-of-range values +quality
+[ ] validation detail in retry: in rich_app.py _do_generate retry loop, extract individual check messages from validation_results.checks (not just passed/failed) and include word count, party count, topic coverage in the feedback string +quality
+[ ] empty corpus context warning: in hypothetical_service.py _get_relevant_context, if both semantic search and keyword fallback return zero entries, log a warning and include a note in user_preferences feedback telling the LLM there are no reference examples available +quality
+[ ] stricter topic keyword matching: in validation_service.py validate_topic_inclusion, add underscore-to-space normalization before lookup (e.g. "duty_of_care" → "duty of care") so topics like "duty_of_care" match the keyword dict keys +quality
 
-## TUI features
+## setup friction (addresses: setup friction pain point)
 
+[ ] first-run .env template: in rich_app.py first_run_wizard, if .env does not exist, create it with commented-out template lines (# ANTHROPIC_API_KEY=, # OPENAI_API_KEY=, etc.) so users see what to fill in +dx
+[ ] provider health in wizard: in rich_app.py first_run_wizard, after settings_flow, run a quick provider health check and display which providers are reachable — helps users verify their API keys work +dx
+[ ] auto-detect ollama: in rich_app.py first_run_wizard, attempt HTTP GET to http://localhost:11434/api/tags — if successful, tell user Ollama is available and auto-set as default provider +dx
+[ ] missing dependency hints: in rich_app.py _do_generate and embed_flow, when ImportError is caught, display the exact pip install command needed (e.g. "pip install chromadb sentence-transformers") instead of generic "check deps" message +dx
 
-## TUI flow improvements
+## error handling hardening
 
+[ ] rate limiter memory bound: in api/main.py RateLimiterMiddleware, add a max of 10000 tracked IPs — when exceeded, evict the oldest IP bucket. prevents memory exhaustion from IP rotation attacks +security
+[ ] specific exception types: in hypothetical_service.py line 16, replace bare except Exception with except (ImportError, ModuleNotFoundError) for the corpus_service import — lets genuine errors propagate +stability
+[ ] specific exception types: in hypothetical_service.py _get_ml_pipeline (line 86), replace bare except Exception with except (ImportError, FileNotFoundError) — same rationale +stability
+[ ] vector service init exception: in vector_service.py _initialize, replace bare except Exception (line 75) with except (ImportError, OSError, RuntimeError) to catch expected failures while letting unexpected ones propagate +stability
+[ ] log auth failures: in api/main.py APIKeyMiddleware.dispatch, add logger.warning("auth_failure", path=request.url.path, client_ip=client_ip) when API key validation fails +security
+[ ] log rate limit hits: in api/main.py RateLimiterMiddleware.dispatch, add logger.warning("rate_limited", client_ip=client_ip) when rate limit exceeded +security
 
-## UX polish
+## performance (minor for single-user, but prevents UX lag)
 
+[ ] cache status bar data: in rich_app.py _render_status_bar, cache the result of _load_history() for 5 seconds (store last_history_load_time and cached_last_score as instance vars) — avoids reading history.json on every menu loop iteration +perf
+[ ] lazy vector service init: in vector_service.py, do NOT call self._initialize() in __init__. Instead, initialize on first call to semantic_search() or index_hypotheticals(). Prevents 2-5s startup delay when vector search isn't used +perf
 
-## API enhancements
+## API robustness
 
+[ ] batch item validation: in api/main.py batch_generate, validate each BatchGenerateConfig.topic against available topics before processing — return 400 with specific errors instead of 500 during generation +stability
+[ ] export endpoint file cleanup: in api/main.py export_generation, use tempfile.NamedTemporaryFile(delete=False) and register a background task to delete the temp file after response is sent — prevents temp file accumulation +stability
+[ ] export endpoint history bounds: in api/main.py export_generation, return 400 if format is not "docx" or "pdf" (already done) AND validate history_id is a non-negative integer — add explicit type validation +stability
+
+## code quality
+
+[ ] normalize topic keys: add a helper function normalize_topic(topic: str) -> str that does topic.lower().replace("_", " ").strip() — use it consistently in validation_service topic lookups, template case loading, and history filtering to eliminate the underscore/space mismatch bug +refactor
+[ ] extract generation config dataclass: in rich_app.py, create a GenerationConfig dataclass (topic, provider, model, temperature, complexity, parties, method, red_herrings) to replace the 8-parameter _do_generate signature and the scattered dict construction for history/state +refactor
