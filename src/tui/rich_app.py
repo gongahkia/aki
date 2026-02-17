@@ -213,6 +213,9 @@ def _run_async(coro):
     return asyncio.run(coro)
 
 
+HISTORY_PATH = "data/history.json"
+
+
 class JikaiTUI:
     def __init__(self):
         self._loaded_path = ""
@@ -293,6 +296,7 @@ class JikaiTUI:
                     Choice("Batch Generate", value="batch_gen"),
                     Choice("Export DOCX/PDF", value="export"),
                     Choice("Import SG Cases", value="import_cases"),
+                    Choice("History", value="history"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
                 ],
@@ -319,6 +323,8 @@ class JikaiTUI:
                 self.export_flow()
             elif choice == "import_cases":
                 self.import_cases_flow()
+            elif choice == "history":
+                self.history_flow()
             elif choice == "settings":
                 self.settings_flow()
             elif choice == "providers":
@@ -895,6 +901,12 @@ class JikaiTUI:
                             len(result),
                             score,
                         )
+                        self._save_to_history({
+                            "config": {"topic": topic, "provider": provider, "model": model,
+                                       "complexity": complexity, "parties": parties, "method": method},
+                            "hypothetical": result,
+                            "validation_score": score,
+                        })
                         self._offer_model_answer(result, topic, provider, model, temperature)
                         return
                     console.print(
@@ -966,6 +978,13 @@ class JikaiTUI:
                         attempt,
                         score,
                     )
+                    self._save_to_history({
+                        "config": {"topic": topic, "provider": provider, "model": model,
+                                   "complexity": complexity, "parties": parties, "method": method},
+                        "hypothetical": response.hypothetical,
+                        "analysis": response.analysis,
+                        "validation_score": score,
+                    })
                     self._offer_model_answer(
                         response.hypothetical, topic, provider, model, temperature
                     )
@@ -1068,6 +1087,133 @@ class JikaiTUI:
             "[green]Yes[/green]" if vr.get("passed") else "[red]No[/red]",
         )
         console.print(vt)
+
+    def _save_to_history(self, record: Dict):
+        """Append a generation record to data/history.json."""
+        from datetime import datetime
+
+        record["timestamp"] = datetime.now().isoformat()
+        hp = Path(HISTORY_PATH)
+        hp.parent.mkdir(parents=True, exist_ok=True)
+        history = []
+        if hp.exists():
+            try:
+                with open(hp, "r") as f:
+                    history = json.load(f)
+            except Exception:
+                history = []
+        history.append(record)
+        with open(hp, "w") as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+
+    def _load_history(self) -> List[Dict]:
+        """Load generation history from data/history.json."""
+        hp = Path(HISTORY_PATH)
+        if not hp.exists():
+            return []
+        try:
+            with open(hp, "r") as f:
+                return json.load(f)
+        except Exception:
+            return []
+
+    # ── history ────────────────────────────────────────────────
+    def history_flow(self):
+        """Browse generation history with search/filter/recall."""
+        console.print("\n[bold yellow]Generation History[/bold yellow]")
+        console.print("=" * 60)
+        history = self._load_history()
+        if not history:
+            console.print("[dim]No generation history yet. Generate a hypothetical first.[/dim]")
+            return
+        while True:
+            c = _select(
+                f"History ({len(history)} records)",
+                choices=[
+                    Choice("Browse all", value="browse"),
+                    Choice("Search by keyword", value="search"),
+                    Choice("Filter by topic", value="filter"),
+                    Choice("Back", value="back"),
+                ],
+            )
+            if c is None or c == "back":
+                return
+            if c == "search":
+                term = _text("Search keyword")
+                if not term:
+                    continue
+                filtered = [
+                    h for h in history if term.lower() in json.dumps(h).lower()
+                ]
+                console.print(f"[green]{len(filtered)} matches[/green]")
+                self._display_history(filtered)
+            elif c == "filter":
+                topic = _select("Filter by topic", choices=_topic_choices())
+                if not topic:
+                    continue
+                filtered = [
+                    h
+                    for h in history
+                    if topic in h.get("config", {}).get("topic", "")
+                    or topic in str(h.get("config", {}).get("topics", []))
+                ]
+                console.print(f"[green]{len(filtered)} matches[/green]")
+                self._display_history(filtered)
+            elif c == "browse":
+                self._display_history(history)
+
+    def _display_history(self, records: List[Dict]):
+        """Display history records in a table."""
+        if not records:
+            console.print("[dim]No records to display[/dim]")
+            return
+        ht = Table(title=f"History ({len(records)} records)", box=box.ROUNDED)
+        ht.add_column("#", style="cyan", width=4)
+        ht.add_column("Time", style="dim", width=16)
+        ht.add_column("Topic", style="yellow", width=18)
+        ht.add_column("Score", style="green", width=6)
+        ht.add_column("Preview", style="dim")
+        for i, r in enumerate(records[-20:], 1):
+            ts = r.get("timestamp", "")[:16]
+            cfg = r.get("config", {})
+            topic = cfg.get("topic", str(cfg.get("topics", "")))
+            score = str(r.get("validation_score", r.get("score", "N/A")))
+            text = r.get("hypothetical", "")[:60]
+            ht.add_row(str(i), ts, topic, score, text.replace("\n", " "))
+        console.print(ht)
+        # Option to view full record
+        idx = _text(f"View record # (1-{min(20, len(records))}, Enter to skip)", default="")
+        if idx:
+            try:
+                rec = records[-20:][int(idx) - 1]
+                console.print(
+                    Panel(
+                        rec.get("hypothetical", "No text"),
+                        title=f"Hypothetical — {rec.get('config', {}).get('topic', '')}",
+                        box=box.ROUNDED,
+                        border_style="green",
+                    )
+                )
+                if rec.get("analysis"):
+                    console.print(
+                        Panel(
+                            rec["analysis"],
+                            title="Analysis",
+                            box=box.ROUNDED,
+                            border_style="cyan",
+                        )
+                    )
+                if rec.get("model_answer"):
+                    console.print(
+                        Panel(
+                            rec["model_answer"],
+                            title="Model Answer",
+                            box=box.ROUNDED,
+                            border_style="magenta",
+                        )
+                    )
+            except (ValueError, IndexError):
+                console.print("[red]Invalid selection[/red]")
 
     # ── train ───────────────────────────────────────────────────
     def train_flow(self):
