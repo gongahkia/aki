@@ -252,8 +252,44 @@ class JikaiTUI:
     def _embeddings_ready(self):
         return Path("chroma_db").exists() and any(Path("chroma_db").iterdir())
 
+    def _render_status_bar(self):
+        """Render a persistent contextual status bar."""
+        state = self._load_state()
+        last_cfg = state.get("last_config", {})
+        provider = last_cfg.get("provider", "—")
+        model = last_cfg.get("model", "—")
+        corpus_count = 0
+        if self._corpus_ready():
+            try:
+                with open(self._corpus_path) as f:
+                    data = json.load(f)
+                corpus_count = len(data) if isinstance(data, list) else len(data.get("entries", []))
+            except Exception:
+                pass
+        models_icon = "[green]✓[/green]" if self._models_ready() else "[red]✗[/red]"
+        embed_icon = "[green]✓[/green]" if self._embeddings_ready() else "[red]✗[/red]"
+        # Last quality score
+        history = self._load_history()
+        last_score = "—"
+        if history:
+            s = history[-1].get("validation_score", history[-1].get("score"))
+            if s is not None:
+                last_score = f"{float(s):.1f}"
+        console.print(
+            Panel(
+                f"[dim]Provider:[/dim] {provider}/{model or '—'}  "
+                f"[dim]Corpus:[/dim] {corpus_count}  "
+                f"[dim]Models:[/dim] {models_icon}  "
+                f"[dim]Embeddings:[/dim] {embed_icon}  "
+                f"[dim]Last Score:[/dim] {last_score}",
+                box=box.SIMPLE,
+                border_style="dim",
+            )
+        )
+
     def main_menu(self):
         while True:
+            self._render_status_bar()
             console.print("\n[bold yellow]Main Menu[/bold yellow]")
             corpus_ok = self._corpus_ready()
             labelled_ok = self._labelled_ready()
