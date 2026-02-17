@@ -1366,20 +1366,24 @@ class JikaiTUI:
                     )
                     issues = []
                     if isinstance(checks, dict):
-                        if not checks.get("party_count", {}).get("passed", True):
+                        pc = checks.get("party_count", {})
+                        if not pc.get("passed", True):
+                            found = pc.get("found", "?")
                             issues.append(
-                                f"Include exactly {parties} distinct named parties."
+                                f"Include exactly {parties} distinct named parties (found {found})."
                             )
-                        if not checks.get("topic_inclusion", {}).get("passed", True):
-                            missing = checks.get("topic_inclusion", {}).get(
-                                "topics_missing", []
+                        ti = checks.get("topic_inclusion", {})
+                        if not ti.get("passed", True):
+                            missing = ti.get("topics_missing", [])
+                            covered = ti.get("topics_found", [])
+                            issues.append(
+                                f"Must address these topics: {', '.join(missing)}."
+                                + (f" (covered: {', '.join(covered)})" if covered else "")
                             )
-                            if missing:
-                                issues.append(
-                                    f"Must address these topics: {', '.join(missing)}."
-                                )
-                        if not checks.get("word_count", {}).get("passed", True):
-                            issues.append("Aim for 800-1500 words.")
+                        wc = checks.get("word_count", {})
+                        if not wc.get("passed", True):
+                            actual = wc.get("count", wc.get("word_count", "?"))
+                            issues.append(f"Aim for 800-1500 words (currently {actual}).")
                         if not checks.get("singapore_context", {}).get("passed", True):
                             issues.append("Set the scenario explicitly in Singapore.")
                     feedback = "Previous attempt scored {:.1f}/10. Fix these issues: {}".format(

@@ -255,8 +255,11 @@ class ValidationService:
             topic_evidence = {}
 
             for topic in required_topics:
-                # Get keywords for this topic
-                keywords = self._topic_keywords.get(topic.lower(), [topic.lower()])
+                # Get keywords for this topic, normalize underscores to spaces
+                normalized = topic.lower().replace("_", " ").strip()
+                keywords = self._topic_keywords.get(
+                    normalized, self._topic_keywords.get(topic.lower(), [topic.lower()])
+                )
 
                 # Check if any keyword appears in text
                 found_keywords = [kw for kw in keywords if kw.lower() in text_lower]

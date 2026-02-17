@@ -254,6 +254,7 @@ class HypotheticalService:
             )
 
         # Fallback: keyword-based corpus query
+        context_entries = []
         try:
             query = CorpusQuery(
                 topics=request.topics,
@@ -271,11 +272,23 @@ class HypotheticalService:
                 entries_found=len(context_entries),
             )
 
-            return context_entries
-
         except Exception as e:
             logger.error("Failed to get relevant context", error=str(e))
             raise HypotheticalServiceError(f"Context retrieval failed: {e}")
+
+        # warn if no context entries found from either method
+        if not context_entries:
+            logger.warning(
+                "No corpus context found for topics", topics=request.topics
+            )
+            if request.user_preferences is None:
+                request.user_preferences = {}
+            existing = request.user_preferences.get("feedback", "")
+            request.user_preferences["feedback"] = (
+                (existing + " " if existing else "")
+                + "NOTE: No reference examples available in corpus for these topics."
+            )
+        return context_entries
 
     async def _generate_hypothetical_text(
         self, request: GenerationRequest, context_entries: List[HypotheticalEntry]
@@ -318,6 +331,7 @@ class HypotheticalService:
             temp = 0.7
             if request.user_preferences and "temperature" in request.user_preferences:
                 temp = float(request.user_preferences["temperature"])
+            temp = max(0.0, min(2.0, temp))  # clamp temperature
             llm_request = LLMRequest(
                 prompt=user_prompt,
                 system_prompt=prompt_data["system"],
@@ -336,6 +350,11 @@ class HypotheticalService:
             hypothetical = self._extract_hypothetical_from_response(
                 llm_response.content
             )
+
+            if not hypothetical or len(hypothetical) < 50:  # empty response guard
+                raise HypotheticalServiceError(
+                    "LLM returned empty/too-short response"
+                )
 
             logger.info(
                 "Hypothetical text generated",
