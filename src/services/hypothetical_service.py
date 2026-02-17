@@ -259,10 +259,13 @@ class HypotheticalService:
             )
 
             # Create LLM request
+            temp = 0.7
+            if request.user_preferences and "temperature" in request.user_preferences:
+                temp = float(request.user_preferences["temperature"])
             llm_request = LLMRequest(
                 prompt=prompt_data["user"],
                 system_prompt=prompt_data["system"],
-                temperature=0.7,
+                temperature=temp,
                 max_tokens=2048,
             )
 

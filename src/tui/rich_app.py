@@ -503,6 +503,16 @@ class JikaiTUI:
                 model_name = _text("Custom model name", default="")
                 if model_name is None:
                     return
+            temperature = _select(
+                "Temperature",
+                choices=[
+                    Choice(f"{v/10:.1f}", value=str(v / 10))
+                    for v in range(1, 16)
+                ],
+            )
+            if temperature is None:
+                return
+            temperature = float(temperature)
             complexity = _select("Complexity", choices=COMPLEXITY_CHOICES)
             if complexity is None:
                 return
@@ -518,6 +528,7 @@ class JikaiTUI:
             cfg.add_row("Topic", topic)
             cfg.add_row("Provider", provider)
             cfg.add_row("Model", model_name or "(default)")
+            cfg.add_row("Temperature", f"{temperature:.1f}")
             cfg.add_row("Complexity", complexity)
             cfg.add_row("Parties", parties)
             cfg.add_row("Method", method)
@@ -525,11 +536,12 @@ class JikaiTUI:
             if not _confirm("Proceed with generation?", default=True):
                 return
             tlog.info(
-                "GENERATE  topic=%s provider=%s model=%s "
+                "GENERATE  topic=%s provider=%s model=%s temp=%.1f "
                 "complexity=%s parties=%s method=%s",
                 topic,
                 provider,
                 model_name,
+                temperature,
                 complexity,
                 parties,
                 method,
@@ -541,11 +553,12 @@ class JikaiTUI:
                 int(complexity),
                 int(parties),
                 method,
+                temperature,
             )
             if not _confirm("Generate another?", default=False):
                 return
 
-    def _do_generate(self, topic, provider, model, complexity, parties, method):
+    def _do_generate(self, topic, provider, model, complexity, parties, method, temperature=0.7):
         max_retries = 3
         try:
             from ..services.llm_service import LLMRequest, llm_service
@@ -557,6 +570,7 @@ class JikaiTUI:
                     f"{topic} with {parties} parties at complexity "
                     f"{complexity}/5."
                 ),
+                temperature=temperature,
                 stream=True,
             )
 
@@ -621,7 +635,7 @@ class JikaiTUI:
                 )
 
                 async def _full(extra_feedback=feedback):
-                    prefs = {}
+                    prefs = {"temperature": temperature}
                     if extra_feedback:
                         prefs["feedback"] = extra_feedback
                     req = GenerationRequest(
