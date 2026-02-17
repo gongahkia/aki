@@ -6,11 +6,6 @@
 
 
 
-## API robustness
-
-[ ] batch item validation: in api/main.py batch_generate, validate each BatchGenerateConfig.topic against available topics before processing — return 400 with specific errors instead of 500 during generation +stability
-[ ] export endpoint file cleanup: in api/main.py export_generation, use tempfile.NamedTemporaryFile(delete=False) and register a background task to delete the temp file after response is sent — prevents temp file accumulation +stability
-[ ] export endpoint history bounds: in api/main.py export_generation, return 400 if format is not "docx" or "pdf" (already done) AND validate history_id is a non-negative integer — add explicit type validation +stability
 
 ## code quality
 
