@@ -133,8 +133,30 @@ _HOTKEY_MAP = {
 }
 
 
+def _show_help_overlay(choices):
+    """Show a help panel describing each visible option."""
+    lines = []
+    for c in choices:
+        if hasattr(c, "title") and hasattr(c, "value"):
+            title = c.title if hasattr(c, "title") else str(c)
+            disabled = getattr(c, "disabled", None)
+            status = f" [dim]({disabled})[/dim]" if disabled else ""
+            lines.append(f"  [cyan]{title}[/cyan]{status}")
+    help_text = "\n".join(lines) if lines else "No options available."
+    console.print(
+        Panel(
+            f"[bold]Available Options:[/bold]\n{help_text}\n\n"
+            "[dim]Shortcuts: q=quit, g=generate, h=history, s=settings, p=providers[/dim]\n"
+            "[dim]Press ? for this help. Press any key to dismiss.[/dim]",
+            title="Help",
+            box=box.ROUNDED,
+            border_style="yellow",
+        )
+    )
+
+
 def _select_quit(message, choices, hotkeys=None):
-    """Arrow-key select with q-to-quit and optional hotkey bindings."""
+    """Arrow-key select with q-to-quit, ?-for-help, and optional hotkey bindings."""
     from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 
     hk = hotkeys or _HOTKEY_MAP
@@ -144,6 +166,11 @@ def _select_quit(message, choices, hotkeys=None):
     @kb.add("q")
     def _quit_on_q(event):
         event.app.exit(exception=KeyboardInterrupt())
+
+    @kb.add("?")
+    def _help_on_question(event):
+        _result["value"] = "__help__"
+        event.app.exit(result="__help__")
 
     # Build hotkeys that return corresponding menu values
     choice_values = {c.value for c in choices if hasattr(c, "value")}
@@ -160,16 +187,21 @@ def _select_quit(message, choices, hotkeys=None):
             kb.add(key)(_make_handler(val))
 
     hint_keys = " ".join(f"{k}={v}" for k, v in hk.items() if v in choice_values)
-    instruction = f"(q quit | {hint_keys})" if hint_keys else "(q to quit)"
-    try:
-        q = questionary.select(message, choices=choices, instruction=instruction)
-        orig = q.application.key_bindings
-        q.application.key_bindings = merge_key_bindings([orig, kb]) if orig else kb
-        result = q.unsafe_ask()
-        # If hotkey was used, _result["value"] was set before exit
-        return _result["value"] if _result["value"] is not None else result
-    except (KeyboardInterrupt, EOFError):
-        return None
+    instruction = f"(q quit | ? help | {hint_keys})" if hint_keys else "(q quit | ? help)"
+    while True:
+        try:
+            _result["value"] = None
+            q = questionary.select(message, choices=choices, instruction=instruction)
+            orig = q.application.key_bindings
+            q.application.key_bindings = merge_key_bindings([orig, kb]) if orig else kb
+            result = q.unsafe_ask()
+            chosen = _result["value"] if _result["value"] is not None else result
+            if chosen == "__help__":
+                _show_help_overlay(choices)
+                continue
+            return chosen
+        except (KeyboardInterrupt, EOFError):
+            return None
 
 
 def _checkbox(message, choices):
