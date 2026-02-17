@@ -139,7 +139,9 @@ def _show_help_overlay(choices):
     lines = []
     for c in choices:
         if hasattr(c, "title") and hasattr(c, "value"):
-            title = c.title if hasattr(c, "title") else str(c)
+            title = c.title
+            if isinstance(title, list):  # prompt_toolkit formatted text tuples
+                title = "".join(t[1] for t in title)
             disabled = getattr(c, "disabled", None)
             status = f" [dim]({disabled})[/dim]" if disabled else ""
             lines.append(f"  [cyan]{title}[/cyan]{status}")
@@ -156,7 +158,7 @@ def _show_help_overlay(choices):
     )
 
 
-def _select_quit(message, choices, hotkeys=None):
+def _select_quit(message, choices, hotkeys=None, style=None):
     """Arrow-key select with q-to-quit, ?-for-help, and optional hotkey bindings."""
     from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 
@@ -194,7 +196,9 @@ def _select_quit(message, choices, hotkeys=None):
     while True:
         try:
             _result["value"] = None
-            q = questionary.select(message, choices=choices, instruction=instruction)
+            q = questionary.select(
+                message, choices=choices, instruction=instruction, style=style
+            )
             orig = q.application.key_bindings
             q.application.key_bindings = merge_key_bindings([orig, kb]) if orig else kb
             result = q.unsafe_ask()
@@ -399,53 +403,69 @@ class JikaiTUI:
             labelled_ok = self._labelled_ready()
             models_ok = self._models_ready()
             embed_ok = self._embeddings_ready()
-            # ANSI color helpers
-            g = "\033[32m"  # green
-            r = "\033[31m"  # red
-            d = "\033[90m"  # dim
-            rs = "\033[0m"  # reset
-            c_tag = f"{g}✓{rs}" if corpus_ok else f"{r}✗{rs}"
-            l_tag = f"{g}✓{rs}" if labelled_ok else f"{r}✗{rs}"
-            m_tag = f"{g}✓{rs}" if models_ok else f"{r}✗{rs}"
-            e_tag = f"{g}✓{rs}" if embed_ok else f"{d}○{rs}"
             browse_disabled = None if corpus_ok else "preprocess corpus first"
             label_disabled = None if corpus_ok else "preprocess corpus first"
             train_disabled = None if labelled_ok else "label corpus first"
             embed_disabled = None if corpus_ok else "preprocess corpus first"
             gen_disabled = None if corpus_ok else "preprocess corpus first"
-            # color step labels by availability
-            ocr_lbl = f"1.  OCR / Preprocess Corpus {c_tag}"
-            browse_lbl = f"  1a. Browse Corpus" if corpus_ok else f"  {d}1a. Browse Corpus{rs}"
-            label_lbl = f"  1b. Label Corpus {l_tag}"
-            train_lbl = (
-                f"2.  Train ML Models (optional) {m_tag}"
-                if labelled_ok
-                else f"{d}2.  Train ML Models (optional) {m_tag}{rs}"
-            )
-            embed_lbl = (
-                f"  2a. Generate Embeddings (optional) {e_tag}"
-                if corpus_ok
-                else f"  {d}2a. Generate Embeddings (optional) {e_tag}{rs}"
-            )
-            gen_lbl = (
-                f"{g}3.  Generate Hypothetical{rs}"
-                if corpus_ok
-                else f"{d}3.  Generate Hypothetical{rs}"
-            )
+
+            from prompt_toolkit.styles import Style as PtStyle
+
+            menu_style = PtStyle.from_dict({
+                "ok": "#00aa00",
+                "fail": "#cc0000",
+                "dim": "#666666",
+            })
+
+            def _tag(ok, optional=False):
+                if ok:
+                    return [("class:ok", " ✓")]
+                return [("class:dim", " ○")] if optional else [("class:fail", " ✗")]
+
+            def _lbl(text, enabled=True):
+                cls = "" if enabled else "class:dim"
+                return [(cls, text)]
+
             choice = _select_quit(
                 "Select (workflow: 1 → 1a/1b → 2/2a → 3)",
                 choices=[
-                    Choice(ocr_lbl, value="ocr"),
-                    Choice(browse_lbl, value="corpus", disabled=browse_disabled),
-                    Choice(label_lbl, value="label", disabled=label_disabled),
-                    Choice(train_lbl, value="train", disabled=train_disabled),
-                    Choice(embed_lbl, value="embed", disabled=embed_disabled),
-                    Choice(gen_lbl, value="gen", disabled=gen_disabled),
+                    Choice(
+                        title=_lbl("1.  OCR / Preprocess Corpus") + _tag(corpus_ok),
+                        value="ocr",
+                    ),
+                    Choice(
+                        title=_lbl("  1a. Browse Corpus", corpus_ok),
+                        value="corpus",
+                        disabled=browse_disabled,
+                    ),
+                    Choice(
+                        title=_lbl("  1b. Label Corpus") + _tag(labelled_ok),
+                        value="label",
+                        disabled=label_disabled,
+                    ),
+                    Choice(
+                        title=_lbl("2.  Train ML Models (optional)", labelled_ok)
+                        + _tag(models_ok, optional=True),
+                        value="train",
+                        disabled=train_disabled,
+                    ),
+                    Choice(
+                        title=_lbl("  2a. Generate Embeddings (optional)", corpus_ok)
+                        + _tag(embed_ok, optional=True),
+                        value="embed",
+                        disabled=embed_disabled,
+                    ),
+                    Choice(
+                        title=_lbl("3.  Generate Hypothetical", corpus_ok),
+                        value="gen",
+                        disabled=gen_disabled,
+                    ),
                     Choice("History", value="history"),
                     Choice("Tools ›", value="tools"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
                 ],
+                style=menu_style,
             )
             if choice is None:
                 console.print("[dim]Goodbye.[/dim]")
