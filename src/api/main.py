@@ -89,6 +89,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         key = request.headers.get("X-API-Key", "")
         if key != JIKAI_API_KEY:
+            client_ip = request.client.host if request.client else "unknown"
+            logger.warning("auth_failure", path=request.url.path, client_ip=client_ip)
             return JSONResponse(
                 status_code=401,
                 content={"error": "Invalid or missing API key. Set X-API-Key header."},
@@ -114,6 +116,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             ts for ts in self._buckets[client_ip] if now - ts < self.window
         ]
         if len(self._buckets[client_ip]) >= self.rate_limit:
+            logger.warning("rate_limited", client_ip=client_ip)
             return JSONResponse(
                 status_code=429,
                 content={
@@ -121,6 +124,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                 },
             )
         self._buckets[client_ip].append(now)
+        # evict oldest IPs if tracking too many
+        if len(self._buckets) > 10000:
+            oldest_ip = min(self._buckets, key=lambda ip: self._buckets[ip][0] if self._buckets[ip] else 0)
+            del self._buckets[oldest_ip]
         return await call_next(request)
 
 

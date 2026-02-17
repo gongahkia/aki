@@ -72,7 +72,7 @@ class VectorService:
             self._initialized = True
             logger.info("Vector service initialized successfully")
 
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.error("Failed to initialize vector service", error=str(e))
             self._initialized = False
             # Don't raise - allow fallback to simple search

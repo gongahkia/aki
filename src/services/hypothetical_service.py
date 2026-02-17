@@ -13,7 +13,7 @@ try:
     from .corpus_service import CorpusQuery, HypotheticalEntry, corpus_service
 
     _HAS_CORPUS = True
-except Exception:
+except (ImportError, ModuleNotFoundError):
     _HAS_CORPUS = False
     corpus_service = None  # type: ignore[assignment]
 from .database_service import database_service
@@ -83,7 +83,7 @@ class HypotheticalService:
 
                 self._ml_pipeline = MLPipeline()
                 self._ml_pipeline.load_all()
-            except Exception:
+            except (ImportError, FileNotFoundError):
                 pass
         return self._ml_pipeline
 
