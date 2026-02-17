@@ -4,19 +4,7 @@
 
 
 
-## error handling hardening
 
-[ ] rate limiter memory bound: in api/main.py RateLimiterMiddleware, add a max of 10000 tracked IPs — when exceeded, evict the oldest IP bucket. prevents memory exhaustion from IP rotation attacks +security
-[ ] specific exception types: in hypothetical_service.py line 16, replace bare except Exception with except (ImportError, ModuleNotFoundError) for the corpus_service import — lets genuine errors propagate +stability
-[ ] specific exception types: in hypothetical_service.py _get_ml_pipeline (line 86), replace bare except Exception with except (ImportError, FileNotFoundError) — same rationale +stability
-[ ] vector service init exception: in vector_service.py _initialize, replace bare except Exception (line 75) with except (ImportError, OSError, RuntimeError) to catch expected failures while letting unexpected ones propagate +stability
-[ ] log auth failures: in api/main.py APIKeyMiddleware.dispatch, add logger.warning("auth_failure", path=request.url.path, client_ip=client_ip) when API key validation fails +security
-[ ] log rate limit hits: in api/main.py RateLimiterMiddleware.dispatch, add logger.warning("rate_limited", client_ip=client_ip) when rate limit exceeded +security
-
-## performance (minor for single-user, but prevents UX lag)
-
-[ ] cache status bar data: in rich_app.py _render_status_bar, cache the result of _load_history() for 5 seconds (store last_history_load_time and cached_last_score as instance vars) — avoids reading history.json on every menu loop iteration +perf
-[ ] lazy vector service init: in vector_service.py, do NOT call self._initialize() in __init__. Instead, initialize on first call to semantic_search() or index_hypotheticals(). Prevents 2-5s startup delay when vector search isn't used +perf
 
 ## API robustness
 
