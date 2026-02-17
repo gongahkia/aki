@@ -125,21 +125,49 @@ def _select(message, choices):
         return None
 
 
-def _select_quit(message, choices):
-    """Arrow-key select with q-to-quit keybinding. Returns value or None."""
+_HOTKEY_MAP = {
+    "g": "gen",
+    "h": "history",
+    "s": "settings",
+    "p": "providers",
+}
+
+
+def _select_quit(message, choices, hotkeys=None):
+    """Arrow-key select with q-to-quit and optional hotkey bindings."""
     from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 
+    hk = hotkeys or _HOTKEY_MAP
+    _result = {"value": None}
     kb = KeyBindings()
 
     @kb.add("q")
     def _quit_on_q(event):
         event.app.exit(exception=KeyboardInterrupt())
 
+    # Build hotkeys that return corresponding menu values
+    choice_values = {c.value for c in choices if hasattr(c, "value")}
+    for key, val in hk.items():
+        if val in choice_values:
+
+            def _make_handler(v):
+                def _handler(event):
+                    _result["value"] = v
+                    event.app.exit(result=v)
+
+                return _handler
+
+            kb.add(key)(_make_handler(val))
+
+    hint_keys = " ".join(f"{k}={v}" for k, v in hk.items() if v in choice_values)
+    instruction = f"(q quit | {hint_keys})" if hint_keys else "(q to quit)"
     try:
-        q = questionary.select(message, choices=choices, instruction="(q to quit)")
+        q = questionary.select(message, choices=choices, instruction=instruction)
         orig = q.application.key_bindings
         q.application.key_bindings = merge_key_bindings([orig, kb]) if orig else kb
-        return q.unsafe_ask()
+        result = q.unsafe_ask()
+        # If hotkey was used, _result["value"] was set before exit
+        return _result["value"] if _result["value"] is not None else result
     except (KeyboardInterrupt, EOFError):
         return None
 
