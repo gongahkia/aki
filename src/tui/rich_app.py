@@ -593,6 +593,7 @@ class JikaiTUI:
             method = _select("Method", choices=METHOD_CHOICES)
             if method is None:
                 return
+            red_herrings = _confirm("Include red herrings?", default=False)
             cfg = Table(box=box.SIMPLE, title="Generation Config")
             cfg.add_column("Parameter", style="cyan")
             cfg.add_column("Value", style="yellow")
@@ -603,6 +604,7 @@ class JikaiTUI:
             cfg.add_row("Complexity", complexity)
             cfg.add_row("Parties", parties)
             cfg.add_row("Method", method)
+            cfg.add_row("Red Herrings", "Yes" if red_herrings else "No")
             console.print(cfg)
             if not _confirm("Proceed with generation?", default=True):
                 return
@@ -625,21 +627,28 @@ class JikaiTUI:
                 int(parties),
                 method,
                 temperature,
+                red_herrings,
             )
             if not _confirm("Generate another?", default=False):
                 return
 
-    def _do_generate(self, topic, provider, model, complexity, parties, method, temperature=0.7):
+    def _do_generate(self, topic, provider, model, complexity, parties, method, temperature=0.7, red_herrings=False):
         max_retries = 3
         try:
             from ..services.llm_service import LLMRequest, llm_service
             from ..services.validation_service import validation_service
 
+            red_herring_instr = ""
+            if red_herrings:
+                red_herring_instr = (
+                    " Include 1-2 legally irrelevant but plausible facts as red herrings."
+                    " The red herrings should not dominate the scenario."
+                )
             request = LLMRequest(
                 prompt=(
                     f"Generate a Singapore tort law hypothetical about "
                     f"{topic} with {parties} parties at complexity "
-                    f"{complexity}/5."
+                    f"{complexity}/5.{red_herring_instr}"
                 ),
                 temperature=temperature,
                 stream=True,
@@ -706,7 +715,7 @@ class JikaiTUI:
                 )
 
                 async def _full(extra_feedback=feedback):
-                    prefs = {"temperature": temperature}
+                    prefs = {"temperature": temperature, "red_herrings": red_herrings}
                     if extra_feedback:
                         prefs["feedback"] = extra_feedback
                     req = GenerationRequest(

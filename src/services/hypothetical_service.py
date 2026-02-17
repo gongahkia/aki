@@ -297,12 +297,29 @@ class HypotheticalService:
                 PromptTemplateType.HYPOTHETICAL_GENERATION, context
             )
 
+            # Append red herring instruction if enabled
+            user_prompt = prompt_data["user"]
+            if request.user_preferences and request.user_preferences.get("red_herrings"):
+                user_prompt += (
+                    "\n\nADDITIONAL INSTRUCTION: Include 1-2 legally irrelevant but "
+                    "plausible facts as red herrings. These should be realistic details "
+                    "that seem relevant but do not actually give rise to legal liability. "
+                    "The red herrings must not dominate the scenario."
+                )
+
+            # Append feedback from retry loop if present
+            if request.user_preferences and request.user_preferences.get("feedback"):
+                user_prompt += (
+                    f"\n\nFEEDBACK FROM PREVIOUS ATTEMPT: "
+                    f"{request.user_preferences['feedback']}"
+                )
+
             # Create LLM request
             temp = 0.7
             if request.user_preferences and "temperature" in request.user_preferences:
                 temp = float(request.user_preferences["temperature"])
             llm_request = LLMRequest(
-                prompt=prompt_data["user"],
+                prompt=user_prompt,
                 system_prompt=prompt_data["system"],
                 temperature=temp,
                 max_tokens=2048,
