@@ -9,12 +9,9 @@
 
 ## TUI features
 
-[ ] stats dashboard: add stats_flow to main menu — read history.json + labelled CSV + model metrics, display tables for: total generations, avg quality score, topic frequency distribution, cost estimate from llm_service token tracking, model training status
 
 ## TUI flow improvements
 
-[ ] first-run wizard: on launch, detect empty state (no .env, no corpus.json, no models). walk user through: configure API keys → preprocess corpus → label a few entries → first generation. skip steps that are already done. show progress checklist.
-[ ] quick-generate mode: add "Quick generate" vs "Custom generate" choice at top of generate_flow. quick mode: pick topic only, use last-used or smart defaults (provider, model, complexity 3, 2 parties, pure_llm). custom mode: existing full flow. persist quick-mode defaults to .jikai_state.
 [ ] contextual status bar: persistent Rich footer panel showing: active provider/model, corpus count, models trained ✓/✗, embeddings ✓/✗, last generation quality score. render before every main menu iteration via console.print.
 [ ] remember last config: persist last-used generation settings (provider, model, complexity, parties, method, temperature) to .jikai_state JSON. load as defaults on next launch. update after each successful generation.
 
