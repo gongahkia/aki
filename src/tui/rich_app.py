@@ -876,52 +876,96 @@ class JikaiTUI:
             tlog.info("ERROR  import_cases: %s", e)
 
     # ── generate ────────────────────────────────────────────────
+    def _load_state(self) -> Dict:
+        """Load persisted state from .jikai_state."""
+        try:
+            with open(".jikai_state", "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _save_state(self, state: Dict):
+        """Save state to .jikai_state."""
+        with open(".jikai_state", "w") as f:
+            json.dump(state, f, indent=2)
+
     def generate_flow(self):
         while True:
             console.print("\n[bold yellow]Generate Hypothetical[/bold yellow]")
             console.print("=" * 60)
-            topic = _select("Topic", choices=_topic_choices())
-            if topic is None:
-                return
-            provider = _select("Provider", choices=PROVIDER_CHOICES)
-            if provider is None:
-                return
-            model_name = _select("Model", choices=_model_choices(provider))
-            if model_name is None:
-                return
-            if model_name == "__custom__":
-                model_name = _text("Custom model name", default="")
-                if model_name is None:
-                    return
-            temperature = _select(
-                "Temperature",
+            mode = _select(
+                "Mode",
                 choices=[
-                    Choice(f"{v/10:.1f}", value=str(v / 10))
-                    for v in range(1, 16)
+                    Choice("Quick generate — topic only, use defaults", value="quick"),
+                    Choice("Custom generate — full config", value="custom"),
                 ],
             )
-            if temperature is None:
+            if mode is None:
                 return
-            temperature = float(temperature)
-            complexity = _select("Complexity", choices=COMPLEXITY_CHOICES)
-            if complexity is None:
-                return
-            parties = _select("Parties", choices=PARTIES_CHOICES)
-            if parties is None:
-                return
-            method = _select("Method", choices=METHOD_CHOICES)
-            if method is None:
-                return
-            red_herrings = _confirm("Include red herrings?", default=False)
+
+            state = self._load_state()
+            defaults = state.get("last_config", {})
+
+            if mode == "quick":
+                topic = _select("Topic", choices=_topic_choices())
+                if topic is None:
+                    return
+                provider = defaults.get("provider", "ollama")
+                model_name = defaults.get("model", None)
+                temperature = defaults.get("temperature", 0.7)
+                complexity = defaults.get("complexity", "3")
+                parties = defaults.get("parties", "2")
+                method = defaults.get("method", "pure_llm")
+                red_herrings = False
+                console.print(
+                    f"[dim]Using defaults: {provider}/{model_name or 'default'}, "
+                    f"temp={temperature}, complexity={complexity}, "
+                    f"parties={parties}, method={method}[/dim]"
+                )
+            else:
+                topic = _select("Topic", choices=_topic_choices())
+                if topic is None:
+                    return
+                provider = _select("Provider", choices=PROVIDER_CHOICES)
+                if provider is None:
+                    return
+                model_name = _select("Model", choices=_model_choices(provider))
+                if model_name is None:
+                    return
+                if model_name == "__custom__":
+                    model_name = _text("Custom model name", default="")
+                    if model_name is None:
+                        return
+                temperature = _select(
+                    "Temperature",
+                    choices=[
+                        Choice(f"{v/10:.1f}", value=str(v / 10))
+                        for v in range(1, 16)
+                    ],
+                )
+                if temperature is None:
+                    return
+                temperature = float(temperature)
+                complexity = _select("Complexity", choices=COMPLEXITY_CHOICES)
+                if complexity is None:
+                    return
+                parties = _select("Parties", choices=PARTIES_CHOICES)
+                if parties is None:
+                    return
+                method = _select("Method", choices=METHOD_CHOICES)
+                if method is None:
+                    return
+                red_herrings = _confirm("Include red herrings?", default=False)
+
             cfg = Table(box=box.SIMPLE, title="Generation Config")
             cfg.add_column("Parameter", style="cyan")
             cfg.add_column("Value", style="yellow")
             cfg.add_row("Topic", topic)
             cfg.add_row("Provider", provider)
-            cfg.add_row("Model", model_name or "(default)")
-            cfg.add_row("Temperature", f"{temperature:.1f}")
-            cfg.add_row("Complexity", complexity)
-            cfg.add_row("Parties", parties)
+            cfg.add_row("Model", str(model_name) or "(default)")
+            cfg.add_row("Temperature", f"{float(temperature):.1f}")
+            cfg.add_row("Complexity", str(complexity))
+            cfg.add_row("Parties", str(parties))
             cfg.add_row("Method", method)
             cfg.add_row("Red Herrings", "Yes" if red_herrings else "No")
             console.print(cfg)
@@ -945,9 +989,20 @@ class JikaiTUI:
                 int(complexity),
                 int(parties),
                 method,
-                temperature,
+                float(temperature),
                 red_herrings,
             )
+            # Persist last-used config for quick-generate
+            state = self._load_state()
+            state["last_config"] = {
+                "provider": provider,
+                "model": model_name,
+                "temperature": float(temperature),
+                "complexity": str(complexity),
+                "parties": str(parties),
+                "method": method,
+            }
+            self._save_state(state)
             if not _confirm("Generate another?", default=False):
                 return
 
