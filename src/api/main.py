@@ -515,6 +515,87 @@ async def ml_status():
         }
 
 
+# Export endpoint
+@app.get("/export/{history_id}")
+async def export_generation(history_id: int, format: str = "docx"):
+    """Export a generation from history as DOCX or PDF file download."""
+    import json
+    from pathlib import Path
+
+    if format not in ("docx", "pdf"):
+        raise HTTPException(status_code=400, detail="Format must be 'docx' or 'pdf'")
+
+    # Load history
+    history_path = Path("data/history.json")
+    if not history_path.exists():
+        raise HTTPException(status_code=404, detail="No generation history found")
+    try:
+        with open(history_path, "r") as f:
+            history = json.load(f)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to load history")
+    if history_id < 0 or history_id >= len(history):
+        raise HTTPException(
+            status_code=404,
+            detail=f"History ID {history_id} not found. Range: 0-{len(history)-1}",
+        )
+    record = history[history_id]
+    hypo = record.get("hypothetical", "")
+    analysis = record.get("analysis", "")
+    model_answer = record.get("model_answer", "")
+
+    try:
+        import docx
+        from docx.shared import Pt
+        import tempfile
+
+        doc = docx.Document()
+        style = doc.styles["Normal"]
+        style.font.name = "Times New Roman"
+        style.font.size = Pt(12)
+        doc.add_heading("Legal Hypothetical", level=1)
+        for para in hypo.split("\n\n"):
+            doc.add_paragraph(para.strip())
+        if analysis:
+            doc.add_heading("Legal Analysis", level=1)
+            for para in analysis.split("\n\n"):
+                doc.add_paragraph(para.strip())
+        if model_answer:
+            doc.add_heading("Model Answer", level=1)
+            for para in model_answer.split("\n\n"):
+                doc.add_paragraph(para.strip())
+
+        tmp = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
+        doc.save(tmp.name)
+
+        if format == "pdf":
+            try:
+                from docx2pdf import convert
+                pdf_path = tmp.name.replace(".docx", ".pdf")
+                convert(tmp.name, pdf_path)
+                tmp.name = pdf_path
+            except ImportError:
+                raise HTTPException(
+                    status_code=500, detail="docx2pdf not installed for PDF conversion"
+                )
+
+        from fastapi.responses import FileResponse
+        media = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if format == "pdf":
+            media = "application/pdf"
+        return FileResponse(
+            tmp.name,
+            media_type=media,
+            filename=f"hypothetical_{history_id}.{format}",
+        )
+    except ImportError:
+        raise HTTPException(status_code=500, detail="python-docx not installed")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
+
 @app.get("/providers")
 async def list_providers():
     """List all providers and their models."""
