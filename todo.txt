@@ -3,12 +3,6 @@
 
 
 
-## setup friction (addresses: setup friction pain point)
-
-[ ] first-run .env template: in rich_app.py first_run_wizard, if .env does not exist, create it with commented-out template lines (# ANTHROPIC_API_KEY=, # OPENAI_API_KEY=, etc.) so users see what to fill in +dx
-[ ] provider health in wizard: in rich_app.py first_run_wizard, after settings_flow, run a quick provider health check and display which providers are reachable — helps users verify their API keys work +dx
-[ ] auto-detect ollama: in rich_app.py first_run_wizard, attempt HTTP GET to http://localhost:11434/api/tags — if successful, tell user Ollama is available and auto-set as default provider +dx
-[ ] missing dependency hints: in rich_app.py _do_generate and embed_flow, when ImportError is caught, display the exact pip install command needed (e.g. "pip install chromadb sentence-transformers") instead of generic "check deps" message +dx
 
 ## error handling hardening
 
