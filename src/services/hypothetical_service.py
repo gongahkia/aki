@@ -214,7 +214,46 @@ class HypotheticalService:
     async def _get_relevant_context(
         self, request: GenerationRequest
     ) -> List[HypotheticalEntry]:
-        """Get relevant context from corpus based on topics."""
+        """Get relevant context from corpus based on topics.
+
+        Uses vector_service semantic search when embeddings exist,
+        falls back to keyword-based corpus query.
+        """
+        # Try semantic search first (dynamic few-shot)
+        try:
+            from .vector_service import vector_service
+
+            if vector_service._initialized:
+                results = await vector_service.semantic_search(
+                    query_topics=request.topics,
+                    n_results=min(3, request.sample_size),
+                )
+                if results:
+                    entries = []
+                    for r in results:
+                        if _HAS_CORPUS:
+                            entries.append(
+                                HypotheticalEntry(
+                                    id=r.get("id", ""),
+                                    text=r["text"],
+                                    topics=r.get("topics", []),
+                                    metadata=r.get("metadata", {}),
+                                )
+                            )
+                    if entries:
+                        logger.info(
+                            "Context retrieved via semantic search",
+                            topics=request.topics,
+                            entries_found=len(entries),
+                        )
+                        return entries
+        except Exception as e:
+            logger.warning(
+                "Semantic search failed, falling back to keyword matching",
+                error=str(e),
+            )
+
+        # Fallback: keyword-based corpus query
         try:
             query = CorpusQuery(
                 topics=request.topics,
@@ -227,7 +266,7 @@ class HypotheticalService:
             )
 
             logger.info(
-                "Context retrieved",
+                "Context retrieved via keyword matching",
                 topics=request.topics,
                 entries_found=len(context_entries),
             )
