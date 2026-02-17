@@ -399,40 +399,48 @@ class JikaiTUI:
             labelled_ok = self._labelled_ready()
             models_ok = self._models_ready()
             embed_ok = self._embeddings_ready()
-            c_tag = "✓" if corpus_ok else "✗"
-            l_tag = "✓" if labelled_ok else "✗"
-            m_tag = "✓" if models_ok else "✗"
-            e_tag = "✓" if embed_ok else "✗"
+            # ANSI color helpers
+            g = "\033[32m"  # green
+            r = "\033[31m"  # red
+            d = "\033[90m"  # dim
+            rs = "\033[0m"  # reset
+            c_tag = f"{g}✓{rs}" if corpus_ok else f"{r}✗{rs}"
+            l_tag = f"{g}✓{rs}" if labelled_ok else f"{r}✗{rs}"
+            m_tag = f"{g}✓{rs}" if models_ok else f"{r}✗{rs}"
+            e_tag = f"{g}✓{rs}" if embed_ok else f"{d}○{rs}"
             browse_disabled = None if corpus_ok else "preprocess corpus first"
             label_disabled = None if corpus_ok else "preprocess corpus first"
             train_disabled = None if labelled_ok else "label corpus first"
             embed_disabled = None if corpus_ok else "preprocess corpus first"
             gen_disabled = None if corpus_ok else "preprocess corpus first"
+            # color step labels by availability
+            ocr_lbl = f"1.  OCR / Preprocess Corpus {c_tag}"
+            browse_lbl = f"  1a. Browse Corpus" if corpus_ok else f"  {d}1a. Browse Corpus{rs}"
+            label_lbl = f"  1b. Label Corpus {l_tag}"
+            train_lbl = (
+                f"2.  Train ML Models (optional) {m_tag}"
+                if labelled_ok
+                else f"{d}2.  Train ML Models (optional) {m_tag}{rs}"
+            )
+            embed_lbl = (
+                f"  2a. Generate Embeddings (optional) {e_tag}"
+                if corpus_ok
+                else f"  {d}2a. Generate Embeddings (optional) {e_tag}{rs}"
+            )
+            gen_lbl = (
+                f"{g}3.  Generate Hypothetical{rs}"
+                if corpus_ok
+                else f"{d}3.  Generate Hypothetical{rs}"
+            )
             choice = _select_quit(
                 "Select (workflow: 1 → 1a/1b → 2/2a → 3)",
                 choices=[
-                    Choice(f"1.  OCR / Preprocess Corpus {c_tag}", value="ocr"),
-                    Choice(
-                        "  1a. Browse Corpus", value="corpus", disabled=browse_disabled
-                    ),
-                    Choice(
-                        f"  1b. Label Corpus {l_tag}",
-                        value="label",
-                        disabled=label_disabled,
-                    ),
-                    Choice(
-                        f"2.  Train ML Models (optional) {m_tag}",
-                        value="train",
-                        disabled=train_disabled,
-                    ),
-                    Choice(
-                        f"  2a. Generate Embeddings (optional) {e_tag}",
-                        value="embed",
-                        disabled=embed_disabled,
-                    ),
-                    Choice(
-                        "3.  Generate Hypothetical", value="gen", disabled=gen_disabled
-                    ),
+                    Choice(ocr_lbl, value="ocr"),
+                    Choice(browse_lbl, value="corpus", disabled=browse_disabled),
+                    Choice(label_lbl, value="label", disabled=label_disabled),
+                    Choice(train_lbl, value="train", disabled=train_disabled),
+                    Choice(embed_lbl, value="embed", disabled=embed_disabled),
+                    Choice(gen_lbl, value="gen", disabled=gen_disabled),
                     Choice("History", value="history"),
                     Choice("Tools ›", value="tools"),
                     Choice("Settings", value="settings"),
