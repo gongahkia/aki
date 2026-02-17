@@ -9,8 +9,6 @@
 
 ## TUI features
 
-[ ] hypo variations: add "Create variation" option after viewing a generated or historical hypothetical — let user toggle one parameter (swap topic, add/remove party, change complexity, change difficulty), regenerate with seeded prompt referencing original
-[ ] bulk labelling: add bulk_label_flow — show entry text in panel, single-keystroke quality (1-9), difficulty (e/m/h), auto-advance to next entry, show running count, save in batches of 10
 [ ] stats dashboard: add stats_flow to main menu — read history.json + labelled CSV + model metrics, display tables for: total generations, avg quality score, topic frequency distribution, cost estimate from llm_service token tracking, model training status
 
 ## TUI flow improvements
