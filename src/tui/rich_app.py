@@ -692,6 +692,7 @@ class JikaiTUI:
                             len(result),
                             score,
                         )
+                        self._offer_model_answer(result, topic, provider, model, temperature)
                         return
                     console.print(
                         f"[yellow]Score {score:.1f}/10 < 7.0, retrying with full generation...[/yellow]"
@@ -762,6 +763,9 @@ class JikaiTUI:
                         attempt,
                         score,
                     )
+                    self._offer_model_answer(
+                        response.hypothetical, topic, provider, model, temperature
+                    )
                     return
 
                 if attempt < max_retries:
@@ -804,6 +808,49 @@ class JikaiTUI:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
             console.print("[dim]Tip: check provider health via Providers menu[/dim]")
             tlog.info("ERROR  generation: %s", e)
+
+    def _offer_model_answer(self, hypothetical_text, topic, provider, model, temperature):
+        """Offer to generate a model answer (IRAC analysis) for the hypothetical."""
+        if not _confirm("Generate model answer?", default=False):
+            return
+        try:
+            from ..services.llm_service import LLMRequest, llm_service
+
+            prompt = (
+                "You are an expert Singapore tort law tutor. Given the following hypothetical, "
+                "produce a model answer consisting of:\n"
+                "1. ISSUE-SPOTTING CHECKLIST: List every legal issue present.\n"
+                "2. STRUCTURED IRAC ANALYSIS: For each issue, provide:\n"
+                "   - Issue: State the legal question\n"
+                "   - Rule: State the relevant legal principle(s) and SG case law\n"
+                "   - Application: Apply the rule to the facts\n"
+                "   - Conclusion: State the likely outcome\n\n"
+                f"HYPOTHETICAL:\n{hypothetical_text}"
+            )
+            req = LLMRequest(
+                prompt=prompt,
+                temperature=max(0.3, temperature - 0.2),
+                max_tokens=3000,
+            )
+
+            async def _gen():
+                return await llm_service.generate(req, provider=provider, model=model)
+
+            with console.status(
+                "[bold green]Generating model answer...", spinner="dots"
+            ):
+                resp = _run_async(_gen())
+            console.print(
+                Panel(
+                    resp.content,
+                    title="Model Answer",
+                    box=box.ROUNDED,
+                    border_style="magenta",
+                )
+            )
+            tlog.info("MODEL_ANSWER  generated, len=%d", len(resp.content))
+        except Exception as e:
+            console.print(f"[red]✗ Model answer generation failed: {e}[/red]")
 
     def _show_validation(self, vr):
         """Display validation results table."""
