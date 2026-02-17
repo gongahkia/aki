@@ -546,8 +546,10 @@ class JikaiTUI:
                 return
 
     def _do_generate(self, topic, provider, model, complexity, parties, method):
+        max_retries = 3
         try:
             from ..services.llm_service import LLMRequest, llm_service
+            from ..services.validation_service import validation_service
 
             request = LLMRequest(
                 prompt=(
@@ -571,8 +573,16 @@ class JikaiTUI:
                 return "".join(chunks)
 
             try:
+                console.print("[dim]Attempt 1/{0}[/dim]".format(max_retries))
                 result = _run_async(_stream())
                 if result:
+                    vr = validation_service.validate_hypothetical(
+                        text=result,
+                        required_topics=[topic],
+                        expected_parties=parties,
+                    )
+                    score = vr.get("overall_score", 0.0)
+                    passed = vr.get("passed", False)
                     console.print(
                         Panel(
                             result,
@@ -581,67 +591,139 @@ class JikaiTUI:
                             border_style="green",
                         )
                     )
-                    tlog.info("GENERATE  stream success, len=%d", len(result))
-                    return
+                    self._show_validation(vr)
+                    if passed or score >= 7.0:
+                        tlog.info(
+                            "GENERATE  stream success, len=%d score=%.1f",
+                            len(result),
+                            score,
+                        )
+                        return
+                    console.print(
+                        f"[yellow]Score {score:.1f}/10 < 7.0, retrying with full generation...[/yellow]"
+                    )
             except Exception as stream_err:
                 tlog.info("GENERATE  stream failed: %s, trying full", stream_err)
                 console.print(
                     "[yellow]Stream unavailable "
                     f"({stream_err}), using full generation...[/yellow]"
                 )
+
             from ..services.hypothetical_service import (
                 GenerationRequest,
                 hypothetical_service,
             )
 
-            async def _full():
-                req = GenerationRequest(
-                    topics=[topic],
-                    number_parties=max(2, min(5, parties)),
-                    complexity_level=str(complexity),
-                    method=method,
-                    provider=provider,
-                    model=model,
+            feedback = ""
+            for attempt in range(1, max_retries + 1):
+                console.print(
+                    f"[dim]Attempt {attempt}/{max_retries} (full generation)[/dim]"
                 )
-                return await hypothetical_service.generate_hypothetical(req)
 
-            with console.status(
-                "[bold green]Generating hypothetical...", spinner="dots"
-            ):
-                response = _run_async(_full())
-            console.print(
-                Panel(
-                    response.hypothetical,
-                    title="Generated Hypothetical",
-                    box=box.ROUNDED,
-                    border_style="green",
-                )
-            )
-            if response.analysis:
+                async def _full(extra_feedback=feedback):
+                    prefs = {}
+                    if extra_feedback:
+                        prefs["feedback"] = extra_feedback
+                    req = GenerationRequest(
+                        topics=[topic],
+                        number_parties=max(2, min(5, parties)),
+                        complexity_level=str(complexity),
+                        method=method,
+                        provider=provider,
+                        model=model,
+                        user_preferences=prefs,
+                    )
+                    return await hypothetical_service.generate_hypothetical(req)
+
+                with console.status(
+                    f"[bold green]Generating hypothetical (attempt {attempt}/{max_retries})...",
+                    spinner="dots",
+                ):
+                    response = _run_async(_full(feedback))
+
                 console.print(
                     Panel(
-                        response.analysis,
-                        title="Legal Analysis",
+                        response.hypothetical,
+                        title=f"Generated Hypothetical (attempt {attempt})",
                         box=box.ROUNDED,
-                        border_style="cyan",
+                        border_style="green",
                     )
                 )
-            vr = response.validation_results
-            if vr:
-                vt = Table(title="Validation Results", box=box.ROUNDED)
-                vt.add_column("Check", style="cyan")
-                vt.add_column("Result", style="yellow")
-                vt.add_row("Quality Score", str(vr.get("quality_score", "N/A")))
-                vt.add_row(
-                    "Passed",
-                    "[green]Yes[/green]" if vr.get("passed") else "[red]No[/red]",
-                )
-                console.print(vt)
-            tlog.info("GENERATE  full success")
+                if response.analysis:
+                    console.print(
+                        Panel(
+                            response.analysis,
+                            title="Legal Analysis",
+                            box=box.ROUNDED,
+                            border_style="cyan",
+                        )
+                    )
+                vr = response.validation_results
+                self._show_validation(vr)
+                score = vr.get("quality_score", 0.0)
+                passed = vr.get("passed", False)
+                if passed or score >= 7.0:
+                    tlog.info(
+                        "GENERATE  full success attempt=%d score=%.1f",
+                        attempt,
+                        score,
+                    )
+                    return
+
+                if attempt < max_retries:
+                    # Build feedback for next attempt
+                    checks = vr.get("checks", vr.get("adherence_check", {}).get("checks", {}))
+                    issues = []
+                    if isinstance(checks, dict):
+                        if not checks.get("party_count", {}).get("passed", True):
+                            issues.append(
+                                f"Include exactly {parties} distinct named parties."
+                            )
+                        if not checks.get("topic_inclusion", {}).get("passed", True):
+                            missing = checks.get("topic_inclusion", {}).get(
+                                "topics_missing", []
+                            )
+                            if missing:
+                                issues.append(
+                                    f"Must address these topics: {', '.join(missing)}."
+                                )
+                        if not checks.get("word_count", {}).get("passed", True):
+                            issues.append("Aim for 800-1500 words.")
+                        if not checks.get("singapore_context", {}).get("passed", True):
+                            issues.append(
+                                "Set the scenario explicitly in Singapore."
+                            )
+                    feedback = (
+                        "Previous attempt scored {:.1f}/10. Fix these issues: {}".format(
+                            score, " ".join(issues) if issues else "Improve overall quality."
+                        )
+                    )
+                    console.print(
+                        f"[yellow]Score {score:.1f}/10 < 7.0, retrying...[/yellow]"
+                    )
+
+            console.print(
+                "[yellow]Max retries reached. Showing best result above.[/yellow]"
+            )
+            tlog.info("GENERATE  max retries reached, score=%.1f", score)
         except Exception as e:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
             console.print("[dim]Tip: check provider health via Providers menu[/dim]")
             tlog.info("ERROR  generation: %s", e)
+
+    def _show_validation(self, vr):
+        """Display validation results table."""
+        if not vr:
+            return
+        vt = Table(title="Validation Results", box=box.ROUNDED)
+        vt.add_column("Check", style="cyan")
+        vt.add_column("Result", style="yellow")
+        vt.add_row("Quality Score", str(vr.get("quality_score", "N/A")))
+        vt.add_row(
+            "Passed",
+            "[green]Yes[/green]" if vr.get("passed") else "[red]No[/red]",
+        )
+        console.print(vt)
 
     # ── train ───────────────────────────────────────────────────
     def train_flow(self):
