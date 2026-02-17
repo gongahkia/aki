@@ -1398,6 +1398,12 @@ class JikaiTUI:
                 "[yellow]Max retries reached. Showing best result above.[/yellow]"
             )
             tlog.info("GENERATE  max retries reached, score=%.1f", score)
+        except ImportError as e:
+            console.print(f"[red]✗ Missing dependency: {e}[/red]")
+            console.print(
+                "[yellow]Run: pip install chromadb sentence-transformers[/yellow]"
+            )
+            tlog.info("ERROR  import: %s", e)
         except Exception as e:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
             console.print("[dim]Tip: check provider health via Providers menu[/dim]")
@@ -1998,7 +2004,7 @@ class JikaiTUI:
             if not vs._initialized:
                 console.print("[red]✗ Vector service failed to initialize[/red]")
                 console.print(
-                    "[dim]Tip: ensure chromadb and sentence-transformers are installed[/dim]"
+                    "[yellow]Run: pip install chromadb sentence-transformers[/yellow]"
                 )
                 return
             with Progress(
@@ -2476,6 +2482,25 @@ class JikaiTUI:
 
     def first_run_wizard(self):
         """Walk user through initial setup."""
+        # create .env template if missing
+        if not Path(".env").exists():
+            template = (
+                "# Jikai environment configuration\n"
+                "# ANTHROPIC_API_KEY=\n"
+                "# OPENAI_API_KEY=\n"
+                "# GOOGLE_API_KEY=\n"
+                "# OLLAMA_HOST=http://localhost:11434\n"
+                "# LOCAL_LLM_HOST=http://localhost:8080\n"
+                "# DEFAULT_TEMPERATURE=0.7\n"
+                "# DEFAULT_MAX_TOKENS=2048\n"
+                "# CORPUS_PATH=corpus/corpus.json\n"
+                "# DATABASE_PATH=data/jikai.db\n"
+                "# LOG_LEVEL=INFO\n"
+            )
+            fd = os.open(".env", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(template)
+            console.print("[dim]Created .env template — fill in your API keys.[/dim]")
         console.print(
             Panel(
                 "[bold cyan]Welcome to Jikai![/bold cyan]\n"
@@ -2505,7 +2530,25 @@ class JikaiTUI:
             if not _confirm(f"Proceed with: {name}?", default=True):
                 continue
             if action == "settings":
+                # auto-detect Ollama before settings
+                try:
+                    import urllib.request
+
+                    req = urllib.request.Request(
+                        "http://localhost:11434/api/tags", method="GET"
+                    )
+                    with urllib.request.urlopen(req, timeout=2):
+                        console.print(
+                            "[green]✓ Ollama detected at localhost:11434 — available as provider[/green]"
+                        )
+                except Exception:
+                    pass
                 self.settings_flow()
+                # post-settings provider health check
+                try:
+                    self._check_health()
+                except Exception:
+                    pass
             elif action == "ocr":
                 self.ocr_flow()
             elif action == "label":
