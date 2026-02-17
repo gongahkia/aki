@@ -8,8 +8,10 @@ Implements various prompt engineering techniques including:
 - Context-aware prompting
 """
 
+import json
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -192,6 +194,25 @@ SCENARIO METADATA:
 - Key Events: [Chronological summary of main events]
 - Legal Topics Addressed: [Confirmation of topics included]"""
 
+    @staticmethod
+    def _load_relevant_cases(topics: List[str]) -> List[Dict[str, str]]:
+        """Load SG case citations from corpus/cases/ that match given topics."""
+        cases_dir = Path("corpus/cases")
+        if not cases_dir.exists():
+            return []
+        matched = []
+        topic_set = {t.lower().replace("_", " ") for t in topics}
+        for case_file in sorted(cases_dir.glob("*.json")):
+            try:
+                with open(case_file, "r", encoding="utf-8") as f:
+                    case = json.load(f)
+                case_topics = {t.lower().replace("_", " ") for t in case.get("topics", [])}
+                if case_topics & topic_set:
+                    matched.append(case)
+            except Exception:
+                continue
+        return matched
+
     def format_prompt(self, context: PromptContext, **kwargs) -> Dict[str, str]:
         """Format the hypothetical generation prompt."""
         reference_examples = ""
@@ -203,6 +224,23 @@ SCENARIO METADATA:
             if topic in TOPIC_HINTS:
                 hints.append(f"- {topic}: {TOPIC_HINTS[topic]}")
         topic_hints = "TOPIC-SPECIFIC GUIDANCE:\n" + "\n".join(hints) if hints else ""
+
+        # Inject relevant SG case citations
+        cases = self._load_relevant_cases(context.topics)
+        case_section = ""
+        if cases:
+            case_lines = []
+            for c in cases[:5]:
+                name = c.get("case_name", "Unknown")
+                citation = c.get("citation", "")
+                summary = c.get("summary", "")[:200]
+                case_lines.append(f"- {name} {citation}: {summary}")
+            case_section = (
+                "\nRELEVANT SG CASE CITATIONS (incorporate where appropriate):\n"
+                + "\n".join(case_lines)
+                + "\n"
+            )
+
         user_prompt = self.user_prompt_template.format(
             law_domain=context.law_domain,
             topics=", ".join(context.topics),
@@ -210,7 +248,7 @@ SCENARIO METADATA:
             complexity_level=context.complexity_level,
             reference_examples=reference_examples,
             output_format=self.output_format,
-            topic_hints=topic_hints,
+            topic_hints=topic_hints + case_section,
         )
 
         return {"system": self.system_prompt, "user": user_prompt}
