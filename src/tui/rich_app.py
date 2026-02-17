@@ -187,7 +187,9 @@ def _select_quit(message, choices, hotkeys=None):
             kb.add(key)(_make_handler(val))
 
     hint_keys = " ".join(f"{k}={v}" for k, v in hk.items() if v in choice_values)
-    instruction = f"(q quit | ? help | {hint_keys})" if hint_keys else "(q quit | ? help)"
+    instruction = (
+        f"(q quit | ? help | {hint_keys})" if hint_keys else "(q quit | ? help)"
+    )
     while True:
         try:
             _result["value"] = None
@@ -336,7 +338,11 @@ class JikaiTUI:
             try:
                 with open(self._corpus_path) as f:
                     data = json.load(f)
-                corpus_count = len(data) if isinstance(data, list) else len(data.get("entries", []))
+                corpus_count = (
+                    len(data)
+                    if isinstance(data, list)
+                    else len(data.get("entries", []))
+                )
             except Exception:
                 pass
         models_icon = "[green]✓[/green]" if self._models_ready() else "[red]✗[/red]"
@@ -419,12 +425,20 @@ class JikaiTUI:
                 tlog.info("=== TUI session ended ===")
                 break
             _flow_labels = {
-                "ocr": "OCR", "corpus": "Corpus", "label": "Label",
-                "train": "Train", "embed": "Embed", "gen": "Generate",
-                "batch_gen": "Batch", "export": "Export",
-                "import_cases": "Import", "bulk_label": "Bulk Label",
-                "stats": "Stats", "history": "History",
-                "settings": "Settings", "providers": "Providers",
+                "ocr": "OCR",
+                "corpus": "Corpus",
+                "label": "Label",
+                "train": "Train",
+                "embed": "Embed",
+                "gen": "Generate",
+                "batch_gen": "Batch",
+                "export": "Export",
+                "import_cases": "Import",
+                "bulk_label": "Bulk Label",
+                "stats": "Stats",
+                "history": "History",
+                "settings": "Settings",
+                "providers": "Providers",
             }
             if choice in _flow_labels:
                 self._push_nav(_flow_labels[choice])
@@ -705,12 +719,16 @@ class JikaiTUI:
             if diff.lower() not in diff_map:
                 console.print("[red]Must be e, m, or h[/red]")
                 continue
-            labelled.append({
-                "text": text,
-                "topic_labels": topics_hint if isinstance(topics_hint, str) else "|".join(topics_hint),
-                "quality_score": str(q),
-                "difficulty_level": diff_map[diff.lower()],
-            })
+            labelled.append(
+                {
+                    "text": text,
+                    "topic_labels": topics_hint
+                    if isinstance(topics_hint, str)
+                    else "|".join(topics_hint),
+                    "quality_score": str(q),
+                    "difficulty_level": diff_map[diff.lower()],
+                }
+            )
             count += 1
             console.print(f"[green]✓ {count} labelled[/green]")
 
@@ -730,7 +748,13 @@ class JikaiTUI:
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", newline="") as f:
             w = csv.DictWriter(
-                f, fieldnames=["text", "topic_labels", "quality_score", "difficulty_level"]
+                f,
+                fieldnames=[
+                    "text",
+                    "topic_labels",
+                    "quality_score",
+                    "difficulty_level",
+                ],
             )
             w.writeheader()
             w.writerows(labelled)
@@ -766,6 +790,7 @@ class JikaiTUI:
             topics_list = list(TOPICS)
         elif strategy == "random":
             import random
+
             topics_list = random.sample(TOPICS, min(count, len(TOPICS)))
 
         provider = _select("Provider", choices=PROVIDER_CHOICES)
@@ -813,12 +838,14 @@ class JikaiTUI:
                     topic = topics_list[i % len(topics_list)]
                 else:
                     import random
+
                     topic = random.choice(topics_list)
                 progress.update(
                     task,
                     description=f"[cyan]Generating {i+1}/{count}: {topic}",
                 )
                 try:
+
                     async def _gen(t=topic):
                         req = GenerationRequest(
                             topics=[t],
@@ -833,10 +860,16 @@ class JikaiTUI:
                     resp = _run_async(_gen(topic))
                     score = resp.validation_results.get("quality_score", 0.0)
                     results.append(
-                        {"topic": topic, "score": score, "words": len(resp.hypothetical.split())}
+                        {
+                            "topic": topic,
+                            "score": score,
+                            "words": len(resp.hypothetical.split()),
+                        }
                     )
                 except Exception as e:
-                    results.append({"topic": topic, "score": 0.0, "words": 0, "error": str(e)})
+                    results.append(
+                        {"topic": topic, "score": 0.0, "words": 0, "error": str(e)}
+                    )
                 progress.advance(task)
 
         # Summary table
@@ -847,7 +880,9 @@ class JikaiTUI:
         st.add_column("Words", style="dim")
         st.add_column("Status", style="cyan")
         for i, r in enumerate(results, 1):
-            status = "[green]OK[/green]" if r.get("score", 0) >= 7.0 else "[red]LOW[/red]"
+            status = (
+                "[green]OK[/green]" if r.get("score", 0) >= 7.0 else "[red]LOW[/red]"
+            )
             if "error" in r:
                 status = f"[red]ERR: {r['error'][:30]}[/red]"
             st.add_row(str(i), r["topic"], f"{r['score']:.1f}", str(r["words"]), status)
@@ -870,7 +905,9 @@ class JikaiTUI:
         # Check if it's a file path
         if Path(hypo_text).exists() and Path(hypo_text).is_file():
             hypo_text = Path(hypo_text).read_text(encoding="utf-8")
-        analysis_text = _text("Paste analysis text (optional, Enter to skip)", default="")
+        analysis_text = _text(
+            "Paste analysis text (optional, Enter to skip)", default=""
+        )
         model_answer = _text("Paste model answer (optional, Enter to skip)", default="")
         out_path = _path("Output DOCX path", default="exports/hypothetical.docx")
         if not out_path:
@@ -905,10 +942,13 @@ class JikaiTUI:
 
             # Footer with metadata
             from datetime import datetime
+
             section = doc.sections[0]
             footer = section.footer
             footer_para = footer.paragraphs[0]
-            footer_para.text = f"Generated by Jikai | {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            footer_para.text = (
+                f"Generated by Jikai | {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            )
             footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
             Path(out_path).parent.mkdir(parents=True, exist_ok=True)
@@ -918,6 +958,7 @@ class JikaiTUI:
             if also_pdf:
                 try:
                     from docx2pdf import convert
+
                     pdf_path = str(Path(out_path).with_suffix(".pdf"))
                     convert(out_path, pdf_path)
                     console.print(f"[green]✓ PDF saved → {pdf_path}[/green]")
@@ -927,7 +968,9 @@ class JikaiTUI:
                     )
             tlog.info("EXPORT  %s", out_path)
         except ImportError:
-            console.print("[red]✗ python-docx not installed. Run: pip install python-docx[/red]")
+            console.print(
+                "[red]✗ python-docx not installed. Run: pip install python-docx[/red]"
+            )
         except Exception as e:
             console.print(f"[red]✗ Export failed: {e}[/red]")
             tlog.info("ERROR  export: %s", e)
@@ -1005,13 +1048,23 @@ class JikaiTUI:
         try:
             with open(".jikai_state", "r") as f:
                 return json.load(f)
+        except json.JSONDecodeError:
+            import shutil
+
+            shutil.copy2(".jikai_state", ".jikai_state.bak")
+            console.print(
+                "[yellow]⚠ .jikai_state corrupted, backed up to .jikai_state.bak[/yellow]"
+            )
+            return {}
         except Exception:
             return {}
 
     def _save_state(self, state: Dict):
         """Save state to .jikai_state."""
-        with open(".jikai_state", "w") as f:
+        tmp = ".jikai_state.tmp"
+        with open(tmp, "w") as f:
             json.dump(state, f, indent=2)
+        os.rename(tmp, ".jikai_state")  # atomic write
 
     def generate_flow(self):
         while True:
@@ -1063,8 +1116,7 @@ class JikaiTUI:
                 temperature = _select(
                     "Temperature",
                     choices=[
-                        Choice(f"{v/10:.1f}", value=str(v / 10))
-                        for v in range(1, 16)
+                        Choice(f"{v/10:.1f}", value=str(v / 10)) for v in range(1, 16)
                     ],
                 )
                 if temperature is None:
@@ -1130,7 +1182,17 @@ class JikaiTUI:
             if not _confirm("Generate another?", default=False):
                 return
 
-    def _do_generate(self, topic, provider, model, complexity, parties, method, temperature=0.7, red_herrings=False):
+    def _do_generate(
+        self,
+        topic,
+        provider,
+        model,
+        complexity,
+        parties,
+        method,
+        temperature=0.7,
+        red_herrings=False,
+    ):
         max_retries = 3
         try:
             from ..services.llm_service import LLMRequest, llm_service
@@ -1190,13 +1252,23 @@ class JikaiTUI:
                             len(result),
                             score,
                         )
-                        self._save_to_history({
-                            "config": {"topic": topic, "provider": provider, "model": model,
-                                       "complexity": complexity, "parties": parties, "method": method},
-                            "hypothetical": result,
-                            "validation_score": score,
-                        })
-                        self._offer_model_answer(result, topic, provider, model, temperature)
+                        self._save_to_history(
+                            {
+                                "config": {
+                                    "topic": topic,
+                                    "provider": provider,
+                                    "model": model,
+                                    "complexity": complexity,
+                                    "parties": parties,
+                                    "method": method,
+                                },
+                                "hypothetical": result,
+                                "validation_score": score,
+                            }
+                        )
+                        self._offer_model_answer(
+                            result, topic, provider, model, temperature
+                        )
                         return
                     console.print(
                         f"[yellow]Score {score:.1f}/10 < 7.0, retrying with full generation...[/yellow]"
@@ -1267,13 +1339,21 @@ class JikaiTUI:
                         attempt,
                         score,
                     )
-                    self._save_to_history({
-                        "config": {"topic": topic, "provider": provider, "model": model,
-                                   "complexity": complexity, "parties": parties, "method": method},
-                        "hypothetical": response.hypothetical,
-                        "analysis": response.analysis,
-                        "validation_score": score,
-                    })
+                    self._save_to_history(
+                        {
+                            "config": {
+                                "topic": topic,
+                                "provider": provider,
+                                "model": model,
+                                "complexity": complexity,
+                                "parties": parties,
+                                "method": method,
+                            },
+                            "hypothetical": response.hypothetical,
+                            "analysis": response.analysis,
+                            "validation_score": score,
+                        }
+                    )
                     self._offer_model_answer(
                         response.hypothetical, topic, provider, model, temperature
                     )
@@ -1281,7 +1361,9 @@ class JikaiTUI:
 
                 if attempt < max_retries:
                     # Build feedback for next attempt
-                    checks = vr.get("checks", vr.get("adherence_check", {}).get("checks", {}))
+                    checks = vr.get(
+                        "checks", vr.get("adherence_check", {}).get("checks", {})
+                    )
                     issues = []
                     if isinstance(checks, dict):
                         if not checks.get("party_count", {}).get("passed", True):
@@ -1299,13 +1381,10 @@ class JikaiTUI:
                         if not checks.get("word_count", {}).get("passed", True):
                             issues.append("Aim for 800-1500 words.")
                         if not checks.get("singapore_context", {}).get("passed", True):
-                            issues.append(
-                                "Set the scenario explicitly in Singapore."
-                            )
-                    feedback = (
-                        "Previous attempt scored {:.1f}/10. Fix these issues: {}".format(
-                            score, " ".join(issues) if issues else "Improve overall quality."
-                        )
+                            issues.append("Set the scenario explicitly in Singapore.")
+                    feedback = "Previous attempt scored {:.1f}/10. Fix these issues: {}".format(
+                        score,
+                        " ".join(issues) if issues else "Improve overall quality.",
                     )
                     console.print(
                         f"[yellow]Score {score:.1f}/10 < 7.0, retrying...[/yellow]"
@@ -1320,7 +1399,9 @@ class JikaiTUI:
             console.print("[dim]Tip: check provider health via Providers menu[/dim]")
             tlog.info("ERROR  generation: %s", e)
 
-    def _offer_model_answer(self, hypothetical_text, topic, provider, model, temperature):
+    def _offer_model_answer(
+        self, hypothetical_text, topic, provider, model, temperature
+    ):
         """Offer to generate a model answer (IRAC analysis) for the hypothetical."""
         if not _confirm("Generate model answer?", default=False):
             return
@@ -1392,8 +1473,12 @@ class JikaiTUI:
             except Exception:
                 history = []
         history.append(record)
-        with open(hp, "w") as f:
+        if len(history) > 500:  # cap history size
+            history = history[-500:]
+        tmp = hp.with_suffix(".json.tmp")
+        with open(tmp, "w") as f:
             json.dump(history, f, indent=2, ensure_ascii=False)
+        os.rename(tmp, hp)  # atomic write
 
     def _load_history(self) -> List[Dict]:
         """Load generation history from data/history.json."""
@@ -1403,6 +1488,15 @@ class JikaiTUI:
         try:
             with open(hp, "r") as f:
                 return json.load(f)
+        except json.JSONDecodeError:
+            import shutil
+
+            bak = hp.with_suffix(".json.bak")
+            shutil.copy2(hp, bak)
+            console.print(
+                f"[yellow]⚠ history.json corrupted, backed up to {bak}[/yellow]"
+            )
+            return []
         except Exception:
             return []
 
@@ -1413,7 +1507,9 @@ class JikaiTUI:
         console.print("=" * 60)
         history = self._load_history()
         if not history:
-            console.print("[dim]No generation history yet. Generate a hypothetical first.[/dim]")
+            console.print(
+                "[dim]No generation history yet. Generate a hypothetical first.[/dim]"
+            )
             return
         while True:
             c = _select(
@@ -1431,9 +1527,7 @@ class JikaiTUI:
                 term = _text("Search keyword")
                 if not term:
                     continue
-                filtered = [
-                    h for h in history if term.lower() in json.dumps(h).lower()
-                ]
+                filtered = [h for h in history if term.lower() in json.dumps(h).lower()]
                 console.print(f"[green]{len(filtered)} matches[/green]")
                 self._display_history(filtered)
             elif c == "filter":
@@ -1471,7 +1565,9 @@ class JikaiTUI:
             ht.add_row(str(i), ts, topic, score, text.replace("\n", " "))
         console.print(ht)
         # Option to view full record
-        idx = _text(f"View record # (1-{min(20, len(records))}, Enter to skip)", default="")
+        idx = _text(
+            f"View record # (1-{min(20, len(records))}, Enter to skip)", default=""
+        )
         if idx:
             try:
                 rec = records[-20:][int(idx) - 1]
@@ -1583,13 +1679,16 @@ class JikaiTUI:
             )
         mt.add_row(
             "Embeddings",
-            "[green]Ready[/green]" if self._embeddings_ready() else "[dim]Not indexed[/dim]",
+            "[green]Ready[/green]"
+            if self._embeddings_ready()
+            else "[dim]Not indexed[/dim]",
         )
         console.print(mt)
 
         # Cost estimate from LLM service
         try:
             from ..services.llm_service import llm_service
+
             cost = llm_service.get_session_cost()
             ct = Table(title="Session Cost", box=box.ROUNDED)
             ct.add_column("Metric", style="cyan")
@@ -1666,9 +1765,7 @@ class JikaiTUI:
                 )
                 return await hypothetical_service.generate_hypothetical(req)
 
-            with console.status(
-                "[bold green]Generating variation...", spinner="dots"
-            ):
+            with console.status("[bold green]Generating variation...", spinner="dots"):
                 resp = _run_async(_var())
             console.print(
                 Panel(
@@ -1679,13 +1776,15 @@ class JikaiTUI:
                 )
             )
             score = resp.validation_results.get("quality_score", 0.0)
-            self._save_to_history({
-                "config": new_cfg,
-                "hypothetical": resp.hypothetical,
-                "analysis": resp.analysis,
-                "validation_score": score,
-                "variation_of": original_record.get("timestamp", ""),
-            })
+            self._save_to_history(
+                {
+                    "config": new_cfg,
+                    "hypothetical": resp.hypothetical,
+                    "analysis": resp.analysis,
+                    "validation_score": score,
+                    "variation_of": original_record.get("timestamp", ""),
+                }
+            )
             console.print(f"[green]✓ Variation saved (score: {score:.1f})[/green]")
         except Exception as e:
             console.print(f"[red]✗ Variation failed: {e}[/red]")
@@ -2283,7 +2382,8 @@ class JikaiTUI:
             f"DATABASE_PATH={db_path}",
             f"LOG_LEVEL={log_level}",
         ]
-        with open(".env", "w") as f:
+        fd = os.open(".env", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
             f.write("\n".join(lines) + "\n")
         console.print("[green]✓ Settings saved to .env[/green]")
         tlog.info("SETTINGS  saved")
@@ -2368,10 +2468,7 @@ class JikaiTUI:
     # ── first-run wizard ─────────────────────────────────────────
     def _needs_first_run(self) -> bool:
         """Detect empty state: no .env, no corpus.json, no models."""
-        return not (
-            Path(".env").exists()
-            and self._corpus_ready()
-        )
+        return not (Path(".env").exists() and self._corpus_ready())
 
     def first_run_wizard(self):
         """Walk user through initial setup."""
@@ -2413,7 +2510,9 @@ class JikaiTUI:
                 if self._corpus_ready():
                     self.generate_flow()
                 else:
-                    console.print("[yellow]Corpus not ready yet. Skipping generation.[/yellow]")
+                    console.print(
+                        "[yellow]Corpus not ready yet. Skipping generation.[/yellow]"
+                    )
         console.print("[bold green]Setup complete! Entering main menu.[/bold green]\n")
 
     # ── entry point ─────────────────────────────────────────────
