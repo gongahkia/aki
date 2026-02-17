@@ -287,6 +287,8 @@ class JikaiTUI:
         self._models_dir = "models"
         self._train_data = "corpus/labelled/sample.csv"
         self._nav_path: list = []
+        self._last_history_load_time: float = 0.0
+        self._cached_last_score: str = "—"
 
     def _push_nav(self, label: str):
         self._nav_path.append(label)
@@ -347,13 +349,19 @@ class JikaiTUI:
                 pass
         models_icon = "[green]✓[/green]" if self._models_ready() else "[red]✗[/red]"
         embed_icon = "[green]✓[/green]" if self._embeddings_ready() else "[red]✗[/red]"
-        # Last quality score
-        history = self._load_history()
-        last_score = "—"
-        if history:
-            s = history[-1].get("validation_score", history[-1].get("score"))
-            if s is not None:
-                last_score = f"{float(s):.1f}"
+        # Last quality score — cached for 5s
+        import time as _time
+
+        now = _time.time()
+        if now - self._last_history_load_time > 5.0:
+            history = self._load_history()
+            self._cached_last_score = "—"
+            if history:
+                s = history[-1].get("validation_score", history[-1].get("score"))
+                if s is not None:
+                    self._cached_last_score = f"{float(s):.1f}"
+            self._last_history_load_time = now
+        last_score = self._cached_last_score
         console.print(
             Panel(
                 f"[dim]Provider:[/dim] {provider}/{model or '—'}  "

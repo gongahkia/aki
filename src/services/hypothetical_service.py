@@ -4,6 +4,7 @@ Combines prompt engineering, LLM service, and corpus service to create high-qual
 """
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -223,7 +224,7 @@ class HypotheticalService:
         try:
             from .vector_service import vector_service
 
-            if vector_service._initialized:
+            if vector_service._initialized or Path("chroma_db").exists():
                 results = await vector_service.semantic_search(
                     query_topics=request.topics,
                     n_results=min(3, request.sample_size),

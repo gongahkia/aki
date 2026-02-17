@@ -28,7 +28,6 @@ class VectorService:
         self._collection: Optional[chromadb.Collection] = None
         self._embedding_model: Optional[SentenceTransformer] = None
         self._initialized = False
-        self._initialize()
 
     def _initialize(self):
         """Initialize ChromaDB client and embedding model."""
@@ -86,6 +85,11 @@ class VectorService:
         embedding = self._embedding_model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
 
+    def _ensure_initialized(self):
+        """Lazy init — only initialize on first use."""
+        if not self._initialized:
+            self._initialize()
+
     async def index_hypotheticals(self, hypotheticals: List[Dict[str, Any]]) -> int:
         """
         Index hypotheticals in ChromaDB for semantic search.
@@ -96,6 +100,7 @@ class VectorService:
         Returns:
             Number of entries indexed
         """
+        self._ensure_initialized()
         if not self._initialized:
             raise VectorServiceError("Vector service not initialized")
 
@@ -167,6 +172,7 @@ class VectorService:
         Returns:
             List of relevant hypothetical entries with similarity scores
         """
+        self._ensure_initialized()
         if not self._initialized:
             logger.warning("Vector service not initialized, returning empty results")
             return []
