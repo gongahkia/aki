@@ -409,6 +409,10 @@ class JikaiTUI:
             embed_disabled = None if corpus_ok else "preprocess corpus first"
             gen_disabled = None if corpus_ok else "preprocess corpus first"
 
+            history = self._load_history()
+            has_history = len(history) > 0
+            export_disabled = None if has_history else "generate a hypothetical first"
+
             from prompt_toolkit.styles import Style as PtStyle
 
             menu_style = PtStyle.from_dict({
@@ -427,7 +431,7 @@ class JikaiTUI:
                 return [(cls, text)]
 
             choice = _select_quit(
-                "Select (workflow: 1 → 1a/1b → 2/2a → 3)",
+                "Select (workflow: 1 → 1a/1b → 2/2a → 3 → 4)",
                 choices=[
                     Choice(
                         title=_lbl("1.  OCR / Preprocess Corpus") + _tag(corpus_ok),
@@ -460,8 +464,14 @@ class JikaiTUI:
                         value="gen",
                         disabled=gen_disabled,
                     ),
+                    Choice(
+                        title=_lbl("4.  Export DOCX/PDF", has_history),
+                        value="export",
+                        disabled=export_disabled,
+                    ),
                     Choice("History", value="history"),
-                    Choice("Tools ›", value="tools"),
+                    Choice("Stats Dashboard", value="stats"),
+                    Choice("Power Tools ›", value="tools"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
                 ],
@@ -478,8 +488,10 @@ class JikaiTUI:
                 "train": "Train",
                 "embed": "Embed",
                 "gen": "Generate",
-                "tools": "Tools",
+                "export": "Export",
+                "tools": "Power Tools",
                 "history": "History",
+                "stats": "Stats",
                 "settings": "Settings",
                 "providers": "Providers",
             }
@@ -497,10 +509,14 @@ class JikaiTUI:
                 self.embed_flow()
             elif choice == "gen":
                 self.generate_flow()
+            elif choice == "export":
+                self.export_flow()
             elif choice == "tools":
                 self._tools_menu()
             elif choice == "history":
                 self.history_flow()
+            elif choice == "stats":
+                self.stats_flow()
             elif choice == "settings":
                 self.settings_flow()
             elif choice == "providers":
@@ -510,18 +526,16 @@ class JikaiTUI:
                 self._pop_nav()
 
     def _tools_menu(self):
-        """Submenu for utility tools outside the core workflow."""
+        """Submenu for power tools outside the core workflow."""
         while True:
-            console.print("\n[bold yellow]Tools[/bold yellow]")
+            console.print("\n[bold yellow]Power Tools[/bold yellow]")
             console.print("=" * 60)
             c = _select(
-                "Tools",
+                "Power Tools",
                 choices=[
                     Choice("Batch Generate", value="batch_gen"),
-                    Choice("Export DOCX/PDF", value="export"),
                     Choice("Import SG Cases", value="import_cases"),
                     Choice("Bulk Label", value="bulk_label"),
-                    Choice("Stats Dashboard", value="stats"),
                     Choice("Back", value="back"),
                 ],
             )
@@ -529,23 +543,17 @@ class JikaiTUI:
                 return
             _labels = {
                 "batch_gen": "Batch",
-                "export": "Export",
                 "import_cases": "Import",
                 "bulk_label": "Bulk Label",
-                "stats": "Stats",
             }
             if c in _labels:
                 self._push_nav(_labels[c])
             if c == "batch_gen":
                 self.batch_generate_flow()
-            elif c == "export":
-                self.export_flow()
             elif c == "import_cases":
                 self.import_cases_flow()
             elif c == "bulk_label":
                 self.bulk_label_flow()
-            elif c == "stats":
-                self.stats_flow()
             if c in _labels:
                 self._pop_nav()
 
