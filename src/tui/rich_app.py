@@ -1212,8 +1212,98 @@ class JikaiTUI:
                             border_style="magenta",
                         )
                     )
+                self._offer_variation(rec)
             except (ValueError, IndexError):
                 console.print("[red]Invalid selection[/red]")
+
+    def _offer_variation(self, original_record: Dict):
+        """Offer to create a variation of a generated or historical hypothetical."""
+        if not _confirm("Create a variation?", default=False):
+            return
+        cfg = original_record.get("config", {})
+        param = _select(
+            "Which parameter to vary?",
+            choices=[
+                Choice("Swap topic", value="topic"),
+                Choice("Change party count", value="parties"),
+                Choice("Change complexity", value="complexity"),
+                Choice("Change difficulty/method", value="method"),
+            ],
+        )
+        if param is None:
+            return
+        new_cfg = dict(cfg)
+        if param == "topic":
+            new_topic = _select("New topic", choices=_topic_choices())
+            if new_topic is None:
+                return
+            new_cfg["topic"] = new_topic
+        elif param == "parties":
+            new_parties = _select("New party count", choices=PARTIES_CHOICES)
+            if new_parties is None:
+                return
+            new_cfg["parties"] = int(new_parties)
+        elif param == "complexity":
+            new_c = _select("New complexity", choices=COMPLEXITY_CHOICES)
+            if new_c is None:
+                return
+            new_cfg["complexity"] = int(new_c)
+        elif param == "method":
+            new_m = _select("New method", choices=METHOD_CHOICES)
+            if new_m is None:
+                return
+            new_cfg["method"] = new_m
+
+        # Generate variation using full generation with reference to original
+        try:
+            from ..services.hypothetical_service import (
+                GenerationRequest,
+                hypothetical_service,
+            )
+
+            original_text = original_record.get("hypothetical", "")
+            prefs = {
+                "feedback": (
+                    f"Create a variation of this hypothetical by changing the {param}. "
+                    f"Original scenario (for reference, do NOT copy):\n{original_text[:500]}..."
+                )
+            }
+
+            async def _var():
+                req = GenerationRequest(
+                    topics=[new_cfg.get("topic", cfg.get("topic", "negligence"))],
+                    number_parties=max(2, min(5, new_cfg.get("parties", 3))),
+                    complexity_level=str(new_cfg.get("complexity", "3")),
+                    method=new_cfg.get("method", "pure_llm"),
+                    provider=new_cfg.get("provider"),
+                    model=new_cfg.get("model"),
+                    user_preferences=prefs,
+                )
+                return await hypothetical_service.generate_hypothetical(req)
+
+            with console.status(
+                "[bold green]Generating variation...", spinner="dots"
+            ):
+                resp = _run_async(_var())
+            console.print(
+                Panel(
+                    resp.hypothetical,
+                    title=f"Variation (changed: {param})",
+                    box=box.ROUNDED,
+                    border_style="yellow",
+                )
+            )
+            score = resp.validation_results.get("quality_score", 0.0)
+            self._save_to_history({
+                "config": new_cfg,
+                "hypothetical": resp.hypothetical,
+                "analysis": resp.analysis,
+                "validation_score": score,
+                "variation_of": original_record.get("timestamp", ""),
+            })
+            console.print(f"[green]✓ Variation saved (score: {score:.1f})[/green]")
+        except Exception as e:
+            console.print(f"[red]✗ Variation failed: {e}[/red]")
 
     # ── train ───────────────────────────────────────────────────
     def train_flow(self):
