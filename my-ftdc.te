@@ -1,0 +1,13 @@
+
+module my-ftdc 1.0;
+
+require {
+	type mongod_t;
+	type snappy_var_lib_t;
+	type var_lib_nfs_t;
+	class dir search;
+}
+
+#============= mongod_t ==============
+allow mongod_t snappy_var_lib_t:dir search;
+allow mongod_t var_lib_nfs_t:dir search;

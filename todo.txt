@@ -3,22 +3,12 @@
 
 ## generation robustness (do first — improves all downstream features)
 
-[ ] auto-retry loop: add retry_count param to generate_flow, if validation score < 7.0 auto-regenerate with appended feedback prompt (max 3 retries), show attempt counter in TUI
-[ ] temperature slider: add temperature select (0.1-1.5 in 0.1 steps) to generate_flow after model select, pass through to LLMRequest, default 0.7
-[ ] dynamic few-shot: in hypothetical_service._get_relevant_context, use vector_service.semantic_search (if embeddings exist) to pull top-3 similar corpus entries as few-shot examples instead of hardcoded ones in templates.py
-[ ] SG case DB import: add import_cases_flow to TUI — accept PDF/DOCX of SG case summaries, OCR/extract via corpus_preprocessor, store in corpus/cases/ as structured JSON (case_name, citation, summary, topics)
-[ ] case law citations: add SG case name DB (corpus/cases/*.json), inject relevant case citations into generation prompt via topic-to-case mapping, validate presence in output
-[ ] red herrings: add red_herring toggle to generate_flow, when enabled append instruction to prompt to include 1-2 legally irrelevant but plausible facts, add validation check that red herrings don't dominate
 
 ## lawyer-facing features
 
-[ ] model answers: after hypothetical generation, offer "Generate model answer?" — produce issue-spotting checklist + structured IRAC analysis per identified issue, display in separate panel, save alongside hypothetical
-[ ] batch generation: add batch_generate_flow to TUI — user selects N (2-10), topic spread strategy (random/specified/balanced), difficulty mix, generate sequentially with progress, collect all results, display summary table
-[ ] export DOCX/PDF: add export_flow — take generated hypothetical + analysis + model answer, render to DOCX via python-docx with legal doc styling (headings, numbered paragraphs, footer with metadata), optional PDF conversion via weasyprint
 
 ## TUI features
 
-[ ] generation history: create data/history.json, auto-save every generation (timestamp, config, hypothetical text, analysis, validation score, model answer if generated), add "History" to main menu with search/filter/recall
 [ ] hypo variations: add "Create variation" option after viewing a generated or historical hypothetical — let user toggle one parameter (swap topic, add/remove party, change complexity, change difficulty), regenerate with seeded prompt referencing original
 [ ] bulk labelling: add bulk_label_flow — show entry text in panel, single-keystroke quality (1-9), difficulty (e/m/h), auto-advance to next entry, show running count, save in batches of 10
 [ ] stats dashboard: add stats_flow to main menu — read history.json + labelled CSV + model metrics, display tables for: total generations, avg quality score, topic frequency distribution, cost estimate from llm_service token tracking, model training status
