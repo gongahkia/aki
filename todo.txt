@@ -1,23 +1,7 @@
 # jikai — audit-driven improvement tasks
 # Priority (B) = audit-suggested. Ordered by impact, grouped by concern.
 
-## data integrity (addresses: data loss/corruption pain point)
 
-[ ] atomic history writes: in rich_app.py _save_to_history, write to data/history.json.tmp then os.rename() to data/history.json — prevents partial writes from corrupting the file on crash +stability
-[ ] atomic state writes: in rich_app.py _save_state, write to .jikai_state.tmp then os.rename() to .jikai_state — same atomic write pattern +stability
-[ ] history corruption recovery: in rich_app.py _load_history, catch json.JSONDecodeError specifically, backup the corrupted file as history.json.bak, log a warning to console, and return empty list +stability
-[ ] state corruption recovery: in rich_app.py _load_state, catch json.JSONDecodeError specifically, backup as .jikai_state.bak, warn user, return empty dict +stability
-[ ] env file permissions: in rich_app.py settings_flow where .env is written (os.open with 0o600 mode instead of open()), ensure API keys are not world-readable +security
-[ ] history size cap: in rich_app.py _save_to_history, if history exceeds 500 entries, trim oldest entries before writing — prevents unbounded growth of history.json +stability
-
-## LLM output quality (addresses: output quality pain point)
-
-[ ] empty response guard: in hypothetical_service.py _generate_hypothetical_text, after calling _extract_hypothetical_from_response, check if result is empty or <50 chars and raise HypotheticalServiceError("LLM returned empty/too-short response") instead of passing empty string to validation +quality
-[ ] prompt feedback injection: in hypothetical_service.py _generate_hypothetical_text, if request.user_preferences contains "feedback" key, append it to the user prompt before LLM call — currently only done for red_herrings, make feedback always append +quality
-[ ] temperature clamping: in hypothetical_service.py _generate_hypothetical_text, clamp temperature to [0.0, 2.0] range before creating LLMRequest — prevents provider errors from out-of-range values +quality
-[ ] validation detail in retry: in rich_app.py _do_generate retry loop, extract individual check messages from validation_results.checks (not just passed/failed) and include word count, party count, topic coverage in the feedback string +quality
-[ ] empty corpus context warning: in hypothetical_service.py _get_relevant_context, if both semantic search and keyword fallback return zero entries, log a warning and include a note in user_preferences feedback telling the LLM there are no reference examples available +quality
-[ ] stricter topic keyword matching: in validation_service.py validate_topic_inclusion, add underscore-to-space normalization before lookup (e.g. "duty_of_care" → "duty of care") so topics like "duty_of_care" match the keyword dict keys +quality
 
 ## setup friction (addresses: setup friction pain point)
 
