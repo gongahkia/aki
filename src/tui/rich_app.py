@@ -433,12 +433,8 @@ class JikaiTUI:
                     Choice(
                         "3.  Generate Hypothetical", value="gen", disabled=gen_disabled
                     ),
-                    Choice("Batch Generate", value="batch_gen"),
-                    Choice("Export DOCX/PDF", value="export"),
-                    Choice("Import SG Cases", value="import_cases"),
-                    Choice("Bulk Label", value="bulk_label"),
-                    Choice("Stats Dashboard", value="stats"),
                     Choice("History", value="history"),
+                    Choice("Tools ›", value="tools"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
                 ],
@@ -454,11 +450,7 @@ class JikaiTUI:
                 "train": "Train",
                 "embed": "Embed",
                 "gen": "Generate",
-                "batch_gen": "Batch",
-                "export": "Export",
-                "import_cases": "Import",
-                "bulk_label": "Bulk Label",
-                "stats": "Stats",
+                "tools": "Tools",
                 "history": "History",
                 "settings": "Settings",
                 "providers": "Providers",
@@ -477,16 +469,8 @@ class JikaiTUI:
                 self.embed_flow()
             elif choice == "gen":
                 self.generate_flow()
-            elif choice == "batch_gen":
-                self.batch_generate_flow()
-            elif choice == "export":
-                self.export_flow()
-            elif choice == "import_cases":
-                self.import_cases_flow()
-            elif choice == "bulk_label":
-                self.bulk_label_flow()
-            elif choice == "stats":
-                self.stats_flow()
+            elif choice == "tools":
+                self._tools_menu()
             elif choice == "history":
                 self.history_flow()
             elif choice == "settings":
@@ -495,6 +479,46 @@ class JikaiTUI:
                 self.providers_flow()
             # Pop nav after returning from submenu
             if choice in _flow_labels:
+                self._pop_nav()
+
+    def _tools_menu(self):
+        """Submenu for utility tools outside the core workflow."""
+        while True:
+            console.print("\n[bold yellow]Tools[/bold yellow]")
+            console.print("=" * 60)
+            c = _select(
+                "Tools",
+                choices=[
+                    Choice("Batch Generate", value="batch_gen"),
+                    Choice("Export DOCX/PDF", value="export"),
+                    Choice("Import SG Cases", value="import_cases"),
+                    Choice("Bulk Label", value="bulk_label"),
+                    Choice("Stats Dashboard", value="stats"),
+                    Choice("Back", value="back"),
+                ],
+            )
+            if c is None or c == "back":
+                return
+            _labels = {
+                "batch_gen": "Batch",
+                "export": "Export",
+                "import_cases": "Import",
+                "bulk_label": "Bulk Label",
+                "stats": "Stats",
+            }
+            if c in _labels:
+                self._push_nav(_labels[c])
+            if c == "batch_gen":
+                self.batch_generate_flow()
+            elif c == "export":
+                self.export_flow()
+            elif c == "import_cases":
+                self.import_cases_flow()
+            elif c == "bulk_label":
+                self.bulk_label_flow()
+            elif c == "stats":
+                self.stats_flow()
+            if c in _labels:
                 self._pop_nav()
 
     # ── ocr / preprocess ──────────────────────────────────────
