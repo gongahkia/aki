@@ -2186,9 +2186,62 @@ class JikaiTUI:
         except Exception as e:
             console.print(f"[red]✗ Failed: {e}[/red]")
 
+    # ── first-run wizard ─────────────────────────────────────────
+    def _needs_first_run(self) -> bool:
+        """Detect empty state: no .env, no corpus.json, no models."""
+        return not (
+            Path(".env").exists()
+            and self._corpus_ready()
+        )
+
+    def first_run_wizard(self):
+        """Walk user through initial setup."""
+        console.print(
+            Panel(
+                "[bold cyan]Welcome to Jikai![/bold cyan]\n"
+                "[dim]Let's set up your environment. Steps already done will be skipped.[/dim]",
+                box=box.DOUBLE,
+                border_style="cyan",
+            )
+        )
+        steps = [
+            ("Configure API Keys", Path(".env").exists(), "settings"),
+            ("Preprocess Corpus", self._corpus_ready(), "ocr"),
+            ("Label Entries (optional)", self._labelled_ready(), "label"),
+            ("Generate First Hypothetical", False, "gen"),
+        ]
+        checklist = Table(title="Setup Checklist", box=box.ROUNDED)
+        checklist.add_column("Step", style="cyan")
+        checklist.add_column("Status", style="yellow")
+        for name, done, _ in steps:
+            icon = "[green]✓ Done[/green]" if done else "[dim]Pending[/dim]"
+            checklist.add_row(name, icon)
+        console.print(checklist)
+
+        for name, done, action in steps:
+            if done:
+                console.print(f"[green]✓ {name} — already done, skipping[/green]")
+                continue
+            if not _confirm(f"Proceed with: {name}?", default=True):
+                continue
+            if action == "settings":
+                self.settings_flow()
+            elif action == "ocr":
+                self.ocr_flow()
+            elif action == "label":
+                self.label_flow()
+            elif action == "gen":
+                if self._corpus_ready():
+                    self.generate_flow()
+                else:
+                    console.print("[yellow]Corpus not ready yet. Skipping generation.[/yellow]")
+        console.print("[bold green]Setup complete! Entering main menu.[/bold green]\n")
+
     # ── entry point ─────────────────────────────────────────────
     def run(self):
         self.display_banner()
+        if self._needs_first_run():
+            self.first_run_wizard()
         self.main_menu()
 
 
