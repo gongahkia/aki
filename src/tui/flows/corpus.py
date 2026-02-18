@@ -231,7 +231,7 @@ class CorpusFlowMixin:
         if not _confirm(f"Preprocess {raw_dir} → {output_path}?", default=True):
             return
         try:
-            from ..services.corpus_preprocessor import build_corpus
+            from src.services.corpus_preprocessor import build_corpus
 
             with console.status(
                 "[bold green]Preprocessing raw corpus...", spinner="dots"
@@ -309,7 +309,7 @@ class CorpusFlowMixin:
             console.print("[red]✗ Unsupported format. Use PDF, DOCX, or TXT.[/red]")
             return
         try:
-            from ..services.corpus_preprocessor import extract_text, normalize_text
+            from src.services.corpus_preprocessor import extract_text, normalize_text
 
             with console.status("[bold green]Extracting text...", spinner="dots"):
                 raw_text = normalize_text(extract_text(p))

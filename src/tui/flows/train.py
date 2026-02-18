@@ -168,7 +168,7 @@ class TrainFlowMixin:
 
     def _do_train(self, data_path, max_features, test_split, train_cls, cls_c, train_reg, reg_alpha, train_clu, n_clusters):
         try:
-            from ..ml.pipeline import MLPipeline
+            from src.ml.pipeline import MLPipeline
 
             pipeline = MLPipeline()
             stages = {
@@ -272,7 +272,7 @@ class TrainFlowMixin:
             if not entries:
                 console.print("[red]✗ No entries in corpus[/red]")
                 return
-            from ..services.vector_service import VectorService
+            from src.services.vector_service import VectorService
 
             hypos = []
             for i, e in enumerate(entries):

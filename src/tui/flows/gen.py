@@ -185,8 +185,8 @@ class GenerationFlowMixin:
         max_retries = 3
         partial_result = ""
         try:
-            from ..services.llm_service import LLMRequest, llm_service
-            from ..services.validation_service import validation_service
+            from src.services.llm_service import LLMRequest, llm_service
+            from src.services.validation_service import validation_service
 
             red_herring_instr = ""
             if red_herrings:
@@ -272,7 +272,7 @@ class GenerationFlowMixin:
                     f"({stream_err}), using full generation...[/yellow]"
                 )
 
-            from ..services.hypothetical_service import (
+            from src.services.hypothetical_service import (
                 GenerationRequest,
                 hypothetical_service,
             )
@@ -468,7 +468,7 @@ class GenerationFlowMixin:
         if not _confirm("Generate model answer?", default=False):
             return
         try:
-            from ..services.llm_service import LLMRequest, llm_service
+            from src.services.llm_service import LLMRequest, llm_service
 
             prompt = (
                 "You are an expert Singapore tort law tutor. Given the following hypothetical, "
@@ -665,7 +665,7 @@ class GenerationFlowMixin:
         if not _confirm(f"Generate {count} hypotheticals?", default=True):
             return
 
-        from ..services.hypothetical_service import (
+        from src.services.hypothetical_service import (
             GenerationRequest,
             hypothetical_service,
         )
@@ -920,7 +920,7 @@ class GenerationFlowMixin:
 
         # Generate variation using full generation with reference to original
         try:
-            from ..services.hypothetical_service import (
+            from src.services.hypothetical_service import (
                 GenerationRequest,
                 hypothetical_service,
             )

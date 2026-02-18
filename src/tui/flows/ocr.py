@@ -40,7 +40,7 @@ class OCRFlowMixin:
         if not path:
             return
         try:
-            from ..services.corpus_preprocessor import extract_text, normalize_text
+            from src.services.corpus_preprocessor import extract_text, normalize_text
 
             with console.status("[bold green]Extracting text...", spinner="dots"):
                 text = normalize_text(extract_text(Path(path)))
