@@ -976,22 +976,78 @@ class JikaiTUI:
     def export_flow(self):
         """Export a generated hypothetical + analysis to DOCX (and optionally PDF)."""
         console.print("\n[bold yellow]Export Hypothetical to DOCX/PDF[/bold yellow]")
-        console.print("=" * 60)
         console.print(
-            "[dim]First generate a hypothetical, then export it.\n"
+            "[dim]Export a generated hypothetical to a document.\n"
             "Requires python-docx (pip install python-docx).\n"
-            "PDF conversion requires weasyprint (optional).[/dim]\n"
+            "PDF conversion requires docx2pdf (optional).[/dim]\n"
         )
-        hypo_text = _text("Paste hypothetical text (or path to .txt file)", default="")
-        if not hypo_text:
+        history = self._load_history()
+        hypo_text = ""
+        analysis_text = ""
+        model_answer = ""
+
+        # Offer options: export from history or paste manually
+        source_choices = []
+        if history:
+            source_choices.append(Choice("Export last generated", value="last"))
+            source_choices.append(Choice("Select from history", value="history"))
+        source_choices.append(Choice("Paste text manually", value="paste"))
+        source_choices.append(Choice("Back", value="back"))
+
+        source = _select("Export source", choices=source_choices)
+        if source is None or source == "back":
             return
-        # Check if it's a file path
-        if Path(hypo_text).exists() and Path(hypo_text).is_file():
-            hypo_text = Path(hypo_text).read_text(encoding="utf-8")
-        analysis_text = _text(
-            "Paste analysis text (optional, Enter to skip)", default=""
-        )
-        model_answer = _text("Paste model answer (optional, Enter to skip)", default="")
+
+        if source == "last" and history:
+            rec = history[-1]
+            hypo_text = rec.get("hypothetical", "")
+            analysis_text = rec.get("analysis", "")
+            model_answer = rec.get("model_answer", "")
+            topic = rec.get("config", {}).get("topic", "hypothetical")
+            console.print(f"[green]✓ Loaded last generated ({topic})[/green]")
+        elif source == "history" and history:
+            # Show history selection
+            ht = Table(title=f"Select from History ({len(history)} records)", box=box.ROUNDED)
+            ht.add_column("#", style="cyan", width=4)
+            ht.add_column("Time", style="dim", width=16)
+            ht.add_column("Topic", style="yellow", width=18)
+            ht.add_column("Preview", style="dim")
+            display_records = history[-20:]
+            for i, r in enumerate(display_records, 1):
+                ts = r.get("timestamp", "")[:16]
+                cfg = r.get("config", {})
+                topic = cfg.get("topic", str(cfg.get("topics", "")))
+                text = r.get("hypothetical", "")[:60]
+                ht.add_row(str(i), ts, topic, text.replace("\n", " "))
+            console.print(ht)
+            idx = _text(f"Select record # (1-{len(display_records)})", default="1")
+            if not idx:
+                return
+            try:
+                rec = display_records[int(idx) - 1]
+                hypo_text = rec.get("hypothetical", "")
+                analysis_text = rec.get("analysis", "")
+                model_answer = rec.get("model_answer", "")
+                console.print(f"[green]✓ Loaded record #{idx}[/green]")
+            except (ValueError, IndexError):
+                console.print("[red]Invalid selection[/red]")
+                return
+        elif source == "paste":
+            hypo_text = _text("Paste hypothetical text (or path to .txt file)", default="")
+            if not hypo_text:
+                return
+            # Check if it's a file path
+            if Path(hypo_text).exists() and Path(hypo_text).is_file():
+                hypo_text = Path(hypo_text).read_text(encoding="utf-8")
+            analysis_text = _text(
+                "Paste analysis text (optional, Enter to skip)", default=""
+            )
+            model_answer = _text("Paste model answer (optional, Enter to skip)", default="")
+
+        if not hypo_text:
+            console.print("[red]✗ No hypothetical text to export[/red]")
+            return
+
         out_path = _path("Output DOCX path", default="exports/hypothetical.docx")
         if not out_path:
             return
@@ -1347,6 +1403,7 @@ class JikaiTUI:
                         self._offer_model_answer(
                             result, topic, provider, model, temperature
                         )
+                        self._offer_export_now()
                         return
                     console.print(
                         f"[yellow]Score {score:.1f}/10 < 7.0, retrying with full generation...[/yellow]"
@@ -1435,6 +1492,7 @@ class JikaiTUI:
                     self._offer_model_answer(
                         response.hypothetical, topic, provider, model, temperature
                     )
+                    self._offer_export_now()
                     return
 
                 if attempt < max_retries:
@@ -1545,6 +1603,12 @@ class JikaiTUI:
             "[green]Yes[/green]" if vr.get("passed") else "[red]No[/red]",
         )
         console.print(vt)
+
+    def _offer_export_now(self):
+        """Offer to export the last generated hypothetical immediately."""
+        if not _confirm("Export now?", default=False):
+            return
+        self.export_flow()
 
     def _save_to_history(self, record: Dict):
         """Append a generation record to data/history.json."""
