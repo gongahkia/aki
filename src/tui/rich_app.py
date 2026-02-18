@@ -910,6 +910,13 @@ class JikaiTUI:
         provider = _select("Provider", choices=PROVIDER_CHOICES)
         if provider is None:
             return
+        # Auto-check provider health
+        with console.status(f"[dim]Checking {provider}...", spinner="dots"):
+            healthy = self._ping_provider(provider)
+        if not healthy:
+            console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
+            if not _confirm(f"Continue with {provider} anyway?", default=False):
+                return
         model_name = _select("Model", choices=_model_choices(provider))
         if model_name is None:
             return
@@ -1276,6 +1283,13 @@ class JikaiTUI:
                 provider = _select("Provider", choices=PROVIDER_CHOICES)
                 if provider is None:
                     return
+                # Auto-check provider health
+                with console.status(f"[dim]Checking {provider}...", spinner="dots"):
+                    healthy = self._ping_provider(provider)
+                if not healthy:
+                    console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
+                    if not _confirm(f"Continue with {provider} anyway?", default=False):
+                        return
                 model_name = _select("Model", choices=_model_choices(provider))
                 if model_name is None:
                     return
@@ -2673,6 +2687,22 @@ class JikaiTUI:
             tlog.info("HEALTH  %s", {k: str(v) for k, v in health.items()})
         except Exception as e:
             console.print(f"[red]✗ Health check failed: {e}[/red]")
+
+    def _ping_provider(self, provider: str) -> bool:
+        """Ping a provider to check if it's reachable. Returns True if healthy."""
+        try:
+            from ..services.llm_service import llm_service
+
+            async def _check():
+                h = await llm_service.health_check()
+                return h.get(provider, {})
+
+            status = _run_async(_check())
+            if isinstance(status, dict):
+                return status.get("healthy", False)
+            return bool(status)
+        except Exception:
+            return False
 
     def _set_default_provider(self):
         provider = _select("Default provider", choices=PROVIDER_CHOICES)

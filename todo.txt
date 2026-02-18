@@ -22,11 +22,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- CONSISTENCY AND STANDARDS ---
 
-[P1] H. Use _select_quit consistently across all menus
-  - Sub-menus (OCR, Corpus, Power Tools, History) currently use plain _select with no q-to-quit
-  - Replace _select with _select_quit in all sub-menus so q always means "go back"
-  - Ensure consistent "Back" behavior everywhere
-
 [P2] I. Rename "Power Tools" to "Batch Operations"
   - Contents are: Batch Generate, Import SG Cases, Bulk Label
   - "Batch Operations" describes the grouping more clearly than "Power Tools"
