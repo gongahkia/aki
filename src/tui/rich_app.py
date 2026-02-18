@@ -192,6 +192,8 @@ HELP_DESCRIPTIONS = {
     "tools": "batch operations: bulk generate, import cases, bulk label",
     "settings": "configure API keys, hosts, and defaults",
     "providers": "check health and set default LLM provider",
+    "guided": "step-by-step walkthrough for first-time users",
+    "cleanup": "selectively remove generated files, models, logs, etc.",
     "more": "access secondary features: history, stats, settings, etc.",
 }
 
@@ -566,12 +568,15 @@ class JikaiTUI:
                         value="export",
                         disabled=export_disabled,
                     ),
-                    Choice("Guided Mode (First-time users)", value="guided"),
                     Choice("More... ›", value="more"),
                 ],
                 style=menu_style,
             )
             if choice is None:
+                if _confirm("Clean up Jikai files before exiting?", default=False):
+                    self._push_nav("Clean Up")
+                    self.cleanup_flow()
+                    self._pop_nav()
                 console.print("[dim]Goodbye.[/dim]")
                 tlog.info("=== TUI session ended ===")
                 break
@@ -583,7 +588,6 @@ class JikaiTUI:
                 "embed": "Index Semantic Search",
                 "gen": "Generate",
                 "export": "Export",
-                "guided": "Guided Mode",
                 "more": "More",
                 "tools": "Batch Operations",
                 "history": "History",
@@ -607,8 +611,6 @@ class JikaiTUI:
                 self.generate_flow()
             elif choice == "export":
                 self.export_flow()
-            elif choice == "guided":
-                self.guided_mode()
             elif choice == "more":
                 result = self._more_menu()
                 if result == "__jump_gen__":
@@ -633,7 +635,7 @@ class JikaiTUI:
                 self._pop_nav()
 
     def _more_menu(self):
-        """Submenu for secondary features: History, Stats, Batch Ops, Settings, Providers."""
+        """Submenu for secondary features: History, Stats, Batch Ops, Settings, Providers, Clean Up."""
         while True:
             console.print("\n[bold yellow]More[/bold yellow]")
             c = _select_quit(
@@ -644,6 +646,8 @@ class JikaiTUI:
                     Choice("Batch Operations ›", value="tools"),
                     Choice("Settings", value="settings"),
                     Choice("Providers", value="providers"),
+                    Choice("Guided Mode", value="guided"),
+                    Choice("Clean Up", value="cleanup"),
                 ],
             )
             if c is None:
@@ -656,6 +660,8 @@ class JikaiTUI:
                 "tools": "Batch Operations",
                 "settings": "Settings",
                 "providers": "Providers",
+                "guided": "Guided Mode",
+                "cleanup": "Clean Up",
             }
             if c in _labels:
                 self._push_nav(_labels[c])
@@ -673,6 +679,10 @@ class JikaiTUI:
                 self.settings_flow()
             elif c == "providers":
                 self.providers_flow()
+            elif c == "guided":
+                self.guided_mode()
+            elif c == "cleanup":
+                self.cleanup_flow()
             if c in _labels:
                 self._pop_nav()
 
@@ -2927,6 +2937,119 @@ class JikaiTUI:
 
     def _parse_txt(self, p):
         return [{"text": p.read_text(), "topics": "", "quality": "N/A"}]
+
+    # ── clean up ─────────────────────────────────────────────────
+    def cleanup_flow(self):
+        """Let users selectively remove Jikai-generated files and directories."""
+        import shutil
+
+        console.print("\n[bold yellow]Clean Up[/bold yellow]")
+        console.print("[dim]Select which categories of files to remove.[/dim]\n")
+
+        # Define cleanup categories with paths and descriptions
+        categories = {
+            "config": {
+                "label": "Config — .env, .jikai_state, .jikai_state.bak",
+                "paths": [".env", ".jikai_state", ".jikai_state.bak", ".jikai_state.tmp"],
+            },
+            "models": {
+                "label": "ML Models — trained classifiers in models/",
+                "paths": ["models/classifier.joblib", "models/vectorizer.joblib",
+                          "models/binarizer.joblib", "models/regressor.joblib",
+                          "models/clusterer.joblib"],
+            },
+            "history": {
+                "label": "Generation History — data/history.json",
+                "paths": ["data/history.json"],
+            },
+            "embeddings": {
+                "label": "Vector Embeddings — chroma_db/",
+                "paths": ["chroma_db"],
+            },
+            "logs": {
+                "label": "Logs — logs/",
+                "paths": ["logs"],
+            },
+            "labelled": {
+                "label": "Labelled Data — corpus/labelled/",
+                "paths": ["corpus/labelled"],
+            },
+            "db": {
+                "label": "Database — data/jikai.db",
+                "paths": ["data/jikai.db"],
+            },
+        }
+
+        choices = [
+            Choice(cat["label"], value=key)
+            for key, cat in categories.items()
+        ]
+
+        selected = _checkbox("Select categories to clean up", choices=choices)
+        if not selected:
+            console.print("[dim]Nothing selected.[/dim]")
+            return
+
+        # Show what will be deleted
+        st = Table(box=box.ROUNDED, title="Files to Remove", title_style="bold red")
+        st.add_column("Category", style="bold")
+        st.add_column("Path", style="cyan")
+        st.add_column("Status", style="yellow")
+        for key in selected:
+            cat = categories[key]
+            first = True
+            for p in cat["paths"]:
+                path = Path(p)
+                if path.exists():
+                    if path.is_dir():
+                        # Count contents
+                        count = sum(1 for _ in path.rglob("*") if _.is_file())
+                        status = f"exists ({count} files)"
+                    else:
+                        status = "exists"
+                else:
+                    status = "[dim]not found[/dim]"
+                label = cat["label"].split(" — ")[0] if first else ""
+                st.add_row(label, p, status)
+                first = False
+        console.print(st)
+
+        if not _confirm("Proceed with deletion? This cannot be undone.", default=False):
+            console.print("[dim]Cancelled.[/dim]")
+            return
+
+        removed = 0
+        skipped = 0
+        for key in selected:
+            cat = categories[key]
+            for p in cat["paths"]:
+                path = Path(p)
+                if path.exists():
+                    try:
+                        if path.is_dir():
+                            # Preserve .gitkeep files
+                            gitkeep = path / ".gitkeep"
+                            has_gitkeep = gitkeep.exists()
+                            shutil.rmtree(path)
+                            if has_gitkeep:
+                                path.mkdir(parents=True, exist_ok=True)
+                                gitkeep.touch()
+                            removed += 1
+                        else:
+                            path.unlink()
+                            removed += 1
+                    except OSError as e:
+                        console.print(f"[red]✗ Failed to remove {p}: {e}[/red]")
+                        skipped += 1
+                else:
+                    skipped += 1
+
+        console.print(f"\n[green]✓ Cleaned up {removed} item(s)[/green]", end="")
+        if skipped:
+            console.print(f" [dim]({skipped} already absent)[/dim]")
+        else:
+            console.print()
+        tlog.info("CLEANUP  removed=%d skipped=%d categories=%s", removed, skipped, selected)
 
     # ── settings ────────────────────────────────────────────────
     def settings_flow(self):
