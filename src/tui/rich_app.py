@@ -174,22 +174,49 @@ _HOTKEY_MAP = {
     "p": "providers",
 }
 
+HELP_DESCRIPTIONS = {
+    "ocr": "extract text from PDF/DOCX/images into the corpus",
+    "corpus": "view, search, and filter preprocessed corpus entries",
+    "label": "tag corpus entries with topics and quality scores for training",
+    "train": "train ML models on labelled data for better generation",
+    "embed": "create vector embeddings for semantic search during generation",
+    "gen": "create a new tort law scenario using AI",
+    "export": "save a generated hypothetical as DOCX or PDF",
+    "history": "browse past generations with search and filter",
+    "stats": "view statistics about your corpus and generations",
+    "tools": "batch operations: bulk generate, import cases, bulk label",
+    "settings": "configure API keys, hosts, and defaults",
+    "providers": "check health and set default LLM provider",
+    "more": "access secondary features: history, stats, settings, etc.",
+}
+
 
 def _show_help_overlay(choices):
-    """Show a help panel describing each visible option."""
+    """Show a help panel describing each visible option with contextual descriptions."""
     lines = []
     for c in choices:
         if hasattr(c, "title") and hasattr(c, "value"):
             title = c.title
             if isinstance(title, list):  # prompt_toolkit formatted text tuples
                 title = "".join(t[1] for t in title)
+            value = c.value
+            desc = HELP_DESCRIPTIONS.get(value, "")
             disabled = getattr(c, "disabled", None)
             status = f" [dim]({disabled})[/dim]" if disabled else ""
-            lines.append(f"  [cyan]{title}[/cyan]{status}")
+            if desc:
+                lines.append(f"  [cyan]{title}[/cyan]{status}\n    [dim]{desc}[/dim]")
+            else:
+                lines.append(f"  [cyan]{title}[/cyan]{status}")
     help_text = "\n".join(lines) if lines else "No options available."
+    # Add getting started section for first-time users
+    getting_started = (
+        "[bold]Getting Started:[/bold]\n"
+        "  [dim]New here? Start with Import & Preprocess Corpus, then Generate Hypothetical.[/dim]"
+    )
     console.print(
         Panel(
             f"[bold]Available Options:[/bold]\n{help_text}\n\n"
+            f"{getting_started}\n\n"
             "[dim]Shortcuts: q=quit, g=generate, h=history, s=settings, p=providers[/dim]\n"
             "[dim]Press ? for this help. Press any key to dismiss.[/dim]",
             title="Help",
