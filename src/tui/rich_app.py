@@ -1654,9 +1654,40 @@ class JikaiTUI:
                 console.print("\n[yellow]Generation cancelled.[/yellow]")
             tlog.info("GENERATE  cancelled by user")
         except Exception as e:
-            console.print(f"[red]✗ Generation failed: {e}[/red]")
-            console.print("[dim]Tip: check provider health via Providers menu[/dim]")
+            self._handle_generation_error(e)
             tlog.info("ERROR  generation: %s", e)
+
+    def _handle_generation_error(self, e: Exception):
+        """Pattern-match common errors and provide specific recovery messages."""
+        err_str = str(e).lower()
+
+        # API key errors
+        if "api key" in err_str or "apikey" in err_str or "authentication" in err_str:
+            if "openai" in err_str:
+                console.print("[red]✗ No API key set for OpenAI. Go to More → Settings to add one.[/red]")
+            elif "anthropic" in err_str:
+                console.print("[red]✗ No API key set for Anthropic. Go to More → Settings to add one.[/red]")
+            elif "google" in err_str:
+                console.print("[red]✗ No API key set for Google. Go to More → Settings to add one.[/red]")
+            else:
+                console.print("[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]")
+        # Model not found
+        elif "model" in err_str and ("not found" in err_str or "does not exist" in err_str or "not available" in err_str):
+            console.print(f"[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]")
+        # Connection/network errors
+        elif "timeout" in err_str or "timed out" in err_str:
+            console.print("[red]✗ Connection timed out. Is the provider running?[/red]")
+            console.print("[dim]For Ollama: run 'ollama serve' in a terminal[/dim]")
+        elif "connection" in err_str or "refused" in err_str or "unreachable" in err_str:
+            console.print("[red]✗ Cannot connect to provider. Check if it's running.[/red]")
+            console.print("[dim]For Ollama: run 'ollama serve' in a terminal[/dim]")
+        # Rate limiting
+        elif "rate limit" in err_str or "too many requests" in err_str:
+            console.print("[red]✗ Rate limited by provider. Wait a moment and try again.[/red]")
+        # Generic fallback
+        else:
+            console.print(f"[red]✗ Generation failed: {e}[/red]")
+            console.print("[dim]Tip: check provider health via More → Providers[/dim]")
 
     def _offer_model_answer(
         self, hypothetical_text, topic, provider, model, temperature
