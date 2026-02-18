@@ -6,25 +6,11 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- VISIBILITY OF SYSTEM STATUS ---
 
-[P2] B. Simplify and contextualize status bar
-  - Change "Models: ✓" to "ML Models: ✓ trained" (or hide entirely if user hasn't trained any)
-  - Change "Embeddings: ✗" to "Semantic Search: off" (or hide if never used)
-  - Hide ML/Embeddings indicators for users who haven't engaged with those features
-  - Keep Provider and Corpus count always visible
-
 --- MATCH BETWEEN SYSTEM AND REAL WORLD ---
 
 --- USER CONTROL AND FREEDOM ---
 
-[P2] G. Add "re-label last entry" option during labeling
-  - After labeling an entry, show summary and offer "Undo / Re-label last" before advancing
-  - At minimum: display the label just assigned so user can visually confirm
-
 --- CONSISTENCY AND STANDARDS ---
-
-[P2] I. Rename "Power Tools" to "Batch Operations"
-  - Contents are: Batch Generate, Import SG Cases, Bulk Label
-  - "Batch Operations" describes the grouping more clearly than "Power Tools"
 
 --- ERROR PREVENTION ---
 
