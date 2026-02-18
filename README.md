@@ -43,76 +43,9 @@ The below instructions are for locally running `Jikai`.
 
 ...
 
-### Local Setup
-
-```console
-$ git clone https://github.com/gongahkia/jikai && cd jikai
-$ python -m venv .venv && source .venv/bin/activate
-$ make setup
-$ cp env.example .env
-$ make tui
-```
-
-### API Key Configuration
-
-Edit `.env` with your provider API keys:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
-GOOGLE_API_KEY=AI...
-OLLAMA_HOST=http://localhost:11434
-```
-
-
-### ML Training
-
-```console
-$ make train
-```
-
-Or from the TUI: press `t` to open the Train screen.
-
-### Run Modes
-
-```console
-$ make tui          # TUI only (default)
-$ make api          # API server only
-$ make run          # Both TUI + API
-```
-
 ## API
 
-### Core Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/generate` | POST | Generate a legal hypothetical |
-| `/topics` | GET | Get available legal topics |
-| `/corpus/entries` | GET | Retrieve corpus entries |
-| `/corpus/entries` | POST | Add new corpus entry |
-| `/health` | GET | Service health check |
-| `/stats` | GET | Generation statistics |
-| `/llm/models` | GET | Available LLM models |
-| `/llm/health` | GET | LLM service health |
-| `/providers` | GET | List providers and models |
-| `/providers/default` | PUT | Set default provider |
-| `/ml/train` | POST | Trigger ML training |
-| `/ml/status` | GET | ML model status and metrics |
-
-### Example API Usage
-
-```console
-$ curl -X POST "http://localhost:8000/generate" \
-   -H "Content-Type: application/json" \
-   -d '{
-     "topics": ["negligence", "duty of care"],
-     "number_parties": 3,
-     "complexity_level": "intermediate"
-   }'
-$ curl http://localhost:8000/topics
-$ curl http://localhost:8000/health
-```
+...
 
 ## Architecture
 
