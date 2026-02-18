@@ -126,22 +126,27 @@ class JikaiTUI(
                 sys.exit(0)
 
             if choice == "corpus":
+                tlog.info("NAV: Entering Corpus Flow")
                 self._push_nav("Corpus")
                 self.corpus_flow()
                 self._pop_nav()
             elif choice == "generate":
+                tlog.info("NAV: Entering Generation Flow")
                 self._push_nav("Generate")
                 self.generate_flow()
                 self._pop_nav()
             elif choice == "tools":
+                tlog.info("NAV: Entering Tools Menu")
                 self._push_nav("Tools")
                 self._tools_menu()
                 self._pop_nav()
             elif choice == "history":
+                tlog.info("NAV: Entering History Flow")
                 self._push_nav("History")
                 self.history_flow()
                 self._pop_nav()
             elif choice == "more":
+                tlog.info("NAV: Entering More Menu")
                 self._push_nav("More")
                 self._more_menu()
                 self._pop_nav()
@@ -165,6 +170,7 @@ class JikaiTUI(
             if c is None:
                 return
 
+            tlog.info("TOOL: Selected %s", c)
             if c == "import_cases":
                 self.import_cases_flow()
             elif c == "ocr":
@@ -195,6 +201,7 @@ class JikaiTUI(
             if c is None:
                 return
 
+            tlog.info("MORE: Selected %s", c)
             if c == "settings":
                 self.settings_flow()
             elif c == "providers":
