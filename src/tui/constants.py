@@ -2,6 +2,10 @@
 
 import os
 
+TITLE = "Jikai"
+VERSION = "0.1.0"
+LOG_LEVEL = "INFO"
+
 # Paths
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 LOG_PATH = os.path.join(LOG_DIR, "tui.log")
