@@ -180,13 +180,13 @@ _GLOBAL_HOTKEYS = {
 }
 
 HELP_DESCRIPTIONS = {
-    "ocr": "extract text from PDF/DOCX/images into the corpus",
+    "ocr": "extract text from PDF/DOCX/images into the corpus (requires: pymupdf, python-docx, pillow, pytesseract)",
     "corpus": "view, search, and filter preprocessed corpus entries",
     "label": "tag corpus entries with topics and quality scores for training",
-    "train": "train ML models on labelled data for better generation",
-    "embed": "create vector embeddings for semantic search during generation",
+    "train": "train ML models on labelled data for better generation (requires: scikit-learn, pandas)",
+    "embed": "create vector embeddings for semantic search during generation (requires: chromadb, sentence-transformers, torch)",
     "gen": "create a new tort law scenario using AI",
-    "export": "save a generated hypothetical as DOCX or PDF",
+    "export": "save a generated hypothetical as DOCX or PDF (requires: python-docx)",
     "history": "browse past generations with search and filter",
     "stats": "view statistics about your corpus and generations",
     "tools": "batch operations: bulk generate, import cases, bulk label",
@@ -195,6 +195,26 @@ HELP_DESCRIPTIONS = {
     "guided": "step-by-step walkthrough for first-time users",
     "cleanup": "selectively remove generated files, models, logs, etc.",
     "more": "access secondary features: history, stats, settings, etc.",
+}
+
+SERVICE_DEPS = {
+    "ocr": ["pymupdf", "python-docx", "pillow", "pytesseract"],
+    "train": ["scikit-learn", "pandas", "joblib"],
+    "embed": ["chromadb", "sentence-transformers", "torch"],
+    "export": ["python-docx"],
+    "gen": ["httpx"],
+    "google": ["google-generativeai"],
+    "anthropic": ["anthropic"],
+}
+
+# Map pip package names to import names for verification
+IMPORT_MAP = {
+    "pymupdf": "fitz",
+    "python-docx": "docx",
+    "pillow": "PIL",
+    "scikit-learn": "sklearn",
+    "sentence-transformers": "sentence_transformers",
+    "google-generativeai": "google.generativeai",
 }
 
 
