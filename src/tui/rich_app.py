@@ -174,6 +174,11 @@ _HOTKEY_MAP = {
     "p": "providers",
 }
 
+# Global hotkeys that work from any submenu
+_GLOBAL_HOTKEYS = {
+    "g": "__jump_gen__",
+}
+
 HELP_DESCRIPTIONS = {
     "ocr": "extract text from PDF/DOCX/images into the corpus",
     "corpus": "view, search, and filter preprocessed corpus entries",
@@ -226,7 +231,7 @@ def _show_help_overlay(choices):
     )
 
 
-def _select_quit(message, choices, hotkeys=None, style=None):
+def _select_quit(message, choices, hotkeys=None, style=None, enable_global_hotkeys=True):
     """Arrow-key select with q-to-quit, ?-for-help, and optional hotkey bindings."""
     from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 
@@ -257,9 +262,22 @@ def _select_quit(message, choices, hotkeys=None, style=None):
 
             kb.add(key)(_make_handler(val))
 
+    # Add global hotkeys that work from any submenu (e.g., 'g' to jump to Generate)
+    if enable_global_hotkeys:
+        for key, val in _GLOBAL_HOTKEYS.items():
+            if key not in [k for k, v in hk.items() if v in choice_values]:
+                def _make_global_handler(v):
+                    def _handler(event):
+                        _result["value"] = v
+                        event.app.exit(result=v)
+                    return _handler
+                kb.add(key)(_make_global_handler(val))
+
     hint_keys = " ".join(f"{k}={v}" for k, v in hk.items() if v in choice_values)
+    global_hint = "g=generate" if enable_global_hotkeys and "gen" not in choice_values else ""
+    all_hints = " | ".join(filter(None, [hint_keys, global_hint]))
     instruction = (
-        f"(q quit | ? help | {hint_keys})" if hint_keys else "(q quit | ? help)"
+        f"(q quit | ? help | {all_hints})" if all_hints else "(q quit | ? help)"
     )
     while True:
         try:
@@ -588,7 +606,14 @@ class JikaiTUI:
             elif choice == "export":
                 self.export_flow()
             elif choice == "more":
-                self._more_menu()
+                result = self._more_menu()
+                if result == "__jump_gen__":
+                    if choice in _flow_labels:
+                        self._pop_nav()
+                    self._push_nav("Generate")
+                    self.generate_flow()
+                    self._pop_nav()
+                    continue
             elif choice == "tools":
                 self._tools_menu()
             elif choice == "history":
@@ -619,6 +644,8 @@ class JikaiTUI:
             )
             if c is None:
                 return
+            if c == "__jump_gen__":
+                return "__jump_gen__"  # Propagate up to main_menu
             _labels = {
                 "history": "History",
                 "stats": "Stats",
@@ -633,7 +660,11 @@ class JikaiTUI:
             elif c == "stats":
                 self.stats_flow()
             elif c == "tools":
-                self._tools_menu()
+                result = self._tools_menu()
+                if result == "__jump_gen__":
+                    if c in _labels:
+                        self._pop_nav()
+                    return "__jump_gen__"
             elif c == "settings":
                 self.settings_flow()
             elif c == "providers":
@@ -655,6 +686,8 @@ class JikaiTUI:
             )
             if c is None:
                 return
+            if c == "__jump_gen__":
+                return "__jump_gen__"  # Propagate up
             _labels = {
                 "batch_gen": "Batch",
                 "import_cases": "Import",
@@ -684,6 +717,8 @@ class JikaiTUI:
             )
             if c is None:
                 return
+            if c == "__jump_gen__":
+                return "__jump_gen__"
             if c == "1":
                 self._preprocess_raw()
             elif c == "2":

@@ -14,24 +14,7 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- ERROR PREVENTION ---
 
-[P2] K. Skip corpus path prompt when default exists
-  - Browse Corpus, Label Corpus, and Embed flows all prompt for corpus path
-  - If default path exists and has entries, use it silently: "Using corpus: corpus.json (48 entries)"
-  - Only prompt if default is missing or user explicitly wants to change it
-
 --- RECOGNITION RATHER THAN RECALL ---
-
-[P1] M. Add descriptions and grouping to topic list
-  - Group topics by category:
-    Negligence-Based: negligence, duty_of_care, causation, remoteness, contributory_negligence
-    Intentional Torts: battery, assault, false_imprisonment, trespass_to_land
-    Liability: vicarious_liability, strict_liability, occupiers_liability, employers_liability, product_liability
-    Specific Torts: defamation, private_nuisance, harassment
-    Damages: economic_loss, psychiatric_harm
-  - Add brief descriptions to each, e.g.:
-    "Negligence — duty, breach, damage, causation"
-    "Battery — intentional application of force"
-    "Vicarious Liability — employer liability for employee torts"
 
 --- FLEXIBILITY AND EFFICIENCY OF USE ---
 
@@ -45,15 +28,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 --- HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS ---
 
 --- HELP AND DOCUMENTATION ---
-
-[P2] T. Enrich the ? help overlay with contextual descriptions
-  - Current: just lists menu option names
-  - Add one-line descriptions per item:
-      "Import & Preprocess Corpus — extract text from PDF/DOCX/images into the corpus"
-      "Generate Hypothetical — create a new tort law scenario using AI"
-      "Export to DOCX / PDF — save a generated hypothetical as a document"
-  - Add a "Getting Started" section for first-time users:
-      "New here? Start with Import & Preprocess Corpus, then Generate Hypothetical."
 
 [P3] U. Add a "Guided Mode" walkthrough option
   - Accessible from main menu or help overlay
