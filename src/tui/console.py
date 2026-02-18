@@ -19,3 +19,8 @@ _fh.setFormatter(
 tlog = logging.getLogger("jikai.tui")
 tlog.setLevel(logging.INFO)
 tlog.addHandler(_fh)
+
+def setup_logging(level_name: str = "INFO"):
+    """Configure logging level."""
+    level = getattr(logging, level_name.upper(), logging.INFO)
+    tlog.setLevel(level)
