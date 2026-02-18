@@ -16,11 +16,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- USER CONTROL AND FREEDOM ---
 
-[P1] E. Allow Ctrl+C to gracefully cancel mid-generation
-  - Catch KeyboardInterrupt during _do_generate streaming and full generation loops
-  - Show partial result if available: "Generation cancelled. Partial result (X words):"
-  - Return to menu cleanly without traceback
-
 [P2] G. Add "re-label last entry" option during labeling
   - After labeling an entry, show summary and offer "Undo / Re-label last" before advancing
   - At minimum: display the label just assigned so user can visually confirm

@@ -565,18 +565,16 @@ class JikaiTUI:
     def _tools_menu(self):
         """Submenu for power tools outside the core workflow."""
         while True:
-            console.print("\n[bold yellow]Power Tools[/bold yellow]")
-            console.print("=" * 60)
-            c = _select(
-                "Power Tools",
+            console.print("\n[bold yellow]Batch Operations[/bold yellow]")
+            c = _select_quit(
+                "Batch Operations",
                 choices=[
                     Choice("Batch Generate", value="batch_gen"),
                     Choice("Import SG Cases", value="import_cases"),
                     Choice("Bulk Label", value="bulk_label"),
-                    Choice("Back", value="back"),
                 ],
             )
-            if c is None or c == "back":
+            if c is None:
                 return
             _labels = {
                 "batch_gen": "Batch",
@@ -597,24 +595,20 @@ class JikaiTUI:
     # ── ocr / preprocess ──────────────────────────────────────
     def ocr_flow(self):
         console.print("\n[bold yellow]OCR / Preprocess Corpus[/bold yellow]")
-        console.print("=" * 60)
         while True:
-            c = _select(
+            c = _select_quit(
                 "OCR Menu",
                 choices=[
                     Choice("Preprocess raw corpus (TXT/PDF/PNG/DOCX)", value="1"),
                     Choice("Convert single file to TXT (OCR)", value="2"),
-                    Choice("Back", value="3"),
                 ],
             )
             if c is None:
-                c = "3"
+                return
             if c == "1":
                 self._preprocess_raw()
             elif c == "2":
                 self._ocr_single()
-            elif c == "3":
-                return
 
     def _ocr_single(self):
         path = _path("File to OCR (PDF/PNG/JPG/DOCX)", default="")
@@ -1742,7 +1736,6 @@ class JikaiTUI:
     def history_flow(self):
         """Browse generation history with search/filter/recall."""
         console.print("\n[bold yellow]Generation History[/bold yellow]")
-        console.print("=" * 60)
         history = self._load_history()
         if not history:
             console.print(
@@ -1750,16 +1743,15 @@ class JikaiTUI:
             )
             return
         while True:
-            c = _select(
+            c = _select_quit(
                 f"History ({len(history)} records)",
                 choices=[
                     Choice("Browse all", value="browse"),
                     Choice("Search by keyword", value="search"),
                     Choice("Filter by topic", value="filter"),
-                    Choice("Back", value="back"),
                 ],
             )
-            if c is None or c == "back":
+            if c is None:
                 return
             if c == "search":
                 term = _text("Search keyword")
@@ -2265,7 +2257,6 @@ class JikaiTUI:
     # ── corpus ──────────────────────────────────────────────────
     def corpus_flow(self):
         console.print("\n[bold yellow]Browse Corpus[/bold yellow]")
-        console.print("=" * 60)
         path = _path(
             "Corpus file path",
             default=self._corpus_path,
@@ -2274,7 +2265,7 @@ class JikaiTUI:
             return
         self._load_corpus(path)
         while True:
-            c = _select(
+            c = _select_quit(
                 "Corpus Menu",
                 choices=[
                     Choice("View entry", value="1"),
@@ -2284,11 +2275,10 @@ class JikaiTUI:
                     Choice("Export JSON", value="5"),
                     Choice("Preprocess raw", value="6"),
                     Choice("Load different file", value="7"),
-                    Choice("Back", value="8"),
                 ],
             )
             if c is None:
-                c = "8"
+                return
             if c == "1":
                 self._view_entry()
             elif c == "2":
@@ -2308,8 +2298,6 @@ class JikaiTUI:
                 )
                 if path is not None:
                     self._load_corpus(path)
-            elif c == "8":
-                return
 
     def _load_corpus(self, path):
         try:
@@ -2642,24 +2630,20 @@ class JikaiTUI:
     # ── providers ───────────────────────────────────────────────
     def providers_flow(self):
         console.print("\n[bold yellow]LLM Providers[/bold yellow]")
-        console.print("=" * 60)
         while True:
-            c = _select(
+            c = _select_quit(
                 "Providers",
                 choices=[
                     Choice("Check Health", value="1"),
                     Choice("Set Default Provider", value="2"),
-                    Choice("Back", value="3"),
                 ],
             )
             if c is None:
-                c = "3"
+                return
             if c == "1":
                 self._check_health()
             elif c == "2":
                 self._set_default_provider()
-            elif c == "3":
-                return
 
     def _check_health(self):
         try:
