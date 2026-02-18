@@ -431,41 +431,41 @@ class JikaiTUI:
                 return [(cls, text)]
 
             choice = _select_quit(
-                "Select (workflow: 1 → 1a/1b → 2/2a → 3 → 4)",
+                "What would you like to do?",
                 choices=[
                     Choice(
-                        title=_lbl("1.  OCR / Preprocess Corpus") + _tag(corpus_ok),
+                        title=_lbl("Import & Preprocess Corpus") + _tag(corpus_ok),
                         value="ocr",
                     ),
                     Choice(
-                        title=_lbl("  1a. Browse Corpus", corpus_ok),
+                        title=_lbl("Browse Corpus", corpus_ok),
                         value="corpus",
                         disabled=browse_disabled,
                     ),
                     Choice(
-                        title=_lbl("  1b. Label Corpus") + _tag(labelled_ok),
+                        title=_lbl("Label Corpus") + _tag(labelled_ok),
                         value="label",
                         disabled=label_disabled,
                     ),
                     Choice(
-                        title=_lbl("2.  Train ML Models (optional)", labelled_ok)
+                        title=_lbl("Train ML Models (optional)", labelled_ok)
                         + _tag(models_ok, optional=True),
                         value="train",
                         disabled=train_disabled,
                     ),
                     Choice(
-                        title=_lbl("  2a. Generate Embeddings (optional)", corpus_ok)
+                        title=_lbl("Index Semantic Search (optional)", corpus_ok)
                         + _tag(embed_ok, optional=True),
                         value="embed",
                         disabled=embed_disabled,
                     ),
                     Choice(
-                        title=_lbl("3.  Generate Hypothetical", corpus_ok),
+                        title=_lbl("Generate Hypothetical", corpus_ok),
                         value="gen",
                         disabled=gen_disabled,
                     ),
                     Choice(
-                        title=_lbl("4.  Export DOCX/PDF", has_history),
+                        title=_lbl("Export to DOCX / PDF", has_history),
                         value="export",
                         disabled=export_disabled,
                     ),
@@ -482,11 +482,11 @@ class JikaiTUI:
                 tlog.info("=== TUI session ended ===")
                 break
             _flow_labels = {
-                "ocr": "OCR",
-                "corpus": "Corpus",
-                "label": "Label",
-                "train": "Train",
-                "embed": "Embed",
+                "ocr": "Import & Preprocess",
+                "corpus": "Browse Corpus",
+                "label": "Label Corpus",
+                "train": "Train ML Models",
+                "embed": "Index Semantic Search",
                 "gen": "Generate",
                 "export": "Export",
                 "tools": "Power Tools",
