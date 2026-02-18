@@ -2397,25 +2397,38 @@ class JikaiTUI:
         train_reg = "reg" in models
         train_clu = "clu" in models
 
-        # Common text vectorization settings
-        max_features = _validated_text(
-            "Max features (vocabulary size)",
-            default="5000",
-            validate=_validate_number(1, 100000),
-        )
-        if max_features is None:
+        # Early exit if no models selected
+        if not (train_cls or train_reg or train_clu):
+            console.print("[yellow]No models selected. Returning to menu.[/yellow]")
             return
 
-        test_split = _validated_text(
-            "Test split ratio",
-            default="0.2",
-            validate=_validate_number(0.0, 1.0, is_float=True),
-        )
-        if test_split is None:
-            return
+        # Defaults for optional parameters
+        max_features = "5000"
+        test_split = "0.2"
+        cls_c = 1.0
+        reg_alpha = 1.0
+        n_clusters = 5
+
+        # Text vectorization settings (needed for classifier or regressor)
+        if train_cls or train_reg:
+            console.print("\n[cyan]Text Vectorization Settings[/cyan]")
+            max_features = _validated_text(
+                "Max features (vocabulary size)",
+                default="5000",
+                validate=_validate_number(1, 100000),
+            )
+            if max_features is None:
+                return
+
+            test_split = _validated_text(
+                "Test split ratio",
+                default="0.2",
+                validate=_validate_number(0.0, 1.0, is_float=True),
+            )
+            if test_split is None:
+                return
 
         # Classifier-specific options
-        cls_c = 1.0
         if train_cls:
             console.print("\n[cyan]Classifier Settings[/cyan]")
             cls_c_str = _validated_text(
@@ -2428,7 +2441,6 @@ class JikaiTUI:
             cls_c = float(cls_c_str)
 
         # Regressor-specific options
-        reg_alpha = 1.0
         if train_reg:
             console.print("\n[cyan]Regressor Settings[/cyan]")
             reg_alpha_str = _validated_text(
@@ -2441,7 +2453,6 @@ class JikaiTUI:
             reg_alpha = float(reg_alpha_str)
 
         # Clustering-specific options (only ask if clustering is selected)
-        n_clusters = 5
         if train_clu:
             console.print("\n[cyan]Clusterer Settings[/cyan]")
             n_clusters_str = _validated_text(
@@ -2457,20 +2468,15 @@ class JikaiTUI:
         cfg.add_column("Parameter", style="cyan")
         cfg.add_column("Value", style="yellow")
         cfg.add_row("Data Path", data_path)
-        cfg.add_row("Max Features", max_features)
-        cfg.add_row("Test Split", test_split)
+        if train_cls or train_reg:
+            cfg.add_row("Max Features", max_features)
+            cfg.add_row("Test Split", test_split)
         if train_cls:
             cfg.add_row("Classifier", f"Yes (C={cls_c})")
-        else:
-            cfg.add_row("Classifier", "No")
         if train_reg:
             cfg.add_row("Regressor", f"Yes (alpha={reg_alpha})")
-        else:
-            cfg.add_row("Regressor", "No")
         if train_clu:
             cfg.add_row("Clusterer", f"Yes ({n_clusters} clusters)")
-        else:
-            cfg.add_row("Clusterer", "No")
         console.print(cfg)
         if not _confirm("Proceed with training?", default=True):
             return
