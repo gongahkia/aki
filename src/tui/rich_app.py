@@ -2931,105 +2931,175 @@ class JikaiTUI:
     # ── settings ────────────────────────────────────────────────
     def settings_flow(self):
         console.print("\n[bold yellow]Settings[/bold yellow]")
-        env = self._load_env()
 
         def _mask(v):
             if not v:
-                return ""
+                return "[dim]not set[/dim]"
             return v[:4] + "****" + v[-4:] if len(v) > 8 else "****"
 
-        anthropic_key = _password(
-            f"Anthropic API Key ({_mask(env.get('ANTHROPIC_API_KEY', ''))})",
-            default=env.get("ANTHROPIC_API_KEY", ""),
-        )
-        if anthropic_key is None:
-            return
-        openai_key = _password(
-            f"OpenAI API Key ({_mask(env.get('OPENAI_API_KEY', ''))})",
-            default=env.get("OPENAI_API_KEY", ""),
-        )
-        if openai_key is None:
-            return
-        google_key = _password(
-            f"Google API Key ({_mask(env.get('GOOGLE_API_KEY', ''))})",
-            default=env.get("GOOGLE_API_KEY", ""),
-        )
-        if google_key is None:
-            return
-        ollama_host = _text(
-            "Ollama Host",
-            default=env.get("OLLAMA_HOST", "http://localhost:11434"),
-        )
-        if ollama_host is None:
-            return
-        local_host = _text(
-            "Local LLM Host",
-            default=env.get("LOCAL_LLM_HOST", "http://localhost:8080"),
-        )
-        if local_host is None:
-            return
-        temperature = _validated_text(
-            "Default Temperature",
-            default=env.get("DEFAULT_TEMPERATURE", "0.7"),
-            validate=_validate_number(0.0, 2.0, is_float=True),
-        )
-        if temperature is None:
-            return
-        max_tokens = _validated_text(
-            "Default Max Tokens",
-            default=env.get("DEFAULT_MAX_TOKENS", "2048"),
-            validate=_validate_number(1, 100000),
-        )
-        if max_tokens is None:
-            return
-        corpus_path = _path(
-            "Corpus Path",
-            default=env.get("CORPUS_PATH", self._corpus_path),
-        )
-        if corpus_path is None:
-            return
-        db_path = _path(
-            "Database Path",
-            default=env.get("DATABASE_PATH", "data/jikai.db"),
-        )
-        if db_path is None:
-            return
-        log_level = _select_quit("Log Level", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
-        if log_level is None:
-            return
-        st = Table(box=box.SIMPLE, title="Settings Summary")
-        st.add_column("Setting", style="cyan")
-        st.add_column("Value", style="yellow")
-        st.add_row("Anthropic Key", _mask(anthropic_key))
-        st.add_row("OpenAI Key", _mask(openai_key))
-        st.add_row("Google Key", _mask(google_key))
-        st.add_row("Ollama Host", ollama_host)
-        st.add_row("Local LLM Host", local_host)
-        st.add_row("Temperature", temperature)
-        st.add_row("Max Tokens", max_tokens)
-        st.add_row("Corpus Path", corpus_path)
-        st.add_row("Database Path", db_path)
-        st.add_row("Log Level", log_level)
-        console.print(st)
-        if not _confirm("Save settings to .env?", default=True):
-            return
-        lines = [
-            f"ANTHROPIC_API_KEY={anthropic_key}",
-            f"OPENAI_API_KEY={openai_key}",
-            f"GOOGLE_API_KEY={google_key}",
-            f"OLLAMA_HOST={ollama_host}",
-            f"LOCAL_LLM_HOST={local_host}",
-            f"DEFAULT_TEMPERATURE={temperature}",
-            f"DEFAULT_MAX_TOKENS={max_tokens}",
-            f"CORPUS_PATH={corpus_path}",
-            f"DATABASE_PATH={db_path}",
-            f"LOG_LEVEL={log_level}",
-        ]
-        fd = os.open(".env", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
-            f.write("\n".join(lines) + "\n")
-        console.print("[green]✓ Settings saved to .env[/green]")
-        tlog.info("SETTINGS  saved")
+        def _render_settings_table(env):
+            """Show all current settings grouped by category."""
+            st = Table(box=box.ROUNDED, title="Current Settings", title_style="bold cyan")
+            st.add_column("Category", style="bold", no_wrap=True)
+            st.add_column("Setting", style="cyan")
+            st.add_column("Value", style="yellow")
+            # API Keys
+            st.add_row("🔑 API Keys", "Anthropic", _mask(env.get("ANTHROPIC_API_KEY", "")))
+            st.add_row("", "OpenAI", _mask(env.get("OPENAI_API_KEY", "")))
+            st.add_row("", "Google", _mask(env.get("GOOGLE_API_KEY", "")))
+            st.add_row("", "", "")
+            # Hosts
+            st.add_row("🌐 Hosts", "Ollama", env.get("OLLAMA_HOST", "http://localhost:11434"))
+            st.add_row("", "Local LLM", env.get("LOCAL_LLM_HOST", "http://localhost:8080"))
+            st.add_row("", "", "")
+            # Generation Defaults
+            st.add_row("⚙️  Defaults", "Temperature", env.get("DEFAULT_TEMPERATURE", "0.7"))
+            st.add_row("", "Max Tokens", env.get("DEFAULT_MAX_TOKENS", "2048"))
+            st.add_row("", "", "")
+            # Paths & Logging
+            st.add_row("📁 Paths", "Corpus", env.get("CORPUS_PATH", self._corpus_path))
+            st.add_row("", "Database", env.get("DATABASE_PATH", "data/jikai.db"))
+            st.add_row("", "Log Level", env.get("LOG_LEVEL", "INFO"))
+            console.print(st)
+
+        def _save_env(env):
+            """Write current env dict to .env, preserving all keys."""
+            managed_keys = [
+                "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY",
+                "OLLAMA_HOST", "LOCAL_LLM_HOST",
+                "DEFAULT_TEMPERATURE", "DEFAULT_MAX_TOKENS",
+                "CORPUS_PATH", "DATABASE_PATH", "LOG_LEVEL",
+            ]
+            lines = [f"{k}={env[k]}" for k in managed_keys if k in env]
+            # Preserve any extra keys the user may have added manually
+            for k, v in env.items():
+                if k not in managed_keys:
+                    lines.append(f"{k}={v}")
+            fd = os.open(".env", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write("\n".join(lines) + "\n")
+            console.print("[green]✓ Settings saved to .env[/green]")
+            tlog.info("SETTINGS  saved")
+
+        env = self._load_env()
+        _render_settings_table(env)
+
+        while True:
+            console.print()
+            c = _select_quit(
+                "What would you like to edit?",
+                choices=[
+                    Choice("🔑 API Keys — Anthropic, OpenAI, Google", value="keys"),
+                    Choice("🌐 Hosts — Ollama, Local LLM endpoints", value="hosts"),
+                    Choice("⚙️  Generation Defaults — temperature, max tokens", value="defaults"),
+                    Choice("📁 Paths & Logging — corpus, database, log level", value="paths"),
+                    Choice("📋 View Current Settings", value="view"),
+                ],
+            )
+            if c is None:
+                return
+
+            if c == "view":
+                env = self._load_env()
+                _render_settings_table(env)
+                continue
+
+            if c == "keys":
+                console.print("\n[bold cyan]API Keys[/bold cyan]")
+                console.print("[dim]Press Enter to keep current value. Leave blank to clear.[/dim]\n")
+                anthropic_key = _password(
+                    f"Anthropic API Key ({_mask(env.get('ANTHROPIC_API_KEY', ''))})",
+                    default=env.get("ANTHROPIC_API_KEY", ""),
+                )
+                if anthropic_key is None:
+                    continue
+                openai_key = _password(
+                    f"OpenAI API Key ({_mask(env.get('OPENAI_API_KEY', ''))})",
+                    default=env.get("OPENAI_API_KEY", ""),
+                )
+                if openai_key is None:
+                    continue
+                google_key = _password(
+                    f"Google API Key ({_mask(env.get('GOOGLE_API_KEY', ''))})",
+                    default=env.get("GOOGLE_API_KEY", ""),
+                )
+                if google_key is None:
+                    continue
+                env["ANTHROPIC_API_KEY"] = anthropic_key
+                env["OPENAI_API_KEY"] = openai_key
+                env["GOOGLE_API_KEY"] = google_key
+                _save_env(env)
+
+            elif c == "hosts":
+                console.print("\n[bold cyan]Host Configuration[/bold cyan]")
+                console.print("[dim]Press Enter to keep current value.[/dim]\n")
+                ollama_host = _text(
+                    "Ollama Host",
+                    default=env.get("OLLAMA_HOST", "http://localhost:11434"),
+                )
+                if ollama_host is None:
+                    continue
+                local_host = _text(
+                    "Local LLM Host",
+                    default=env.get("LOCAL_LLM_HOST", "http://localhost:8080"),
+                )
+                if local_host is None:
+                    continue
+                env["OLLAMA_HOST"] = ollama_host
+                env["LOCAL_LLM_HOST"] = local_host
+                _save_env(env)
+
+            elif c == "defaults":
+                console.print("\n[bold cyan]Generation Defaults[/bold cyan]")
+                console.print("[dim]These set the defaults for Quick Generate mode.[/dim]\n")
+                temperature = _validated_text(
+                    "Default Temperature (0.0–2.0)",
+                    default=env.get("DEFAULT_TEMPERATURE", "0.7"),
+                    validate=_validate_number(0.0, 2.0, is_float=True),
+                )
+                if temperature is None:
+                    continue
+                max_tokens = _validated_text(
+                    "Default Max Tokens (1–100000)",
+                    default=env.get("DEFAULT_MAX_TOKENS", "2048"),
+                    validate=_validate_number(1, 100000),
+                )
+                if max_tokens is None:
+                    continue
+                env["DEFAULT_TEMPERATURE"] = temperature
+                env["DEFAULT_MAX_TOKENS"] = max_tokens
+                _save_env(env)
+
+            elif c == "paths":
+                console.print("\n[bold cyan]Paths & Logging[/bold cyan]")
+                console.print("[dim]Press Enter to keep current value.[/dim]\n")
+                corpus_path = _path(
+                    "Corpus Path",
+                    default=env.get("CORPUS_PATH", self._corpus_path),
+                )
+                if corpus_path is None:
+                    continue
+                db_path = _path(
+                    "Database Path",
+                    default=env.get("DATABASE_PATH", "data/jikai.db"),
+                )
+                if db_path is None:
+                    continue
+                log_level = _select_quit(
+                    "Log Level",
+                    choices=[
+                        Choice("DEBUG — verbose output for troubleshooting", value="DEBUG"),
+                        Choice("INFO — standard operational messages", value="INFO"),
+                        Choice("WARNING — potential issues only", value="WARNING"),
+                        Choice("ERROR — errors only", value="ERROR"),
+                    ],
+                )
+                if log_level is None:
+                    continue
+                env["CORPUS_PATH"] = corpus_path
+                env["DATABASE_PATH"] = db_path
+                env["LOG_LEVEL"] = log_level
+                _save_env(env)
 
     def _load_env(self):
         vals: Dict[str, str] = {}
