@@ -12,10 +12,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
   - Hide ML/Embeddings indicators for users who haven't engaged with those features
   - Keep Provider and Corpus count always visible
 
-[P1] C. Show explicit "Saved to history" confirmation after generation
-  - After auto-save to history, print: "✓ Saved to history (#42)"
-  - Currently no feedback that the output was persisted
-
 --- MATCH BETWEEN SYSTEM AND REAL WORLD ---
 
 --- USER CONTROL AND FREEDOM ---
