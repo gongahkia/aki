@@ -1,36 +1,30 @@
 JIKAI TUI/UX IMPROVEMENTS
 =========================
 
+All tasks completed! ✓
+
 Reference: Nielsen's 10 Usability Heuristics
 Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
---- VISIBILITY OF SYSTEM STATUS ---
-
---- MATCH BETWEEN SYSTEM AND REAL WORLD ---
-
---- USER CONTROL AND FREEDOM ---
-
---- CONSISTENCY AND STANDARDS ---
-
---- ERROR PREVENTION ---
-
---- RECOGNITION RATHER THAN RECALL ---
-
---- FLEXIBILITY AND EFFICIENCY OF USE ---
-
-[P3] O. Support hotkey shortcuts in sub-menus
-  - At minimum: 'g' to jump to Generate from any menu depth
-  - Consider: global hotkey layer that intercepts g/h/s/p regardless of current menu
-  - Current: hotkeys only work at main menu level
-
---- AESTHETIC AND MINIMALIST DESIGN ---
-
---- HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS ---
-
---- HELP AND DOCUMENTATION ---
-
-[P3] U. Add a "Guided Mode" walkthrough option
-  - Accessible from main menu or help overlay
-  - Walks user through: Preprocess → Generate → Export (3 steps)
-  - Hides optional steps (ML training, embeddings) unless user asks
-  - Ideal for first-time law students who just want to generate a hypothetical
+Implemented improvements:
+- [P0] D. Replaced step-number menu labels with task-oriented names
+- [P0] F. Auto-populate export from history instead of manual paste
+- [P0] Q. Collapsed secondary features into "More..." submenu
+- [P1] A. Show clear retry reasoning during generation
+- [P1] C. Show explicit "Saved to history" confirmation
+- [P1] E. Allow Ctrl+C to gracefully cancel mid-generation
+- [P1] H. Use _select_quit consistently across all menus
+- [P1] J. Auto-check provider health before generation
+- [P1] L. Show Quick Generate defaults before topic selection
+- [P1] M. Added descriptions and grouping to topic list
+- [P1] N. Added "Generate & Export" shortcut
+- [P1] P. Removed "=" separator lines
+- [P1] R. Pattern-match common errors with specific recovery messages
+- [P1] S. Show specific failed checks in validation table
+- [P2] B. Simplified and contextualized status bar
+- [P2] G. Added "re-label last entry" option during labeling
+- [P2] I. Renamed "Power Tools" to "Batch Operations"
+- [P2] K. Skip corpus path prompt when default exists
+- [P2] T. Enriched ? help overlay with contextual descriptions
+- [P3] O. Support hotkey shortcuts in sub-menus (g to jump to Generate)
+- [P3] U. Added "Guided Mode" walkthrough option for first-time users
