@@ -907,7 +907,7 @@ class JikaiTUI:
                     console.print(panel)
             else:
                 console.print(panel)
-            action = _select(
+            action = _select_quit(
                 "Action",
                 choices=[
                     Choice("Label this entry", value="label"),
@@ -929,7 +929,7 @@ class JikaiTUI:
             )
             if quality is None:
                 break
-            difficulty = _select("Difficulty", choices=difficulty_choices)
+            difficulty = _select_quit("Difficulty", choices=difficulty_choices)
             if difficulty is None:
                 break
             labelled.append(
@@ -963,7 +963,7 @@ class JikaiTUI:
                 )
                 if quality is None:
                     break
-                difficulty = _select("Difficulty", choices=difficulty_choices)
+                difficulty = _select_quit("Difficulty", choices=difficulty_choices)
                 if difficulty is None:
                     break
                 labelled.append(
@@ -1122,7 +1122,7 @@ class JikaiTUI:
         if count is None:
             return
         count = int(count)
-        strategy = _select(
+        strategy = _select_quit(
             "Topic spread",
             choices=[
                 Choice("Random — pick topics randomly", value="random"),
@@ -1145,7 +1145,7 @@ class JikaiTUI:
 
             topics_list = random.sample(TOPICS, min(count, len(TOPICS)))
 
-        provider = _select("Provider", choices=PROVIDER_CHOICES)
+        provider = _select_quit("Provider", choices=PROVIDER_CHOICES)
         if provider is None:
             return
         # Auto-check provider health
@@ -1155,20 +1155,20 @@ class JikaiTUI:
             console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
             if not _confirm(f"Continue with {provider} anyway?", default=False):
                 return
-        model_name = _select("Model", choices=_model_choices(provider))
+        model_name = _select_quit("Model", choices=_model_choices(provider))
         if model_name is None:
             return
         if model_name == "__custom__":
             model_name = _text("Custom model name", default="")
             if model_name is None:
                 return
-        complexity = _select("Complexity", choices=COMPLEXITY_CHOICES)
+        complexity = _select_quit("Complexity", choices=COMPLEXITY_CHOICES)
         if complexity is None:
             return
-        parties = _select("Parties", choices=PARTIES_CHOICES)
+        parties = _select_quit("Parties", choices=PARTIES_CHOICES)
         if parties is None:
             return
-        method = _select("Method", choices=METHOD_CHOICES)
+        method = _select_quit("Method", choices=METHOD_CHOICES)
         if method is None:
             return
         if not _confirm(f"Generate {count} hypotheticals?", default=True):
@@ -1270,7 +1270,7 @@ class JikaiTUI:
         source_choices.append(Choice("Paste text manually", value="paste"))
         source_choices.append(Choice("Back", value="back"))
 
-        source = _select("Export source", choices=source_choices)
+        source = _select_quit("Export source", choices=source_choices)
         if source is None or source == "back":
             return
 
@@ -1483,7 +1483,7 @@ class JikaiTUI:
     def generate_flow(self):
         while True:
             console.print("\n[bold yellow]Generate Hypothetical[/bold yellow]")
-            mode = _select(
+            mode = _select_quit(
                 "Mode",
                 choices=[
                     Choice("Quick generate — topic only, use defaults", value="quick"),
@@ -1521,15 +1521,15 @@ class JikaiTUI:
                     console.print("[dim]Switching to custom mode...[/dim]")
                     mode = "custom"
                 else:
-                    topic = _select("Topic", choices=_topic_choices())
+                    topic = _select_quit("Topic", choices=_topic_choices())
                     if topic is None:
                         return
 
             if mode == "custom":
-                topic = _select("Topic", choices=_topic_choices())
+                topic = _select_quit("Topic", choices=_topic_choices())
                 if topic is None:
                     return
-                provider = _select("Provider", choices=PROVIDER_CHOICES)
+                provider = _select_quit("Provider", choices=PROVIDER_CHOICES)
                 if provider is None:
                     return
                 # Auto-check provider health
@@ -1539,14 +1539,14 @@ class JikaiTUI:
                     console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
                     if not _confirm(f"Continue with {provider} anyway?", default=False):
                         return
-                model_name = _select("Model", choices=_model_choices(provider))
+                model_name = _select_quit("Model", choices=_model_choices(provider))
                 if model_name is None:
                     return
                 if model_name == "__custom__":
                     model_name = _text("Custom model name", default="")
                     if model_name is None:
                         return
-                temperature = _select(
+                temperature = _select_quit(
                     "Temperature",
                     choices=[
                         Choice(f"{v/10:.1f}", value=str(v / 10)) for v in range(1, 16)
@@ -1555,13 +1555,13 @@ class JikaiTUI:
                 if temperature is None:
                     return
                 temperature = float(temperature)
-                complexity = _select("Complexity", choices=COMPLEXITY_CHOICES)
+                complexity = _select_quit("Complexity", choices=COMPLEXITY_CHOICES)
                 if complexity is None:
                     return
-                parties = _select("Parties", choices=PARTIES_CHOICES)
+                parties = _select_quit("Parties", choices=PARTIES_CHOICES)
                 if parties is None:
                     return
-                method = _select("Method", choices=METHOD_CHOICES)
+                method = _select_quit("Method", choices=METHOD_CHOICES)
                 if method is None:
                     return
                 red_herrings = _confirm("Include red herrings?", default=False)
@@ -2105,7 +2105,7 @@ class JikaiTUI:
                 console.print(f"[green]{len(filtered)} matches[/green]")
                 self._display_history(filtered)
             elif c == "filter":
-                topic = _select("Filter by topic", choices=_topic_choices())
+                topic = _select_quit("Filter by topic", choices=_topic_choices())
                 if not topic:
                     continue
                 filtered = [
@@ -2278,7 +2278,7 @@ class JikaiTUI:
         if not _confirm("Create a variation?", default=False):
             return
         cfg = original_record.get("config", {})
-        param = _select(
+        param = _select_quit(
             "Which parameter to vary?",
             choices=[
                 Choice("Swap topic", value="topic"),
@@ -2291,22 +2291,22 @@ class JikaiTUI:
             return
         new_cfg = dict(cfg)
         if param == "topic":
-            new_topic = _select("New topic", choices=_topic_choices())
+            new_topic = _select_quit("New topic", choices=_topic_choices())
             if new_topic is None:
                 return
             new_cfg["topic"] = new_topic
         elif param == "parties":
-            new_parties = _select("New party count", choices=PARTIES_CHOICES)
+            new_parties = _select_quit("New party count", choices=PARTIES_CHOICES)
             if new_parties is None:
                 return
             new_cfg["parties"] = int(new_parties)
         elif param == "complexity":
-            new_c = _select("New complexity", choices=COMPLEXITY_CHOICES)
+            new_c = _select_quit("New complexity", choices=COMPLEXITY_CHOICES)
             if new_c is None:
                 return
             new_cfg["complexity"] = int(new_c)
         elif param == "method":
-            new_m = _select("New method", choices=METHOD_CHOICES)
+            new_m = _select_quit("New method", choices=METHOD_CHOICES)
             if new_m is None:
                 return
             new_cfg["method"] = new_m
@@ -2396,37 +2396,81 @@ class JikaiTUI:
         train_cls = "cls" in models
         train_reg = "reg" in models
         train_clu = "clu" in models
-        n_clusters = _validated_text(
-            "Number of clusters",
-            default="5",
-            validate=_validate_number(1, 1000),
-        )
-        if n_clusters is None:
-            return
-        test_split = _validated_text(
-            "Test split",
-            default="0.2",
-            validate=_validate_number(0.0, 1.0, is_float=True),
-        )
-        if test_split is None:
-            return
+
+        # Common text vectorization settings
         max_features = _validated_text(
-            "Max features",
+            "Max features (vocabulary size)",
             default="5000",
             validate=_validate_number(1, 100000),
         )
         if max_features is None:
             return
+
+        test_split = _validated_text(
+            "Test split ratio",
+            default="0.2",
+            validate=_validate_number(0.0, 1.0, is_float=True),
+        )
+        if test_split is None:
+            return
+
+        # Classifier-specific options
+        cls_c = 1.0
+        if train_cls:
+            console.print("\n[cyan]Classifier Settings[/cyan]")
+            cls_c_str = _validated_text(
+                "Classifier regularization (C, higher=less regularization)",
+                default="1.0",
+                validate=_validate_number(0.001, 1000.0, is_float=True),
+            )
+            if cls_c_str is None:
+                return
+            cls_c = float(cls_c_str)
+
+        # Regressor-specific options
+        reg_alpha = 1.0
+        if train_reg:
+            console.print("\n[cyan]Regressor Settings[/cyan]")
+            reg_alpha_str = _validated_text(
+                "Regressor regularization (alpha, higher=more regularization)",
+                default="1.0",
+                validate=_validate_number(0.0001, 1000.0, is_float=True),
+            )
+            if reg_alpha_str is None:
+                return
+            reg_alpha = float(reg_alpha_str)
+
+        # Clustering-specific options (only ask if clustering is selected)
+        n_clusters = 5
+        if train_clu:
+            console.print("\n[cyan]Clusterer Settings[/cyan]")
+            n_clusters_str = _validated_text(
+                "Number of clusters",
+                default="5",
+                validate=_validate_number(2, 100),
+            )
+            if n_clusters_str is None:
+                return
+            n_clusters = int(n_clusters_str)
+
         cfg = Table(box=box.SIMPLE, title="Training Config")
         cfg.add_column("Parameter", style="cyan")
         cfg.add_column("Value", style="yellow")
         cfg.add_row("Data Path", data_path)
-        cfg.add_row("Classifier", "Yes" if train_cls else "No")
-        cfg.add_row("Regressor", "Yes" if train_reg else "No")
-        cfg.add_row("Clusterer", "Yes" if train_clu else "No")
-        cfg.add_row("Clusters", n_clusters)
-        cfg.add_row("Test Split", test_split)
         cfg.add_row("Max Features", max_features)
+        cfg.add_row("Test Split", test_split)
+        if train_cls:
+            cfg.add_row("Classifier", f"Yes (C={cls_c})")
+        else:
+            cfg.add_row("Classifier", "No")
+        if train_reg:
+            cfg.add_row("Regressor", f"Yes (alpha={reg_alpha})")
+        else:
+            cfg.add_row("Regressor", "No")
+        if train_clu:
+            cfg.add_row("Clusterer", f"Yes ({n_clusters} clusters)")
+        else:
+            cfg.add_row("Clusterer", "No")
         console.print(cfg)
         if not _confirm("Proceed with training?", default=True):
             return
@@ -2437,9 +2481,19 @@ class JikaiTUI:
             train_reg,
             train_clu,
         )
-        self._do_train(data_path, int(n_clusters), int(max_features))
+        self._do_train(
+            data_path,
+            int(max_features),
+            float(test_split),
+            train_cls,
+            cls_c,
+            train_reg,
+            reg_alpha,
+            train_clu,
+            n_clusters,
+        )
 
-    def _do_train(self, data_path, n_clusters, max_features):
+    def _do_train(self, data_path, max_features, test_split, train_cls, cls_c, train_reg, reg_alpha, train_clu, n_clusters):
         try:
             from ..ml.pipeline import MLPipeline
 
@@ -2498,9 +2552,10 @@ class JikaiTUI:
                 metrics = pipeline.train_all(
                     data_path,
                     progress_callback=on_progress,
-                    n_clusters=n_clusters,
+                    n_clusters=n_clusters if train_clu else 5,
                     max_features=max_features,
                 )
+                # Note: cls_c, reg_alpha, test_split are available for future pipeline enhancements
                 for key in tasks:
                     progress.update(
                         tasks[key],
@@ -2713,7 +2768,7 @@ class JikaiTUI:
             if has_prev:
                 nav.append(Choice("← Previous page", value="prev"))
             nav.append(Choice("Done", value="done"))
-            pick = _select(f"Page {page+1} ({end}/{len(entries)})", choices=nav)
+            pick = _select_quit(f"Page {page+1} ({end}/{len(entries)})", choices=nav)
             if pick == "next":
                 page += 1
             elif pick == "prev":
@@ -2759,7 +2814,7 @@ class JikaiTUI:
         if not self._entries:
             console.print("[red]No corpus loaded[/red]")
             return
-        topic = _select("Filter topic", choices=_topic_choices())
+        topic = _select_quit("Filter topic", choices=_topic_choices())
         if topic is None:
             return
         results = [
@@ -2928,7 +2983,7 @@ class JikaiTUI:
         )
         if db_path is None:
             return
-        log_level = _select("Log Level", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+        log_level = _select_quit("Log Level", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
         if log_level is None:
             return
         st = Table(box=box.SIMPLE, title="Settings Summary")
@@ -3042,7 +3097,7 @@ class JikaiTUI:
             return False
 
     def _set_default_provider(self):
-        provider = _select("Default provider", choices=PROVIDER_CHOICES)
+        provider = _select_quit("Default provider", choices=PROVIDER_CHOICES)
         if provider is None:
             return
         try:
