@@ -9,21 +9,17 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import structlog
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
+
+import structlog
 
 from ..config import settings
 from ..services import (
     CorpusQuery,
+    corpus_service,
     GenerationRequest,
     GenerationResponse,
     HypotheticalEntry,
-    corpus_service,
     hypothetical_service,
     llm_service,
 )
