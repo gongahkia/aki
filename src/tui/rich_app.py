@@ -1442,9 +1442,8 @@ class JikaiTUI:
                         )
                         self._offer_export_now()
                         return
-                    console.print(
-                        f"[yellow]Score {score:.1f}/10 < 7.0, retrying with full generation...[/yellow]"
-                    )
+                    retry_reason = self._build_retry_reason(vr, score)
+                    console.print(f"[yellow]{retry_reason}[/yellow]")
             except Exception as stream_err:
                 tlog.info("GENERATE  stream failed: %s, trying full", stream_err)
                 console.print(
@@ -1563,9 +1562,8 @@ class JikaiTUI:
                         score,
                         " ".join(issues) if issues else "Improve overall quality.",
                     )
-                    console.print(
-                        f"[yellow]Score {score:.1f}/10 < 7.0, retrying...[/yellow]"
-                    )
+                    retry_reason = self._build_retry_reason(vr, score)
+                    console.print(f"[yellow]{retry_reason}[/yellow]")
 
             console.print(
                 "[yellow]Max retries reached. Showing best result above.[/yellow]"
@@ -1640,6 +1638,34 @@ class JikaiTUI:
             "[green]Yes[/green]" if vr.get("passed") else "[red]No[/red]",
         )
         console.print(vt)
+
+    def _build_retry_reason(self, vr, score):
+        """Build a detailed retry reason message from validation results."""
+        checks = vr.get("checks", vr.get("adherence_check", {}).get("checks", {}))
+        failed_checks = []
+        if isinstance(checks, dict):
+            pc = checks.get("party_count", {})
+            if not pc.get("passed", True):
+                found = pc.get("found", "?")
+                expected = pc.get("expected", "?")
+                failed_checks.append(f"party count ({found}/{expected})")
+            ti = checks.get("topic_inclusion", {})
+            if not ti.get("passed", True):
+                missing = ti.get("missing", [])
+                if missing:
+                    failed_checks.append(f"topic coverage (missing: {', '.join(missing)})")
+                else:
+                    failed_checks.append("topic coverage")
+            wc = checks.get("word_count", {})
+            if not wc.get("passed", True):
+                actual = wc.get("count", wc.get("word_count", "?"))
+                failed_checks.append(f"word count ({actual} words)")
+            sc = checks.get("singapore_context", {})
+            if not sc.get("passed", True):
+                failed_checks.append("Singapore context")
+        if failed_checks:
+            return f"Score {score:.1f}/10 — minimum is 7.0, retrying (failed: {', '.join(failed_checks)})..."
+        return f"Score {score:.1f}/10 — minimum is 7.0, retrying with corrective feedback..."
 
     def _offer_export_now(self):
         """Offer to export the last generated hypothetical immediately."""
