@@ -3445,47 +3445,29 @@ class JikaiTUI:
         """Detect empty state: no .env, no corpus.json, no models."""
         return not (Path(".env").exists() and self._corpus_ready())
 
-    def _deps_installed(self) -> bool:
-        """Return True if all required Python packages can be imported."""
+    def _check_single_dep(self, pkg_name: str) -> bool:
+        """Return True if the package is installed and importable."""
+        import importlib.util
+        import_name = IMPORT_MAP.get(pkg_name, pkg_name)
         try:
-            import chromadb  # noqa: F401
-            import sentence_transformers  # noqa: F401
-            import torch  # noqa: F401
-            import sklearn  # noqa: F401
-            import fitz  # noqa: F401 (pymupdf)
-            import docx  # noqa: F401 (python-docx)
-            import pytesseract  # noqa: F401
-            return True
-        except ImportError:
+            return importlib.util.find_spec(import_name) is not None
+        except (ImportError, ValueError):
             return False
 
-    def _install_deps(self):
-        """Install all required packages from requirements.txt with a live progress display."""
+    def _check_service_deps(self, service_key: str) -> bool:
+        """Return True if all dependencies for a service are installed."""
+        deps = SERVICE_DEPS.get(service_key, [])
+        return all(self._check_single_dep(d) for d in deps)
+
+    def _install_service_deps(self, service_key: str):
+        """Install dependencies for a specific service."""
         import subprocess
         import sys
+        deps = SERVICE_DEPS.get(service_key, [])
+        if not deps:
+            return True
 
-        req_file = Path(__file__).parent.parent.parent / "requirements.txt"
-        if not req_file.exists():
-            console.print("[red]✗ requirements.txt not found — cannot auto-install.[/red]")
-            return
-
-        console.print(
-            Panel(
-                "[bold]Installing Python dependencies[/bold]\n"
-                "[dim]This may take a few minutes on first run.[/dim]",
-                box=box.ROUNDED,
-                border_style="cyan",
-            )
-        )
-
-        # Read packages from requirements.txt (skip comments and blanks)
-        packages = []
-        with open(req_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    packages.append(line)
-
+        console.print(f"[cyan]Installing dependencies for {service_key}...[/cyan]")
         failed = []
         with Progress(
             SpinnerColumn(),
@@ -3495,30 +3477,35 @@ class JikaiTUI:
             TimeElapsedColumn(),
             console=console,
         ) as progress:
-            task = progress.add_task("[cyan]Installing packages", total=len(packages))
-            for pkg in packages:
-                pkg_name = pkg.split(">=")[0].split("==")[0].split("[")[0].strip()
-                progress.update(task, description=f"[cyan]Installing {pkg_name}")
+            task = progress.add_task(f"[cyan]Installing {service_key} deps", total=len(deps))
+            for pkg in deps:
+                progress.update(task, description=f"[cyan]Installing {pkg}")
+                # Use --no-cache-dir to ensure fresh install if needed, but --quiet to keep it clean
                 result = subprocess.run(
                     [sys.executable, "-m", "pip", "install", pkg, "--quiet"],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    failed.append(pkg_name)
+                    failed.append(pkg)
                 progress.advance(task)
 
         if failed:
-            console.print(
-                f"[yellow]⚠ Some packages failed to install: {', '.join(failed)}[/yellow]"
-            )
-            console.print("[dim]You may need to install them manually.[/dim]")
-        else:
-            console.print("[green]✓ All dependencies installed successfully.[/green]")
-
-        # Apply pydantic v1 / Python 3.14+ compatibility patch to chromadb
-        if sys.version_info >= (3, 14):
+            console.print(f"[red]✗ Failed to install: {', '.join(failed)}[/red]")
+            return False
+        console.print(f"[green]✓ Dependencies for {service_key} installed.[/green]")
+        # Re-apply patch if needed after installing chromadb
+        if "chromadb" in deps and sys.version_info >= (3, 14):
             self._apply_chromadb_py314_patch()
+        return True
+
+    def _deps_installed(self) -> bool:
+        """Check if core dependencies are installed."""
+        return self._check_service_deps("gen")
+
+    def _install_deps(self):
+        """Install core dependencies."""
+        self._install_service_deps("gen")
 
     def _apply_chromadb_py314_patch(self):
         """
