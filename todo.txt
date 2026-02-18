@@ -35,11 +35,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- RECOGNITION RATHER THAN RECALL ---
 
-[P1] L. Show Quick Generate defaults before topic selection
-  - Currently: user picks "Quick generate", picks topic, THEN sees defaults in dim text
-  - Instead: show defaults first in a small table, then ask "Use these settings?" with option to change
-  - Makes defaults visible and actionable before committing
-
 [P1] M. Add descriptions and grouping to topic list
   - Group topics by category:
     Negligence-Based: negligence, duty_of_care, causation, remoteness, contributory_negligence
@@ -53,11 +48,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
     "Vicarious Liability — employer liability for employee torts"
 
 --- FLEXIBILITY AND EFFICIENCY OF USE ---
-
-[P1] N. Add "Generate & Export" shortcut
-  - After successful generation, offer: "Export now? (y/n)" before returning to menu
-  - Saves navigating to Export separately every time
-  - Power users benefit from fewer menu round-trips
 
 [P3] O. Support hotkey shortcuts in sub-menus
   - At minimum: 'g' to jump to Generate from any menu depth

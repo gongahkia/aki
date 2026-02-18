@@ -59,11 +59,52 @@ TOPICS = [
     "psychiatric_harm",
     "employers_liability",
 ]
+
+TOPIC_DESCRIPTIONS = {
+    "negligence": "duty, breach, damage, causation",
+    "duty_of_care": "neighbour principle, proximity",
+    "causation": "but-for test, legal causation",
+    "remoteness": "foreseeability of damage",
+    "contributory_negligence": "claimant's own fault",
+    "battery": "intentional application of force",
+    "assault": "apprehension of immediate contact",
+    "false_imprisonment": "unlawful restraint of liberty",
+    "trespass_to_land": "unlawful entry onto land",
+    "vicarious_liability": "employer liability for employee torts",
+    "strict_liability": "liability without fault",
+    "occupiers_liability": "duties to visitors and trespassers",
+    "employers_liability": "workplace safety duties",
+    "product_liability": "defective product claims",
+    "defamation": "false statements harming reputation",
+    "private_nuisance": "unreasonable interference with land use",
+    "harassment": "course of conduct causing alarm",
+    "economic_loss": "pure financial loss claims",
+    "psychiatric_harm": "nervous shock and mental injury",
+}
+
+TOPIC_CATEGORIES = {
+    "Negligence-Based": ["negligence", "duty_of_care", "causation", "remoteness", "contributory_negligence"],
+    "Intentional Torts": ["battery", "assault", "false_imprisonment", "trespass_to_land"],
+    "Liability": ["vicarious_liability", "strict_liability", "occupiers_liability", "employers_liability", "product_liability"],
+    "Specific Torts": ["defamation", "private_nuisance", "harassment"],
+    "Damages": ["economic_loss", "psychiatric_harm"],
+}
+
 PROVIDERS = ["ollama", "openai", "anthropic", "google", "local"]
 
 
 def _topic_choices():
-    return [Choice(t.replace("_", " ").title(), value=t) for t in TOPICS]
+    """Build topic choices with descriptions, grouped by category."""
+    choices = []
+    for category, topics in TOPIC_CATEGORIES.items():
+        # Add category separator
+        choices.append(Choice(f"── {category} ──", value=None, disabled=""))
+        for t in topics:
+            desc = TOPIC_DESCRIPTIONS.get(t, "")
+            title = t.replace("_", " ").title()
+            label = f"{title} — {desc}" if desc else title
+            choices.append(Choice(label, value=t))
+    return choices
 
 
 COMPLEXITY_CHOICES = [
