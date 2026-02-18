@@ -6,9 +6,22 @@ Provides semantic similarity search for legal hypotheticals.
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import chromadb
 import structlog
-from sentence_transformers import SentenceTransformer
+
+# Lazy import chromadb to handle Python 3.14+ incompatibility
+chromadb = None
+SentenceTransformer = None
+CHROMADB_AVAILABLE = False
+
+try:
+    import chromadb as _chromadb
+    from sentence_transformers import SentenceTransformer as _SentenceTransformer
+    chromadb = _chromadb
+    SentenceTransformer = _SentenceTransformer
+    CHROMADB_AVAILABLE = True
+except Exception as e:
+    # ChromaDB may fail on Python 3.14+ due to Pydantic v1 incompatibility
+    pass
 
 from ..config import settings
 
@@ -23,13 +36,18 @@ class VectorService:
     """Service for semantic vector search using ChromaDB."""
 
     def __init__(self):
-        self._client: Optional[chromadb.ClientAPI] = None
-        self._collection: Optional[chromadb.Collection] = None
-        self._embedding_model: Optional[SentenceTransformer] = None
+        self._client = None
+        self._collection = None
+        self._embedding_model = None
         self._initialized = False
 
     def _initialize(self):
         """Initialize ChromaDB client and embedding model."""
+        if not CHROMADB_AVAILABLE:
+            logger.warning("ChromaDB unavailable (Python 3.14+ incompatibility). Semantic search disabled.")
+            self._initialized = False
+            return
+
         try:
             from ..config import settings as app_settings
 
@@ -61,7 +79,7 @@ class VectorService:
             self._initialized = True
             logger.info("Vector service initialized successfully")
 
-        except (ImportError, OSError, RuntimeError) as e:
+        except Exception as e:
             logger.error("Failed to initialize vector service", error=str(e))
             self._initialized = False
             # Don't raise - allow fallback to simple search
