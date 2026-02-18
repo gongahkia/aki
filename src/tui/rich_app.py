@@ -566,6 +566,7 @@ class JikaiTUI:
                         value="export",
                         disabled=export_disabled,
                     ),
+                    Choice("Guided Mode (First-time users)", value="guided"),
                     Choice("More... ›", value="more"),
                 ],
                 style=menu_style,
@@ -582,6 +583,7 @@ class JikaiTUI:
                 "embed": "Index Semantic Search",
                 "gen": "Generate",
                 "export": "Export",
+                "guided": "Guided Mode",
                 "more": "More",
                 "tools": "Batch Operations",
                 "history": "History",
@@ -605,6 +607,8 @@ class JikaiTUI:
                 self.generate_flow()
             elif choice == "export":
                 self.export_flow()
+            elif choice == "guided":
+                self.guided_mode()
             elif choice == "more":
                 result = self._more_menu()
                 if result == "__jump_gen__":
@@ -671,6 +675,74 @@ class JikaiTUI:
                 self.providers_flow()
             if c in _labels:
                 self._pop_nav()
+
+    def guided_mode(self):
+        """Guided walkthrough for first-time users: Preprocess → Generate → Export."""
+        console.print("\n[bold yellow]Guided Mode — 3-Step Walkthrough[/bold yellow]")
+        console.print(
+            Panel(
+                "[bold]Welcome to Jikai![/bold]\n\n"
+                "This guided mode will walk you through the essential steps:\n"
+                "  [cyan]1.[/cyan] Import & preprocess your legal corpus\n"
+                "  [cyan]2.[/cyan] Generate a tort law hypothetical\n"
+                "  [cyan]3.[/cyan] Export to DOCX/PDF\n\n"
+                "[dim]Press any key to continue, or q to exit.[/dim]",
+                title="Getting Started",
+                box=box.ROUNDED,
+                border_style="green",
+            )
+        )
+        # Step 1: Check if corpus exists, otherwise guide through preprocessing
+        if not self._corpus_ready():
+            console.print("\n[bold cyan]Step 1/3: Import & Preprocess Corpus[/bold cyan]")
+            console.print(
+                "[dim]You need a corpus before generating. "
+                "Let's preprocess some documents.[/dim]\n"
+            )
+            if _confirm("Start preprocessing now?", default=True):
+                self._push_nav("Preprocess")
+                self.ocr_flow()
+                self._pop_nav()
+            if not self._corpus_ready():
+                console.print("[yellow]⚠ Corpus not ready. Exiting guided mode.[/yellow]")
+                return
+        else:
+            console.print("\n[green]✓ Step 1/3: Corpus ready[/green]")
+
+        # Step 2: Generate a hypothetical
+        console.print("\n[bold cyan]Step 2/3: Generate Hypothetical[/bold cyan]")
+        console.print(
+            "[dim]Now let's generate a tort law scenario using AI.[/dim]\n"
+        )
+        if _confirm("Generate a hypothetical now?", default=True):
+            self._push_nav("Generate")
+            self.generate_flow()
+            self._pop_nav()
+
+        # Step 3: Export
+        history = self._load_history()
+        if history:
+            console.print("\n[bold cyan]Step 3/3: Export to Document[/bold cyan]")
+            console.print(
+                "[dim]Export your generated hypothetical to DOCX or PDF.[/dim]\n"
+            )
+            if _confirm("Export now?", default=True):
+                self._push_nav("Export")
+                self.export_flow()
+                self._pop_nav()
+
+        console.print(
+            Panel(
+                "[bold green]Guided mode complete![/bold green]\n\n"
+                "You've learned the core workflow. Next steps:\n"
+                "  • [cyan]Label Corpus[/cyan] — improve generation quality with training data\n"
+                "  • [cyan]Train ML Models[/cyan] — enhance AI with custom models\n"
+                "  • [cyan]History[/cyan] — review and reuse past generations\n",
+                title="All Done!",
+                box=box.ROUNDED,
+                border_style="green",
+            )
+        )
 
     def _tools_menu(self):
         """Submenu for power tools outside the core workflow."""
