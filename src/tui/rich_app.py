@@ -3430,8 +3430,36 @@ class JikaiTUI:
     def _start_services(self):
         """
         Ensure all required background services are running.
-        Called on every startup, before the main menu.
+        Asks for permission to install missing dependencies for each service.
         """
+        console.print("\n[bold cyan]Initializing Services...[/bold cyan]")
+
+        services_to_check = {
+            "ocr": "Import & Preprocess Corpus (OCR, PDF, DOCX)",
+            "train": "ML Model Training (sklearn, pandas)",
+            "embed": "Semantic Search indexing (chromadb, torch, embeddings)",
+            "gen": "Core Generation (httpx)",
+            "export": "Document Export (python-docx)",
+        }
+
+        missing_services = [key for key in services_to_check if not self._check_service_deps(key)]
+
+        if missing_services:
+            console.print("[yellow]⚠ Some services are missing dependencies.[/yellow]")
+            choices = [Choice(services_to_check[key], value=key) for key in missing_services]
+            selected = _checkbox("Select services to install dependencies for:", choices=choices)
+
+            if selected:
+                for key in selected:
+                    self._install_service_deps(key)
+
+            # Warn about unselected
+            unselected = set(missing_services) - set(selected or [])
+            if unselected:
+                console.print("[yellow]⚠ The following functions will be disabled or limited:[/yellow]")
+                for key in unselected:
+                    console.print(f"  • {services_to_check[key]}")
+
         provider = self._configured_provider()
         if provider == "ollama":
             host = self._ollama_host_from_env()
@@ -3439,6 +3467,11 @@ class JikaiTUI:
                 console.print(f"[green]✓ Ollama is running at {host}[/green]")
             else:
                 self._start_ollama(host)
+        elif provider in ["google", "anthropic"]:
+            if not self._check_service_deps(provider):
+                console.print(f"[yellow]⚠ {provider.title()} provider dependencies are missing.[/yellow]")
+                if _confirm(f"Install dependencies for {provider}?", default=True):
+                    self._install_service_deps(provider)
 
     # ── first-run wizard ─────────────────────────────────────────
     def _needs_first_run(self) -> bool:
