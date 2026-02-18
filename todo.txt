@@ -28,11 +28,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- ERROR PREVENTION ---
 
-[P1] J. Auto-check provider health before generation starts
-  - When user selects a provider during generation config, ping the provider immediately
-  - If unreachable or API key missing, warn inline: "⚠ ollama unreachable — check connection"
-  - Prevent wasting time configuring a generation that will fail
-
 [P2] K. Skip corpus path prompt when default exists
   - Browse Corpus, Label Corpus, and Embed flows all prompt for corpus path
   - If default path exists and has entries, use it silently: "Using corpus: corpus.json (48 entries)"

@@ -1261,9 +1261,7 @@ class JikaiTUI:
             defaults = state.get("last_config", {})
 
             if mode == "quick":
-                topic = _select("Topic", choices=_topic_choices())
-                if topic is None:
-                    return
+                # Show defaults first before committing
                 provider = defaults.get("provider", "ollama")
                 model_name = defaults.get("model", None)
                 temperature = defaults.get("temperature", 0.7)
@@ -1271,12 +1269,27 @@ class JikaiTUI:
                 parties = defaults.get("parties", "2")
                 method = defaults.get("method", "pure_llm")
                 red_herrings = False
-                console.print(
-                    f"[dim]Using defaults: {provider}/{model_name or 'default'}, "
-                    f"temp={temperature}, complexity={complexity}, "
-                    f"parties={parties}, method={method}[/dim]"
-                )
-            else:
+
+                dt = Table(title="Quick Generate Defaults", box=box.SIMPLE)
+                dt.add_column("Setting", style="cyan")
+                dt.add_column("Value", style="yellow")
+                dt.add_row("Provider", provider)
+                dt.add_row("Model", model_name or "default")
+                dt.add_row("Temperature", str(temperature))
+                dt.add_row("Complexity", complexity)
+                dt.add_row("Parties", parties)
+                dt.add_row("Method", method)
+                console.print(dt)
+
+                if not _confirm("Use these settings?", default=True):
+                    console.print("[dim]Switching to custom mode...[/dim]")
+                    mode = "custom"
+                else:
+                    topic = _select("Topic", choices=_topic_choices())
+                    if topic is None:
+                        return
+
+            if mode == "custom":
                 topic = _select("Topic", choices=_topic_choices())
                 if topic is None:
                     return
