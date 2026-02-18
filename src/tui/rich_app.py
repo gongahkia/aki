@@ -522,15 +522,49 @@ class JikaiTUI:
             labelled_ok = self._labelled_ready()
             models_ok = self._models_ready()
             embed_ok = self._embeddings_ready()
+
+            # Dep checks
+            ocr_deps = self._check_service_deps("ocr")
+            train_deps = self._check_service_deps("train")
+            embed_deps = self._check_service_deps("embed")
+            gen_deps = self._check_service_deps("gen")
+            export_deps = self._check_service_deps("export")
+
             browse_disabled = None if corpus_ok else "preprocess corpus first"
             label_disabled = None if corpus_ok else "preprocess corpus first"
-            train_disabled = None if labelled_ok else "label corpus first"
-            embed_disabled = None if corpus_ok else "preprocess corpus first"
-            gen_disabled = None if corpus_ok else "preprocess corpus first"
+
+            # Complex disabled logic with dep check
+            if not corpus_ok:
+                train_disabled = "preprocess corpus first"
+            elif not labelled_ok:
+                train_disabled = "label corpus first"
+            elif not train_deps:
+                train_disabled = "install ML dependencies"
+            else:
+                train_disabled = None
+
+            if not corpus_ok:
+                embed_disabled = "preprocess corpus first"
+            elif not embed_deps:
+                embed_disabled = "install embedding dependencies"
+            else:
+                embed_disabled = None
+
+            if not corpus_ok:
+                gen_disabled = "preprocess corpus first"
+            elif not gen_deps:
+                gen_disabled = "install generation dependencies"
+            else:
+                gen_disabled = None
 
             history = self._load_history()
             has_history = len(history) > 0
-            export_disabled = None if has_history else "generate a hypothetical first"
+            if not has_history:
+                export_disabled = "generate a hypothetical first"
+            elif not export_deps:
+                export_disabled = "install export dependencies"
+            else:
+                export_disabled = None
 
             from prompt_toolkit.styles import Style as PtStyle
 
@@ -538,12 +572,18 @@ class JikaiTUI:
                 "ok": "#00aa00",
                 "fail": "#cc0000",
                 "dim": "#666666",
+                "warn": "#ffff00",
             })
 
-            def _tag(ok, optional=False):
+            def _tag(ok, optional=False, deps_ok=True):
+                tags = []
+                if not deps_ok:
+                    tags.append(("class:warn", " ⚠"))
                 if ok:
-                    return [("class:ok", " ✓")]
-                return [("class:dim", " ○")] if optional else [("class:fail", " ✗")]
+                    tags.append(("class:ok", " ✓"))
+                else:
+                    tags.append(("class:dim", " ○") if optional else ("class:fail", " ✗"))
+                return tags
 
             def _lbl(text, enabled=True):
                 cls = "" if enabled else "class:dim"
@@ -553,7 +593,7 @@ class JikaiTUI:
                 "What would you like to do?",
                 choices=[
                     Choice(
-                        title=_lbl("Import & Preprocess Corpus") + _tag(corpus_ok),
+                        title=_lbl("Import & Preprocess Corpus") + _tag(corpus_ok, deps_ok=ocr_deps),
                         value="ocr",
                     ),
                     Choice(
@@ -567,24 +607,26 @@ class JikaiTUI:
                         disabled=label_disabled,
                     ),
                     Choice(
-                        title=_lbl("Train ML Models (optional)", labelled_ok)
-                        + _tag(models_ok, optional=True),
+                        title=_lbl("Train ML Models (optional)", labelled_ok and train_deps)
+                        + _tag(models_ok, optional=True, deps_ok=train_deps),
                         value="train",
                         disabled=train_disabled,
                     ),
                     Choice(
-                        title=_lbl("Index Semantic Search (optional)", corpus_ok)
-                        + _tag(embed_ok, optional=True),
+                        title=_lbl("Index Semantic Search (optional)", corpus_ok and embed_deps)
+                        + _tag(embed_ok, optional=True, deps_ok=embed_deps),
                         value="embed",
                         disabled=embed_disabled,
                     ),
                     Choice(
-                        title=_lbl("Generate Hypothetical", corpus_ok),
+                        title=_lbl("Generate Hypothetical", corpus_ok and gen_deps)
+                        + _tag(corpus_ok, deps_ok=gen_deps),
                         value="gen",
                         disabled=gen_disabled,
                     ),
                     Choice(
-                        title=_lbl("Export to DOCX / PDF", has_history),
+                        title=_lbl("Export to DOCX / PDF", has_history and export_deps)
+                        + _tag(has_history, deps_ok=export_deps),
                         value="export",
                         disabled=export_disabled,
                     ),
@@ -778,11 +820,23 @@ class JikaiTUI:
         """Submenu for power tools outside the core workflow."""
         while True:
             console.print("\n[bold yellow]Batch Operations[/bold yellow]")
+
+            gen_deps = self._check_service_deps("gen")
+            ocr_deps = self._check_service_deps("ocr")
+
             c = _select_quit(
                 "Batch Operations",
                 choices=[
-                    Choice("Batch Generate", value="batch_gen"),
-                    Choice("Import SG Cases", value="import_cases"),
+                    Choice(
+                        "Batch Generate" + ("" if gen_deps else " ⚠"),
+                        value="batch_gen",
+                        disabled=None if gen_deps else "install generation dependencies",
+                    ),
+                    Choice(
+                        "Import SG Cases" + ("" if ocr_deps else " ⚠"),
+                        value="import_cases",
+                        disabled=None if ocr_deps else "install OCR dependencies",
+                    ),
                     Choice("Bulk Label", value="bulk_label"),
                 ],
             )
