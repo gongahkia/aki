@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional
 
 import chromadb
 import structlog
-from chromadb.config import Settings as ChromaSettings
 from sentence_transformers import SentenceTransformer
 
 from ..config import settings
@@ -39,34 +38,25 @@ class VectorService:
             self._embedding_model = SentenceTransformer(model_name)
 
             # Initialize ChromaDB client (local persistent storage)
+            # Use PersistentClient for Python 3.14+ compatibility
             persist_directory = Path("./chroma_db")
             persist_directory.mkdir(parents=True, exist_ok=True)
 
-            self._client = chromadb.Client(
-                ChromaSettings(
-                    persist_directory=str(persist_directory), anonymized_telemetry=False
-                )
+            self._client = chromadb.PersistentClient(
+                path=str(persist_directory),
+                settings=chromadb.Settings(anonymized_telemetry=False),
             )
 
             # Get or create collection
-            try:
-                self._collection = self._client.get_collection(
-                    name=settings.database.chroma_collection_name
-                )
-                logger.info(
-                    "Loaded existing ChromaDB collection",
-                    name=settings.database.chroma_collection_name,
-                    count=self._collection.count(),
-                )
-            except Exception:
-                self._collection = self._client.create_collection(
-                    name=settings.database.chroma_collection_name,
-                    metadata={"description": "Singapore Tort Law Hypotheticals"},
-                )
-                logger.info(
-                    "Created new ChromaDB collection",
-                    name=settings.database.chroma_collection_name,
-                )
+            self._collection = self._client.get_or_create_collection(
+                name=settings.database.chroma_collection_name,
+                metadata={"description": "Singapore Tort Law Hypotheticals"},
+            )
+            logger.info(
+                "ChromaDB collection ready",
+                name=settings.database.chroma_collection_name,
+                count=self._collection.count(),
+            )
 
             self._initialized = True
             logger.info("Vector service initialized successfully")
