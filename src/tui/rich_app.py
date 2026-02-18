@@ -1735,16 +1735,66 @@ class JikaiTUI:
             console.print(f"[red]✗ Model answer generation failed: {e}[/red]")
 
     def _show_validation(self, vr):
-        """Display validation results table."""
+        """Display validation results table with detailed check results."""
         if not vr:
             return
         vt = Table(title="Validation Results", box=box.ROUNDED)
         vt.add_column("Check", style="cyan")
         vt.add_column("Result", style="yellow")
-        vt.add_row("Quality Score", str(vr.get("quality_score", "N/A")))
+
+        # Extract detailed checks
+        checks = vr.get("checks", vr.get("adherence_check", {}).get("checks", {}))
+        if isinstance(checks, dict):
+            # Party Count
+            pc = checks.get("party_count", {})
+            if pc:
+                passed = pc.get("passed", True)
+                found = pc.get("found", "?")
+                expected = pc.get("expected", "?")
+                icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+                vt.add_row("Party Count", f"{icon} Found {found} (expected {expected})")
+
+            # Topic Coverage
+            ti = checks.get("topic_inclusion", {})
+            if ti:
+                passed = ti.get("passed", True)
+                icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+                if passed:
+                    vt.add_row("Topic Coverage", f"{icon} Covered")
+                else:
+                    missing = ti.get("missing", ti.get("topics_missing", []))
+                    if missing:
+                        vt.add_row("Topic Coverage", f"{icon} Missing: {', '.join(missing)}")
+                    else:
+                        vt.add_row("Topic Coverage", f"{icon} Incomplete")
+
+            # Word Count
+            wc = checks.get("word_count", {})
+            if wc:
+                passed = wc.get("passed", True)
+                count = wc.get("count", wc.get("word_count", "?"))
+                icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+                vt.add_row("Word Count", f"{icon} {count} words (target: 800-1500)")
+
+            # Singapore Context
+            sc = checks.get("singapore_context", {})
+            if sc:
+                passed = sc.get("passed", True)
+                icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+                vt.add_row("Singapore Context", f"{icon} {'Present' if passed else 'Missing'}")
+
+        # Quality Score
+        score = vr.get("quality_score", vr.get("overall_score", "N/A"))
+        if isinstance(score, (int, float)):
+            vt.add_row("Quality Score", f"{score:.1f} / 10")
+        else:
+            vt.add_row("Quality Score", str(score))
+
+        # Overall
+        passed = vr.get("passed", False)
         vt.add_row(
-            "Passed",
-            "[green]Yes[/green]" if vr.get("passed") else "[red]No[/red]",
+            "Overall",
+            "[green]✓ Passed[/green]" if passed else "[red]✗ Failed[/red]",
         )
         console.print(vt)
 
