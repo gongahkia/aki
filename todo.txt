@@ -95,24 +95,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
   - This is visual noise — Rich panels and bold yellow titles already provide hierarchy
   - Delete all occurrences of console.print("=" * 60)
 
-[P0] Q. Collapse secondary features into "More..." submenu
-  - Current main menu: 12 items (too many, Hick's Law)
-  - New main menu structure:
-      Import & Preprocess Corpus    ✓/✗
-      Browse Corpus
-      Label Corpus                  ✓/✗
-      Train ML Models (optional)    ○
-      Index Semantic Search (optional) ○
-      Generate Hypothetical
-      Export to DOCX / PDF
-      More... ›
-  - "More..." submenu contains:
-      History
-      Stats Dashboard
-      Batch Operations ›
-      Settings
-      Providers
-
 --- HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS ---
 
 [P1] R. Pattern-match common errors with specific recovery messages
