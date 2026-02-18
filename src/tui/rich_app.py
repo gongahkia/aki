@@ -1415,7 +1415,7 @@ class JikaiTUI:
         try:
             import docx
             from docx.enum.text import WD_ALIGN_PARAGRAPH
-            from docx.shared import Inches, Pt
+            from docx.shared import Pt
 
             doc = docx.Document()
             style = doc.styles["Normal"]
@@ -1957,7 +1957,7 @@ class JikaiTUI:
                 console.print("[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]")
         # Model not found
         elif "model" in err_str and ("not found" in err_str or "does not exist" in err_str or "not available" in err_str):
-            console.print(f"[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]")
+            console.print("[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]")
         # Connection/network errors — attempt to auto-restart Ollama
         elif "timeout" in err_str or "timed out" in err_str or "connection" in err_str or "refused" in err_str or "unreachable" in err_str or "all connection attempts failed" in err_str:
             console.print("[red]✗ Cannot connect to provider.[/red]")
@@ -3606,7 +3606,7 @@ class JikaiTUI:
         3.14, causing ConfigError for every annotated field.  We inject the evaluated
         annotations before the metaclass processes the namespace.
         """
-        import sys
+
         try:
             import pydantic.v1.main as _pyd_main
 

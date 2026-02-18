@@ -1,10 +1,15 @@
 """Services package for Jikai application."""
 
-
-def normalize_topic(topic: str) -> str:
-    """Normalize topic key: lowercase, underscores to spaces, stripped."""
-    return topic.lower().replace("_", " ").strip()
-
+from .database_service import DatabaseService, database_service
+from .hypothetical_service import (
+    GenerationRequest,
+    GenerationResponse,
+    HypotheticalService,
+    ValidationResult,
+    hypothetical_service,
+)
+from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
+from .validation_service import ValidationService, validation_service
 
 try:
     from .corpus_service import (
@@ -19,16 +24,6 @@ try:
 except Exception:
     _HAS_VECTOR = False
 
-from .database_service import DatabaseService, database_service
-from .hypothetical_service import (
-    GenerationRequest,
-    GenerationResponse,
-    HypotheticalService,
-    ValidationResult,
-    hypothetical_service,
-)
-from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
-from .validation_service import ValidationService, validation_service
 
 __all__ = [
     "normalize_topic",
@@ -56,3 +51,8 @@ if _HAS_VECTOR:
         "VectorService",
         "vector_service",
     ]
+
+
+def normalize_topic(topic: str) -> str:
+    """Normalize topic key: lowercase, underscores to spaces, stripped."""
+    return topic.lower().replace("_", " ").strip()
