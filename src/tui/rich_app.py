@@ -696,9 +696,27 @@ class JikaiTUI:
     # ── label ──────────────────────────────────────────────────
     def label_flow(self):
         console.print("\n[bold yellow]Label Corpus → Training CSV[/bold yellow]")
-        corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
-        if corpus_path is None:
-            return
+        # Auto-use default corpus if it exists and has entries
+        corpus_path = self._corpus_path
+        if Path(corpus_path).exists():
+            try:
+                with open(corpus_path) as f:
+                    data = json.load(f)
+                entries = data if isinstance(data, list) else data.get("entries", [])
+                if entries:
+                    console.print(f"[dim]Using corpus: {corpus_path} ({len(entries)} entries)[/dim]")
+                else:
+                    corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
+                    if corpus_path is None:
+                        return
+            except Exception:
+                corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
+                if corpus_path is None:
+                    return
+        else:
+            corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
+            if corpus_path is None:
+                return
         out_path = _path("Output labelled CSV", default=self._train_data)
         if out_path is None:
             return
@@ -2446,10 +2464,21 @@ class JikaiTUI:
     # ── corpus ──────────────────────────────────────────────────
     def corpus_flow(self):
         console.print("\n[bold yellow]Browse Corpus[/bold yellow]")
-        path = _path(
-            "Corpus file path",
-            default=self._corpus_path,
-        )
+        # Auto-use default corpus if it exists and has entries
+        path = self._corpus_path
+        if Path(path).exists():
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+                entries = data if isinstance(data, list) else data.get("entries", [])
+                if entries:
+                    console.print(f"[dim]Using corpus: {path} ({len(entries)} entries)[/dim]")
+                else:
+                    path = _path("Corpus file path", default=self._corpus_path)
+            except Exception:
+                path = _path("Corpus file path", default=self._corpus_path)
+        else:
+            path = _path("Corpus file path", default=self._corpus_path)
         if path is None:
             return
         self._load_corpus(path)
