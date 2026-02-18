@@ -789,7 +789,44 @@ class JikaiTUI:
                 }
             )
             count += 1
-            console.print(f"[green]✓ Labelled ({count} this session)[/green]")
+            # Show confirmation with the label just assigned
+            console.print(
+                f"[green]✓ Labelled ({count} this session)[/green] "
+                f"[dim]Topics: {', '.join(topics[:3])}{'...' if len(topics) > 3 else ''}, "
+                f"Quality: {quality}, Difficulty: {difficulty}[/dim]"
+            )
+            # Offer to re-label
+            if _confirm("Re-label this entry?", default=False):
+                # Remove the last entry and redo
+                labelled.pop()
+                count -= 1
+                # Re-prompt for labels
+                topics = _checkbox("Topics", choices=_topic_choices())
+                if topics is None:
+                    break
+                quality = _validated_text(
+                    "Quality score (0-10)",
+                    default="7.0",
+                    validate=_validate_number(0.0, 10.0, is_float=True),
+                )
+                if quality is None:
+                    break
+                difficulty = _select("Difficulty", choices=difficulty_choices)
+                if difficulty is None:
+                    break
+                labelled.append(
+                    {
+                        "text": text,
+                        "topic_labels": "|".join(topics),
+                        "quality_score": quality,
+                        "difficulty_level": difficulty,
+                    }
+                )
+                count += 1
+                console.print(
+                    f"[green]✓ Re-labelled[/green] "
+                    f"[dim]Topics: {', '.join(topics[:3])}, Quality: {quality}, Difficulty: {difficulty}[/dim]"
+                )
         if count > 0:
             Path(out_path).parent.mkdir(parents=True, exist_ok=True)
             with open(out_path, "w", newline="") as f:
