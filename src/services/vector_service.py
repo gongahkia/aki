@@ -3,25 +3,47 @@ Vector Service for semantic search using ChromaDB and sentence transformers.
 Provides semantic similarity search for legal hypotheticals.
 """
 
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import structlog
 
-# Lazy import chromadb to handle Python 3.14+ incompatibility
-chromadb = None
-SentenceTransformer = None
-CHROMADB_AVAILABLE = False
+# ── Python 3.14+ compatibility patch for pydantic v1 ──────────────────────────
+# Python 3.14 changed how class-body annotations are stored: they are now
+# accessed via __annotate_func__ (PEP 649) instead of being written directly
+# into __annotations__ during class body execution.  Pydantic v1's
+# ModelMetaclass.__new__ reads `namespace.get('__annotations__', {})`, which
+# returns {} on 3.14, causing ConfigError for every annotated field.
+# This patch evaluates __annotate_func__ and injects __annotations__ before
+# pydantic v1 processes the namespace.
+if sys.version_info >= (3, 14):
+    try:
+        import pydantic.v1.main as _pyd_main
 
-try:
-    import chromadb as _chromadb
-    from sentence_transformers import SentenceTransformer as _SentenceTransformer
-    chromadb = _chromadb
-    SentenceTransformer = _SentenceTransformer
-    CHROMADB_AVAILABLE = True
-except Exception as e:
-    # ChromaDB may fail on Python 3.14+ due to Pydantic v1 incompatibility
-    pass
+        _orig_meta_new = _pyd_main.ModelMetaclass.__new__
+
+        def _patched_meta_new(mcs, name, bases, namespace, **kwargs):
+            if "__annotations__" not in namespace and "__annotate_func__" in namespace:
+                annotate_func = namespace["__annotate_func__"]
+                try:
+                    import annotationlib
+                    annotations = annotate_func(annotationlib.Format.VALUE)
+                except Exception:
+                    try:
+                        annotations = annotate_func(1)  # Format.VALUE == 1
+                    except Exception:
+                        annotations = {}
+                namespace["__annotations__"] = annotations
+            return _orig_meta_new(mcs, name, bases, namespace, **kwargs)
+
+        _pyd_main.ModelMetaclass.__new__ = _patched_meta_new
+    except Exception:
+        pass  # pydantic.v1 not present; nothing to patch
+# ──────────────────────────────────────────────────────────────────────────────
+
+import chromadb
+from sentence_transformers import SentenceTransformer
 
 from ..config import settings
 
@@ -43,11 +65,6 @@ class VectorService:
 
     def _initialize(self):
         """Initialize ChromaDB client and embedding model."""
-        if not CHROMADB_AVAILABLE:
-            logger.warning("ChromaDB unavailable (Python 3.14+ incompatibility). Semantic search disabled.")
-            self._initialized = False
-            return
-
         try:
             from ..config import settings as app_settings
 
@@ -56,7 +73,6 @@ class VectorService:
             self._embedding_model = SentenceTransformer(model_name)
 
             # Initialize ChromaDB client (local persistent storage)
-            # Use PersistentClient for Python 3.14+ compatibility
             persist_directory = Path("./chroma_db")
             persist_directory.mkdir(parents=True, exist_ok=True)
 
@@ -82,14 +98,13 @@ class VectorService:
         except Exception as e:
             logger.error("Failed to initialize vector service", error=str(e))
             self._initialized = False
-            # Don't raise - allow fallback to simple search
+            raise VectorServiceError(f"Vector service initialization failed: {e}") from e
 
     def _embed_text(self, text: str) -> List[float]:
         """Generate embedding vector for text."""
         if not self._embedding_model:
             raise VectorServiceError("Embedding model not initialized")
 
-        # Generate embedding
         embedding = self._embedding_model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
 
@@ -129,7 +144,6 @@ class VectorService:
             embeddings = []
 
             for hypo in hypotheticals:
-                # Generate embedding for the hypothetical text
                 embedding = self._embed_text(hypo["text"])
 
                 ids.append(hypo["id"])
@@ -182,28 +196,23 @@ class VectorService:
         """
         self._ensure_initialized()
         if not self._initialized:
-            logger.warning("Vector service not initialized, returning empty results")
-            return []
+            raise VectorServiceError("Vector service not available")
 
         try:
-            # Create query text from topics
             query_text = f"Legal hypothetical involving {', '.join(query_topics)} in Singapore tort law"
 
-            # Generate query embedding
             query_embedding = self._embed_text(query_text)
 
-            # Perform semantic search
             assert self._collection is not None
             results = self._collection.query(
                 query_embeddings=[query_embedding],
                 n_results=min(
                     n_results * 2,
                     self._collection.count(),
-                ),  # Get extra for filtering
+                ),
                 include=["documents", "metadatas", "distances"],
             )
 
-            # Process and filter results
             relevant_hypotheticals: List[Dict[str, Any]] = []
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
@@ -214,9 +223,8 @@ class VectorService:
                 if len(relevant_hypotheticals) >= n_results:
                     break
 
-                # Convert distance to similarity score (smaller distance = more similar)
                 distance = results["distances"][0][i]
-                similarity_score = 1.0 / (1.0 + distance)  # Convert to 0-1 range
+                similarity_score = 1.0 / (1.0 + distance)
 
                 relevant_hypotheticals.append(
                     {
@@ -242,7 +250,7 @@ class VectorService:
 
         except Exception as e:
             logger.error("Semantic search failed", error=str(e))
-            return []  # Return empty list instead of raising
+            raise VectorServiceError(f"Semantic search failed: {e}") from e
 
     async def health_check(self) -> Dict[str, Any]:
         """Check health of vector service."""

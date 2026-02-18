@@ -1874,13 +1874,24 @@ class JikaiTUI:
         # Model not found
         elif "model" in err_str and ("not found" in err_str or "does not exist" in err_str or "not available" in err_str):
             console.print(f"[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]")
-        # Connection/network errors
-        elif "timeout" in err_str or "timed out" in err_str:
-            console.print("[red]✗ Connection timed out. Is the provider running?[/red]")
-            console.print("[dim]For Ollama: run 'ollama serve' in a terminal[/dim]")
-        elif "connection" in err_str or "refused" in err_str or "unreachable" in err_str:
-            console.print("[red]✗ Cannot connect to provider. Check if it's running.[/red]")
-            console.print("[dim]For Ollama: run 'ollama serve' in a terminal[/dim]")
+        # Connection/network errors — attempt to auto-restart Ollama
+        elif "timeout" in err_str or "timed out" in err_str or "connection" in err_str or "refused" in err_str or "unreachable" in err_str or "all connection attempts failed" in err_str:
+            console.print("[red]✗ Cannot connect to provider.[/red]")
+            provider_name = self._configured_provider()
+            if provider_name == "ollama":
+                host = self._ollama_host_from_env()
+                started = self._start_ollama(host)
+                if started:
+                    console.print(
+                        "[dim]Ollama is now running — press Generate again to retry.[/dim]"
+                    )
+                else:
+                    console.print(
+                        "[dim]Could not start Ollama automatically. "
+                        "Run 'ollama serve' in a terminal, then try again.[/dim]"
+                    )
+            else:
+                console.print("[dim]Check that your provider service is running and accessible.[/dim]")
         # Rate limiting
         elif "rate limit" in err_str or "too many requests" in err_str:
             console.print("[red]✗ Rate limited by provider. Wait a moment and try again.[/red]")
@@ -2623,12 +2634,6 @@ class JikaiTUI:
                     }
                 )
             vs = VectorService()
-            if not vs._initialized:
-                console.print("[red]✗ Vector service failed to initialize[/red]")
-                console.print(
-                    "[yellow]Run: pip install chromadb sentence-transformers[/yellow]"
-                )
-                return
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -3115,10 +3120,226 @@ class JikaiTUI:
         except Exception as e:
             console.print(f"[red]✗ Failed: {e}[/red]")
 
+    # ── service startup ──────────────────────────────────────────
+    def _ping_ollama(self, host: str = "http://localhost:11434", timeout: float = 1.5) -> bool:
+        """Return True if Ollama is reachable at host."""
+        import urllib.request
+        import urllib.error
+        try:
+            req = urllib.request.Request(f"{host}/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=timeout):
+                return True
+        except Exception:
+            return False
+
+    def _ollama_host_from_env(self) -> str:
+        """Read OLLAMA_HOST from .env or fall back to localhost."""
+        host = "http://localhost:11434"
+        env_file = Path(".env")
+        if env_file.exists():
+            try:
+                for line in env_file.read_text().splitlines():
+                    line = line.strip()
+                    if line.startswith("OLLAMA_HOST="):
+                        val = line.split("=", 1)[1].strip()
+                        if val:
+                            host = val
+            except Exception:
+                pass
+        return host
+
+    def _configured_provider(self) -> str:
+        """Best-effort read of the configured LLM provider from state or .env."""
+        state = self._load_state()
+        provider = state.get("last_config", {}).get("provider", "")
+        if provider:
+            return provider
+        env_file = Path(".env")
+        if env_file.exists():
+            try:
+                for line in env_file.read_text().splitlines():
+                    line = line.strip()
+                    if line.startswith("DEFAULT_PROVIDER="):
+                        val = line.split("=", 1)[1].strip()
+                        if val:
+                            return val
+            except Exception:
+                pass
+        return "ollama"  # default
+
+    def _start_ollama(self, host: str) -> bool:
+        """
+        Ensure Ollama is running.  If not, try to launch it in the background.
+        Returns True if Ollama is reachable after the attempt.
+        """
+        import shutil
+        import subprocess
+        import time
+
+        if self._ping_ollama(host):
+            return True
+
+        if shutil.which("ollama") is None:
+            console.print(
+                "[yellow]⚠ ollama binary not found. Install from https://ollama.com[/yellow]"
+            )
+            return False
+
+        console.print("[dim]Starting Ollama server in the background...[/dim]")
+        try:
+            subprocess.Popen(
+                ["ollama", "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except Exception as e:
+            console.print(f"[red]✗ Could not start Ollama: {e}[/red]")
+            return False
+
+        # Wait up to 8 s for Ollama to become reachable
+        deadline = time.monotonic() + 8.0
+        with console.status("[cyan]Waiting for Ollama to start…", spinner="dots"):
+            while time.monotonic() < deadline:
+                time.sleep(0.5)
+                if self._ping_ollama(host):
+                    console.print("[green]✓ Ollama started successfully.[/green]")
+                    return True
+
+        console.print("[yellow]⚠ Ollama did not respond in time — generation may fail.[/yellow]")
+        return False
+
+    def _start_services(self):
+        """
+        Ensure all required background services are running.
+        Called on every startup, before the main menu.
+        """
+        provider = self._configured_provider()
+        if provider == "ollama":
+            host = self._ollama_host_from_env()
+            if self._ping_ollama(host):
+                console.print(f"[green]✓ Ollama is running at {host}[/green]")
+            else:
+                self._start_ollama(host)
+
     # ── first-run wizard ─────────────────────────────────────────
     def _needs_first_run(self) -> bool:
         """Detect empty state: no .env, no corpus.json, no models."""
         return not (Path(".env").exists() and self._corpus_ready())
+
+    def _deps_installed(self) -> bool:
+        """Return True if all required Python packages can be imported."""
+        try:
+            import chromadb  # noqa: F401
+            import sentence_transformers  # noqa: F401
+            import torch  # noqa: F401
+            import sklearn  # noqa: F401
+            import fitz  # noqa: F401 (pymupdf)
+            import docx  # noqa: F401 (python-docx)
+            import pytesseract  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    def _install_deps(self):
+        """Install all required packages from requirements.txt with a live progress display."""
+        import subprocess
+        import sys
+
+        req_file = Path(__file__).parent.parent.parent / "requirements.txt"
+        if not req_file.exists():
+            console.print("[red]✗ requirements.txt not found — cannot auto-install.[/red]")
+            return
+
+        console.print(
+            Panel(
+                "[bold]Installing Python dependencies[/bold]\n"
+                "[dim]This may take a few minutes on first run.[/dim]",
+                box=box.ROUNDED,
+                border_style="cyan",
+            )
+        )
+
+        # Read packages from requirements.txt (skip comments and blanks)
+        packages = []
+        with open(req_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    packages.append(line)
+
+        failed = []
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Installing packages", total=len(packages))
+            for pkg in packages:
+                pkg_name = pkg.split(">=")[0].split("==")[0].split("[")[0].strip()
+                progress.update(task, description=f"[cyan]Installing {pkg_name}")
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", pkg, "--quiet"],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    failed.append(pkg_name)
+                progress.advance(task)
+
+        if failed:
+            console.print(
+                f"[yellow]⚠ Some packages failed to install: {', '.join(failed)}[/yellow]"
+            )
+            console.print("[dim]You may need to install them manually.[/dim]")
+        else:
+            console.print("[green]✓ All dependencies installed successfully.[/green]")
+
+        # Apply pydantic v1 / Python 3.14+ compatibility patch to chromadb
+        if sys.version_info >= (3, 14):
+            self._apply_chromadb_py314_patch()
+
+    def _apply_chromadb_py314_patch(self):
+        """
+        Patch pydantic v1's ModelMetaclass for Python 3.14+ compatibility.
+
+        Python 3.14 stores class-body annotations via __annotate_func__ (PEP 649)
+        instead of populating __annotations__ during class execution.  Pydantic v1's
+        ModelMetaclass reads namespace['__annotations__'] which is always empty on
+        3.14, causing ConfigError for every annotated field.  We inject the evaluated
+        annotations before the metaclass processes the namespace.
+        """
+        import sys
+        try:
+            import pydantic.v1.main as _pyd_main
+
+            _orig = _pyd_main.ModelMetaclass.__new__
+
+            def _fixed(mcs, name, bases, namespace, **kwargs):
+                if "__annotations__" not in namespace and "__annotate_func__" in namespace:
+                    annotate_func = namespace["__annotate_func__"]
+                    try:
+                        import annotationlib
+                        annotations = annotate_func(annotationlib.Format.VALUE)
+                    except Exception:
+                        try:
+                            annotations = annotate_func(1)  # Format.VALUE == 1
+                        except Exception:
+                            annotations = {}
+                    namespace["__annotations__"] = annotations
+                return _orig(mcs, name, bases, namespace, **kwargs)
+
+            _pyd_main.ModelMetaclass.__new__ = _fixed
+            console.print(
+                "[green]✓ Applied pydantic v1 / Python 3.14 compatibility patch.[/green]"
+            )
+        except Exception as e:
+            console.print(
+                f"[yellow]⚠ Could not apply pydantic v1 patch: {e}[/yellow]"
+            )
 
     def first_run_wizard(self):
         """Walk user through initial setup."""
@@ -3141,6 +3362,7 @@ class JikaiTUI:
             with os.fdopen(fd, "w") as f:
                 f.write(template)
             console.print("[dim]Created .env template — fill in your API keys.[/dim]")
+
         console.print(
             Panel(
                 "[bold cyan]Welcome to Jikai![/bold cyan]\n"
@@ -3149,7 +3371,10 @@ class JikaiTUI:
                 border_style="cyan",
             )
         )
+
+        deps_done = self._deps_installed()
         steps = [
+            ("Install Dependencies", deps_done, "deps"),
             ("Configure API Keys", Path(".env").exists(), "settings"),
             ("Preprocess Corpus", self._corpus_ready(), "ocr"),
             ("Label Entries (optional)", self._labelled_ready(), "label"),
@@ -3169,7 +3394,9 @@ class JikaiTUI:
                 continue
             if not _confirm(f"Proceed with: {name}?", default=True):
                 continue
-            if action == "settings":
+            if action == "deps":
+                self._install_deps()
+            elif action == "settings":
                 # auto-detect Ollama before settings
                 try:
                     import urllib.request
@@ -3205,6 +3432,7 @@ class JikaiTUI:
     # ── entry point ─────────────────────────────────────────────
     def run(self):
         self.display_banner()
+        self._start_services()
         if self._needs_first_run():
             self.first_run_wizard()
         self.main_menu()
