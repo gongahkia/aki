@@ -3401,7 +3401,7 @@ class JikaiTUI:
             if not host.startswith(("http://", "https://")):
                 return False
             req = urllib.request.Request(f"{host}/api/tags", method="GET")
-            with urllib.request.urlopen(req, timeout=timeout):
+            with urllib.request.urlopen(req, timeout=timeout):  # nosec B310
                 return True
         except Exception:
             return False
