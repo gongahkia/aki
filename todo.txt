@@ -1,6 +1,5 @@
 do a refactor of rich_app.py as necessary since its so large at the moment into various smaller files that are logically separate
 test every single function and tool to ensure no import errors and to confirm the refactor was succesful
-create a logging script that allows for easier agent debugging if necessary
 make the topic selection view prettier than it currently is now
 for sg cases, add another step that attempts to scrape relevant cases from available sources in singapore jurisdiction 
 buff up the landing page for the tui to be more user friendly and add an avatar on the landing page to represent jikai, give me some to choose from first
