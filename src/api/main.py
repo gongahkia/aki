@@ -14,6 +14,7 @@ from fastapi import (
     Depends,
     FastAPI,
     HTTPException,
+    Query,
     Request,
     status,
 )
@@ -399,7 +400,7 @@ async def get_available_topics(service: corpus_service = Depends(get_corpus_serv
 @app.get("/corpus/entries")
 async def get_corpus_entries(
     topics: Optional[List[str]] = None,
-    limit: int = Field(default=10, ge=1, le=100),
+    limit: int = Query(default=10, ge=1, le=100),
     service: corpus_service = Depends(get_corpus_service),
 ):
     """Get corpus entries with optional topic filtering."""
