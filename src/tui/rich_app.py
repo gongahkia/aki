@@ -1688,12 +1688,14 @@ class JikaiTUI:
             except Exception:
                 history = []
         history.append(record)
+        record_num = len(history)
         if len(history) > 500:  # cap history size
             history = history[-500:]
         tmp = hp.with_suffix(".json.tmp")
         with open(tmp, "w") as f:
             json.dump(history, f, indent=2, ensure_ascii=False)
         os.rename(tmp, hp)  # atomic write
+        console.print(f"[green]✓ Saved to history (#{record_num})[/green]")
 
     def _load_history(self) -> List[Dict]:
         """Load generation history from data/history.json."""
