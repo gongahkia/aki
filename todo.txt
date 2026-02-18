@@ -58,24 +58,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS ---
 
-[P1] R. Pattern-match common errors with specific recovery messages
-  - Missing API key: "✗ No API key set for OpenAI. Go to Settings → API Keys to add one."
-  - Model not found: "✗ Model 'gpt-5' not available. Run Providers → Check Health to see available models."
-  - Network timeout: "✗ Connection to ollama timed out. Is Ollama running? (ollama serve)"
-  - Import error: "✗ Missing package: chromadb. Run: pip install chromadb"
-  - Current: generic "✗ Generation failed: {e}" for all errors
-
-[P1] S. Show specific failed checks in validation table
-  - Currently: validation table shows only "Quality Score" and "Passed: Yes/No"
-  - Expand to show individual checks from the vr dict:
-      Party Count:       ✓ Found 3 (expected 3)
-      Topic Coverage:    ✗ Missing: causation
-      Word Count:        ✓ 1,042 words (target: 800-1500)
-      Singapore Context: ✓ Present
-      Quality Score:     6.8 / 10
-      Overall:           ✗ Failed
-  - This data already exists in vr["checks"] — just needs to be rendered
-
 --- HELP AND DOCUMENTATION ---
 
 [P2] T. Enrich the ? help overlay with contextual descriptions

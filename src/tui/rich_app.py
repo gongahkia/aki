@@ -407,8 +407,21 @@ class JikaiTUI:
                 )
             except Exception:
                 pass
-        models_icon = "[green]✓[/green]" if self._models_ready() else "[red]✗[/red]"
-        embed_icon = "[green]✓[/green]" if self._embeddings_ready() else "[red]✗[/red]"
+        # Build status parts - only show what's relevant
+        parts = [
+            f"[dim]Provider:[/dim] {provider}/{model or '—'}",
+            f"[dim]Corpus:[/dim] {corpus_count}",
+        ]
+        # Only show ML Models if user has trained any
+        models_ready = self._models_ready()
+        if models_ready or self._labelled_ready():
+            icon = "[green]✓ trained[/green]" if models_ready else "[dim]○ not trained[/dim]"
+            parts.append(f"[dim]ML Models:[/dim] {icon}")
+        # Only show Semantic Search if user has embedded or has corpus
+        embed_ready = self._embeddings_ready()
+        if embed_ready or corpus_count > 0:
+            icon = "[green]✓ indexed[/green]" if embed_ready else "[dim]○ off[/dim]"
+            parts.append(f"[dim]Semantic Search:[/dim] {icon}")
         # Last quality score — cached for 5s
         import time as _time
 
@@ -422,13 +435,11 @@ class JikaiTUI:
                     self._cached_last_score = f"{float(s):.1f}"
             self._last_history_load_time = now
         last_score = self._cached_last_score
+        if last_score != "—":
+            parts.append(f"[dim]Last Score:[/dim] {last_score}")
         console.print(
             Panel(
-                f"[dim]Provider:[/dim] {provider}/{model or '—'}  "
-                f"[dim]Corpus:[/dim] {corpus_count}  "
-                f"[dim]Models:[/dim] {models_icon}  "
-                f"[dim]Embeddings:[/dim] {embed_icon}  "
-                f"[dim]Last Score:[/dim] {last_score}",
+                "  ".join(parts),
                 box=box.SIMPLE,
                 border_style="dim",
             )
