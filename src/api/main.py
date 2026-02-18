@@ -9,19 +9,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import (
-    BackgroundTasks,
-    Depends,
-    FastAPI,
-    HTTPException,
-    Query,
-    Request,
-    status,
-)
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
 import structlog
@@ -400,7 +387,7 @@ async def get_available_topics(service: corpus_service = Depends(get_corpus_serv
 @app.get("/corpus/entries")
 async def get_corpus_entries(
     topics: Optional[List[str]] = None,
-    limit: int = Query(default=10, ge=1, le=100),
+    limit: int = Field(default=10, ge=1, le=100),
     service: corpus_service = Depends(get_corpus_service),
 ):
     """Get corpus entries with optional topic filtering."""
