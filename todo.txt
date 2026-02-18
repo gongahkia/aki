@@ -23,18 +23,6 @@ Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
 
 --- MATCH BETWEEN SYSTEM AND REAL WORLD ---
 
-[P0] D. Replace step-number menu labels with task-oriented names
-  - Keep flat list structure but rename items:
-    "1. OCR / Preprocess Corpus"       → "Import & Preprocess Corpus"
-    "1a. Browse Corpus"                → "Browse Corpus"
-    "1b. Label Corpus"                 → "Label Corpus"
-    "2. Train ML Models (optional)"    → "Train ML Models (optional)"
-    "2a. Generate Embeddings (optional)"→ "Index Semantic Search (optional)"
-    "3. Generate Hypothetical"         → "Generate Hypothetical"
-    "4. Export DOCX/PDF"               → "Export to DOCX / PDF"
-  - Remove the instruction text "Select (workflow: 1 → 1a/1b → 2/2a → 3 → 4)"
-  - Replace with something like "What would you like to do?" or just "Main Menu"
-
 --- USER CONTROL AND FREEDOM ---
 
 [P1] E. Allow Ctrl+C to gracefully cancel mid-generation
