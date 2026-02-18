@@ -1,4 +1,6 @@
 do a refactor of rich_app.py as necessary since its so large at the moment into various smaller files that are logically separate
+create a logging script that allows for easier agent debugging if necessary
+make the topic selection view prettier than it currently is now
 for sg cases, add another step that attempts to scrape relevant cases from available sources in singapore jurisdiction 
 buff up the landing page for the tui to be more user friendly and add an avatar on the landing page to represent jikai, give me some to choose from first
 prevent blocking functions from being run or clicked on in the landing page if there is a prerequisite function that must be run (eg. if no api keys, no local llm models dependencies installed then cant even generate corpus, user should be prompted to do at least one first) but for all other dependency use cases 
