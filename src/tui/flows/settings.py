@@ -2,6 +2,7 @@
 
 import os
 import sys
+import json
 import shutil
 import subprocess
 import time
@@ -354,17 +355,9 @@ class SettingsFlowMixin:
                 Choice(f"{desc}", value=key, checked=True)
                 for key, desc in missing_services
             ]
-            selected = _select_quit("Install missing dependencies?", choices=choices)  
-            # Note: questionary checkbox returns list, select returns one. 
-            # Wait, this should probably be a checkbox or confirm.
-            # Original code logic:
-            if selected and selected != "__jump_gen__":
-                 # Re-implement multi-select logic or just force install all selected
-                 # Actually, let's use a checkbox for multiple
-                 pass    
-
-            # Let's use a checkbox properly
-            from ..inputs import _checkbox
+            # Use checkbox for multiple selection
+            from src.tui.inputs import _checkbox
+            
             selected = _checkbox(
                 "Select dependencies to install",
                 choices=[Choice(desc, value=key) for key, desc in missing_services]
