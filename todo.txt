@@ -1,2 +1,168 @@
-# jikai — audit-driven improvement tasks
-# Priority (B) = audit-suggested. Ordered by impact, grouped by concern.
+JIKAI TUI/UX IMPROVEMENTS
+=========================
+
+Reference: Nielsen's 10 Usability Heuristics
+Priority: [P0] critical, [P1] high, [P2] medium, [P3] nice-to-have
+
+--- VISIBILITY OF SYSTEM STATUS ---
+
+[P1] A. Show clear retry reasoning during generation
+  - When score < 7.0 triggers a retry, show: "Score 5.2/10 — minimum is 7.0, retrying with corrective feedback..."
+  - Show which checks failed inline (party count, topic coverage, word count, Singapore context)
+  - Current: user sees "Attempt 1/3 (full generation)" with no explanation
+
+[P2] B. Simplify and contextualize status bar
+  - Change "Models: ✓" to "ML Models: ✓ trained" (or hide entirely if user hasn't trained any)
+  - Change "Embeddings: ✗" to "Semantic Search: off" (or hide if never used)
+  - Hide ML/Embeddings indicators for users who haven't engaged with those features
+  - Keep Provider and Corpus count always visible
+
+[P1] C. Show explicit "Saved to history" confirmation after generation
+  - After auto-save to history, print: "✓ Saved to history (#42)"
+  - Currently no feedback that the output was persisted
+
+--- MATCH BETWEEN SYSTEM AND REAL WORLD ---
+
+[P0] D. Replace step-number menu labels with task-oriented names
+  - Keep flat list structure but rename items:
+    "1. OCR / Preprocess Corpus"       → "Import & Preprocess Corpus"
+    "1a. Browse Corpus"                → "Browse Corpus"
+    "1b. Label Corpus"                 → "Label Corpus"
+    "2. Train ML Models (optional)"    → "Train ML Models (optional)"
+    "2a. Generate Embeddings (optional)"→ "Index Semantic Search (optional)"
+    "3. Generate Hypothetical"         → "Generate Hypothetical"
+    "4. Export DOCX/PDF"               → "Export to DOCX / PDF"
+  - Remove the instruction text "Select (workflow: 1 → 1a/1b → 2/2a → 3 → 4)"
+  - Replace with something like "What would you like to do?" or just "Main Menu"
+
+--- USER CONTROL AND FREEDOM ---
+
+[P1] E. Allow Ctrl+C to gracefully cancel mid-generation
+  - Catch KeyboardInterrupt during _do_generate streaming and full generation loops
+  - Show partial result if available: "Generation cancelled. Partial result (X words):"
+  - Return to menu cleanly without traceback
+
+[P0] F. Auto-populate export from history instead of manual paste
+  - Add "Export last generated" option that pulls text/analysis/model answer from history
+  - After successful generation, offer "Export now?" alongside "Generate model answer?"
+  - Keep manual paste as fallback option for external text
+
+[P2] G. Add "re-label last entry" option during labeling
+  - After labeling an entry, show summary and offer "Undo / Re-label last" before advancing
+  - At minimum: display the label just assigned so user can visually confirm
+
+--- CONSISTENCY AND STANDARDS ---
+
+[P1] H. Use _select_quit consistently across all menus
+  - Sub-menus (OCR, Corpus, Power Tools, History) currently use plain _select with no q-to-quit
+  - Replace _select with _select_quit in all sub-menus so q always means "go back"
+  - Ensure consistent "Back" behavior everywhere
+
+[P2] I. Rename "Power Tools" to "Batch Operations"
+  - Contents are: Batch Generate, Import SG Cases, Bulk Label
+  - "Batch Operations" describes the grouping more clearly than "Power Tools"
+
+--- ERROR PREVENTION ---
+
+[P1] J. Auto-check provider health before generation starts
+  - When user selects a provider during generation config, ping the provider immediately
+  - If unreachable or API key missing, warn inline: "⚠ ollama unreachable — check connection"
+  - Prevent wasting time configuring a generation that will fail
+
+[P2] K. Skip corpus path prompt when default exists
+  - Browse Corpus, Label Corpus, and Embed flows all prompt for corpus path
+  - If default path exists and has entries, use it silently: "Using corpus: corpus.json (48 entries)"
+  - Only prompt if default is missing or user explicitly wants to change it
+
+--- RECOGNITION RATHER THAN RECALL ---
+
+[P1] L. Show Quick Generate defaults before topic selection
+  - Currently: user picks "Quick generate", picks topic, THEN sees defaults in dim text
+  - Instead: show defaults first in a small table, then ask "Use these settings?" with option to change
+  - Makes defaults visible and actionable before committing
+
+[P1] M. Add descriptions and grouping to topic list
+  - Group topics by category:
+    Negligence-Based: negligence, duty_of_care, causation, remoteness, contributory_negligence
+    Intentional Torts: battery, assault, false_imprisonment, trespass_to_land
+    Liability: vicarious_liability, strict_liability, occupiers_liability, employers_liability, product_liability
+    Specific Torts: defamation, private_nuisance, harassment
+    Damages: economic_loss, psychiatric_harm
+  - Add brief descriptions to each, e.g.:
+    "Negligence — duty, breach, damage, causation"
+    "Battery — intentional application of force"
+    "Vicarious Liability — employer liability for employee torts"
+
+--- FLEXIBILITY AND EFFICIENCY OF USE ---
+
+[P1] N. Add "Generate & Export" shortcut
+  - After successful generation, offer: "Export now? (y/n)" before returning to menu
+  - Saves navigating to Export separately every time
+  - Power users benefit from fewer menu round-trips
+
+[P3] O. Support hotkey shortcuts in sub-menus
+  - At minimum: 'g' to jump to Generate from any menu depth
+  - Consider: global hotkey layer that intercepts g/h/s/p regardless of current menu
+  - Current: hotkeys only work at main menu level
+
+--- AESTHETIC AND MINIMALIST DESIGN ---
+
+[P1] P. Remove "=" separator lines
+  - Every sub-flow prints: console.print("=" * 60)
+  - This is visual noise — Rich panels and bold yellow titles already provide hierarchy
+  - Delete all occurrences of console.print("=" * 60)
+
+[P0] Q. Collapse secondary features into "More..." submenu
+  - Current main menu: 12 items (too many, Hick's Law)
+  - New main menu structure:
+      Import & Preprocess Corpus    ✓/✗
+      Browse Corpus
+      Label Corpus                  ✓/✗
+      Train ML Models (optional)    ○
+      Index Semantic Search (optional) ○
+      Generate Hypothetical
+      Export to DOCX / PDF
+      More... ›
+  - "More..." submenu contains:
+      History
+      Stats Dashboard
+      Batch Operations ›
+      Settings
+      Providers
+
+--- HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS ---
+
+[P1] R. Pattern-match common errors with specific recovery messages
+  - Missing API key: "✗ No API key set for OpenAI. Go to Settings → API Keys to add one."
+  - Model not found: "✗ Model 'gpt-5' not available. Run Providers → Check Health to see available models."
+  - Network timeout: "✗ Connection to ollama timed out. Is Ollama running? (ollama serve)"
+  - Import error: "✗ Missing package: chromadb. Run: pip install chromadb"
+  - Current: generic "✗ Generation failed: {e}" for all errors
+
+[P1] S. Show specific failed checks in validation table
+  - Currently: validation table shows only "Quality Score" and "Passed: Yes/No"
+  - Expand to show individual checks from the vr dict:
+      Party Count:       ✓ Found 3 (expected 3)
+      Topic Coverage:    ✗ Missing: causation
+      Word Count:        ✓ 1,042 words (target: 800-1500)
+      Singapore Context: ✓ Present
+      Quality Score:     6.8 / 10
+      Overall:           ✗ Failed
+  - This data already exists in vr["checks"] — just needs to be rendered
+
+--- HELP AND DOCUMENTATION ---
+
+[P2] T. Enrich the ? help overlay with contextual descriptions
+  - Current: just lists menu option names
+  - Add one-line descriptions per item:
+      "Import & Preprocess Corpus — extract text from PDF/DOCX/images into the corpus"
+      "Generate Hypothetical — create a new tort law scenario using AI"
+      "Export to DOCX / PDF — save a generated hypothetical as a document"
+  - Add a "Getting Started" section for first-time users:
+      "New here? Start with Import & Preprocess Corpus, then Generate Hypothetical."
+
+[P3] U. Add a "Guided Mode" walkthrough option
+  - Accessible from main menu or help overlay
+  - Walks user through: Preprocess → Generate → Export (3 steps)
+  - Hides optional steps (ML training, embeddings) unless user asks
+  - Ideal for first-time law students who just want to generate a hypothetical
