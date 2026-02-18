@@ -1365,6 +1365,7 @@ class JikaiTUI:
         complexity, parties, method = cfg.complexity, cfg.parties, cfg.method
         temperature, red_herrings = cfg.temperature, cfg.red_herrings
         max_retries = 3
+        partial_result = ""
         try:
             from ..services.llm_service import LLMRequest, llm_service
             from ..services.validation_service import validation_service
@@ -1386,6 +1387,7 @@ class JikaiTUI:
             )
 
             async def _stream():
+                nonlocal partial_result
                 chunks: List[str] = []
                 with Live(
                     Text("Generating..."), console=console, refresh_per_second=4
@@ -1394,8 +1396,9 @@ class JikaiTUI:
                         request, provider=provider, model=model
                     ):
                         chunks.append(chunk)
-                        live.update(Text("".join(chunks)))
-                return "".join(chunks)
+                        partial_result = "".join(chunks)
+                        live.update(Text(partial_result))
+                return partial_result
 
             try:
                 console.print("[dim]Attempt 1/{0}[/dim]".format(max_retries))
@@ -1483,6 +1486,7 @@ class JikaiTUI:
                 ):
                     response = _run_async(_full(feedback))
 
+                partial_result = response.hypothetical
                 console.print(
                     Panel(
                         response.hypothetical,
@@ -1575,6 +1579,23 @@ class JikaiTUI:
                 "[yellow]Run: pip install chromadb sentence-transformers[/yellow]"
             )
             tlog.info("ERROR  import: %s", e)
+        except KeyboardInterrupt:
+            word_count = len(partial_result.split()) if partial_result else 0
+            if partial_result and word_count > 20:
+                console.print(
+                    f"\n[yellow]Generation cancelled. Partial result ({word_count} words):[/yellow]"
+                )
+                console.print(
+                    Panel(
+                        partial_result,
+                        title="Partial Hypothetical",
+                        box=box.ROUNDED,
+                        border_style="yellow",
+                    )
+                )
+            else:
+                console.print("\n[yellow]Generation cancelled.[/yellow]")
+            tlog.info("GENERATE  cancelled by user")
         except Exception as e:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
             console.print("[dim]Tip: check provider health via Providers menu[/dim]")
