@@ -685,7 +685,6 @@ class JikaiTUI:
     # ── label ──────────────────────────────────────────────────
     def label_flow(self):
         console.print("\n[bold yellow]Label Corpus → Training CSV[/bold yellow]")
-        console.print("=" * 60)
         corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
         if corpus_path is None:
             return
@@ -804,7 +803,6 @@ class JikaiTUI:
     def bulk_label_flow(self):
         """Fast bulk labelling: show text, single-keystroke quality + difficulty, auto-advance."""
         console.print("\n[bold yellow]Bulk Label Corpus[/bold yellow]")
-        console.print("=" * 60)
         console.print(
             "[dim]Fast labelling: rate quality (1-9) and difficulty (e/m/h) per entry.\n"
             "Press 'q' to save and quit. Labels auto-save in batches of 10.[/dim]\n"
@@ -918,7 +916,6 @@ class JikaiTUI:
     def batch_generate_flow(self):
         """Generate multiple hypotheticals in batch."""
         console.print("\n[bold yellow]Batch Generate Hypotheticals[/bold yellow]")
-        console.print("=" * 60)
         count = _validated_text(
             "Number to generate (2-10)", default="3", validate=_validate_number(2, 10)
         )
@@ -1197,7 +1194,6 @@ class JikaiTUI:
     def import_cases_flow(self):
         """Import SG case summaries from PDF/DOCX into corpus/cases/ as structured JSON."""
         console.print("\n[bold yellow]Import SG Case Summaries[/bold yellow]")
-        console.print("=" * 60)
         console.print(
             "[dim]Import PDF/DOCX files containing SG case summaries.\n"
             "Text will be extracted and stored as structured JSON in corpus/cases/.[/dim]\n"
@@ -1287,7 +1283,6 @@ class JikaiTUI:
     def generate_flow(self):
         while True:
             console.print("\n[bold yellow]Generate Hypothetical[/bold yellow]")
-            console.print("=" * 60)
             mode = _select(
                 "Mode",
                 choices=[
@@ -1903,7 +1898,6 @@ class JikaiTUI:
     def stats_flow(self):
         """Display stats from history, labelled data, and model metrics."""
         console.print("\n[bold yellow]Stats Dashboard[/bold yellow]")
-        console.print("=" * 60)
 
         # Generation stats from history
         history = self._load_history()
@@ -2090,7 +2084,6 @@ class JikaiTUI:
     # ── train ───────────────────────────────────────────────────
     def train_flow(self):
         console.print("\n[bold yellow]Train ML Models[/bold yellow]")
-        console.print("=" * 60)
         console.print(
             "[dim]All models are optional — generation works without them.\n"
             "Trained models enrich output with quality checks and topic alignment.[/dim]\n"
@@ -2251,7 +2244,6 @@ class JikaiTUI:
     # ── embeddings ──────────────────────────────────────────────
     def embed_flow(self):
         console.print("\n[bold yellow]Generate Embeddings (ChromaDB)[/bold yellow]")
-        console.print("=" * 60)
         console.print(
             "[dim]Indexes corpus into ChromaDB using sentence-transformers.\n"
             "Enables semantic search during hypothetical generation.\n"
@@ -2581,7 +2573,6 @@ class JikaiTUI:
     # ── settings ────────────────────────────────────────────────
     def settings_flow(self):
         console.print("\n[bold yellow]Settings[/bold yellow]")
-        console.print("=" * 60)
         env = self._load_env()
 
         def _mask(v):
