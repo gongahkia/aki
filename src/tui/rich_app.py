@@ -2933,8 +2933,15 @@ class JikaiTUI:
         console.print("\n[bold yellow]Settings[/bold yellow]")
 
         def _mask(v):
+            """Masked value for Rich table display."""
             if not v:
                 return "[dim]not set[/dim]"
+            return v[:4] + "****" + v[-4:] if len(v) > 8 else "****"
+
+        def _mask_plain(v):
+            """Masked value for questionary prompts (no Rich markup)."""
+            if not v:
+                return "not set"
             return v[:4] + "****" + v[-4:] if len(v) > 8 else "****"
 
         def _render_settings_table(env):
@@ -2993,34 +3000,28 @@ class JikaiTUI:
                     Choice("Hosts — Ollama, Local LLM endpoints", value="hosts"),
                     Choice("Generation Defaults — temperature, max tokens", value="defaults"),
                     Choice("Paths & Logging — corpus, database, log level", value="paths"),
-                    Choice("View Current Settings", value="view"),
                 ],
             )
             if c is None:
                 return
 
-            if c == "view":
-                env = self._load_env()
-                _render_settings_table(env)
-                continue
-
             if c == "keys":
                 console.print("\n[bold cyan]API Keys[/bold cyan]")
                 console.print("[dim]Press Enter to keep current value. Leave blank to clear.[/dim]\n")
                 anthropic_key = _password(
-                    f"Anthropic API Key ({_mask(env.get('ANTHROPIC_API_KEY', ''))})",
+                    f"Anthropic API Key ({_mask_plain(env.get('ANTHROPIC_API_KEY', ''))})",
                     default=env.get("ANTHROPIC_API_KEY", ""),
                 )
                 if anthropic_key is None:
                     continue
                 openai_key = _password(
-                    f"OpenAI API Key ({_mask(env.get('OPENAI_API_KEY', ''))})",
+                    f"OpenAI API Key ({_mask_plain(env.get('OPENAI_API_KEY', ''))})",
                     default=env.get("OPENAI_API_KEY", ""),
                 )
                 if openai_key is None:
                     continue
                 google_key = _password(
-                    f"Google API Key ({_mask(env.get('GOOGLE_API_KEY', ''))})",
+                    f"Google API Key ({_mask_plain(env.get('GOOGLE_API_KEY', ''))})",
                     default=env.get("GOOGLE_API_KEY", ""),
                 )
                 if google_key is None:
@@ -3029,6 +3030,7 @@ class JikaiTUI:
                 env["OPENAI_API_KEY"] = openai_key
                 env["GOOGLE_API_KEY"] = google_key
                 _save_env(env)
+                _render_settings_table(env)
 
             elif c == "hosts":
                 console.print("\n[bold cyan]Host Configuration[/bold cyan]")
@@ -3048,6 +3050,7 @@ class JikaiTUI:
                 env["OLLAMA_HOST"] = ollama_host
                 env["LOCAL_LLM_HOST"] = local_host
                 _save_env(env)
+                _render_settings_table(env)
 
             elif c == "defaults":
                 console.print("\n[bold cyan]Generation Defaults[/bold cyan]")
@@ -3069,6 +3072,7 @@ class JikaiTUI:
                 env["DEFAULT_TEMPERATURE"] = temperature
                 env["DEFAULT_MAX_TOKENS"] = max_tokens
                 _save_env(env)
+                _render_settings_table(env)
 
             elif c == "paths":
                 console.print("\n[bold cyan]Paths & Logging[/bold cyan]")
@@ -3100,6 +3104,7 @@ class JikaiTUI:
                 env["DATABASE_PATH"] = db_path
                 env["LOG_LEVEL"] = log_level
                 _save_env(env)
+                _render_settings_table(env)
 
     def _load_env(self):
         vals: Dict[str, str] = {}
