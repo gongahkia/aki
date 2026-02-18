@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from questionary import Choice
 from rich import box
 from rich.panel import Panel
-from rich.table import Table
 from rich.progress import (
     BarColumn,
     Progress,
@@ -14,16 +14,10 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from questionary import Choice
+from rich.table import Table
 
 from src.tui.console import console, tlog
-from src.tui.inputs import (
-    _path,
-    _checkbox,
-    _validated_text,
-    _validate_number,
-    _confirm,
-)
+from src.tui.inputs import _checkbox, _confirm, _path, _validate_number, _validated_text
 from src.tui.utils import run_async
 
 
@@ -166,7 +160,18 @@ class TrainFlowMixin:
             n_clusters,
         )
 
-    def _do_train(self, data_path, max_features, test_split, train_cls, cls_c, train_reg, reg_alpha, train_clu, n_clusters):
+    def _do_train(
+        self,
+        data_path,
+        max_features,
+        test_split,
+        train_cls,
+        cls_c,
+        train_reg,
+        reg_alpha,
+        train_clu,
+        n_clusters,
+    ):
         try:
             from src.ml.pipeline import MLPipeline
 
@@ -300,6 +305,7 @@ class TrainFlowMixin:
                 task = progress.add_task(
                     "[cyan]Generating embeddings", total=len(hypos)
                 )
+                tlog.info("EMBED  start indexing %d entries", len(hypos))
                 batch_size = 20
                 for start in range(0, len(hypos), batch_size):
                     batch = hypos[start : start + batch_size]

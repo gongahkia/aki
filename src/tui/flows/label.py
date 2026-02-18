@@ -4,20 +4,20 @@ import csv
 import json
 from pathlib import Path
 
+from questionary import Choice
 from rich import box
 from rich.panel import Panel
-from questionary import Choice
 
 from src.tui.console import console, tlog
 from src.tui.inputs import (
+    _checkbox,
+    _confirm,
     _path,
     _select_quit,
-    _checkbox,
-    _validated_text,
-    _validate_number,
-    _confirm,
     _text,
     _topic_choices,
+    _validate_number,
+    _validated_text,
 )
 
 
@@ -34,9 +34,13 @@ class LabelFlowMixin:
                     data = json.load(f)
                 entries = data if isinstance(data, list) else data.get("entries", [])
                 if entries:
-                    console.print(f"[dim]Using corpus: {corpus_path} ({len(entries)} entries)[/dim]")
+                    console.print(
+                        f"[dim]Using corpus: {corpus_path} ({len(entries)} entries)[/dim]"
+                    )
                 else:
-                    corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
+                    corpus_path = _path(
+                        "Corpus JSON to label", default=self._corpus_path
+                    )
                     if corpus_path is None:
                         return
             except Exception:
@@ -137,6 +141,9 @@ class LabelFlowMixin:
                 }
             )
             count += 1
+            tlog.info(
+                "LABEL  entry %d: topics=%s q=%s d=%s", i, topics, quality, difficulty
+            )
             # Show confirmation with the label just assigned
             console.print(
                 f"[green]✓ Labelled ({count} this session)[/green] "

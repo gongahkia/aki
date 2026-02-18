@@ -1,30 +1,30 @@
 """Settings and configuration flow."""
 
-import os
-import sys
+import importlib.util
 import json
+import os
 import shutil
 import subprocess
+import sys
 import time
-import importlib.util
 from pathlib import Path
-from dotenv import dotenv_values
 
+from dotenv import dotenv_values
+from questionary import Choice
 from rich import box
 from rich.panel import Panel
 from rich.table import Table
-from questionary import Choice
 
 from src.tui.console import console, tlog
+from src.tui.constants import LOCAL_LLM_HOST, OLLAMA_HOST, PROVIDER_MODELS, STATE_FILE
 from src.tui.inputs import (
-    _select_quit,
-    _confirm,
-    _text,
-    _validated_text,
-    _validate_number,
     PROVIDER_CHOICES,
+    _confirm,
+    _select_quit,
+    _text,
+    _validate_number,
+    _validated_text,
 )
-from src.tui.constants import STATE_FILE, PROVIDER_MODELS, OLLAMA_HOST, LOCAL_LLM_HOST
 
 
 class SettingsFlowMixin:
@@ -34,7 +34,7 @@ class SettingsFlowMixin:
         env = self._load_env()
 
         console.print("\n[bold yellow]Settings & Configuration[/bold yellow]")
-        
+
         # Display current settings
         table = Table(title="Current Configuration", box=box.SIMPLE)
         table.add_column("Category", style="cyan")
@@ -49,12 +49,18 @@ class SettingsFlowMixin:
 
         # Hosts
         table.add_row("Hosts", "OLLAMA_HOST", env.get("OLLAMA_HOST", OLLAMA_HOST))
-        table.add_row("Hosts", "LOCAL_LLM_HOST", env.get("LOCAL_LLM_HOST", LOCAL_LLM_HOST))
+        table.add_row(
+            "Hosts", "LOCAL_LLM_HOST", env.get("LOCAL_LLM_HOST", LOCAL_LLM_HOST)
+        )
 
         # Defaults
-        table.add_row("Defaults", "DEFAULT_TEMPERATURE", env.get("DEFAULT_TEMPERATURE", "0.7"))
-        table.add_row("Defaults", "DEFAULT_MAX_TOKENS", env.get("DEFAULT_MAX_TOKENS", "3000"))
-        
+        table.add_row(
+            "Defaults", "DEFAULT_TEMPERATURE", env.get("DEFAULT_TEMPERATURE", "0.7")
+        )
+        table.add_row(
+            "Defaults", "DEFAULT_MAX_TOKENS", env.get("DEFAULT_MAX_TOKENS", "3000")
+        )
+
         console.print(table)
 
         while True:
@@ -92,6 +98,7 @@ class SettingsFlowMixin:
                     env["GOOGLE_API_KEY"] = k3
                 self._save_env(env)
                 console.print("[green]✓ API Keys updated[/green]")
+                tlog.info("SETTINGS  updated api keys")
 
             elif c == "hosts":
                 h1 = _text(
@@ -107,6 +114,7 @@ class SettingsFlowMixin:
                     env["LOCAL_LLM_HOST"] = h2
                 self._save_env(env)
                 console.print("[green]✓ Host URLs updated[/green]")
+                tlog.info("SETTINGS  updated hosts: ollama=%s, local=%s", h1, h2)
 
             elif c == "defaults":
                 t = _validated_text(
@@ -125,6 +133,7 @@ class SettingsFlowMixin:
                     env["DEFAULT_MAX_TOKENS"] = mt
                 self._save_env(env)
                 console.print("[green]✓ Defaults updated[/green]")
+                tlog.info("SETTINGS  updated defaults: temp=%s, tokens=%s", t, mt)
 
             elif c == "paths":
                 p1 = _text(
@@ -142,6 +151,9 @@ class SettingsFlowMixin:
                     env["LOG_LEVEL"] = p3.upper()
                 self._save_env(env)
                 console.print("[green]✓ Paths updated[/green]")
+                tlog.info(
+                    "SETTINGS  updated paths: corpus=%s, db=%s, log=%s", p1, p2, p3
+                )
 
             elif c == "deps":
                 self._start_services()  # Re-run dependency check
@@ -184,26 +196,25 @@ class SettingsFlowMixin:
             elif action == "pull":
                 model = _text("Model to pull (e.g. llama3:8b)", default="llama3")
                 if model:
-                    self._start_ollama(
-                        self._ollama_host_from_env()
-                    )  # Ensure running
+                    self._start_ollama(self._ollama_host_from_env())  # Ensure running
                     console.print(f"[dim]Running: ollama pull {model}[/dim]")
                     subprocess.run(["ollama", "pull", model])
 
     def _check_health(self):
         """Ping all configured providers and list available models."""
         console.print("\n[bold cyan]Provider Health Check[/bold cyan]")
-        
+
         providers = ["ollama", "openai", "anthropic", "google"]
         for p in providers:
             status = self._ping_provider(p)
             icon = "[green]✓ Online[/green]" if status else "[red]✗ Offline[/red]"
             console.print(f"{p.title()}: {icon}")
-            
+
             if status and p == "ollama":
                 # List models
                 try:
                     import httpx
+
                     host = self._ollama_host_from_env()
                     resp = httpx.get(f"{host}/api/tags", timeout=2.0)
                     if resp.status_code == 200:
@@ -242,13 +253,14 @@ class SettingsFlowMixin:
         p = _select_quit("Default Provider", choices=PROVIDER_CHOICES)
         if p is None:
             return
-        
+
         # Determine available models
         models = PROVIDER_MODELS.get(p, [])
         if p == "ollama":
             # Try to fetch real list
             try:
                 import httpx
+
                 host = self._ollama_host_from_env()
                 resp = httpx.get(f"{host}/api/tags", timeout=2.0)
                 if resp.status_code == 200:
@@ -258,11 +270,12 @@ class SettingsFlowMixin:
 
         m = _select_quit(
             "Default Model",
-            choices=[Choice(mod, value=mod) for mod in models] + [Choice("Custom...", value="__custom__")]
+            choices=[Choice(mod, value=mod) for mod in models]
+            + [Choice("Custom...", value="__custom__")],
         )
         if m == "__custom__":
             m = _text("Enter model name")
-        
+
         if m:
             state = self._load_state()
             state.setdefault("last_config", {})
@@ -290,6 +303,7 @@ class SettingsFlowMixin:
             host = self._ollama_host_from_env()
         try:
             import httpx
+
             resp = httpx.get(host, timeout=1.0)
             return resp.status_code == 200
         except Exception:
@@ -306,11 +320,11 @@ class SettingsFlowMixin:
         """Attempt to start 'ollama serve' if not running."""
         if self._ping_ollama(host):
             return True
-        
+
         # Check if we are checking localhost
         if "localhost" not in host and "127.0.0.1" not in host:
             return False  # Can't start remote ollama
-            
+
         console.print("[yellow]Ollama not running. Attempting to start...[/yellow]")
         try:
             # Run in background
@@ -348,25 +362,27 @@ class SettingsFlowMixin:
         for key, desc in services_to_check.items():
             if not self._check_service_deps(key):
                 missing_services.append((key, desc))
-        
+
         if missing_services:
-            console.print("[yellow]Some features require additional dependencies:[/yellow]")
+            console.print(
+                "[yellow]Some features require additional dependencies:[/yellow]"
+            )
             choices = [
                 Choice(f"{desc}", value=key, checked=True)
                 for key, desc in missing_services
             ]
             # Use checkbox for multiple selection
             from src.tui.inputs import _checkbox
-            
+
             selected = _checkbox(
                 "Select dependencies to install",
-                choices=[Choice(desc, value=key) for key, desc in missing_services]
+                choices=[Choice(desc, value=key) for key, desc in missing_services],
             )
 
             if selected:
                 for key in selected:
                     self._install_service_deps(key)
-        
+
         # Ensure Ollama is running if it's the provider
         if self._configured_provider() == "ollama":
             self._start_ollama(self._ollama_host_from_env())
@@ -380,7 +396,12 @@ class SettingsFlowMixin:
 
     def _check_service_deps(self, service_key):
         deps = {
-            "ocr": ["pytesseract", "pdf2image", "PIL", "docx"],  # PIL is pillow, docx is python-docx
+            "ocr": [
+                "pytesseract",
+                "pdf2image",
+                "PIL",
+                "docx",
+            ],  # PIL is pillow, docx is python-docx
             "train": ["sklearn", "pandas", "joblib", "numpy"],
             "embed": ["chromadb", "sentence_transformers", "torch"],
             "gen": ["httpx"],
@@ -416,7 +437,9 @@ class SettingsFlowMixin:
         if not _confirm(f"Install {packages} via pip?", default=True):
             return
         try:
-            with console.status(f"[bold green]Installing {packages}...", spinner="dots"):
+            with console.status(
+                f"[bold green]Installing {packages}...", spinner="dots"
+            ):
                 subprocess.check_call(
                     [sys.executable, "-m", "pip", "install"] + packages.split()
                 )
@@ -437,7 +460,7 @@ class SettingsFlowMixin:
     def first_run_wizard(self):
         # Create .env if missing
         self._load_env()
-        
+
         console.print(
             Panel(
                 "[bold cyan]Welcome to Jikai![/bold cyan]\n"
@@ -450,20 +473,26 @@ class SettingsFlowMixin:
         # Step 1: Install deps
         if not self._deps_installed():
             if _confirm("Install core dependencies?", default=True):
-                self._install_deps("httpx python-docx sentence-transformers chromadb scikit-learn pandas")
-        
+                self._install_deps(
+                    "httpx python-docx sentence-transformers chromadb scikit-learn pandas"
+                )
+
         # Step 2: Configure API keys
         env = self._load_env()
-        if not any(k in env for k in ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"]):
+        if not any(
+            k in env for k in ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"]
+        ):
             if _confirm("Configure API Keys now?", default=True):
-                 # Reuse check logic
-                 self.settings_flow() # Actually this might be too broad.
-                 # Let's just ask for keys inline
-                 k = _text("Anthropic Key (optional):")
-                 if k: env["ANTHROPIC_API_KEY"] = k
-                 k = _text("OpenAI Key (optional):")
-                 if k: env["OPENAI_API_KEY"] = k
-                 self._save_env(env)
+                # Reuse check logic
+                self.settings_flow()  # Actually this might be too broad.
+                # Let's just ask for keys inline
+                k = _text("Anthropic Key (optional):")
+                if k:
+                    env["ANTHROPIC_API_KEY"] = k
+                k = _text("OpenAI Key (optional):")
+                if k:
+                    env["OPENAI_API_KEY"] = k
+                self._save_env(env)
 
         # Step 3: Check corpus
         # Assume _corpus_ready logic from original app will be handled by user manually or via checks
@@ -471,13 +500,13 @@ class SettingsFlowMixin:
         is_ready = False
         if hasattr(self, "_corpus_ready"):
             is_ready = self._corpus_ready()
-        
+
         if not is_ready:
             console.print("[yellow]Corpus not ready.[/yellow]")
             if _confirm("Import/Preprocess corpus now?", default=True):
                 if hasattr(self, "import_cases_flow"):
-                     self.import_cases_flow() # Or corpus flow
+                    self.import_cases_flow()  # Or corpus flow
                 elif hasattr(self, "ocr_flow"):
-                     self.ocr_flow()
+                    self.ocr_flow()
 
         console.print("[green]First run setup complete![/green]")

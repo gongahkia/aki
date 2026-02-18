@@ -5,21 +5,21 @@ import json
 import re
 from pathlib import Path
 
+from questionary import Choice
 from rich import box
 from rich.panel import Panel
 from rich.table import Table
-from questionary import Choice
 
 from src.tui.console import console, tlog
+from src.tui.constants import IMPORT_MAP
 from src.tui.inputs import (
-    _path,
+    _checkbox,
     _confirm,
+    _path,
     _select_quit,
     _text,
-    _checkbox,
     _topic_choices,
 )
-from src.tui.constants import IMPORT_MAP
 
 
 class CorpusFlowMixin:
@@ -35,7 +35,9 @@ class CorpusFlowMixin:
                     data = json.load(f)
                 entries = data if isinstance(data, list) else data.get("entries", [])
                 if entries:
-                    console.print(f"[dim]Using corpus: {path} ({len(entries)} entries)[/dim]")
+                    console.print(
+                        f"[dim]Using corpus: {path} ({len(entries)} entries)[/dim]"
+                    )
                 else:
                     path = _path("Corpus file path", default=self._corpus_path)
             except Exception:
@@ -159,6 +161,7 @@ class CorpusFlowMixin:
             return
         try:
             i = int(idx)
+            tlog.info("CORPUS  view entry id=%d", i)
             e = self._entries[i]
             header = f"Topics: {e.get('topics', '')}\n\n" if e.get("topics") else ""
             console.print(
@@ -179,6 +182,7 @@ class CorpusFlowMixin:
         term = _text("Search term")
         if term is None:
             return
+        tlog.info("CORPUS  search term='%s'", term)
         results = [e for e in self._entries if term.lower() in e["text"].lower()]
         console.print(f"[green]Found {len(results)} matches[/green]")
         if results:
@@ -191,6 +195,7 @@ class CorpusFlowMixin:
         topic = _select_quit("Filter topic", choices=_topic_choices())
         if topic is None:
             return
+        tlog.info("CORPUS  filter topic='%s'", topic)
         results = [
             e for e in self._entries if topic.lower() in e.get("topics", "").lower()
         ]
@@ -220,6 +225,7 @@ class CorpusFlowMixin:
             tlog.info("EXPORT  %s → %s", fmt, path)
         except Exception as e:
             console.print(f"[red]✗ Export failed: {e}[/red]")
+            tlog.error("EXPORT  failed: %s", e)
 
     def _preprocess_raw(self):
         raw_dir = _path("Raw corpus directory", default=self._raw_dir)
@@ -230,6 +236,7 @@ class CorpusFlowMixin:
             return
         if not _confirm(f"Preprocess {raw_dir} → {output_path}?", default=True):
             return
+        tlog.info("PREPROCESS  starting %s → %s", raw_dir, output_path)
         try:
             from src.services.corpus_preprocessor import build_corpus
 

@@ -1,12 +1,13 @@
 """OCR and Preprocessing flow."""
 
 from pathlib import Path
+
+from questionary import Choice
 from rich import box
 from rich.panel import Panel
-from questionary import Choice
 
 from src.tui.console import console, tlog
-from src.tui.inputs import _select_quit, _path
+from src.tui.inputs import _path, _select_quit
 
 
 class OCRFlowMixin:
@@ -42,10 +43,12 @@ class OCRFlowMixin:
         try:
             from src.services.corpus_preprocessor import extract_text, normalize_text
 
+            tlog.info("OCR  start extract %s", path)
             with console.status("[bold green]Extracting text...", spinner="dots"):
                 text = normalize_text(extract_text(Path(path)))
             if not text:
                 console.print("[red]✗ No text extracted (check file format/deps)[/red]")
+                tlog.warning("OCR  no text extracted from %s", path)
                 return
             console.print(
                 Panel(
@@ -59,9 +62,10 @@ class OCRFlowMixin:
             if out:
                 Path(out).write_text(text, encoding="utf-8")
                 console.print(f"[green]✓ Saved to {out}[/green]")
-            tlog.info("OCR  %s → %d chars", path, len(text))
+            tlog.info("OCR  success %s → %d chars", path, len(text))
         except Exception as e:
             console.print(f"[red]✗ OCR failed: {e}[/red]")
             console.print(
                 "[dim]Tip: ensure pytesseract and tesseract are installed[/dim]"
             )
+            tlog.error("OCR  failed: %s", e)

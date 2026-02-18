@@ -3,13 +3,13 @@
 import shutil
 from pathlib import Path
 
+from questionary import Choice
 from rich import box
 from rich.table import Table
-from questionary import Choice
 
 from src.tui.console import console, tlog
-from src.tui.inputs import _select_quit, _confirm, _checkbox
 from src.tui.constants import HISTORY_PATH
+from src.tui.inputs import _checkbox, _confirm, _select_quit
 
 
 class CleanupMixin:
@@ -26,7 +26,7 @@ class CleanupMixin:
             ("history", "Delete generation history"),
             ("env", "Delete .env configuration"),
         ]
-        
+
         # Calculate sizes
         sizes = {}
         for key, _ in options:
@@ -34,13 +34,17 @@ class CleanupMixin:
             if key == "exports":
                 p = Path("exports")
                 if p.exists():
-                    sizes[key] = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
+                    sizes[key] = sum(
+                        f.stat().st_size for f in p.glob("**/*") if f.is_file()
+                    )
             elif key == "chroma":
                 # Assuming DATABASE_PATH from env or default
                 # Just use default reasonable path or check env
-                p = Path("chroma_db") # This might be dynamic
+                p = Path("chroma_db")  # This might be dynamic
                 if p.exists():
-                     sizes[key] = sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+                    sizes[key] = sum(
+                        f.stat().st_size for f in p.rglob("*") if f.is_file()
+                    )
             elif key == "models":
                 p = Path("models")
                 if p.exists():
@@ -48,7 +52,7 @@ class CleanupMixin:
             elif key == "logs":
                 p = Path("logs")
                 if p.exists():
-                     sizes[key] = sum(f.stat().st_size for f in p.glob("*.log"))
+                    sizes[key] = sum(f.stat().st_size for f in p.glob("*.log"))
             elif key == "history":
                 if Path(HISTORY_PATH).exists():
                     sizes[key] = Path(HISTORY_PATH).stat().st_size
@@ -73,7 +77,9 @@ class CleanupMixin:
         if not selected:
             return
 
-        if not _confirm(f"DELETE {len(selected)} items? This is permanent.", default=False):
+        if not _confirm(
+            f"DELETE {len(selected)} items? This is permanent.", default=False
+        ):
             return
 
         for item in selected:
@@ -98,8 +104,10 @@ class CleanupMixin:
                     Path(".env").unlink(missing_ok=True)
                     console.print("[green]✓ Deleted .env[/green]")
                 elif item == "cache":
-                     for p in Path(".").rglob("__pycache__"):
+                    for p in Path(".").rglob("__pycache__"):
                         shutil.rmtree(p, ignore_errors=True)
-                     console.print("[green]✓ Deleted __pycache__[/green]")
+                    console.print("[green]✓ Deleted __pycache__[/green]")
+                tlog.info("CLEANUP  deleted %s", item)
             except Exception as e:
                 console.print(f"[red]✗ Failed to delete {item}: {e}[/red]")
+                tlog.error("CLEANUP  failed %s: %s", item, e)

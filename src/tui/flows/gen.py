@@ -1,13 +1,12 @@
 """Generation flow."""
 
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
+from questionary import Choice
 from rich import box
-from rich.panel import Panel
-from rich.table import Table
 from rich.live import Live
-from rich.text import Text
+from rich.panel import Panel
 from rich.progress import (
     BarColumn,
     Progress,
@@ -15,25 +14,26 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from questionary import Choice
+from rich.table import Table
+from rich.text import Text
 
 from src.tui.console import console, tlog
+from src.tui.constants import HISTORY_PATH, TOPICS
 from src.tui.inputs import (
-    _select_quit,
-    _confirm,
-    _topic_choices,
-    PROVIDER_CHOICES,
-    _model_choices,
-    _text,
     COMPLEXITY_CHOICES,
-    PARTIES_CHOICES,
     METHOD_CHOICES,
-    _validated_text,
-    _validate_number,
+    PARTIES_CHOICES,
+    PROVIDER_CHOICES,
     _checkbox,
+    _confirm,
+    _model_choices,
     _path,
+    _select_quit,
+    _text,
+    _topic_choices,
+    _validate_number,
+    _validated_text,
 )
-from src.tui.constants import TOPICS, HISTORY_PATH
 from src.tui.types import GenerationConfig
 from src.tui.utils import run_async
 
@@ -97,7 +97,9 @@ class GenerationFlowMixin:
                 with console.status(f"[dim]Checking {provider}...", spinner="dots"):
                     healthy = self._ping_provider(provider)
                 if not healthy:
-                    console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
+                    console.print(
+                        f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]"
+                    )
                     if not _confirm(f"Continue with {provider} anyway?", default=False):
                         return
                 model_name = _select_quit("Model", choices=_model_choices(provider))
@@ -372,12 +374,18 @@ class GenerationFlowMixin:
                             covered = ti.get("topics_found", [])
                             issues.append(
                                 f"Must address these topics: {', '.join(missing)}."
-                                + (f" (covered: {', '.join(covered)})" if covered else "")
+                                + (
+                                    f" (covered: {', '.join(covered)})"
+                                    if covered
+                                    else ""
+                                )
                             )
                         wc = checks.get("word_count", {})
                         if not wc.get("passed", True):
                             actual = wc.get("count", wc.get("word_count", "?"))
-                            issues.append(f"Aim for 800-1500 words (currently {actual}).")
+                            issues.append(
+                                f"Aim for 800-1500 words (currently {actual})."
+                            )
                         if not checks.get("singapore_context", {}).get("passed", True):
                             issues.append("Set the scenario explicitly in Singapore.")
                     feedback = "Previous attempt scored {:.1f}/10. Fix these issues: {}".format(
@@ -425,18 +433,39 @@ class GenerationFlowMixin:
         # API key errors
         if "api key" in err_str or "apikey" in err_str or "authentication" in err_str:
             if "openai" in err_str:
-                console.print("[red]✗ No API key set for OpenAI. Go to More → Settings to add one.[/red]")
+                console.print(
+                    "[red]✗ No API key set for OpenAI. Go to More → Settings to add one.[/red]"
+                )
             elif "anthropic" in err_str:
-                console.print("[red]✗ No API key set for Anthropic. Go to More → Settings to add one.[/red]")
+                console.print(
+                    "[red]✗ No API key set for Anthropic. Go to More → Settings to add one.[/red]"
+                )
             elif "google" in err_str:
-                console.print("[red]✗ No API key set for Google. Go to More → Settings to add one.[/red]")
+                console.print(
+                    "[red]✗ No API key set for Google. Go to More → Settings to add one.[/red]"
+                )
             else:
-                console.print("[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]")
+                console.print(
+                    "[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]"
+                )
         # Model not found
-        elif "model" in err_str and ("not found" in err_str or "does not exist" in err_str or "not available" in err_str):
-            console.print("[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]")
+        elif "model" in err_str and (
+            "not found" in err_str
+            or "does not exist" in err_str
+            or "not available" in err_str
+        ):
+            console.print(
+                "[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]"
+            )
         # Connection/network errors — attempt to auto-restart Ollama
-        elif "timeout" in err_str or "timed out" in err_str or "connection" in err_str or "refused" in err_str or "unreachable" in err_str or "all connection attempts failed" in err_str:
+        elif (
+            "timeout" in err_str
+            or "timed out" in err_str
+            or "connection" in err_str
+            or "refused" in err_str
+            or "unreachable" in err_str
+            or "all connection attempts failed" in err_str
+        ):
             console.print("[red]✗ Cannot connect to provider.[/red]")
             provider_name = self._configured_provider()
             if provider_name == "ollama":
@@ -452,10 +481,14 @@ class GenerationFlowMixin:
                         "Run 'ollama serve' in a terminal, then try again.[/dim]"
                     )
             else:
-                console.print("[dim]Check that your provider service is running and accessible.[/dim]")
+                console.print(
+                    "[dim]Check that your provider service is running and accessible.[/dim]"
+                )
         # Rate limiting
         elif "rate limit" in err_str or "too many requests" in err_str:
-            console.print("[red]✗ Rate limited by provider. Wait a moment and try again.[/red]")
+            console.print(
+                "[red]✗ Rate limited by provider. Wait a moment and try again.[/red]"
+            )
         # Generic fallback
         else:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
@@ -536,7 +569,9 @@ class GenerationFlowMixin:
                 else:
                     missing = ti.get("missing", ti.get("topics_missing", []))
                     if missing:
-                        vt.add_row("Topic Coverage", f"{icon} Missing: {', '.join(missing)}")
+                        vt.add_row(
+                            "Topic Coverage", f"{icon} Missing: {', '.join(missing)}"
+                        )
                     else:
                         vt.add_row("Topic Coverage", f"{icon} Incomplete")
 
@@ -553,7 +588,9 @@ class GenerationFlowMixin:
             if sc:
                 passed = sc.get("passed", True)
                 icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
-                vt.add_row("Singapore Context", f"{icon} {'Present' if passed else 'Missing'}")
+                vt.add_row(
+                    "Singapore Context", f"{icon} {'Present' if passed else 'Missing'}"
+                )
 
         # Quality Score
         score = vr.get("quality_score", vr.get("overall_score", "N/A"))
@@ -584,7 +621,9 @@ class GenerationFlowMixin:
             if not ti.get("passed", True):
                 missing = ti.get("missing", [])
                 if missing:
-                    failed_checks.append(f"topic coverage (missing: {', '.join(missing)})")
+                    failed_checks.append(
+                        f"topic coverage (missing: {', '.join(missing)})"
+                    )
                 else:
                     failed_checks.append("topic coverage")
             wc = checks.get("word_count", {})
@@ -643,7 +682,9 @@ class GenerationFlowMixin:
         with console.status(f"[dim]Checking {provider}...", spinner="dots"):
             healthy = self._ping_provider(provider)
         if not healthy:
-            console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
+            console.print(
+                f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]"
+            )
             if not _confirm(f"Continue with {provider} anyway?", default=False):
                 return
         model_name = _select_quit("Model", choices=_model_choices(provider))
@@ -773,7 +814,9 @@ class GenerationFlowMixin:
             console.print(f"[green]✓ Loaded last generated ({topic})[/green]")
         elif source == "history" and history:
             # Show history selection
-            ht = Table(title=f"Select from History ({len(history)} records)", box=box.ROUNDED)
+            ht = Table(
+                title=f"Select from History ({len(history)} records)", box=box.ROUNDED
+            )
             ht.add_column("#", style="cyan", width=4)
             ht.add_column("Time", style="dim", width=16)
             ht.add_column("Topic", style="yellow", width=18)
@@ -799,7 +842,9 @@ class GenerationFlowMixin:
                 console.print("[red]Invalid selection[/red]")
                 return
         elif source == "paste":
-            hypo_text = _text("Paste hypothetical text (or path to .txt file)", default="")
+            hypo_text = _text(
+                "Paste hypothetical text (or path to .txt file)", default=""
+            )
             if not hypo_text:
                 return
             # Check if it's a file path
@@ -808,7 +853,9 @@ class GenerationFlowMixin:
             analysis_text = _text(
                 "Paste analysis text (optional, Enter to skip)", default=""
             )
-            model_answer = _text("Paste model answer (optional, Enter to skip)", default="")
+            model_answer = _text(
+                "Paste model answer (optional, Enter to skip)", default=""
+            )
 
         if not hypo_text:
             console.print("[red]✗ No hypothetical text to export[/red]")
@@ -966,5 +1013,7 @@ class GenerationFlowMixin:
                 }
             )
             console.print(f"[green]✓ Variation saved (score: {score:.1f})[/green]")
+            tlog.info("VARIATION  success score=%.1f param=%s", score, param)
         except Exception as e:
             console.print(f"[red]✗ Variation failed: {e}[/red]")
+            tlog.error("VARIATION  failed: %s", e)
