@@ -3398,6 +3398,8 @@ class JikaiTUI:
         import urllib.request
         import urllib.error
         try:
+            if not host.startswith(("http://", "https://")):
+                return False
             req = urllib.request.Request(f"{host}/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=timeout):
                 return True
@@ -3696,7 +3698,7 @@ class JikaiTUI:
                     req = urllib.request.Request(
                         "http://localhost:11434/api/tags", method="GET"
                     )
-                    with urllib.request.urlopen(req, timeout=2):
+                    with urllib.request.urlopen(req, timeout=2):  # nosec B310
                         console.print(
                             "[green]✓ Ollama detected at localhost:11434 — available as provider[/green]"
                         )

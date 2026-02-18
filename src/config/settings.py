@@ -53,7 +53,7 @@ class AWSSettings(BaseSettings):
 class APISettings(BaseSettings):
     """API configuration settings."""
 
-    host: str = Field(default="0.0.0.0", env="API_HOST")
+    host: str = Field(default="127.0.0.1", env="API_HOST")
     port: int = Field(default=8000, env="API_PORT")
     debug: bool = Field(default=False, env="API_DEBUG")
     cors_origins: List[str] = Field(default=["*"], env="API_CORS_ORIGINS")
