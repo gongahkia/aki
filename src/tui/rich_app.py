@@ -2944,20 +2944,20 @@ class JikaiTUI:
             st.add_column("Setting", style="cyan")
             st.add_column("Value", style="yellow")
             # API Keys
-            st.add_row("🔑 API Keys", "Anthropic", _mask(env.get("ANTHROPIC_API_KEY", "")))
+            st.add_row("API Keys", "Anthropic", _mask(env.get("ANTHROPIC_API_KEY", "")))
             st.add_row("", "OpenAI", _mask(env.get("OPENAI_API_KEY", "")))
             st.add_row("", "Google", _mask(env.get("GOOGLE_API_KEY", "")))
             st.add_row("", "", "")
             # Hosts
-            st.add_row("🌐 Hosts", "Ollama", env.get("OLLAMA_HOST", "http://localhost:11434"))
+            st.add_row("Hosts", "Ollama", env.get("OLLAMA_HOST", "http://localhost:11434"))
             st.add_row("", "Local LLM", env.get("LOCAL_LLM_HOST", "http://localhost:8080"))
             st.add_row("", "", "")
             # Generation Defaults
-            st.add_row("⚙️  Defaults", "Temperature", env.get("DEFAULT_TEMPERATURE", "0.7"))
+            st.add_row("Defaults", "Temperature", env.get("DEFAULT_TEMPERATURE", "0.7"))
             st.add_row("", "Max Tokens", env.get("DEFAULT_MAX_TOKENS", "2048"))
             st.add_row("", "", "")
             # Paths & Logging
-            st.add_row("📁 Paths", "Corpus", env.get("CORPUS_PATH", self._corpus_path))
+            st.add_row("Paths", "Corpus", env.get("CORPUS_PATH", self._corpus_path))
             st.add_row("", "Database", env.get("DATABASE_PATH", "data/jikai.db"))
             st.add_row("", "Log Level", env.get("LOG_LEVEL", "INFO"))
             console.print(st)
@@ -2989,11 +2989,11 @@ class JikaiTUI:
             c = _select_quit(
                 "What would you like to edit?",
                 choices=[
-                    Choice("🔑 API Keys — Anthropic, OpenAI, Google", value="keys"),
-                    Choice("🌐 Hosts — Ollama, Local LLM endpoints", value="hosts"),
-                    Choice("⚙️  Generation Defaults — temperature, max tokens", value="defaults"),
-                    Choice("📁 Paths & Logging — corpus, database, log level", value="paths"),
-                    Choice("📋 View Current Settings", value="view"),
+                    Choice("API Keys — Anthropic, OpenAI, Google", value="keys"),
+                    Choice("Hosts — Ollama, Local LLM endpoints", value="hosts"),
+                    Choice("Generation Defaults — temperature, max tokens", value="defaults"),
+                    Choice("Paths & Logging — corpus, database, log level", value="paths"),
+                    Choice("View Current Settings", value="view"),
                 ],
             )
             if c is None:
