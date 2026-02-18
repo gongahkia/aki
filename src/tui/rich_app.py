@@ -469,11 +469,7 @@ class JikaiTUI:
                         value="export",
                         disabled=export_disabled,
                     ),
-                    Choice("History", value="history"),
-                    Choice("Stats Dashboard", value="stats"),
-                    Choice("Power Tools ›", value="tools"),
-                    Choice("Settings", value="settings"),
-                    Choice("Providers", value="providers"),
+                    Choice("More... ›", value="more"),
                 ],
                 style=menu_style,
             )
@@ -489,7 +485,8 @@ class JikaiTUI:
                 "embed": "Index Semantic Search",
                 "gen": "Generate",
                 "export": "Export",
-                "tools": "Power Tools",
+                "more": "More",
+                "tools": "Batch Operations",
                 "history": "History",
                 "stats": "Stats",
                 "settings": "Settings",
@@ -511,6 +508,8 @@ class JikaiTUI:
                 self.generate_flow()
             elif choice == "export":
                 self.export_flow()
+            elif choice == "more":
+                self._more_menu()
             elif choice == "tools":
                 self._tools_menu()
             elif choice == "history":
@@ -523,6 +522,44 @@ class JikaiTUI:
                 self.providers_flow()
             # Pop nav after returning from submenu
             if choice in _flow_labels:
+                self._pop_nav()
+
+    def _more_menu(self):
+        """Submenu for secondary features: History, Stats, Batch Ops, Settings, Providers."""
+        while True:
+            console.print("\n[bold yellow]More[/bold yellow]")
+            c = _select_quit(
+                "More options",
+                choices=[
+                    Choice("History", value="history"),
+                    Choice("Stats Dashboard", value="stats"),
+                    Choice("Batch Operations ›", value="tools"),
+                    Choice("Settings", value="settings"),
+                    Choice("Providers", value="providers"),
+                ],
+            )
+            if c is None:
+                return
+            _labels = {
+                "history": "History",
+                "stats": "Stats",
+                "tools": "Batch Operations",
+                "settings": "Settings",
+                "providers": "Providers",
+            }
+            if c in _labels:
+                self._push_nav(_labels[c])
+            if c == "history":
+                self.history_flow()
+            elif c == "stats":
+                self.stats_flow()
+            elif c == "tools":
+                self._tools_menu()
+            elif c == "settings":
+                self.settings_flow()
+            elif c == "providers":
+                self.providers_flow()
+            if c in _labels:
                 self._pop_nav()
 
     def _tools_menu(self):
