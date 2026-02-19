@@ -516,17 +516,14 @@ class JikaiTUI:
 
     def display_banner(self):
         tlog.info("=== TUI session started ===")
-        from rich.columns import Columns
+        from rich.table import Table as RTable
         from rich.text import Text as RText
 
         avatar = RText(
-            "  /\\ /\\\n" " ( •.• )\n" "  > ⚖ <\n" "  |_法_|",
+            " /\\ /\\\n( •.• )\n (___)  ",
             style="bold cyan",
         )
-        title = RText(
-            "J I K A I\n",
-            style="bold cyan",
-        )
+        title = RText("J I K A I\n", style="bold cyan")
         title.append("─" * 22 + "\n", style="dim cyan")
         title.append("Singapore Tort Law\n", style="cyan")
         title.append("AI Hypothetical Generator\n\n", style="dim")
@@ -534,14 +531,11 @@ class JikaiTUI:
         title.append("g generate  ", style="dim green")
         title.append("s settings  ", style="dim blue")
         title.append("q quit", style="dim red")
-        console.print(
-            Panel(
-                Columns([avatar, title], padding=(0, 3)),
-                box=box.DOUBLE,
-                border_style="cyan",
-                padding=(1, 2),
-            )
-        )
+        grid = RTable.grid(padding=(0, 2))
+        grid.add_column(no_wrap=True, vertical="middle")
+        grid.add_column(no_wrap=True)
+        grid.add_row(avatar, title)
+        console.print(Panel(grid, box=box.DOUBLE, border_style="cyan", padding=(1, 2)))
 
     def _corpus_ready(self):
         return Path(self._corpus_path).exists()
@@ -632,6 +626,7 @@ class JikaiTUI:
 
             # Dep checks
             ocr_deps = self._check_service_deps("ocr")
+            scraper_deps = self._check_service_deps("scraper")
             train_deps = self._check_service_deps("train")
             embed_deps = self._check_service_deps("embed")
             gen_deps = self._check_service_deps("gen")
@@ -712,6 +707,14 @@ class JikaiTUI:
                         value="ocr",
                     ),
                     Choice(
+                        title=_lbl("Scrape SG Case Law")
+                        + _tag(False, optional=True, deps_ok=scraper_deps),
+                        value="scrape",
+                        disabled=None
+                        if scraper_deps
+                        else "install beautifulsoup4 lxml httpx",
+                    ),
+                    Choice(
                         title=_lbl("Browse Corpus", corpus_ok),
                         value="corpus",
                         disabled=browse_disabled,
@@ -768,6 +771,7 @@ class JikaiTUI:
                 break
             _flow_labels = {
                 "ocr": "Import & Preprocess",
+                "scrape": "Scrape SG Cases",
                 "corpus": "Browse Corpus",
                 "label": "Label Corpus",
                 "train": "Train ML Models",
@@ -785,6 +789,8 @@ class JikaiTUI:
                 self._push_nav(_flow_labels[choice])
             if choice == "ocr":
                 self.ocr_flow()
+            elif choice == "scrape":
+                self.scrape_flow()
             elif choice == "corpus":
                 self.corpus_flow()
             elif choice == "label":
@@ -4133,6 +4139,7 @@ class JikaiTUI:
     def _install_deps(self):
         """Install core dependencies."""
         self._install_service_deps("gen")
+        self._install_service_deps("scraper")
 
     def _apply_chromadb_py314_patch(self):
         """
@@ -4207,8 +4214,14 @@ class JikaiTUI:
         )
 
         deps_done = self._deps_installed()
+        scraper_done = self._check_service_deps("scraper")
         steps = [
             ("Install Dependencies", deps_done, "deps"),
+            (
+                "Install Scraper Dependencies (beautifulsoup4, lxml, httpx)",
+                scraper_done,
+                "scraper_deps",
+            ),
             ("Configure API Keys", Path(".env").exists(), "settings"),
             ("Preprocess Corpus", self._corpus_ready(), "ocr"),
             ("Label Entries (optional)", self._labelled_ready(), "label"),
@@ -4230,6 +4243,8 @@ class JikaiTUI:
                 continue
             if action == "deps":
                 self._install_deps()
+            elif action == "scraper_deps":
+                self._install_service_deps("scraper")
             elif action == "settings":
                 # auto-detect Ollama before settings
                 try:
