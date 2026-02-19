@@ -4234,7 +4234,12 @@ class JikaiTUI:
 
         for name, done, action in steps:
             if done:
-                console.print(f"[green]✓ {name} — already done, skipping[/green]")
+                if action in ("deps", "scraper_deps"):
+                    console.print(
+                        f"[green]✓ {name}[/green] [dim]— all packages already installed, skipping installation.[/dim]"
+                    )
+                else:
+                    console.print(f"[green]✓ {name} — already done, skipping[/green]")
                 continue
             if not _confirm(f"Proceed with: {name}?", default=True):
                 continue
