@@ -2,15 +2,16 @@
 
 import asyncio
 import csv
-from dataclasses import dataclass
 import json
 import logging
 import os
-from pathlib import Path
 import re
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import questionary
+from prompt_toolkit.styles import Style as _PtStyle
 from questionary import Choice
 from rich import box
 from rich.console import Console
@@ -83,27 +84,101 @@ TOPIC_DESCRIPTIONS = {
 }
 
 TOPIC_CATEGORIES = {
-    "Negligence-Based": ["negligence", "duty_of_care", "causation", "remoteness", "contributory_negligence"],
-    "Intentional Torts": ["battery", "assault", "false_imprisonment", "trespass_to_land"],
-    "Liability": ["vicarious_liability", "strict_liability", "occupiers_liability", "employers_liability", "product_liability"],
+    "Negligence-Based": [
+        "negligence",
+        "duty_of_care",
+        "causation",
+        "remoteness",
+        "contributory_negligence",
+    ],
+    "Intentional Torts": [
+        "battery",
+        "assault",
+        "false_imprisonment",
+        "trespass_to_land",
+    ],
+    "Liability": [
+        "vicarious_liability",
+        "strict_liability",
+        "occupiers_liability",
+        "employers_liability",
+        "product_liability",
+    ],
     "Specific Torts": ["defamation", "private_nuisance", "harassment"],
     "Damages": ["economic_loss", "psychiatric_harm"],
 }
 
 PROVIDERS = ["ollama", "openai", "anthropic", "google", "local"]
 
+_CATEGORY_ICONS = {
+    "Negligence-Based": "⚖",
+    "Intentional Torts": "⚡",
+    "Liability": "⛓",
+    "Specific Torts": "◈",
+    "Damages": "◉",
+}
+_CATEGORY_COLORS = {
+    "Negligence-Based": "#4fc3f7",
+    "Intentional Torts": "#ff8a65",
+    "Liability": "#a5d6a7",
+    "Specific Torts": "#ce93d8",
+    "Damages": "#fff176",
+}
+
+TOPIC_STYLE = _PtStyle.from_dict(
+    {
+        "topic-neg": "#4fc3f7",
+        "topic-int": "#ff8a65",
+        "topic-lib": "#a5d6a7",
+        "topic-spe": "#ce93d8",
+        "topic-dmg": "#fff176",
+        "topic-sep": "bold #888888",
+        "topic-desc": "italic #666666",
+        "topic-name": "#ffffff",
+    }
+)
+_CATEGORY_STYLE_CLASS = {
+    "Negligence-Based": "class:topic-neg",
+    "Intentional Torts": "class:topic-int",
+    "Liability": "class:topic-lib",
+    "Specific Torts": "class:topic-spe",
+    "Damages": "class:topic-dmg",
+}
+
 
 def _topic_choices():
-    """Build topic choices with descriptions, grouped by category."""
+    """Build topic choices with colored categories, icons, and dimmed descriptions."""
     choices = []
     for category, topics in TOPIC_CATEGORIES.items():
-        # Add category separator
-        choices.append(Choice(f"── {category} ──", value=None, disabled=""))
+        icon = _CATEGORY_ICONS.get(category, "•")
+        color = _CATEGORY_STYLE_CLASS.get(category, "class:topic-name")
+        count = len(topics)
+        choices.append(
+            Choice(
+                title=[
+                    ("class:topic-sep", f"  {icon} "),
+                    (color, f"{category}"),
+                    ("class:topic-sep", f" ({count})"),
+                ],
+                value=None,
+                disabled="",
+            )
+        )
         for t in topics:
             desc = TOPIC_DESCRIPTIONS.get(t, "")
-            title = t.replace("_", " ").title()
-            label = f"{title} — {desc}" if desc else title
-            choices.append(Choice(label, value=t))
+            title_str = t.replace("_", " ").title()
+            if desc:
+                choices.append(
+                    Choice(
+                        title=[
+                            ("class:topic-name", f"    {title_str:<26}"),
+                            ("class:topic-desc", f"  {desc}"),
+                        ],
+                        value=t,
+                    )
+                )
+            else:
+                choices.append(Choice(f"    {title_str}", value=t))
     return choices
 
 
@@ -253,12 +328,14 @@ def _show_help_overlay(choices):
     )
 
 
-def _select_quit(message, choices, hotkeys=None, style=None, enable_global_hotkeys=True):
+def _select_quit(
+    message, choices, hotkeys=None, style=None, enable_global_hotkeys=True
+):
     """Arrow-key select with q-to-quit, ?-for-help, and optional hotkey bindings."""
     from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 
     hk = hotkeys or _HOTKEY_MAP
-    _result = {"value": None}
+    _result: Dict[str, Optional[str]] = {"value": None}
     kb = KeyBindings()
 
     @kb.add("q")
@@ -288,15 +365,20 @@ def _select_quit(message, choices, hotkeys=None, style=None, enable_global_hotke
     if enable_global_hotkeys:
         for key, val in _GLOBAL_HOTKEYS.items():
             if key not in [k for k, v in hk.items() if v in choice_values]:
+
                 def _make_global_handler(v):
                     def _handler(event):
                         _result["value"] = v
                         event.app.exit(result=v)
+
                     return _handler
+
                 kb.add(key)(_make_global_handler(val))
 
     hint_keys = " ".join(f"{k}={v}" for k, v in hk.items() if v in choice_values)
-    global_hint = "g=generate" if enable_global_hotkeys and "gen" not in choice_values else ""
+    global_hint = (
+        "g=generate" if enable_global_hotkeys and "gen" not in choice_values else ""
+    )
     all_hints = " | ".join(filter(None, [hint_keys, global_hint]))
     instruction = (
         f"(q quit | ? help | {all_hints})" if all_hints else "(q quit | ? help)"
@@ -431,12 +513,30 @@ class JikaiTUI:
 
     def display_banner(self):
         tlog.info("=== TUI session started ===")
+        from rich.columns import Columns
+        from rich.text import Text as RText
+
+        avatar = RText(
+            "  /\\ /\\\n" " ( •.• )\n" "  > ⚖ <\n" "  |_法_|",
+            style="bold cyan",
+        )
+        title = RText(
+            "J I K A I\n",
+            style="bold cyan",
+        )
+        title.append("─" * 22 + "\n", style="dim cyan")
+        title.append("Singapore Tort Law\n", style="cyan")
+        title.append("AI Hypothetical Generator\n\n", style="dim")
+        title.append("? help  ", style="dim yellow")
+        title.append("g generate  ", style="dim green")
+        title.append("s settings  ", style="dim blue")
+        title.append("q quit", style="dim red")
         console.print(
             Panel(
-                "[bold cyan]Jikai - Legal Hypothetical Generator[/bold cyan]\n"
-                "[dim]AI-powered Singapore tort law hypothetical generation[/dim]",
+                Columns([avatar, title], padding=(0, 3)),
                 box=box.DOUBLE,
                 border_style="cyan",
+                padding=(1, 2),
             )
         )
 
@@ -482,7 +582,11 @@ class JikaiTUI:
         # Only show ML Models if user has trained any
         models_ready = self._models_ready()
         if models_ready or self._labelled_ready():
-            icon = "[green]✓ trained[/green]" if models_ready else "[dim]○ not trained[/dim]"
+            icon = (
+                "[green]✓ trained[/green]"
+                if models_ready
+                else "[dim]○ not trained[/dim]"
+            )
             parts.append(f"[dim]ML Models:[/dim] {icon}")
         # Only show Semantic Search if user has embedded or has corpus
         embed_ready = self._embeddings_ready()
@@ -550,10 +654,13 @@ class JikaiTUI:
             else:
                 embed_disabled = None
 
+            provider_ok = self._has_any_provider()
             if not corpus_ok:
                 gen_disabled = "preprocess corpus first"
             elif not gen_deps:
                 gen_disabled = "install generation dependencies"
+            elif not provider_ok:
+                gen_disabled = "configure an LLM provider first (Settings → API Keys)"
             else:
                 gen_disabled = None
 
@@ -568,12 +675,14 @@ class JikaiTUI:
 
             from prompt_toolkit.styles import Style as PtStyle
 
-            menu_style = PtStyle.from_dict({
-                "ok": "#00aa00",
-                "fail": "#cc0000",
-                "dim": "#666666",
-                "warn": "#ffff00",
-            })
+            menu_style = PtStyle.from_dict(
+                {
+                    "ok": "#00aa00",
+                    "fail": "#cc0000",
+                    "dim": "#666666",
+                    "warn": "#ffff00",
+                }
+            )
 
             def _tag(ok, optional=False, deps_ok=True):
                 tags = []
@@ -582,7 +691,9 @@ class JikaiTUI:
                 if ok:
                     tags.append(("class:ok", " ✓"))
                 else:
-                    tags.append(("class:dim", " ○") if optional else ("class:fail", " ✗"))
+                    tags.append(
+                        ("class:dim", " ○") if optional else ("class:fail", " ✗")
+                    )
                 return tags
 
             def _lbl(text, enabled=True):
@@ -593,7 +704,8 @@ class JikaiTUI:
                 "What would you like to do?",
                 choices=[
                     Choice(
-                        title=_lbl("Import & Preprocess Corpus") + _tag(corpus_ok, deps_ok=ocr_deps),
+                        title=_lbl("Import & Preprocess Corpus")
+                        + _tag(corpus_ok, deps_ok=ocr_deps),
                         value="ocr",
                     ),
                     Choice(
@@ -607,20 +719,29 @@ class JikaiTUI:
                         disabled=label_disabled,
                     ),
                     Choice(
-                        title=_lbl("Train ML Models (optional)", labelled_ok and train_deps)
+                        title=_lbl(
+                            "Train ML Models (optional)", labelled_ok and train_deps
+                        )
                         + _tag(models_ok, optional=True, deps_ok=train_deps),
                         value="train",
                         disabled=train_disabled,
                     ),
                     Choice(
-                        title=_lbl("Index Semantic Search (optional)", corpus_ok and embed_deps)
+                        title=_lbl(
+                            "Index Semantic Search (optional)", corpus_ok and embed_deps
+                        )
                         + _tag(embed_ok, optional=True, deps_ok=embed_deps),
                         value="embed",
                         disabled=embed_disabled,
                     ),
                     Choice(
-                        title=_lbl("Generate Hypothetical", corpus_ok and gen_deps)
-                        + _tag(corpus_ok, deps_ok=gen_deps),
+                        title=_lbl(
+                            "Generate Hypothetical",
+                            corpus_ok and gen_deps and provider_ok,
+                        )
+                        + _tag(
+                            corpus_ok and provider_ok, deps_ok=gen_deps and provider_ok
+                        ),
                         value="gen",
                         disabled=gen_disabled,
                     ),
@@ -766,7 +887,9 @@ class JikaiTUI:
         )
         # Step 1: Check if corpus exists, otherwise guide through preprocessing
         if not self._corpus_ready():
-            console.print("\n[bold cyan]Step 1/3: Import & Preprocess Corpus[/bold cyan]")
+            console.print(
+                "\n[bold cyan]Step 1/3: Import & Preprocess Corpus[/bold cyan]"
+            )
             console.print(
                 "[dim]You need a corpus before generating. "
                 "Let's preprocess some documents.[/dim]\n"
@@ -776,16 +899,16 @@ class JikaiTUI:
                 self.ocr_flow()
                 self._pop_nav()
             if not self._corpus_ready():
-                console.print("[yellow]⚠ Corpus not ready. Exiting guided mode.[/yellow]")
+                console.print(
+                    "[yellow]⚠ Corpus not ready. Exiting guided mode.[/yellow]"
+                )
                 return
         else:
             console.print("\n[green]✓ Step 1/3: Corpus ready[/green]")
 
         # Step 2: Generate a hypothetical
         console.print("\n[bold cyan]Step 2/3: Generate Hypothetical[/bold cyan]")
-        console.print(
-            "[dim]Now let's generate a tort law scenario using AI.[/dim]\n"
-        )
+        console.print("[dim]Now let's generate a tort law scenario using AI.[/dim]\n")
         if _confirm("Generate a hypothetical now?", default=True):
             self._push_nav("Generate")
             self.generate_flow()
@@ -823,14 +946,24 @@ class JikaiTUI:
 
             gen_deps = self._check_service_deps("gen")
             ocr_deps = self._check_service_deps("ocr")
+            provider_ok = self._has_any_provider()
+            batch_gen_disabled = (
+                None
+                if (gen_deps and provider_ok)
+                else (
+                    "install generation dependencies"
+                    if not gen_deps
+                    else "configure an LLM provider first (Settings → API Keys)"
+                )
+            )
 
             c = _select_quit(
                 "Batch Operations",
                 choices=[
                     Choice(
-                        "Batch Generate" + ("" if gen_deps else " ⚠"),
+                        "Batch Generate" + ("" if (gen_deps and provider_ok) else " ⚠"),
                         value="batch_gen",
-                        disabled=None if gen_deps else "install generation dependencies",
+                        disabled=batch_gen_disabled,
                     ),
                     Choice(
                         "Import SG Cases" + ("" if ocr_deps else " ⚠"),
@@ -922,19 +1055,23 @@ class JikaiTUI:
                     data = json.load(f)
                 entries = data if isinstance(data, list) else data.get("entries", [])
                 if entries:
-                    console.print(f"[dim]Using corpus: {corpus_path} ({len(entries)} entries)[/dim]")
+                    console.print(
+                        f"[dim]Using corpus: {corpus_path} ({len(entries)} entries)[/dim]"
+                    )
                 else:
-                    corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
+                    corpus_path = _path(
+                        "Corpus JSON to label", default=self._corpus_path
+                    )
                     if corpus_path is None:
-                        return
+                        return  # type: ignore[unreachable]
             except Exception:
                 corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
                 if corpus_path is None:
-                    return
+                    return  # type: ignore[unreachable]
         else:
             corpus_path = _path("Corpus JSON to label", default=self._corpus_path)
             if corpus_path is None:
-                return
+                return  # type: ignore[unreachable]
         out_path = _path("Output labelled CSV", default=self._train_data)
         if out_path is None:
             return
@@ -1236,7 +1373,9 @@ class JikaiTUI:
         with console.status(f"[dim]Checking {provider}...", spinner="dots"):
             healthy = self._ping_provider(provider)
         if not healthy:
-            console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
+            console.print(
+                f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]"
+            )
             if not _confirm(f"Continue with {provider} anyway?", default=False):
                 return
         model_name = _select_quit("Model", choices=_model_choices(provider))
@@ -1367,7 +1506,9 @@ class JikaiTUI:
             console.print(f"[green]✓ Loaded last generated ({topic})[/green]")
         elif source == "history" and history:
             # Show history selection
-            ht = Table(title=f"Select from History ({len(history)} records)", box=box.ROUNDED)
+            ht = Table(
+                title=f"Select from History ({len(history)} records)", box=box.ROUNDED
+            )
             ht.add_column("#", style="cyan", width=4)
             ht.add_column("Time", style="dim", width=16)
             ht.add_column("Topic", style="yellow", width=18)
@@ -1393,7 +1534,9 @@ class JikaiTUI:
                 console.print("[red]Invalid selection[/red]")
                 return
         elif source == "paste":
-            hypo_text = _text("Paste hypothetical text (or path to .txt file)", default="")
+            hypo_text = _text(
+                "Paste hypothetical text (or path to .txt file)", default=""
+            )
             if not hypo_text:
                 return
             # Check if it's a file path
@@ -1402,7 +1545,9 @@ class JikaiTUI:
             analysis_text = _text(
                 "Paste analysis text (optional, Enter to skip)", default=""
             )
-            model_answer = _text("Paste model answer (optional, Enter to skip)", default="")
+            model_answer = _text(
+                "Paste model answer (optional, Enter to skip)", default=""
+            )
 
         if not hypo_text:
             console.print("[red]✗ No hypothetical text to export[/red]")
@@ -1605,12 +1750,16 @@ class JikaiTUI:
                     console.print("[dim]Switching to custom mode...[/dim]")
                     mode = "custom"
                 else:
-                    topic = _select_quit("Topic", choices=_topic_choices())
+                    topic = _select_quit(
+                        "Topic", choices=_topic_choices(), style=TOPIC_STYLE
+                    )
                     if topic is None:
                         return
 
             if mode == "custom":
-                topic = _select_quit("Topic", choices=_topic_choices())
+                topic = _select_quit(
+                    "Topic", choices=_topic_choices(), style=TOPIC_STYLE
+                )
                 if topic is None:
                     return
                 provider = _select_quit("Provider", choices=PROVIDER_CHOICES)
@@ -1620,7 +1769,9 @@ class JikaiTUI:
                 with console.status(f"[dim]Checking {provider}...", spinner="dots"):
                     healthy = self._ping_provider(provider)
                 if not healthy:
-                    console.print(f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]")
+                    console.print(
+                        f"[yellow]⚠ {provider} unreachable — check connection or API key[/yellow]"
+                    )
                     if not _confirm(f"Continue with {provider} anyway?", default=False):
                         return
                 model_name = _select_quit("Model", choices=_model_choices(provider))
@@ -1895,12 +2046,18 @@ class JikaiTUI:
                             covered = ti.get("topics_found", [])
                             issues.append(
                                 f"Must address these topics: {', '.join(missing)}."
-                                + (f" (covered: {', '.join(covered)})" if covered else "")
+                                + (
+                                    f" (covered: {', '.join(covered)})"
+                                    if covered
+                                    else ""
+                                )
                             )
                         wc = checks.get("word_count", {})
                         if not wc.get("passed", True):
                             actual = wc.get("count", wc.get("word_count", "?"))
-                            issues.append(f"Aim for 800-1500 words (currently {actual}).")
+                            issues.append(
+                                f"Aim for 800-1500 words (currently {actual})."
+                            )
                         if not checks.get("singapore_context", {}).get("passed", True):
                             issues.append("Set the scenario explicitly in Singapore.")
                     feedback = "Previous attempt scored {:.1f}/10. Fix these issues: {}".format(
@@ -1948,18 +2105,39 @@ class JikaiTUI:
         # API key errors
         if "api key" in err_str or "apikey" in err_str or "authentication" in err_str:
             if "openai" in err_str:
-                console.print("[red]✗ No API key set for OpenAI. Go to More → Settings to add one.[/red]")
+                console.print(
+                    "[red]✗ No API key set for OpenAI. Go to More → Settings to add one.[/red]"
+                )
             elif "anthropic" in err_str:
-                console.print("[red]✗ No API key set for Anthropic. Go to More → Settings to add one.[/red]")
+                console.print(
+                    "[red]✗ No API key set for Anthropic. Go to More → Settings to add one.[/red]"
+                )
             elif "google" in err_str:
-                console.print("[red]✗ No API key set for Google. Go to More → Settings to add one.[/red]")
+                console.print(
+                    "[red]✗ No API key set for Google. Go to More → Settings to add one.[/red]"
+                )
             else:
-                console.print("[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]")
+                console.print(
+                    "[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]"
+                )
         # Model not found
-        elif "model" in err_str and ("not found" in err_str or "does not exist" in err_str or "not available" in err_str):
-            console.print("[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]")
+        elif "model" in err_str and (
+            "not found" in err_str
+            or "does not exist" in err_str
+            or "not available" in err_str
+        ):
+            console.print(
+                "[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]"
+            )
         # Connection/network errors — attempt to auto-restart Ollama
-        elif "timeout" in err_str or "timed out" in err_str or "connection" in err_str or "refused" in err_str or "unreachable" in err_str or "all connection attempts failed" in err_str:
+        elif (
+            "timeout" in err_str
+            or "timed out" in err_str
+            or "connection" in err_str
+            or "refused" in err_str
+            or "unreachable" in err_str
+            or "all connection attempts failed" in err_str
+        ):
             console.print("[red]✗ Cannot connect to provider.[/red]")
             provider_name = self._configured_provider()
             if provider_name == "ollama":
@@ -1975,10 +2153,14 @@ class JikaiTUI:
                         "Run 'ollama serve' in a terminal, then try again.[/dim]"
                     )
             else:
-                console.print("[dim]Check that your provider service is running and accessible.[/dim]")
+                console.print(
+                    "[dim]Check that your provider service is running and accessible.[/dim]"
+                )
         # Rate limiting
         elif "rate limit" in err_str or "too many requests" in err_str:
-            console.print("[red]✗ Rate limited by provider. Wait a moment and try again.[/red]")
+            console.print(
+                "[red]✗ Rate limited by provider. Wait a moment and try again.[/red]"
+            )
         # Generic fallback
         else:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
@@ -2059,7 +2241,9 @@ class JikaiTUI:
                 else:
                     missing = ti.get("missing", ti.get("topics_missing", []))
                     if missing:
-                        vt.add_row("Topic Coverage", f"{icon} Missing: {', '.join(missing)}")
+                        vt.add_row(
+                            "Topic Coverage", f"{icon} Missing: {', '.join(missing)}"
+                        )
                     else:
                         vt.add_row("Topic Coverage", f"{icon} Incomplete")
 
@@ -2076,7 +2260,9 @@ class JikaiTUI:
             if sc:
                 passed = sc.get("passed", True)
                 icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
-                vt.add_row("Singapore Context", f"{icon} {'Present' if passed else 'Missing'}")
+                vt.add_row(
+                    "Singapore Context", f"{icon} {'Present' if passed else 'Missing'}"
+                )
 
         # Quality Score
         score = vr.get("quality_score", vr.get("overall_score", "N/A"))
@@ -2107,7 +2293,9 @@ class JikaiTUI:
             if not ti.get("passed", True):
                 missing = ti.get("missing", [])
                 if missing:
-                    failed_checks.append(f"topic coverage (missing: {', '.join(missing)})")
+                    failed_checks.append(
+                        f"topic coverage (missing: {', '.join(missing)})"
+                    )
                 else:
                     failed_checks.append("topic coverage")
             wc = checks.get("word_count", {})
@@ -2200,7 +2388,9 @@ class JikaiTUI:
                 console.print(f"[green]{len(filtered)} matches[/green]")
                 self._display_history(filtered)
             elif c == "filter":
-                topic = _select_quit("Filter by topic", choices=_topic_choices())
+                topic = _select_quit(
+                    "Filter by topic", choices=_topic_choices(), style=TOPIC_STYLE
+                )
                 if not topic:
                     continue
                 filtered = [
@@ -2386,7 +2576,9 @@ class JikaiTUI:
             return
         new_cfg = dict(cfg)
         if param == "topic":
-            new_topic = _select_quit("New topic", choices=_topic_choices())
+            new_topic = _select_quit(
+                "New topic", choices=_topic_choices(), style=TOPIC_STYLE
+            )
             if new_topic is None:
                 return
             new_cfg["topic"] = new_topic
@@ -2513,7 +2705,7 @@ class JikaiTUI:
                 validate=_validate_number(1, 100000),
             )
             if max_features is None:
-                return
+                return  # type: ignore[unreachable]
 
             test_split = _validated_text(
                 "Test split ratio",
@@ -2521,7 +2713,7 @@ class JikaiTUI:
                 validate=_validate_number(0.0, 1.0, is_float=True),
             )
             if test_split is None:
-                return
+                return  # type: ignore[unreachable]
 
         # Classifier-specific options
         if train_cls:
@@ -2594,7 +2786,18 @@ class JikaiTUI:
             n_clusters,
         )
 
-    def _do_train(self, data_path, max_features, test_split, train_cls, cls_c, train_reg, reg_alpha, train_clu, n_clusters):
+    def _do_train(
+        self,
+        data_path,
+        max_features,
+        test_split,
+        train_cls,
+        cls_c,
+        train_reg,
+        reg_alpha,
+        train_clu,
+        n_clusters,
+    ):
         try:
             from ..ml.pipeline import MLPipeline
 
@@ -2756,7 +2959,9 @@ class JikaiTUI:
                     data = json.load(f)
                 entries = data if isinstance(data, list) else data.get("entries", [])
                 if entries:
-                    console.print(f"[dim]Using corpus: {path} ({len(entries)} entries)[/dim]")
+                    console.print(
+                        f"[dim]Using corpus: {path} ({len(entries)} entries)[/dim]"
+                    )
                 else:
                     path = _path("Corpus file path", default=self._corpus_path)
             except Exception:
@@ -2764,7 +2969,7 @@ class JikaiTUI:
         else:
             path = _path("Corpus file path", default=self._corpus_path)
         if path is None:
-            return
+            return  # type: ignore[unreachable]
         self._load_corpus(path)
         while True:
             c = _select_quit(
@@ -2909,7 +3114,9 @@ class JikaiTUI:
         if not self._entries:
             console.print("[red]No corpus loaded[/red]")
             return
-        topic = _select_quit("Filter topic", choices=_topic_choices())
+        topic = _select_quit(
+            "Filter topic", choices=_topic_choices(), style=TOPIC_STYLE
+        )
         if topic is None:
             return
         results = [
@@ -3024,13 +3231,22 @@ class JikaiTUI:
         categories = {
             "config": {
                 "label": "Config — .env, .jikai_state, .jikai_state.bak",
-                "paths": [".env", ".jikai_state", ".jikai_state.bak", ".jikai_state.tmp"],
+                "paths": [
+                    ".env",
+                    ".jikai_state",
+                    ".jikai_state.bak",
+                    ".jikai_state.tmp",
+                ],
             },
             "models": {
                 "label": "ML Models — trained classifiers in models/",
-                "paths": ["models/classifier.joblib", "models/vectorizer.joblib",
-                          "models/binarizer.joblib", "models/regressor.joblib",
-                          "models/clusterer.joblib"],
+                "paths": [
+                    "models/classifier.joblib",
+                    "models/vectorizer.joblib",
+                    "models/binarizer.joblib",
+                    "models/regressor.joblib",
+                    "models/clusterer.joblib",
+                ],
             },
             "history": {
                 "label": "Generation History — data/history.json",
@@ -3055,8 +3271,7 @@ class JikaiTUI:
         }
 
         choices = [
-            Choice(cat["label"], value=key)
-            for key, cat in categories.items()
+            Choice(str(cat["label"]), value=key) for key, cat in categories.items()
         ]
 
         selected = _checkbox("Select categories to clean up", choices=choices)
@@ -3083,7 +3298,7 @@ class JikaiTUI:
                         status = "exists"
                 else:
                     status = "[dim]not found[/dim]"
-                label = cat["label"].split(" — ")[0] if first else ""
+                label = cat["label"].split(" — ")[0] if first else ""  # type: ignore[attr-defined]
                 st.add_row(label, p, status)
                 first = False
         console.print(st)
@@ -3123,7 +3338,9 @@ class JikaiTUI:
             console.print(f" [dim]({skipped} already absent)[/dim]")
         else:
             console.print()
-        tlog.info("CLEANUP  removed=%d skipped=%d categories=%s", removed, skipped, selected)
+        tlog.info(
+            "CLEANUP  removed=%d skipped=%d categories=%s", removed, skipped, selected
+        )
 
     # ── settings ────────────────────────────────────────────────
     def settings_flow(self):
@@ -3143,7 +3360,9 @@ class JikaiTUI:
 
         def _render_settings_table(env):
             """Show all current settings grouped by category."""
-            st = Table(box=box.ROUNDED, title="Current Settings", title_style="bold cyan")
+            st = Table(
+                box=box.ROUNDED, title="Current Settings", title_style="bold cyan"
+            )
             st.add_column("Category", style="bold", no_wrap=True)
             st.add_column("Setting", style="cyan")
             st.add_column("Value", style="yellow")
@@ -3153,8 +3372,12 @@ class JikaiTUI:
             st.add_row("", "Google", _mask(env.get("GOOGLE_API_KEY", "")))
             st.add_row("", "", "")
             # Hosts
-            st.add_row("Hosts", "Ollama", env.get("OLLAMA_HOST", "http://localhost:11434"))
-            st.add_row("", "Local LLM", env.get("LOCAL_LLM_HOST", "http://localhost:8080"))
+            st.add_row(
+                "Hosts", "Ollama", env.get("OLLAMA_HOST", "http://localhost:11434")
+            )
+            st.add_row(
+                "", "Local LLM", env.get("LOCAL_LLM_HOST", "http://localhost:8080")
+            )
             st.add_row("", "", "")
             # Generation Defaults
             st.add_row("Defaults", "Temperature", env.get("DEFAULT_TEMPERATURE", "0.7"))
@@ -3169,10 +3392,16 @@ class JikaiTUI:
         def _save_env(env):
             """Write current env dict to .env, preserving all keys."""
             managed_keys = [
-                "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY",
-                "OLLAMA_HOST", "LOCAL_LLM_HOST",
-                "DEFAULT_TEMPERATURE", "DEFAULT_MAX_TOKENS",
-                "CORPUS_PATH", "DATABASE_PATH", "LOG_LEVEL",
+                "ANTHROPIC_API_KEY",
+                "OPENAI_API_KEY",
+                "GOOGLE_API_KEY",
+                "OLLAMA_HOST",
+                "LOCAL_LLM_HOST",
+                "DEFAULT_TEMPERATURE",
+                "DEFAULT_MAX_TOKENS",
+                "CORPUS_PATH",
+                "DATABASE_PATH",
+                "LOG_LEVEL",
             ]
             lines = [f"{k}={env[k]}" for k in managed_keys if k in env]
             # Preserve any extra keys the user may have added manually
@@ -3195,8 +3424,13 @@ class JikaiTUI:
                 choices=[
                     Choice("API Keys — Anthropic, OpenAI, Google", value="keys"),
                     Choice("Hosts — Ollama, Local LLM endpoints", value="hosts"),
-                    Choice("Generation Defaults — temperature, max tokens", value="defaults"),
-                    Choice("Paths & Logging — corpus, database, log level", value="paths"),
+                    Choice(
+                        "Generation Defaults — temperature, max tokens",
+                        value="defaults",
+                    ),
+                    Choice(
+                        "Paths & Logging — corpus, database, log level", value="paths"
+                    ),
                 ],
             )
             if c is None:
@@ -3204,7 +3438,9 @@ class JikaiTUI:
 
             if c == "keys":
                 console.print("\n[bold cyan]API Keys[/bold cyan]")
-                console.print("[dim]Press Enter to keep current value. Leave blank to clear.[/dim]\n")
+                console.print(
+                    "[dim]Press Enter to keep current value. Leave blank to clear.[/dim]\n"
+                )
                 anthropic_key = _password(
                     f"Anthropic API Key ({_mask_plain(env.get('ANTHROPIC_API_KEY', ''))})",
                     default=env.get("ANTHROPIC_API_KEY", ""),
@@ -3251,7 +3487,9 @@ class JikaiTUI:
 
             elif c == "defaults":
                 console.print("\n[bold cyan]Generation Defaults[/bold cyan]")
-                console.print("[dim]These set the defaults for Quick Generate mode.[/dim]\n")
+                console.print(
+                    "[dim]These set the defaults for Quick Generate mode.[/dim]\n"
+                )
                 temperature = _validated_text(
                     "Default Temperature (0.0–2.0)",
                     default=env.get("DEFAULT_TEMPERATURE", "0.7"),
@@ -3289,7 +3527,9 @@ class JikaiTUI:
                 log_level = _select_quit(
                     "Log Level",
                     choices=[
-                        Choice("DEBUG — verbose output for troubleshooting", value="DEBUG"),
+                        Choice(
+                            "DEBUG — verbose output for troubleshooting", value="DEBUG"
+                        ),
                         Choice("INFO — standard operational messages", value="INFO"),
                         Choice("WARNING — potential issues only", value="WARNING"),
                         Choice("ERROR — errors only", value="ERROR"),
@@ -3379,6 +3619,23 @@ class JikaiTUI:
         except Exception:
             return False
 
+    def _has_any_provider(self) -> bool:
+        """True if at least one LLM provider is usable (key set or ollama available)."""
+        import shutil
+
+        env = self._load_env()
+        if env.get("ANTHROPIC_API_KEY", "").strip():
+            return True
+        if env.get("OPENAI_API_KEY", "").strip():
+            return True
+        if env.get("GOOGLE_API_KEY", "").strip():
+            return True
+        if env.get("LOCAL_LLM_HOST", "").strip():
+            return True
+        if shutil.which("ollama"):
+            return True
+        return False
+
     def _set_default_provider(self):
         provider = _select_quit("Default provider", choices=PROVIDER_CHOICES)
         if provider is None:
@@ -3393,10 +3650,13 @@ class JikaiTUI:
             console.print(f"[red]✗ Failed: {e}[/red]")
 
     # ── service startup ──────────────────────────────────────────
-    def _ping_ollama(self, host: str = "http://localhost:11434", timeout: float = 1.5) -> bool:
+    def _ping_ollama(
+        self, host: str = "http://localhost:11434", timeout: float = 1.5
+    ) -> bool:
         """Return True if Ollama is reachable at host."""
-        import urllib.request
         import urllib.error
+        import urllib.request
+
         try:
             if not host.startswith(("http://", "https://")):
                 return False
@@ -3480,7 +3740,9 @@ class JikaiTUI:
                     console.print("[green]✓ Ollama started successfully.[/green]")
                     return True
 
-        console.print("[yellow]⚠ Ollama did not respond in time — generation may fail.[/yellow]")
+        console.print(
+            "[yellow]⚠ Ollama did not respond in time — generation may fail.[/yellow]"
+        )
         return False
 
     def _start_services(self):
@@ -3498,12 +3760,18 @@ class JikaiTUI:
             "export": "Document Export (python-docx)",
         }
 
-        missing_services = [key for key in services_to_check if not self._check_service_deps(key)]
+        missing_services = [
+            key for key in services_to_check if not self._check_service_deps(key)
+        ]
 
         if missing_services:
             console.print("[yellow]⚠ Some services are missing dependencies.[/yellow]")
-            choices = [Choice(services_to_check[key], value=key) for key in missing_services]
-            selected = _checkbox("Select services to install dependencies for:", choices=choices)
+            choices = [
+                Choice(services_to_check[key], value=key) for key in missing_services
+            ]
+            selected = _checkbox(
+                "Select services to install dependencies for:", choices=choices
+            )
 
             if selected:
                 for key in selected:
@@ -3512,7 +3780,9 @@ class JikaiTUI:
             # Warn about unselected
             unselected = set(missing_services) - set(selected or [])
             if unselected:
-                console.print("[yellow]⚠ The following functions will be disabled or limited:[/yellow]")
+                console.print(
+                    "[yellow]⚠ The following functions will be disabled or limited:[/yellow]"
+                )
                 for key in unselected:
                     console.print(f"  • {services_to_check[key]}")
 
@@ -3525,7 +3795,9 @@ class JikaiTUI:
                 self._start_ollama(host)
         elif provider in ["google", "anthropic"]:
             if not self._check_service_deps(provider):
-                console.print(f"[yellow]⚠ {provider.title()} provider dependencies are missing.[/yellow]")
+                console.print(
+                    f"[yellow]⚠ {provider.title()} provider dependencies are missing.[/yellow]"
+                )
                 if _confirm(f"Install dependencies for {provider}?", default=True):
                     self._install_service_deps(provider)
 
@@ -3537,6 +3809,7 @@ class JikaiTUI:
     def _check_single_dep(self, pkg_name: str) -> bool:
         """Return True if the package is installed and importable."""
         import importlib.util
+
         import_name = IMPORT_MAP.get(pkg_name, pkg_name)
         try:
             return importlib.util.find_spec(import_name) is not None
@@ -3552,6 +3825,7 @@ class JikaiTUI:
         """Install dependencies for a specific service."""
         import subprocess
         import sys
+
         deps = SERVICE_DEPS.get(service_key, [])
         if not deps:
             return True
@@ -3566,7 +3840,9 @@ class JikaiTUI:
             TimeElapsedColumn(),
             console=console,
         ) as progress:
-            task = progress.add_task(f"[cyan]Installing {service_key} deps", total=len(deps))
+            task = progress.add_task(
+                f"[cyan]Installing {service_key} deps", total=len(deps)
+            )
             for pkg in deps:
                 progress.update(task, description=f"[cyan]Installing {pkg}")
                 # Use --no-cache-dir to ensure fresh install if needed, but --quiet to keep it clean
@@ -3613,10 +3889,14 @@ class JikaiTUI:
             _orig = _pyd_main.ModelMetaclass.__new__
 
             def _fixed(mcs, name, bases, namespace, **kwargs):
-                if "__annotations__" not in namespace and "__annotate_func__" in namespace:
+                if (
+                    "__annotations__" not in namespace
+                    and "__annotate_func__" in namespace
+                ):
                     annotate_func = namespace["__annotate_func__"]
                     try:
                         import annotationlib
+
                         annotations = annotate_func(annotationlib.Format.VALUE)
                     except Exception:
                         try:
@@ -3631,9 +3911,7 @@ class JikaiTUI:
                 "[green]✓ Applied pydantic v1 / Python 3.14 compatibility patch.[/green]"
             )
         except Exception as e:
-            console.print(
-                f"[yellow]⚠ Could not apply pydantic v1 patch: {e}[/yellow]"
-            )
+            console.print(f"[yellow]⚠ Could not apply pydantic v1 patch: {e}[/yellow]")
 
     def first_run_wizard(self):
         """Walk user through initial setup."""
