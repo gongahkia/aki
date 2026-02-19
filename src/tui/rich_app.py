@@ -516,12 +516,13 @@ class JikaiTUI:
 
     def display_banner(self):
         tlog.info("=== TUI session started ===")
-        from rich.table import Table as RTable
         from rich.text import Text as RText
 
-        avatar = RText(
-            " /\\ /\\\n( •.• )\n (___)  ",
-            style="bold cyan",
+        console.print(
+            RText(
+                "   |\\__/,|   (`\\\n" "  _.|o o  |_   ) )\n" "-(((---(((--------",
+                style="bold cyan",
+            )
         )
         title = RText("J I K A I\n", style="bold cyan")
         title.append("─" * 22 + "\n", style="dim cyan")
@@ -531,11 +532,7 @@ class JikaiTUI:
         title.append("g generate  ", style="dim green")
         title.append("s settings  ", style="dim blue")
         title.append("q quit", style="dim red")
-        grid = RTable.grid(padding=(0, 2))
-        grid.add_column(no_wrap=True, vertical="middle")
-        grid.add_column(no_wrap=True)
-        grid.add_row(avatar, title)
-        console.print(Panel(grid, box=box.DOUBLE, border_style="cyan", padding=(1, 2)))
+        console.print(Panel(title, box=box.DOUBLE, border_style="cyan", padding=(0, 2)))
 
     def _corpus_ready(self):
         return Path(self._corpus_path).exists()
