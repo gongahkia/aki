@@ -490,6 +490,187 @@ def merge_into_corpus(
     return len(new_entries)
 
 
+SICC_BASE = "https://www.sicc.gov.sg"
+GAZETTE_BASE = "https://lawgazette.com.sg"
+
+
+class SICCScraper:
+    """Scraper for Singapore International Commercial Court judgments."""
+
+    def __init__(self) -> None:
+        self._client = httpx.AsyncClient(
+            headers={
+                "User-Agent": "jikai-legal-research-bot/2.0 (educational; +https://github.com/gongahkia/jikai)"
+            },
+            timeout=20.0,
+            follow_redirects=True,
+        )
+
+    async def close(self) -> None:
+        await self._client.aclose()
+
+    async def scrape(
+        self,
+        max_cases: int = 50,
+        tort_only: bool = True,
+        progress_cb=None,
+    ) -> List[Dict]:
+        """Scrape SICC judgments listing page."""
+        from bs4 import BeautifulSoup
+
+        results: List[Dict] = []
+        page = 1
+        while len(results) < max_cases:
+            url = f"{SICC_BASE}/judgment?page={page}"
+            try:
+                resp = await self._client.get(url)
+                resp.raise_for_status()
+            except Exception as exc:
+                logger.warning("SICC fetch failed page=%d: %s", page, exc)
+                break
+            soup = BeautifulSoup(resp.text, "lxml")
+            rows = soup.select("table.views-table tbody tr, .view-content .views-row")
+            if not rows:
+                break
+            for row in rows:
+                if len(results) >= max_cases:
+                    break
+                link_tag = row.find("a", href=True)
+                if not link_tag:
+                    continue
+                href = str(link_tag["href"])
+                case_url = href if href.startswith("http") else SICC_BASE + href
+                title = link_tag.get_text(strip=True)
+                date_tag = row.find(class_=re.compile(r"date|year", re.I))
+                year = (
+                    int(date_tag.get_text(strip=True)[:4])
+                    if date_tag
+                    else datetime.now().year
+                )
+                try:
+                    case_resp = await self._client.get(case_url)
+                    case_resp.raise_for_status()
+                    case_soup = BeautifulSoup(case_resp.text, "lxml")
+                    body = case_soup.find(
+                        "div", class_=re.compile(r"judgment|content|body", re.I)
+                    )
+                    text = _clean_case_text(
+                        body.get_text(separator="\n") if body else ""
+                    )
+                except Exception as exc:
+                    logger.debug("SICC case fetch failed %s: %s", case_url, exc)
+                    text = ""
+                if tort_only and not _is_tort_case(text + " " + title):
+                    continue
+                entry = _entry_from_case(
+                    title=title,
+                    text=text,
+                    meta={
+                        "source": "sicc",
+                        "source_url": case_url,
+                        "court": "SICC",
+                        "year": year,
+                    },
+                )
+                if entry:
+                    results.append(entry)
+                    if progress_cb:
+                        progress_cb(len(results), max_cases, title)
+                await asyncio.sleep(1.5)
+            page += 1
+        return results
+
+
+class GazetteScraper:
+    """Scraper for Singapore Law Gazette case updates."""
+
+    def __init__(self) -> None:
+        self._client = httpx.AsyncClient(
+            headers={
+                "User-Agent": "jikai-legal-research-bot/2.0 (educational; +https://github.com/gongahkia/jikai)"
+            },
+            timeout=20.0,
+            follow_redirects=True,
+        )
+
+    async def close(self) -> None:
+        await self._client.aclose()
+
+    async def scrape(
+        self,
+        max_cases: int = 50,
+        tort_only: bool = True,
+        progress_cb=None,
+    ) -> List[Dict]:
+        """Scrape Law Gazette case update articles."""
+        from bs4 import BeautifulSoup
+
+        results: List[Dict] = []
+        page = 1
+        while len(results) < max_cases:
+            url = f"{GAZETTE_BASE}/category/case-updates/page/{page}/"
+            try:
+                resp = await self._client.get(url)
+                resp.raise_for_status()
+            except Exception as exc:
+                logger.warning("Gazette fetch failed page=%d: %s", page, exc)
+                break
+            soup = BeautifulSoup(resp.text, "lxml")
+            articles = soup.select("article, .post, .entry")
+            if not articles:
+                break
+            for article in articles:
+                if len(results) >= max_cases:
+                    break
+                link_tag = article.find("a", href=True)
+                if not link_tag:
+                    continue
+                art_url = str(link_tag["href"])
+                title = link_tag.get_text(strip=True)
+                try:
+                    art_resp = await self._client.get(art_url)
+                    art_resp.raise_for_status()
+                    art_soup = BeautifulSoup(art_resp.text, "lxml")
+                    body = art_soup.find(
+                        "div",
+                        class_=re.compile(
+                            r"entry-content|post-content|article-body", re.I
+                        ),
+                    )
+                    text = _clean_case_text(
+                        body.get_text(separator="\n") if body else ""
+                    )
+                    date_tag = art_soup.find("time")
+                    year = (
+                        int(str(date_tag.get("datetime", ""))[:4])
+                        if date_tag
+                        else datetime.now().year
+                    )
+                except Exception as exc:
+                    logger.debug("Gazette article fetch failed %s: %s", art_url, exc)
+                    text = ""
+                    year = datetime.now().year
+                if tort_only and not _is_tort_case(text + " " + title):
+                    continue
+                entry = _entry_from_case(
+                    title=title,
+                    text=text,
+                    meta={
+                        "source": "gazette",
+                        "source_url": art_url,
+                        "court": "various",
+                        "year": year,
+                    },
+                )
+                if entry:
+                    results.append(entry)
+                    if progress_cb:
+                        progress_cb(len(results), max_cases, title)
+                await asyncio.sleep(1.5)
+            page += 1
+        return results
+
+
 async def run_scraper(
     source: str,
     courts: Optional[List[str]] = None,
@@ -500,7 +681,7 @@ async def run_scraper(
 ) -> List[Dict]:
     """Top-level async entry point for the TUI.
 
-    source: "commonlii" | "judiciary"
+    source: "commonlii" | "judiciary" | "sicc" | "gazette"
     """
     if source == "commonlii":
         cli = CommonLIIScraper()
@@ -523,5 +704,25 @@ async def run_scraper(
             )
         finally:
             await jud.close()
+    elif source == "sicc":
+        sicc = SICCScraper()
+        try:
+            return await sicc.scrape(
+                max_cases=max_cases,
+                tort_only=tort_only,
+                progress_cb=progress_cb,
+            )
+        finally:
+            await sicc.close()
+    elif source == "gazette":
+        gaz = GazetteScraper()
+        try:
+            return await gaz.scrape(
+                max_cases=max_cases,
+                tort_only=tort_only,
+                progress_cb=progress_cb,
+            )
+        finally:
+            await gaz.close()
     else:
         raise ValueError(f"Unknown scraper source: {source}")

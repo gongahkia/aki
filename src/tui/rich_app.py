@@ -1069,7 +1069,7 @@ class JikaiTUI:
         console.print("\n[bold yellow]Scrape SG Case Law[/bold yellow]")
         console.print(
             Panel(
-                "[dim]Sources: CommonLII (free SG case archive) | Judiciary.gov.sg (official judgments)\n"
+                "[dim]Sources: CommonLII | Judiciary.gov.sg | SICC | SG Law Gazette\n"
                 "Scraped cases are saved to corpus/raw/scraped/ and optionally merged into the corpus.\n"
                 "Only tort-related cases are imported by default.[/dim]",
                 box=box.ROUNDED,
@@ -1086,6 +1086,8 @@ class JikaiTUI:
                 Choice(
                     "Judiciary.gov.sg — Official judgment search", value="judiciary"
                 ),
+                Choice("SICC — Singapore International Commercial Court", value="sicc"),
+                Choice("SG Law Gazette — Case update articles", value="gazette"),
             ],
         )
         if source is None:
@@ -3568,6 +3570,12 @@ class JikaiTUI:
             st.add_row("Paths", "Corpus", env.get("CORPUS_PATH", self._corpus_path))
             st.add_row("", "Database", env.get("DATABASE_PATH", "data/jikai.db"))
             st.add_row("", "Log Level", env.get("LOG_LEVEL", "INFO"))
+            st.add_row("", "", "")
+            st.add_row(
+                "Embeddings",
+                "Model",
+                env.get("EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"),
+            )
             console.print(st)
 
         def _save_env(env):
@@ -3583,6 +3591,7 @@ class JikaiTUI:
                 "CORPUS_PATH",
                 "DATABASE_PATH",
                 "LOG_LEVEL",
+                "EMBEDDING_MODEL",
             ]
             lines = [f"{k}={env[k]}" for k in managed_keys if k in env]
             # Preserve any extra keys the user may have added manually
@@ -3611,6 +3620,10 @@ class JikaiTUI:
                     ),
                     Choice(
                         "Paths & Logging — corpus, database, log level", value="paths"
+                    ),
+                    Choice(
+                        "Embedding Model — HuggingFace model for vector search",
+                        value="embed_model",
                     ),
                 ],
             )
@@ -3723,6 +3736,74 @@ class JikaiTUI:
                 env["LOG_LEVEL"] = log_level
                 _save_env(env)
                 _render_settings_table(env)
+
+            elif c == "embed_model":
+                console.print("\n[bold cyan]Embedding Model (HuggingFace)[/bold cyan]")
+                _HF_MODELS = [
+                    {
+                        "id": "nlpaueb/legal-bert-base-uncased",
+                        "label": "legal-bert-base-uncased",
+                        "pros": "trained on US legal corpora; strong case/statute retrieval",
+                        "cons": "US-centric; may underfit SG common law nuances; ~420 MB",
+                    },
+                    {
+                        "id": "law-ai/InLegalBERT",
+                        "label": "InLegalBERT",
+                        "pros": "Indian legal corpus; closer common law tradition than US BERT",
+                        "cons": "India-specific terminology; not SG-trained; ~440 MB",
+                    },
+                    {
+                        "id": "BAAI/bge-m3",
+                        "label": "bge-m3 (multilingual)",
+                        "pros": "state-of-art multilingual retrieval; 8192 token context; top MTEB",
+                        "cons": "large ~570 MB; slower inference; overkill for monolingual SG corpus",
+                    },
+                    {
+                        "id": "sentence-transformers/all-mpnet-base-v2",
+                        "label": "all-mpnet-base-v2",
+                        "pros": "strong general semantic similarity; fast; well-supported; default fallback",
+                        "cons": "not domain-adapted to legal text; misses legal jargon embeddings",
+                    },
+                ]
+                current_model = env.get(
+                    "EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"
+                )
+                mt = Table(
+                    box=box.ROUNDED,
+                    title="Available Embedding Models",
+                    title_style="bold cyan",
+                )
+                mt.add_column("#", style="dim", width=3)
+                mt.add_column("Model", style="bold cyan", no_wrap=True)
+                mt.add_column("Pros", style="green")
+                mt.add_column("Cons", style="yellow")
+                mt.add_column("Active", style="bold magenta", width=6)
+                for i, m in enumerate(_HF_MODELS, 1):
+                    active = (
+                        "[bold magenta]✓[/bold magenta]"
+                        if m["id"] == current_model
+                        else ""
+                    )
+                    mt.add_row(str(i), m["label"], m["pros"], m["cons"], active)
+                console.print(mt)
+                console.print(f"[dim]Current: {current_model}[/dim]\n")
+                chosen = _select_quit(
+                    "Select embedding model",
+                    choices=[
+                        Choice(f"{m['label']} ({m['id']})", value=m["id"])
+                        for m in _HF_MODELS
+                    ],
+                )
+                if chosen is None:
+                    continue
+                env["EMBEDDING_MODEL"] = chosen
+                _save_env(env)
+                console.print(
+                    f"[green]✓ Embedding model set to:[/green] [cyan]{chosen}[/cyan]"
+                )
+                console.print(
+                    "[dim]Re-generate embeddings (Tools → Embeddings) to apply.[/dim]"
+                )
 
     def _load_env(self):
         vals: Dict[str, str] = {}
