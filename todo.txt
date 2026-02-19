@@ -1,5 +1,7 @@
 # jikai todo
 
+refactor the current massive rich_app.py file into multipel smaller files while still ensuring workflow is the same
+
 ## scraping sources (pending implementation)
 
 [C] NUS Law Scholarship Repository — scholarship.law.nus.edu.sg
