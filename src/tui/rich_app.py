@@ -520,7 +520,7 @@ class JikaiTUI:
 
         console.print(
             RText(
-                "   |\\__/,|   (`\\\n" "  _.|o o  |_   ) )\n" "-(((---(((--------",
+                "    |\\__/,|   (`\\\n" "    |o_o  |    ) )",
                 style="bold cyan",
             )
         )
