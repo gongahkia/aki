@@ -256,6 +256,7 @@ _GLOBAL_HOTKEYS = {
 
 HELP_DESCRIPTIONS = {
     "ocr": "extract text from PDF/DOCX/images into the corpus (requires: pymupdf, python-docx, pillow, pytesseract)",
+    "scrape": "scrape Singapore case law from CommonLII / Judiciary.gov.sg (requires: beautifulsoup4, lxml)",
     "corpus": "view, search, and filter preprocessed corpus entries",
     "label": "tag corpus entries with topics and quality scores for training",
     "train": "train ML models on labelled data for better generation (requires: scikit-learn, pandas)",
@@ -274,6 +275,7 @@ HELP_DESCRIPTIONS = {
 
 SERVICE_DEPS = {
     "ocr": ["pymupdf", "python-docx", "pillow", "pytesseract"],
+    "scraper": ["beautifulsoup4", "lxml", "httpx"],
     "train": ["scikit-learn", "pandas", "joblib"],
     "embed": ["chromadb", "sentence-transformers", "torch"],
     "export": ["python-docx"],
@@ -290,6 +292,7 @@ IMPORT_MAP = {
     "scikit-learn": "sklearn",
     "sentence-transformers": "sentence_transformers",
     "google-generativeai": "google.generativeai",
+    "beautifulsoup4": "bs4",
 }
 
 
@@ -997,11 +1000,25 @@ class JikaiTUI:
     def ocr_flow(self):
         console.print("\n[bold yellow]OCR / Preprocess Corpus[/bold yellow]")
         while True:
+            scraper_deps = self._check_service_deps("scraper")
             c = _select_quit(
                 "OCR Menu",
                 choices=[
                     Choice("Preprocess raw corpus (TXT/PDF/PNG/DOCX)", value="1"),
                     Choice("Convert single file to TXT (OCR)", value="2"),
+                    Choice(
+                        title=[
+                            ("", "Scrape SG Cases (CommonLII / Judiciary)"),
+                            (
+                                "class:warn" if not scraper_deps else "class:ok",
+                                " ⚠" if not scraper_deps else " ✓",
+                            ),
+                        ],
+                        value="3",
+                        disabled=None
+                        if scraper_deps
+                        else "install beautifulsoup4 lxml",
+                    ),
                 ],
             )
             if c is None:
@@ -1012,6 +1029,8 @@ class JikaiTUI:
                 self._preprocess_raw()
             elif c == "2":
                 self._ocr_single()
+            elif c == "3":
+                self.scrape_flow()
 
     def _ocr_single(self):
         path = _path("File to OCR (PDF/PNG/JPG/DOCX)", default="")
@@ -1043,6 +1062,168 @@ class JikaiTUI:
             console.print(
                 "[dim]Tip: ensure pytesseract and tesseract are installed[/dim]"
             )
+
+    # ── scrape ─────────────────────────────────────────────────
+    def scrape_flow(self):
+        """Scrape SG case law from CommonLII or Judiciary.gov.sg."""
+        console.print("\n[bold yellow]Scrape SG Case Law[/bold yellow]")
+        console.print(
+            Panel(
+                "[dim]Sources: CommonLII (free SG case archive) | Judiciary.gov.sg (official judgments)\n"
+                "Scraped cases are saved to corpus/raw/scraped/ and optionally merged into the corpus.\n"
+                "Only tort-related cases are imported by default.[/dim]",
+                box=box.ROUNDED,
+                border_style="dim",
+            )
+        )
+        source = _select_quit(
+            "Source",
+            choices=[
+                Choice(
+                    "CommonLII — SG High Court & Court of Appeal archive",
+                    value="commonlii",
+                ),
+                Choice(
+                    "Judiciary.gov.sg — Official judgment search", value="judiciary"
+                ),
+            ],
+        )
+        if source is None:
+            return
+
+        courts_selected: List[str] = ["SGHC", "SGCA"]
+        years_selected: List[int] = []
+
+        if source == "commonlii":
+            courts_selected_raw = _checkbox(
+                "Courts to scrape",
+                choices=[
+                    Choice("High Court (SGHC)", value="SGHC"),
+                    Choice("Court of Appeal (SGCA)", value="SGCA"),
+                    Choice("District Court (SGDC)", value="SGDC"),
+                    Choice("Magistrate's Court (SGMC)", value="SGMC"),
+                ],
+            )
+            if not courts_selected_raw:
+                console.print("[dim]No courts selected.[/dim]")
+                return
+            courts_selected = courts_selected_raw
+
+            import time as _t
+
+            current_year = int(_t.strftime("%Y"))
+            year_choices = [
+                Choice(str(y), value=y)
+                for y in range(current_year, current_year - 6, -1)
+            ]
+            years_raw = _checkbox(
+                "Years to scrape (select one or more)", choices=year_choices
+            )
+            if not years_raw:
+                console.print("[dim]No years selected.[/dim]")
+                return
+            years_selected = years_raw
+
+        max_cases_choice = _select_quit(
+            "Max cases to fetch",
+            choices=[
+                Choice("10 — quick test", value=10),
+                Choice("25 — small batch", value=25),
+                Choice("50 — standard", value=50),
+                Choice("100 — large batch", value=100),
+            ],
+        )
+        if max_cases_choice is None:
+            return
+        max_cases = int(max_cases_choice)
+
+        tort_only = _confirm("Filter to tort-related cases only?", default=True)
+        merge_corpus = _confirm(
+            "Merge scraped cases into corpus immediately?", default=True
+        )
+
+        console.print(
+            f"\n[dim]Scraping up to {max_cases} cases from [bold]{source}[/bold]... "
+            f"This may take a few minutes (polite 1.5s delay between requests).[/dim]\n"
+        )
+        tlog.info(
+            "SCRAPE  source=%s courts=%s years=%s max=%d tort_only=%s",
+            source,
+            courts_selected,
+            years_selected,
+            max_cases,
+            tort_only,
+        )
+
+        _progress: List[int] = [0, 0]
+
+        def _progress_cb(fetched: int, total: int):
+            _progress[0] = fetched
+            _progress[1] = total
+
+        try:
+            from ..services.scraper_service import (
+                merge_into_corpus,
+                run_scraper,
+                save_scraped,
+            )
+        except ImportError as e:
+            console.print(f"[red]✗ Scraper import failed: {e}[/red]")
+            return
+
+        with console.status("[bold green]Scraping cases...", spinner="dots"):
+            try:
+                entries = _run_async(
+                    run_scraper(
+                        source=source,
+                        courts=courts_selected if source == "commonlii" else None,
+                        years=years_selected if source == "commonlii" else None,
+                        max_cases=max_cases,
+                        tort_only=tort_only,
+                        progress_cb=_progress_cb,
+                    )
+                )
+            except Exception as e:
+                console.print(f"[red]✗ Scraping failed: {e}[/red]")
+                tlog.info("ERROR  scrape: %s", e)
+                return
+
+        if not entries:
+            console.print(
+                "[yellow]⚠ No cases found. Try different years/courts or check internet connection.[/yellow]"
+            )
+            return
+
+        console.print(f"\n[green]✓ Scraped {len(entries)} cases[/green]")
+
+        # show topic distribution
+        from collections import Counter
+
+        all_topics: List[str] = [t for e in entries for t in e.get("topic", [])]
+        top_topics = Counter(all_topics).most_common(5)
+        tt = Table(box=box.SIMPLE, title="Top Topics in Scraped Cases")
+        tt.add_column("Topic", style="cyan")
+        tt.add_column("Count", style="yellow")
+        for topic, count in top_topics:
+            tt.add_row(topic.replace("_", " ").title(), str(count))
+        console.print(tt)
+
+        # save to raw dir
+        with console.status("[dim]Saving to corpus/raw/scraped/...", spinner="dots"):
+            written = save_scraped(entries)
+        console.print(
+            f"[green]✓ Saved {len(written)} files → corpus/raw/scraped/[/green]"
+        )
+
+        if merge_corpus:
+            with console.status("[dim]Merging into corpus...", spinner="dots"):
+                added = merge_into_corpus(entries, self._corpus_path)
+            if added:
+                console.print(f"[green]✓ Added {added} new entries to corpus[/green]")
+            else:
+                console.print("[dim]No new entries (all duplicates)[/dim]")
+
+        tlog.info("SCRAPE  done  scraped=%d saved=%d", len(entries), len(written))
 
     # ── label ──────────────────────────────────────────────────
     def label_flow(self):
