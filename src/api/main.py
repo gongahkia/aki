@@ -9,17 +9,24 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from starlette.middleware.base import BaseHTTPMiddleware
-
 import structlog
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..config import settings
 from ..services import (
     CorpusQuery,
-    corpus_service,
+    CorpusService,
     GenerationRequest,
     GenerationResponse,
     HypotheticalEntry,
+    HypotheticalService,
+    LLMService,
+    corpus_service,
     hypothetical_service,
     llm_service,
 )
@@ -122,7 +129,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         self._buckets[client_ip].append(now)
         # evict oldest IPs if tracking too many
         if len(self._buckets) > 10000:
-            oldest_ip = min(self._buckets, key=lambda ip: self._buckets[ip][0] if self._buckets[ip] else 0)
+            oldest_ip = min(
+                self._buckets,
+                key=lambda ip: self._buckets[ip][0] if self._buckets[ip] else 0,
+            )
             del self._buckets[oldest_ip]
         return await call_next(request)
 
@@ -253,7 +263,7 @@ async def health_check():
 async def generate_hypothetical(
     request: GenerationRequest,
     background_tasks: BackgroundTasks,
-    service: hypothetical_service = Depends(get_hypothetical_service),
+    service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Generate a legal hypothetical with analysis."""
     try:
@@ -322,7 +332,7 @@ class BatchGenerateResult(BaseModel):
 @app.post("/generate/batch")
 async def batch_generate(
     request: BatchGenerateRequest,
-    service: hypothetical_service = Depends(get_hypothetical_service),
+    service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Generate multiple hypotheticals sequentially. Max 10 per request."""
     # validate topics upfront
@@ -351,24 +361,30 @@ async def batch_generate(
                 model=cfg.model,
             )
             resp = await service.generate_hypothetical(gen_req)
-            results.append({
-                "hypothetical": resp.hypothetical,
-                "analysis": resp.analysis,
-                "validation_score": resp.validation_results.get("quality_score", 0.0),
-            })
+            results.append(
+                {
+                    "hypothetical": resp.hypothetical,
+                    "analysis": resp.analysis,
+                    "validation_score": resp.validation_results.get(
+                        "quality_score", 0.0
+                    ),
+                }
+            )
         except Exception as e:
-            results.append({
-                "hypothetical": "",
-                "analysis": "",
-                "validation_score": 0.0,
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "hypothetical": "",
+                    "analysis": "",
+                    "validation_score": 0.0,
+                    "error": str(e),
+                }
+            )
     return {"results": results, "count": len(results)}
 
 
 # Topics endpoint
 @app.get("/topics", response_model=TopicsResponse)
-async def get_available_topics(service: corpus_service = Depends(get_corpus_service)):
+async def get_available_topics(service: CorpusService = Depends(get_corpus_service)):
     """Get all available legal topics from the corpus."""
     try:
         topics = await service.extract_all_topics()
@@ -388,7 +404,7 @@ async def get_available_topics(service: corpus_service = Depends(get_corpus_serv
 async def get_corpus_entries(
     topics: Optional[List[str]] = None,
     limit: int = Field(default=10, ge=1, le=100),
-    service: corpus_service = Depends(get_corpus_service),
+    service: CorpusService = Depends(get_corpus_service),
 ):
     """Get corpus entries with optional topic filtering."""
     try:
@@ -412,7 +428,7 @@ async def get_corpus_entries(
 
 @app.post("/corpus/entries")
 async def add_corpus_entry(
-    entry: HypotheticalEntry, service: corpus_service = Depends(get_corpus_service)
+    entry: HypotheticalEntry, service: CorpusService = Depends(get_corpus_service)
 ):
     """Add a new entry to the corpus."""
     try:
@@ -432,7 +448,7 @@ async def add_corpus_entry(
 
 # LLM service endpoints
 @app.get("/llm/models")
-async def get_available_models(service: llm_service = Depends(get_llm_service)):
+async def get_available_models(service: LLMService = Depends(get_llm_service)):
     """Get available LLM models."""
     try:
         models = await service.list_models()
@@ -447,7 +463,7 @@ async def get_available_models(service: llm_service = Depends(get_llm_service)):
 
 
 @app.get("/llm/health")
-async def llm_health_check(service: llm_service = Depends(get_llm_service)):
+async def llm_health_check(service: LLMService = Depends(get_llm_service)):
     """Check LLM service health."""
     try:
         health_status = await service.health_check()
@@ -464,7 +480,7 @@ async def llm_health_check(service: llm_service = Depends(get_llm_service)):
 # Statistics endpoint
 @app.get("/stats", response_model=GenerationStatsResponse)
 async def get_generation_stats(
-    service: hypothetical_service = Depends(get_hypothetical_service),
+    service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Get generation statistics from database."""
     try:
@@ -544,7 +560,9 @@ async def export_generation(
     if format not in ("docx", "pdf"):
         raise HTTPException(status_code=400, detail="Format must be 'docx' or 'pdf'")
     if history_id < 0:
-        raise HTTPException(status_code=400, detail="history_id must be a non-negative integer")
+        raise HTTPException(
+            status_code=400, detail="history_id must be a non-negative integer"
+        )
 
     # Load history
     history_path = Path("data/history.json")
@@ -566,9 +584,10 @@ async def export_generation(
     model_answer = record.get("model_answer", "")
 
     try:
+        import tempfile
+
         import docx
         from docx.shared import Pt
-        import tempfile
 
         doc = docx.Document()
         style = doc.styles["Normal"]
@@ -592,6 +611,7 @@ async def export_generation(
         if format == "pdf":
             try:
                 from docx2pdf import convert
+
                 pdf_path = tmp.name.replace(".docx", ".pdf")
                 convert(tmp.name, pdf_path)
                 tmp.name = pdf_path
@@ -601,7 +621,10 @@ async def export_generation(
                 )
 
         from fastapi.responses import FileResponse
-        media = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+        media = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         if format == "pdf":
             media = "application/pdf"
 
