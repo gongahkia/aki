@@ -1,4 +1,21 @@
-for sg cases, add another step that attempts to scrape relevant cases from available sources in singapore jurisdiction
-have further ideas for a download workflow that imports additional tort cases for training the model from scratch
-resolve the failing CI/CD workflow
-do a refactor of rich_app.py as necessary since its so large at the moment into various smaller files that are logically separate, then test every single function and tool to ensure no import errors and to confirm the refactor was succesful
+# jikai todo
+
+## scraping sources (pending implementation)
+
+[C] NUS Law Scholarship Repository — scholarship.law.nus.edu.sg
+    academic papers and case commentaries; needs keyword/topic filtering
+    complexity: medium (paginated search, some behind login)
+
+[D] SMU Institutional Knowledge — ink.library.smu.edu.sg
+    open-access academic papers, law faculty focus
+    complexity: medium (OAI-PMH endpoint may be available for bulk harvest)
+
+[E] Singapore Legal Advice — singaporelegaladvice.com/law-articles
+    plain-English explanatory articles per tort topic
+    good for edge topics with few corpus entries
+    complexity: easy (standard HTML, topic pages are well-structured)
+
+[F] SAL Annual Review PDFs — sal.org.sg/publications/sal-annual-review
+    highest quality: structured case digests published yearly by SAL
+    requires PDF download + existing OCR pipeline
+    complexity: hard (PDF download loop + OCR, need to map year → PDF URLs)
