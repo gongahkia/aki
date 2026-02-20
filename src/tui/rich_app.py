@@ -707,9 +707,11 @@ class JikaiTUI:
                         title=_lbl("Scrape SG Case Law")
                         + _tag(False, optional=True, deps_ok=scraper_deps),
                         value="scrape",
-                        disabled=None
-                        if scraper_deps
-                        else "install beautifulsoup4 lxml httpx",
+                        disabled=(
+                            None
+                            if scraper_deps
+                            else "install beautifulsoup4 lxml httpx"
+                        ),
                     ),
                     Choice(
                         title=_lbl("Browse Corpus", corpus_ok),
@@ -1018,9 +1020,9 @@ class JikaiTUI:
                             ),
                         ],
                         value="3",
-                        disabled=None
-                        if scraper_deps
-                        else "install beautifulsoup4 lxml",
+                        disabled=(
+                            None if scraper_deps else "install beautifulsoup4 lxml"
+                        ),
                     ),
                 ],
             )
@@ -1482,9 +1484,11 @@ class JikaiTUI:
             labelled.append(
                 {
                     "text": text,
-                    "topic_labels": topics_hint
-                    if isinstance(topics_hint, str)
-                    else "|".join(topics_hint),
+                    "topic_labels": (
+                        topics_hint
+                        if isinstance(topics_hint, str)
+                        else "|".join(topics_hint)
+                    ),
                     "quality_score": str(q),
                     "difficulty_level": diff_map[diff.lower()],
                 }
@@ -2723,9 +2727,11 @@ class JikaiTUI:
             )
         mt.add_row(
             "Embeddings",
-            "[green]Ready[/green]"
-            if self._embeddings_ready()
-            else "[dim]Not indexed[/dim]",
+            (
+                "[green]Ready[/green]"
+                if self._embeddings_ready()
+                else "[dim]Not indexed[/dim]"
+            ),
         )
         console.print(mt)
 

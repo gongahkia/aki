@@ -279,16 +279,13 @@ class HypotheticalService:
 
         # warn if no context entries found from either method
         if not context_entries:
-            logger.warning(
-                "No corpus context found for topics", topics=request.topics
-            )
+            logger.warning("No corpus context found for topics", topics=request.topics)
             if request.user_preferences is None:
                 request.user_preferences = {}
             existing = request.user_preferences.get("feedback", "")
             request.user_preferences["feedback"] = (
-                (existing + " " if existing else "")
-                + "NOTE: No reference examples available in corpus for these topics."
-            )
+                existing + " " if existing else ""
+            ) + "NOTE: No reference examples available in corpus for these topics."
         return context_entries
 
     async def _generate_hypothetical_text(
@@ -313,7 +310,9 @@ class HypotheticalService:
 
             # Append red herring instruction if enabled
             user_prompt = prompt_data["user"]
-            if request.user_preferences and request.user_preferences.get("red_herrings"):
+            if request.user_preferences and request.user_preferences.get(
+                "red_herrings"
+            ):
                 user_prompt += (
                     "\n\nADDITIONAL INSTRUCTION: Include 1-2 legally irrelevant but "
                     "plausible facts as red herrings. These should be realistic details "
@@ -353,9 +352,7 @@ class HypotheticalService:
             )
 
             if not hypothetical or len(hypothetical) < 50:  # empty response guard
-                raise HypotheticalServiceError(
-                    "LLM returned empty/too-short response"
-                )
+                raise HypotheticalServiceError("LLM returned empty/too-short response")
 
             logger.info(
                 "Hypothetical text generated",

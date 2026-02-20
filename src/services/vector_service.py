@@ -28,6 +28,7 @@ if sys.version_info >= (3, 14):
                 annotate_func = namespace["__annotate_func__"]
                 try:
                     import annotationlib
+
                     annotations = annotate_func(annotationlib.Format.VALUE)
                 except Exception:
                     try:
@@ -98,7 +99,9 @@ class VectorService:
         except Exception as e:
             logger.error("Failed to initialize vector service", error=str(e))
             self._initialized = False
-            raise VectorServiceError(f"Vector service initialization failed: {e}") from e
+            raise VectorServiceError(
+                f"Vector service initialization failed: {e}"
+            ) from e
 
     def _embed_text(self, text: str) -> List[float]:
         """Generate embedding vector for text."""
