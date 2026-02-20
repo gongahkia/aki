@@ -104,8 +104,7 @@ class TestValidationService:
 
     def test_validate_hypothetical_complete(self, validation_service):
         """Test complete hypothetical validation."""
-        text = (
-            """
+        text = """
         In Singapore, Mr. John Smith, a restaurant owner, employed Ms. Jane Doe as a chef.
         ABC Pte Ltd supplied ingredients. The restaurant owner was negligent in maintaining
         the kitchen, breaching the duty of care owed to employees. This negligence caused
@@ -113,9 +112,7 @@ class TestValidationService:
         to meet the standard of care expected of reasonable restaurant operators. The
         causation was clear, as the wet floor directly led to the injury. The incident
         occurred at Marina Bay area in Singapore, where the restaurant is located.
-        """
-            * 10
-        )  # Make it longer
+        """ * 10  # Make it longer
 
         result = validation_service.validate_hypothetical(
             text=text,

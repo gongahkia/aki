@@ -37,8 +37,7 @@ class DatabaseService:
             cursor = conn.cursor()
 
             # Create generation_history table
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS generation_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -55,24 +54,19 @@ class DatabaseService:
                     response_data TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
-            """
-            )
+            """)
 
             # Create index on timestamp for faster queries
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_timestamp
                 ON generation_history(timestamp DESC)
-            """
-            )
+            """)
 
             # Create index on topics for searching
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_topics
                 ON generation_history(topics)
-            """
-            )
+            """)
 
             conn.commit()
             conn.close()
@@ -194,8 +188,7 @@ class DatabaseService:
             cursor = conn.cursor()
 
             # Get overall statistics
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT
                     COUNT(*) as total_generations,
                     AVG(generation_time) as avg_generation_time,
@@ -204,22 +197,19 @@ class DatabaseService:
                     MIN(timestamp) as first_generation,
                     MAX(timestamp) as last_generation
                 FROM generation_history
-            """
-            )
+            """)
 
             row = cursor.fetchone()
 
             # Get topic distribution
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT
                     topics, COUNT(*) as count
                 FROM generation_history
                 GROUP BY topics
                 ORDER BY count DESC
                 LIMIT 10
-            """
-            )
+            """)
 
             topic_rows = cursor.fetchall()
             conn.close()
