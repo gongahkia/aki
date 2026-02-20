@@ -17,15 +17,14 @@ A [quick google search](https://www.reddit.com/r/LawSchool/comments/16istgs/wher
 
 <div align="center">
     <br>
-    <img src="./asset/poll.png" width="50%">
+    <img src="./asset/reference/poll.png" width="50%">
     <br><br>
 </div>
 
-With these considerations in mind, I created Jikai.
+With these considerations in mind, I created `Jikai`.
 
-Jikai is a [microservices-based](#container-diagram) application that generates high-quality legal hypotheticals for Singapore Tort Law education with [prompt engineering](#prompt-engineering-architecture), multi-provider LLM support, and an ML-assisted validation pipeline.
-
-Current applications are focused on [Singapore Tort Law](https://www.sal.org.sg/Resources-Tools/Publications/Overview/PublicationsDetails/id/183) but [other domains of law](https://lawforcomputerscientists.pubpub.org/pub/d3mzwako/release/7) can be easily swapped in.
+`Jikai` generates high-quality legal hypotheticals for Singapore Tort Law education with
+a ...
 
 ## Stack
 
@@ -49,11 +48,11 @@ The below instructions are for locally running `Jikai`.
 
 ## Architecture
 
-...
+![](./asset/reference/architecture.png)
 
 ## Disclaimer
 
-All hypotheticals generated with [Jikai](https://github.com/gongahkia/jikai) are intended for educational and informational purposes only. They do not constitute legal advice and should not be relied upon as such.
+All hypotheticals generated with [`Jikai`](https://github.com/gongahkia/jikai) are intended for educational and informational purposes only. They do not constitute legal advice and should not be relied upon as such.
 
 ### No Liability
 
@@ -74,7 +73,7 @@ The name `Jikai` is in reference to the sorcery of [Ikuto Hagiwara](https://kagu
 
 ## Research
 
-Jikai would not be where it was today without existing academia.
+`Jikai` would not be where it was today without existing academia.
 
 * [*Focused and Fun: A How-to Guide for Creating Hypotheticals for Law Students*](https://scribes.org/wp-content/uploads/2022/10/Simon-8.23.21.pdf) by Diana J. Simon
 * [*Reactive Hypotheticals in Legal Education: Leveraging AI to Create Interactive Fact Patterns*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4763738) by Sean Steward
