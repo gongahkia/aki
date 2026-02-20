@@ -1,2 +1,0 @@
-debug the CI/CD workflow
-add screenshots to the README.md
