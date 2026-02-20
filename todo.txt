@@ -1,2 +1,2 @@
 debug the CI/CD workflow
-refactor the current massive rich_app.py file into multipel smaller files while still ensuring workflow is the same
+add screenshots to the README.md
