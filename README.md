@@ -25,8 +25,6 @@ With these considerations in mind, I created `Jikai`.
 
 `Jikai` generates legal hypotheticals for Singapore Tort Law with a [multi-provider LLM backend](#architecture), [semantic corpus retrieval](#architecture), and an [ML-assisted validation pipeline](#architecture), served through a [TUI](#stack) or [FastAPI Rest API](#stack).
 
-It is mainly served as a legal education tool.
-
 ## Stack
 
 * *Backend*: [Python](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), [Pydantic](https://docs.pydantic.dev/)
