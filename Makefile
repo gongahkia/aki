@@ -1,6 +1,6 @@
 # Jikai Makefile - Development and deployment commands
 
-.PHONY: help install dev test lint format clean build run
+.PHONY: help install dev test lint format clean build run pre-commit pre-commit-update
 
 # Default target
 help: ## Show this help message
@@ -16,7 +16,6 @@ install: ## Install dependencies
 
 dev: ## Install development dependencies
 	pip install -r requirements.txt
-	pre-commit install
 
 # Code quality
 test: ## Run tests
@@ -39,13 +38,6 @@ format: ## Format code
 format-check: ## Check code formatting
 	black --check src/ tests/
 	isort --check-only src/ tests/
-
-# Pre-commit hooks
-pre-commit: ## Run pre-commit hooks
-	pre-commit run --all-files
-
-pre-commit-update: ## Update pre-commit hooks
-	pre-commit autoupdate
 
 # Application commands
 run: ## Run both API and TUI
