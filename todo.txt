@@ -1,7 +1,2 @@
+debug the CI/CD workflow
 refactor the current massive rich_app.py file into multipel smaller files while still ensuring workflow is the same
-test all existing functionality to check whether it works or not
-add scraper for NUS Law Scholarship Repository (scholarship.law.nus.edu.sg), academic papers and case commentaries; needs keyword/topic filtering, complexity: medium (paginated search, some behind login)
-add scraper for SMU Institutional Knowledge (ink.library.smu.edu.sg), open-access academic papers, law faculty focus, complexity: medium (OAI-PMH endpoint may be available for bulk harvest)
-add scraper for Singapore Legal Advice (singaporelegaladvice.com/law-articles), plain-English explanatory articles per tort topic, good for edge topics with few corpus entries,complexity: easy (standard HTML, topic pages are well-structured)
-add scraper for SAL Annual Review PDFs (sal.org.sg/publications/sal-annual-review), highest quality: structured case digests published yearly by SAL, requires PDF download + existing OCR pipeline, complexity: hard (PDF download loop + OCR, need to map year → PDF URLs)
-debug the CI/CD workflow 
