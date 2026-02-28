@@ -62,6 +62,16 @@ class TestValidationService:
         assert "battery" in result["topics_found"]
         assert "negligence" in result["topics_missing"]
 
+    def test_validate_topic_inclusion_returns_canonical_topics(self, validation_service):
+        """Topic outputs should use canonical tort topic keys."""
+        text = "The defendant breached the duty of care and acted negligently."
+        result = validation_service.validate_topic_inclusion(
+            text, required_topics=["duty of care", "negligence"]
+        )
+
+        assert "duty_of_care" in result["topics_found"]
+        assert "duty of care" not in result["topics_found"]
+
     def test_validate_word_count_success(self, validation_service):
         """Test word count validation with appropriate length."""
         text = " ".join(["word"] * 1000)  # 1000 words

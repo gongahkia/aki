@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Tuple
 
 import structlog
 
+from ..domain import canonicalize_topic
+
 logger = structlog.get_logger(__name__)
 
 
@@ -251,28 +253,38 @@ class ValidationService:
         """
         try:
             text_lower = text.lower()
-            topics_found = []
-            topic_evidence = {}
+            topics_found: List[str] = []
+            topic_evidence: Dict[str, List[str]] = {}
+            canonical_required_topics: List[str] = []
+            seen_topics = set()
 
             for topic in required_topics:
-                # Get keywords for this topic, normalize underscores to spaces
-                from . import normalize_topic
+                canonical = canonicalize_topic(topic)
+                if canonical not in seen_topics:
+                    seen_topics.add(canonical)
+                    canonical_required_topics.append(canonical)
 
-                normalized = normalize_topic(topic)
+            for canonical_topic in canonical_required_topics:
+                keyword_key = canonical_topic.replace("_", " ")
                 keywords = self._topic_keywords.get(
-                    normalized, self._topic_keywords.get(topic.lower(), [topic.lower()])
+                    canonical_topic,
+                    self._topic_keywords.get(keyword_key, [keyword_key]),
                 )
 
                 # Check if any keyword appears in text
                 found_keywords = [kw for kw in keywords if kw.lower() in text_lower]
 
                 if found_keywords:
-                    topics_found.append(topic)
-                    topic_evidence[topic] = found_keywords
+                    topics_found.append(canonical_topic)
+                    topic_evidence[canonical_topic] = found_keywords
 
-            topics_missing = [t for t in required_topics if t not in topics_found]
+            topics_missing = [
+                t for t in canonical_required_topics if t not in topics_found
+            ]
             coverage_ratio = (
-                len(topics_found) / len(required_topics) if required_topics else 1.0
+                len(topics_found) / len(canonical_required_topics)
+                if canonical_required_topics
+                else 1.0
             )
 
             # Pass if at least 70% of topics are covered
@@ -280,7 +292,7 @@ class ValidationService:
 
             logger.info(
                 "Topic inclusion validation",
-                required=len(required_topics),
+                required=len(canonical_required_topics),
                 found=len(topics_found),
                 coverage=f"{coverage_ratio:.1%}",
                 passed=passed,
@@ -292,15 +304,16 @@ class ValidationService:
                 "topics_missing": topics_missing,
                 "coverage_ratio": coverage_ratio,
                 "topic_evidence": topic_evidence,
-                "message": f"Found {len(topics_found)}/{len(required_topics)} topics ({coverage_ratio:.0%} coverage)",
+                "message": f"Found {len(topics_found)}/{len(canonical_required_topics)} topics ({coverage_ratio:.0%} coverage)",
             }
 
         except Exception as e:
             logger.error("Topic inclusion validation failed", error=str(e))
+            canonical_required_topics = [canonicalize_topic(topic) for topic in required_topics]
             return {
                 "passed": False,
                 "topics_found": [],
-                "topics_missing": required_topics,
+                "topics_missing": canonical_required_topics,
                 "coverage_ratio": 0.0,
                 "topic_evidence": {},
                 "message": f"Validation error: {e}",
