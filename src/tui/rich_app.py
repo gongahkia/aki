@@ -2075,6 +2075,7 @@ class JikaiTUI:
                             text=result,
                             required_topics=[topic],
                             expected_parties=parties,
+                            fast_mode=True,
                         )
                         score = vr.get("overall_score", 0.0)
                         passed = vr.get("passed", False)

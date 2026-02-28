@@ -156,6 +156,15 @@ class HypotheticalService:
             or preferences.get("fast_mode")
         )
 
+    @staticmethod
+    def _should_use_fast_validation(request: GenerationRequest) -> bool:
+        preferences = request.user_preferences or {}
+        return bool(
+            (not request.include_analysis)
+            or preferences.get("prioritize_latency")
+            or preferences.get("fast_validation")
+        )
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline."""
         if self._ml_pipeline is None:
@@ -539,6 +548,7 @@ class HypotheticalService:
                 required_topics=request.topics,
                 expected_parties=request.number_parties,
                 law_domain=request.law_domain,
+                fast_mode=self._should_use_fast_validation(request),
             )
 
             # Run similarity check (lightweight text comparison)

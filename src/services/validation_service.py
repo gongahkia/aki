@@ -460,6 +460,29 @@ class ValidationService:
             logger.error("Score calculation failed", error=str(e))
             return 0.0, False
 
+    def calculate_fast_score(
+        self, validation_results: Dict[str, Dict[str, Any]]
+    ) -> Tuple[float, bool]:
+        """Calculate score for low-latency mode using topic+party checks only."""
+        try:
+            score = 0.0
+            if validation_results.get("party_count", {}).get("passed"):
+                score += 4.0
+            topic_coverage = validation_results.get("topic_inclusion", {}).get(
+                "coverage_ratio", 0.0
+            )
+            score += topic_coverage * 6.0
+            passed = score >= 6.5
+            logger.info(
+                "Fast validation score calculated",
+                score=f"{score:.1f}/10",
+                passed=passed,
+            )
+            return score, passed
+        except Exception as e:
+            logger.error("Fast score calculation failed", error=str(e))
+            return 0.0, False
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline for enhanced validation."""
         if not hasattr(self, "_ml_pipeline"):
@@ -479,6 +502,7 @@ class ValidationService:
         required_topics: List[str],
         expected_parties: int,
         law_domain: str = "tort",
+        fast_mode: bool = False,
     ) -> Dict[str, Any]:
         """
         Run all validation checks on a hypothetical.
@@ -490,6 +514,24 @@ class ValidationService:
             # Run all validation checks
             party_result = self.validate_party_count(text, expected_parties)
             topic_result = self.validate_topic_inclusion(text, required_topics)
+
+            if fast_mode:
+                fast_results = {
+                    "party_count": party_result,
+                    "topic_inclusion": topic_result,
+                }
+                overall_score, passed = self.calculate_fast_score(fast_results)
+                return {
+                    "passed": passed,
+                    "overall_score": overall_score,
+                    "checks": fast_results,
+                    "summary": {
+                        "mode": "fast",
+                        "parties": f"{party_result['actual_count']}/{expected_parties}",
+                        "topics": f"{len(topic_result['topics_found'])}/{len(required_topics)}",
+                    },
+                }
+
             word_result = self.validate_word_count(text)
             singapore_result = self.validate_singapore_context(text)
 

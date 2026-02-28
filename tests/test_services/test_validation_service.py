@@ -168,3 +168,23 @@ class TestValidationService:
         assert score < 7.0  # Should fail
         assert passed is False
         assert score >= 0.0
+
+    def test_validate_hypothetical_fast_mode(self, validation_service):
+        """Fast mode should run topic+party checks only."""
+        text = (
+            "In Singapore, Mr. John Smith was negligent and breached his duty of care "
+            "towards Ms. Jane Doe. ABC Pte Ltd was involved in the incident."
+        )
+
+        result = validation_service.validate_hypothetical(
+            text=text,
+            required_topics=["negligence", "duty of care"],
+            expected_parties=2,
+            fast_mode=True,
+        )
+
+        assert result["summary"]["mode"] == "fast"
+        assert "party_count" in result["checks"]
+        assert "topic_inclusion" in result["checks"]
+        assert "word_count" not in result["checks"]
+        assert "singapore_context" not in result["checks"]
