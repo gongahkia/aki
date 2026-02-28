@@ -1,6 +1,6 @@
 # Jikai Makefile - Development and deployment commands
 
-.PHONY: help install dev test lint format clean build run web warmup pre-commit pre-commit-update
+.PHONY: help install dev test lint format clean build run web warmup bench-latency pre-commit pre-commit-update
 
 # Default target
 help: ## Show this help message
@@ -54,6 +54,11 @@ web: ## Run optional web surface (keeps TUI workflow unchanged)
 
 warmup: ## Preload corpus topics, check provider health, and optionally init embeddings
 	python -m src.warmup $(if $(INIT_EMBEDDINGS),--init-embeddings,)
+
+bench-latency: ## Run latency benchmark and print p50/p95 summary
+	@mkdir -p data
+	@KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=. python3 tests/perf/benchmark_latency.py --iterations $${ITERATIONS:-20} --output data/bench_latency.json
+	@python3 -c "import json; data=json.load(open('data/bench_latency.json', encoding='utf-8')); b=data['baseline']; f=data['fast_mode']; print(f'baseline p50={b[\"p50_ms\"]}ms p95={b[\"p95_ms\"]}ms'); print(f'fast_mode p50={f[\"p50_ms\"]}ms p95={f[\"p95_ms\"]}ms')"
 
 run-prod: ## Run the application in production mode
 	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4

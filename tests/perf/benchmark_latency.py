@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import os
 import statistics
 import time
 from pathlib import Path
@@ -34,8 +35,37 @@ def _summarize(latencies_ms: list[float]) -> dict:
     }
 
 
+def _request_headers() -> dict[str, str]:
+    api_key = os.environ.get("JIKAI_API_KEY", "").strip()
+    if not api_key:
+        return {}
+    return {"X-API-Key": api_key}
+
+
+def _run_mode(
+    client: TestClient, payload: dict, iterations: int, headers: dict[str, str]
+) -> tuple[list[float], dict[int, int], str]:
+    latencies_ms: list[float] = []
+    status_counts: dict[int, int] = {}
+    sample_failure = ""
+
+    for _ in range(iterations):
+        start = time.perf_counter()
+        response = client.post("/generate", json=payload, headers=headers)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        status_code = int(response.status_code)
+        status_counts[status_code] = status_counts.get(status_code, 0) + 1
+        if status_code == 200:
+            latencies_ms.append(elapsed_ms)
+        elif not sample_failure:
+            sample_failure = response.text[:500]
+
+    return latencies_ms, status_counts, sample_failure
+
+
 def run_benchmark(iterations: int = 20) -> dict:
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
+    headers = _request_headers()
 
     async def _fake_generate(request):
         # Simulate heavier baseline path vs faster hypothetical-only mode.
@@ -72,27 +102,34 @@ def run_benchmark(iterations: int = 20) -> dict:
             AsyncMock(side_effect=_fake_generate),
         ),
     ):
-        baseline_latencies = []
-        fast_latencies = []
+        baseline_latencies, baseline_statuses, baseline_failure = _run_mode(
+            client=client,
+            payload=baseline_payload,
+            iterations=iterations,
+            headers=headers,
+        )
+        fast_latencies, fast_statuses, fast_failure = _run_mode(
+            client=client,
+            payload=fast_payload,
+            iterations=iterations,
+            headers=headers,
+        )
 
-        for _ in range(iterations):
-            start = time.perf_counter()
-            response = client.post("/generate", json=baseline_payload)
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            if response.status_code == 200:
-                baseline_latencies.append(elapsed_ms)
-
-        for _ in range(iterations):
-            start = time.perf_counter()
-            response = client.post("/generate", json=fast_payload)
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            if response.status_code == 200:
-                fast_latencies.append(elapsed_ms)
+    if not baseline_latencies or not fast_latencies:
+        raise RuntimeError(
+            "Latency benchmark did not record successful responses. "
+            f"baseline_statuses={baseline_statuses} fast_statuses={fast_statuses} "
+            f"baseline_sample_error={baseline_failure!r} fast_sample_error={fast_failure!r}"
+        )
 
     return {
         "iterations": iterations,
         "baseline": _summarize(baseline_latencies),
         "fast_mode": _summarize(fast_latencies),
+        "status_codes": {
+            "baseline": baseline_statuses,
+            "fast_mode": fast_statuses,
+        },
     }
 
 
