@@ -29,12 +29,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
       - run: mypy src/ --ignore-missing-imports || true
+      - name: Mypy changed Python files (enforced)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          CHANGED_PY_FILES="$(git diff --name-only "$BASE_SHA" "${{ github.sha }}" -- '*.py' || true)"
+          if [[ -z "$CHANGED_PY_FILES" ]]; then
+            echo "No changed Python files to type-check."
+            exit 0
+          fi
+
+          FILES_TO_CHECK=()
+          while IFS= read -r file; do
+            [[ -n "$file" ]] || continue
+            [[ -f "$file" ]] || continue
+            FILES_TO_CHECK+=("$file")
+          done <<< "$CHANGED_PY_FILES"
+
+          if [[ "${#FILES_TO_CHECK[@]}" -eq 0 ]]; then
+            echo "No existing changed Python files to type-check."
+            exit 0
+          fi
+
+          echo "Running mypy on changed files:"
+          printf ' - %s\n' "${FILES_TO_CHECK[@]}"
+          mypy --ignore-missing-imports "${FILES_TO_CHECK[@]}"
 
   test:
     name: Test (Python ${{ matrix.python-version }})
