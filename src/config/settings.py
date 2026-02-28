@@ -210,6 +210,7 @@ class Settings(BaseSettings):
     local_response_cache_max_entries: int = Field(
         default=128, env="LOCAL_RESPONSE_CACHE_MAX_ENTRIES"
     )
+    vector_min_similarity: float = Field(default=0.25, env="VECTOR_MIN_SIMILARITY")
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
 
     # Sub-configurations
@@ -254,6 +255,14 @@ class Settings(BaseSettings):
         if int(v) < 1:
             raise ValueError("Configured values must be >= 1")
         return int(v)
+
+    @field_validator("vector_min_similarity")
+    @classmethod
+    def validate_vector_min_similarity(cls, value):
+        score = float(value)
+        if score < 0.0 or score > 1.0:
+            raise ValueError("vector_min_similarity must be between 0.0 and 1.0")
+        return score
 
     @property
     def anthropic_api_key(self):

@@ -49,6 +49,7 @@ from sentence_transformers import SentenceTransformer
 from ..config import settings
 
 logger = structlog.get_logger(__name__)
+DEFAULT_MIN_SIMILARITY = 0.25
 
 
 class VectorServiceError(Exception):
@@ -185,6 +186,7 @@ class VectorService:
         query_topics: List[str],
         n_results: int = 5,
         exclude_ids: Optional[List[str]] = None,
+        min_similarity: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
         Perform semantic search for relevant hypotheticals.
@@ -193,6 +195,7 @@ class VectorService:
             query_topics: List of topics to search for
             n_results: Number of results to return
             exclude_ids: IDs to exclude from results
+            min_similarity: Minimum similarity threshold for relevance filtering
 
         Returns:
             List of relevant hypothetical entries with similarity scores
@@ -202,6 +205,18 @@ class VectorService:
             raise VectorServiceError("Vector service not available")
 
         try:
+            similarity_threshold = (
+                float(min_similarity)
+                if min_similarity is not None
+                else float(
+                    getattr(
+                        settings,
+                        "vector_min_similarity",
+                        DEFAULT_MIN_SIMILARITY,
+                    )
+                )
+            )
+            similarity_threshold = max(0.0, min(1.0, similarity_threshold))
             query_text = f"Legal hypothetical involving {', '.join(query_topics)} in Singapore tort law"
 
             query_embedding = self._embed_text(query_text)
@@ -216,20 +231,17 @@ class VectorService:
                 include=["documents", "metadatas", "distances"],
             )
 
-            relevant_hypotheticals: List[Dict[str, Any]] = []
+            candidates: List[Dict[str, Any]] = []
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
             for i, doc_id in enumerate(results["ids"][0]):
                 if doc_id in exclude_set:
                     continue
 
-                if len(relevant_hypotheticals) >= n_results:
-                    break
-
                 distance = results["distances"][0][i]
                 similarity_score = 1.0 / (1.0 + distance)
 
-                relevant_hypotheticals.append(
+                candidates.append(
                     {
                         "id": doc_id,
                         "text": results["documents"][0][i],
@@ -243,10 +255,35 @@ class VectorService:
                     }
                 )
 
+            if not candidates:
+                logger.info(
+                    "Semantic search returned no candidate matches",
+                    query_topics=query_topics,
+                    threshold=similarity_threshold,
+                )
+                return []
+
+            top_similarity = float(candidates[0]["similarity_score"])
+            if top_similarity < similarity_threshold:
+                logger.info(
+                    "Semantic search below relevance threshold; using fallback retrieval",
+                    query_topics=query_topics,
+                    top_similarity=top_similarity,
+                    threshold=similarity_threshold,
+                )
+                return []
+
+            relevant_hypotheticals = [
+                result
+                for result in candidates
+                if float(result["similarity_score"]) >= similarity_threshold
+            ][:n_results]
+
             logger.info(
                 "Semantic search completed",
                 query_topics=query_topics,
                 results_count=len(relevant_hypotheticals),
+                threshold=similarity_threshold,
             )
 
             return relevant_hypotheticals

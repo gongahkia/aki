@@ -75,3 +75,27 @@ async def test_keyword_fallback_used_when_semantic_search_fails(monkeypatch):
 
     assert len(results) == 1
     assert results[0].id == "1"
+
+
+@pytest.mark.asyncio
+async def test_keyword_fallback_used_when_semantic_search_returns_no_matches():
+    service = CorpusService()
+    service._corpus_indexed = True
+    service._vector_service = AsyncMock()
+    service._vector_service.semantic_search = AsyncMock(return_value=[])
+    service.load_corpus = AsyncMock(
+        return_value=[
+            HypotheticalEntry(
+                id="1",
+                text="Negligence and breach of duty scenario",
+                topics=["negligence", "duty_of_care"],
+            )
+        ]
+    )
+
+    query = CorpusQuery(topics=["negligence"], sample_size=1)
+    results = await service.query_relevant_hypotheticals(query)
+
+    assert len(results) == 1
+    assert results[0].id == "1"
+    service._vector_service.semantic_search.assert_called_once()
