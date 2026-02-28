@@ -1,4 +1,3 @@
-(B) Ensure `pyproject.toml` console script points to a true callable entrypoint (not `FastAPI` app object) by mapping `jikai` to `src.tui.__main__:main`. +stability +bugfix +packaging
 (B) Add centralized exception mapping utility so provider-specific errors become consistent user-facing messages in both API and TUI. +stability +refactor +api +tui +providers
 (B) Add optional in-memory response cache for identical generation requests within a short TTL in local mode to reduce repeated latency during study sessions. +latency +feature +cache
 (B) Add safe cancellation handling in streaming generation to persist partial output snapshots with cancellation metadata for later resume or review. +stability +feature +tui +history

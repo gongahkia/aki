@@ -72,7 +72,7 @@ Documentation = "https://github.com/gongahkia/jikai#readme"
 "Bug Tracker" = "https://github.com/gongahkia/jikai/issues"
 
 [project.scripts]
-jikai = "src.api.main:app"
+jikai = "src.tui.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
