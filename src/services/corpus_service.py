@@ -52,7 +52,19 @@ class CorpusService:
         self._s3_client = None
         self._vector_service = vector_service
         self._corpus_indexed = False
+        self._topics_cache: Optional[List[str]] = None
+        self._topics_cache_mtime: Optional[float] = None
         self._initialize_s3()
+
+    def _get_local_corpus_mtime(self) -> Optional[float]:
+        try:
+            return self._local_corpus_path.stat().st_mtime
+        except OSError:
+            return None
+
+    def _invalidate_topic_cache(self):
+        self._topics_cache = None
+        self._topics_cache_mtime = None
 
     def _initialize_s3(self):
         """Initialize AWS S3 client if credentials are available."""
@@ -182,6 +194,7 @@ class CorpusService:
             with open(self._local_corpus_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
+            self._invalidate_topic_cache()
             logger.info("Corpus saved to local file", entries_count=len(entries))
             return True
 
@@ -214,6 +227,7 @@ class CorpusService:
                 ContentType="application/json",
             )
 
+            self._invalidate_topic_cache()
             logger.info("Corpus saved to S3", entries_count=len(entries))
             return True
 
@@ -327,6 +341,14 @@ class CorpusService:
     async def extract_all_topics(self) -> List[str]:
         """Extract all unique topics from the corpus."""
         try:
+            current_mtime = self._get_local_corpus_mtime()
+            if (
+                self._topics_cache is not None
+                and current_mtime is not None
+                and self._topics_cache_mtime == current_mtime
+            ):
+                return list(self._topics_cache)
+
             corpus = await self.load_corpus()
             all_topics = set()
 
@@ -334,6 +356,11 @@ class CorpusService:
                 all_topics.update(entry.topics)
 
             topics_list = sorted(list(all_topics))
+            if current_mtime is not None:
+                self._topics_cache = topics_list
+                self._topics_cache_mtime = current_mtime
+            else:
+                self._invalidate_topic_cache()
             logger.info("Topics extracted", topics_count=len(topics_list))
 
             return topics_list
