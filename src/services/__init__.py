@@ -6,6 +6,7 @@ from .database_service import (
     GenerationReport,
     database_service,
 )
+from .error_mapper import ErrorMapping, map_exception
 from .hypothetical_service import (
     GenerationRequest,
     GenerationResponse,
@@ -40,6 +41,8 @@ __all__ = [
     "GenerationReport",
     "GenerationFeedback",
     "database_service",
+    "ErrorMapping",
+    "map_exception",
     "HypotheticalService",
     "hypothetical_service",
     "GenerationRequest",

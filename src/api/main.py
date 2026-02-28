@@ -44,6 +44,7 @@ from ..services import (
     database_service,
     hypothetical_service,
     llm_service,
+    map_exception,
 )
 from ..services.topic_guard import canonicalize_and_validate_topics
 from .web import web_router
@@ -415,6 +416,7 @@ async def generate_hypothetical(
     service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Generate a legal hypothetical with analysis."""
+    correlation_id = None
     try:
         correlation_id = (
             request.correlation_id
@@ -474,14 +476,16 @@ async def generate_hypothetical(
     except HTTPException:
         raise
     except Exception as e:
+        mapped_error = map_exception(e, default_status=500)
         logger.error(
             "Hypothetical generation failed",
             error=str(e),
+            error_code=mapped_error.code,
             correlation_id=correlation_id,
         )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Generation failed: {e}",
+            status_code=mapped_error.http_status,
+            detail=mapped_error.message,
         )
 
 
@@ -1152,17 +1156,20 @@ async def set_default_provider(req: SetDefaultProviderRequest):
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions."""
+    mapped_error = map_exception(exc, default_status=exc.status_code)
     logger.warning(
         "HTTP exception",
         status_code=exc.status_code,
         detail=exc.detail,
+        error_code=mapped_error.code,
         path=request.url.path,
     )
 
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": exc.detail,
+            "error": mapped_error.message,
+            "error_code": mapped_error.code,
             "status_code": exc.status_code,
             "timestamp": datetime.utcnow().isoformat(),
         },
@@ -1172,13 +1179,20 @@ async def http_exception_handler(request, exc):
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Handle general exceptions."""
-    logger.error("Unhandled exception", error=str(exc), path=request.url.path)
+    mapped_error = map_exception(exc, default_status=500)
+    logger.error(
+        "Unhandled exception",
+        error=str(exc),
+        error_code=mapped_error.code,
+        path=request.url.path,
+    )
 
     return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code=mapped_error.http_status,
         content={
-            "error": "Internal server error",
-            "status_code": 500,
+            "error": mapped_error.message,
+            "error_code": mapped_error.code,
+            "status_code": mapped_error.http_status,
             "timestamp": datetime.utcnow().isoformat(),
         },
     )

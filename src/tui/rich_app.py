@@ -2306,46 +2306,13 @@ class JikaiTUI:
             tlog.info("ERROR  generation: %s", e)
 
     def _handle_generation_error(self, e: Exception):
-        """Pattern-match common errors and provide specific recovery messages."""
-        err_str = str(e).lower()
+        """Render normalized generation errors with contextual recovery hints."""
+        from ..services.error_mapper import map_exception
 
-        # API key errors
-        if "api key" in err_str or "apikey" in err_str or "authentication" in err_str:
-            if "openai" in err_str:
-                console.print(
-                    "[red]✗ No API key set for OpenAI. Go to More → Settings to add one.[/red]"
-                )
-            elif "anthropic" in err_str:
-                console.print(
-                    "[red]✗ No API key set for Anthropic. Go to More → Settings to add one.[/red]"
-                )
-            elif "google" in err_str:
-                console.print(
-                    "[red]✗ No API key set for Google. Go to More → Settings to add one.[/red]"
-                )
-            else:
-                console.print(
-                    "[red]✗ API key missing or invalid. Go to More → Settings to check your keys.[/red]"
-                )
-        # Model not found
-        elif "model" in err_str and (
-            "not found" in err_str
-            or "does not exist" in err_str
-            or "not available" in err_str
-        ):
-            console.print(
-                "[red]✗ Model not available. Run More → Providers → Check Health to see available models.[/red]"
-            )
-        # Connection/network errors — attempt to auto-restart Ollama
-        elif (
-            "timeout" in err_str
-            or "timed out" in err_str
-            or "connection" in err_str
-            or "refused" in err_str
-            or "unreachable" in err_str
-            or "all connection attempts failed" in err_str
-        ):
-            console.print("[red]✗ Cannot connect to provider.[/red]")
+        mapped_error = map_exception(e, default_status=500)
+        console.print(f"[red]✗ {mapped_error.message}[/red]")
+
+        if mapped_error.code in {"provider_connection_error", "provider_timeout"}:
             provider_name = self._configured_provider()
             if provider_name == "ollama":
                 host = self._ollama_host_from_env()
@@ -2354,24 +2321,18 @@ class JikaiTUI:
                     console.print(
                         "[dim]Ollama is now running — press Generate again to retry.[/dim]"
                     )
-                else:
-                    console.print(
-                        "[dim]Could not start Ollama automatically. "
-                        "Run 'ollama serve' in a terminal, then try again.[/dim]"
-                    )
-            else:
+                    return
                 console.print(
-                    "[dim]Check that your provider service is running and accessible.[/dim]"
+                    "[dim]Could not start Ollama automatically. "
+                    "Run 'ollama serve' in a terminal, then try again.[/dim]"
                 )
-        # Rate limiting
-        elif "rate limit" in err_str or "too many requests" in err_str:
-            console.print(
-                "[red]✗ Rate limited by provider. Wait a moment and try again.[/red]"
-            )
-        # Generic fallback
-        else:
-            console.print(f"[red]✗ Generation failed: {e}[/red]")
-            console.print("[dim]Tip: check provider health via More → Providers[/dim]")
+                return
+
+        if mapped_error.hint:
+            console.print(f"[dim]{mapped_error.hint}[/dim]")
+            return
+
+        console.print("[dim]Tip: check provider health via More → Providers[/dim]")
 
     def _persist_stream_generation(
         self,

@@ -1,4 +1,3 @@
-(B) Add centralized exception mapping utility so provider-specific errors become consistent user-facing messages in both API and TUI. +stability +refactor +api +tui +providers
 (B) Add optional in-memory response cache for identical generation requests within a short TTL in local mode to reduce repeated latency during study sessions. +latency +feature +cache
 (B) Add safe cancellation handling in streaming generation to persist partial output snapshots with cancellation metadata for later resume or review. +stability +feature +tui +history
 (B) Add explicit maximum corpus entry size checks during preprocessing to prevent oversized documents from degrading retrieval and generation latency. +stability +performance +corpus
