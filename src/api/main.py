@@ -5,6 +5,7 @@ Provides REST API endpoints for generating, validating, and managing legal hypot
 
 import os
 import time
+import uuid
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -24,6 +25,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from ..config import settings
 from ..domain import canonicalize_topic, is_tort_topic
@@ -47,6 +49,7 @@ from .web import web_router
 # Configure structured logging
 structlog.configure(
     processors=[
+        structlog.contextvars.merge_contextvars,
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
@@ -94,6 +97,43 @@ app.add_middleware(
 # API Key authentication middleware
 JIKAI_API_KEY = os.environ.get("JIKAI_API_KEY", "")
 _EXEMPT_PATHS = {"/", "/health", "/docs", "/redoc", "/openapi.json"}
+REQUEST_ID_HEADER = "X-Request-ID"
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Attach a request ID to contextvars and response headers for each request."""
+
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get(REQUEST_ID_HEADER, "").strip() or str(
+            uuid.uuid4()
+        )
+        request.state.request_id = request_id
+        bind_contextvars(request_id=request_id)
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = round((time.perf_counter() - started) * 1000, 2)
+            logger.exception(
+                "request_unhandled_exception",
+                method=request.method,
+                path=request.url.path,
+                duration_ms=duration_ms,
+            )
+            clear_contextvars()
+            raise
+
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        response.headers[REQUEST_ID_HEADER] = request_id
+        logger.info(
+            "request_completed",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+        )
+        clear_contextvars()
+        return response
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -158,6 +198,7 @@ app.add_middleware(
     rate_limit=settings.api.rate_limit,
     window=60,
 )
+app.add_middleware(RequestIDMiddleware)
 
 
 # Request/Response Models
