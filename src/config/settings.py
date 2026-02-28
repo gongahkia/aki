@@ -58,6 +58,26 @@ class APISettings(BaseSettings):
     debug: bool = Field(default=False, env="API_DEBUG")
     cors_origins: List[str] = Field(default=["*"], env="API_CORS_ORIGINS")
     rate_limit: int = Field(default=100, env="API_RATE_LIMIT")
+    rate_limiter_max_buckets: int = Field(
+        default=10000, env="API_RATE_LIMITER_MAX_BUCKETS"
+    )
+    rate_limiter_bucket_ttl_seconds: int = Field(
+        default=600, env="API_RATE_LIMITER_BUCKET_TTL_SECONDS"
+    )
+    rate_limiter_cleanup_interval_seconds: int = Field(
+        default=60, env="API_RATE_LIMITER_CLEANUP_INTERVAL_SECONDS"
+    )
+
+    @field_validator(
+        "rate_limiter_max_buckets",
+        "rate_limiter_bucket_ttl_seconds",
+        "rate_limiter_cleanup_interval_seconds",
+    )
+    @classmethod
+    def validate_rate_limiter_values(cls, v):
+        if int(v) < 1:
+            raise ValueError("Rate limiter values must be >= 1")
+        return int(v)
 
     class Config:
         env_prefix = "API_"

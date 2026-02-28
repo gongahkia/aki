@@ -163,17 +163,55 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     """Token-bucket rate limiter per client IP."""
 
-    def __init__(self, app, rate_limit: int = 100, window: int = 60):
+    def __init__(
+        self,
+        app,
+        rate_limit: int = 100,
+        window: int = 60,
+        max_buckets: int = 10000,
+        bucket_ttl_seconds: int = 600,
+        cleanup_interval_seconds: int = 60,
+    ):
         super().__init__(app)
         self.rate_limit = rate_limit
         self.window = window
-        self._buckets: Dict[str, list] = defaultdict(list)
+        self.max_buckets = max_buckets
+        self.bucket_ttl_seconds = bucket_ttl_seconds
+        self.cleanup_interval_seconds = cleanup_interval_seconds
+        self._last_cleanup_at = time.time()
+        self._buckets: Dict[str, List[float]] = defaultdict(list)
+
+    def _cleanup_inactive_buckets(self, now: float):
+        if now - self._last_cleanup_at < self.cleanup_interval_seconds:
+            return
+        self._last_cleanup_at = now
+
+        inactive_ips = [
+            ip
+            for ip, bucket in self._buckets.items()
+            if not bucket or (now - bucket[-1]) > self.bucket_ttl_seconds
+        ]
+        for ip in inactive_ips:
+            self._buckets.pop(ip, None)
+
+        if len(self._buckets) <= self.max_buckets:
+            return
+
+        # Keep newest buckets, evict oldest last-seen entries first.
+        ordered = sorted(
+            self._buckets.items(),
+            key=lambda item: item[1][-1] if item[1] else 0.0,
+        )
+        overflow = len(self._buckets) - self.max_buckets
+        for ip, _ in ordered[:overflow]:
+            self._buckets.pop(ip, None)
 
     async def dispatch(self, request: Request, call_next):
         if self.rate_limit <= 0:
             return await call_next(request)
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
+        self._cleanup_inactive_buckets(now)
         # Prune old timestamps
         self._buckets[client_ip] = [
             ts for ts in self._buckets[client_ip] if now - ts < self.window
@@ -203,6 +241,9 @@ if settings.api.rate_limit > 0:
         RateLimiterMiddleware,
         rate_limit=settings.api.rate_limit,
         window=60,
+        max_buckets=settings.api.rate_limiter_max_buckets,
+        bucket_ttl_seconds=settings.api.rate_limiter_bucket_ttl_seconds,
+        cleanup_interval_seconds=settings.api.rate_limiter_cleanup_interval_seconds,
     )
 else:
     logger.info(
