@@ -175,6 +175,12 @@ class Settings(BaseSettings):
     )
     corpus_path: str = Field(default="corpus/clean/tort/corpus.json", env="CORPUS_PATH")
     database_path: str = Field(default="data/jikai.db", env="DATABASE_PATH")
+    retention_enabled: bool = Field(default=True, env="RETENTION_ENABLED")
+    retention_generations: int = Field(default=2000, env="RETENTION_GENERATIONS")
+    retention_reports: int = Field(default=4000, env="RETENTION_REPORTS")
+    retention_cleanup_interval_minutes: int = Field(
+        default=60, env="RETENTION_CLEANUP_INTERVAL_MINUTES"
+    )
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
 
     # Sub-configurations
@@ -206,6 +212,17 @@ class Settings(BaseSettings):
             parsed = [str(domain).strip().lower() for domain in v if str(domain).strip()]
             return parsed or ["tort"]
         return ["tort"]
+
+    @field_validator(
+        "retention_generations",
+        "retention_reports",
+        "retention_cleanup_interval_minutes",
+    )
+    @classmethod
+    def validate_retention_values(cls, v):
+        if int(v) < 1:
+            raise ValueError("Retention values must be >= 1")
+        return int(v)
 
     @property
     def anthropic_api_key(self):

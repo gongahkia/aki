@@ -930,6 +930,65 @@ class DatabaseService:
             logger.error("Search failed", error=str(e))
             return []
 
+    async def enforce_retention(
+        self, max_generations: int, max_reports: int
+    ) -> Dict[str, int]:
+        """Trim old generations/reports to configured retention caps."""
+        try:
+            normalized_generations = max(1, int(max_generations))
+            normalized_reports = max(1, int(max_reports))
+        except (TypeError, ValueError):
+            raise ValueError("Retention limits must be positive integers")
+
+        def _op() -> Dict[str, int]:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM generation_history
+                ORDER BY timestamp DESC
+                LIMIT -1 OFFSET ?
+                """,
+                (normalized_generations,),
+            )
+            generation_rows = cursor.fetchall()
+            generation_ids = [int(row["id"]) for row in generation_rows]
+            if generation_ids:
+                cursor.executemany(
+                    "DELETE FROM generation_history WHERE id = ?",
+                    [(generation_id,) for generation_id in generation_ids],
+                )
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM generation_reports
+                ORDER BY created_at DESC
+                LIMIT -1 OFFSET ?
+                """,
+                (normalized_reports,),
+            )
+            report_rows = cursor.fetchall()
+            report_ids = [int(row["id"]) for row in report_rows]
+            if report_ids:
+                cursor.executemany(
+                    "DELETE FROM generation_reports WHERE id = ?",
+                    [(report_id,) for report_id in report_ids],
+                )
+
+            conn.commit()
+            conn.close()
+            return {
+                "deleted_generations": len(generation_ids),
+                "deleted_reports": len(report_ids),
+            }
+
+        deleted = await self._run_in_thread(_op)
+        logger.info("Retention cleanup completed", **deleted)
+        return deleted
+
     async def health_check(self) -> Dict[str, Any]:
         """Check database health."""
         health_status = {

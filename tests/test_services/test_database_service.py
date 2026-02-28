@@ -378,6 +378,39 @@ class TestDatabaseService:
         assert "Increase factual detail around duty." in context
 
     @pytest.mark.asyncio
+    async def test_enforce_retention_trims_old_generations(self, database_service):
+        """Retention cleanup should delete oldest generations beyond cap."""
+        generation_ids = []
+        for idx in range(4):
+            generation_id = await database_service.save_generation(
+                request_data={
+                    "topics": ["negligence"],
+                    "law_domain": "tort",
+                    "number_parties": 2,
+                    "complexity_level": "intermediate",
+                },
+                response_data={
+                    "hypothetical": f"Hypothetical {idx}",
+                    "analysis": "Analysis",
+                    "generation_time": 10.0 + idx,
+                    "validation_results": {"passed": True, "quality_score": 8.0},
+                    "metadata": {
+                        "generation_timestamp": f"2025-01-01T00:0{idx}:00"
+                    },
+                },
+            )
+            generation_ids.append(generation_id)
+
+        deleted = await database_service.enforce_retention(
+            max_generations=2, max_reports=100
+        )
+
+        assert deleted["deleted_generations"] == 2
+        assert await database_service.get_generation_count() == 2
+        assert await database_service.get_generation_by_id(generation_ids[0]) is None
+        assert await database_service.get_generation_by_id(generation_ids[1]) is None
+
+    @pytest.mark.asyncio
     async def test_generation_report_update_is_blocked(self, database_service):
         """Report comments are immutable and cannot be edited."""
         with pytest.raises(PermissionError):

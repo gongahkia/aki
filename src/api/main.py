@@ -7,6 +7,7 @@ import os
 import time
 import uuid
 import asyncio
+import contextlib
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -99,6 +100,7 @@ app.add_middleware(
 JIKAI_API_KEY = os.environ.get("JIKAI_API_KEY", "")
 _EXEMPT_PATHS = {"/", "/health", "/docs", "/redoc", "/openapi.json"}
 REQUEST_ID_HEADER = "X-Request-ID"
+_retention_cleanup_task: Optional[asyncio.Task] = None
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -202,6 +204,24 @@ app.add_middleware(
 app.add_middleware(RequestIDMiddleware)
 
 
+async def _retention_cleanup_loop():
+    """Periodically trim old generation/report rows based on retention config."""
+    interval_seconds = max(60, settings.retention_cleanup_interval_minutes * 60)
+    while True:
+        try:
+            deleted = await database_service.enforce_retention(
+                max_generations=settings.retention_generations,
+                max_reports=settings.retention_reports,
+            )
+            if deleted.get("deleted_generations", 0) or deleted.get(
+                "deleted_reports", 0
+            ):
+                logger.info("Retention cleanup removed old rows", **deleted)
+        except Exception as e:
+            logger.error("Retention cleanup failed", error=str(e))
+        await asyncio.sleep(interval_seconds)
+
+
 # Request/Response Models
 class HealthResponse(BaseModel):
     """Health check response model."""
@@ -249,6 +269,7 @@ async def get_corpus_service():
 @app.on_event("startup")
 async def startup_event():
     """Application startup event."""
+    global _retention_cleanup_task
     logger.info(
         "Starting Jikai API",
         version=settings.app_version,
@@ -268,6 +289,12 @@ async def startup_event():
         # Health check all services
         health_status = await hypothetical_service.health_check()
         logger.info("Services initialized", health_status=health_status)
+        if settings.retention_enabled:
+            await database_service.enforce_retention(
+                max_generations=settings.retention_generations,
+                max_reports=settings.retention_reports,
+            )
+            _retention_cleanup_task = asyncio.create_task(_retention_cleanup_loop())
     except Exception as e:
         logger.error("Failed to initialize services", error=str(e))
         raise
@@ -276,10 +303,16 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown event."""
+    global _retention_cleanup_task
     logger.info("Shutting down Jikai API")
 
     # Close service connections
     try:
+        if _retention_cleanup_task:
+            _retention_cleanup_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await _retention_cleanup_task
+            _retention_cleanup_task = None
         await llm_service.close()
         logger.info("Services closed successfully")
     except Exception as e:
