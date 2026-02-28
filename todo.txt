@@ -1,4 +1,3 @@
-(B) Normalize and clamp `complexity_level` to a canonical enum across API and TUI before prompt generation. +stability +types +api +tui +prompt
 (B) Add explicit guardrails in prompt templates to cap verbosity when user prioritizes latency and skip optional analysis generation when requested. +latency +prompt +feature
 (B) Add `include_analysis` flag to `GenerationRequest` and TUI generation menu so users can request hypothetical-only fast mode. +latency +feature +api +tui
 (B) Add fast-path validation mode in `ValidationService` for low-latency generation that runs topic and party checks only. +latency +services +validation

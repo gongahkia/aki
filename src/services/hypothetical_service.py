@@ -29,6 +29,35 @@ from .validation_service import validation_service
 logger = structlog.get_logger(__name__)
 
 MAX_HISTORY_SIZE = 100
+CANONICAL_COMPLEXITY_LEVELS = ["beginner", "basic", "intermediate", "advanced", "expert"]
+COMPLEXITY_LEVEL_MAP: Dict[str, str] = {
+    "1": "beginner",
+    "beginner": "beginner",
+    "simple": "beginner",
+    "easy": "beginner",
+    "2": "basic",
+    "basic": "basic",
+    "3": "intermediate",
+    "intermediate": "intermediate",
+    "moderate": "intermediate",
+    "medium": "intermediate",
+    "4": "advanced",
+    "advanced": "advanced",
+    "complex": "advanced",
+    "hard": "advanced",
+    "5": "expert",
+    "expert": "expert",
+}
+
+
+def normalize_complexity_level(value: Any) -> str:
+    normalized = str(value).strip().lower()
+    if normalized in COMPLEXITY_LEVEL_MAP:
+        return COMPLEXITY_LEVEL_MAP[normalized]
+    raise ValueError(
+        "Unsupported complexity_level "
+        f"'{value}'. Allowed values: {', '.join(CANONICAL_COMPLEXITY_LEVELS + ['1', '2', '3', '4', '5'])}"
+    )
 
 
 class GenerationRequest(BaseModel):
@@ -60,6 +89,11 @@ class GenerationRequest(BaseModel):
                 f"Unsupported law_domain '{value}'. Allowed values: {allowed_list}"
             )
         return normalized
+
+    @field_validator("complexity_level")
+    @classmethod
+    def validate_complexity_level(cls, value: str) -> str:
+        return normalize_complexity_level(value)
 
 
 class GenerationResponse(BaseModel):

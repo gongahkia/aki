@@ -543,6 +543,7 @@ def _estimate_generation_preview(request: GenerationRequest) -> GeneratePreviewR
         "basic": 2,
         "intermediate": 3,
         "advanced": 4,
+        "expert": 5,
     }
     raw_complexity = str(request.complexity_level).strip().lower()
     if raw_complexity.isdigit():

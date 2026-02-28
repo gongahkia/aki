@@ -13,3 +13,13 @@ def test_generation_request_allows_configured_law_domain():
 def test_generation_request_rejects_unsupported_law_domain():
     with pytest.raises(ValueError):
         GenerationRequest(topics=["negligence"], law_domain="contract")
+
+
+def test_generation_request_normalizes_complexity_level():
+    request = GenerationRequest(topics=["negligence"], complexity_level="4")
+    assert request.complexity_level == "advanced"
+
+
+def test_generation_request_rejects_unknown_complexity_level():
+    with pytest.raises(ValueError):
+        GenerationRequest(topics=["negligence"], complexity_level="impossible")

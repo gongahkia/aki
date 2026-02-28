@@ -142,6 +142,13 @@ COMPLEXITY_CHOICES = [
     Choice("4 — Complex", value="4"),
     Choice("5 — Advanced", value="5"),
 ]
+_COMPLEXITY_LEVELS = {
+    "1": "beginner",
+    "2": "basic",
+    "3": "intermediate",
+    "4": "advanced",
+    "5": "expert",
+}
 PARTIES_CHOICES = [
     Choice("2 parties", value="2"),
     Choice("3 parties", value="3"),
@@ -407,6 +414,15 @@ def _validated_text(message, default="", validate=None):
 def _run_async(coro):
     """Run async coroutine from synchronous context."""
     return asyncio.run(coro)
+
+
+def _normalize_complexity_level(value: Any) -> str:
+    normalized = str(value).strip().lower()
+    if normalized in _COMPLEXITY_LEVELS:
+        return _COMPLEXITY_LEVELS[normalized]
+    if normalized in _COMPLEXITY_LEVELS.values():
+        return normalized
+    return "intermediate"
 
 
 HISTORY_PATH = "data/history.json"
@@ -2001,6 +2017,7 @@ class JikaiTUI:
     def _do_generate(self, cfg: "GenerationConfig"):
         topic, provider, model = cfg.topic, cfg.provider, cfg.model
         complexity, parties, method = cfg.complexity, cfg.parties, cfg.method
+        complexity_level = _normalize_complexity_level(complexity)
         temperature, red_herrings = cfg.temperature, cfg.red_herrings
         max_retries = 3
         partial_result = ""
@@ -2018,8 +2035,8 @@ class JikaiTUI:
             request = LLMRequest(
                 prompt=(
                     f"Generate a Singapore tort law hypothetical about "
-                    f"{topic} with {parties} parties at complexity "
-                    f"{complexity}/5.{red_herring_instr}"
+                    f"{topic} with {parties} parties at {complexity_level} complexity."
+                    f"{red_herring_instr}"
                 ),
                 temperature=temperature,
                 stream=True,
