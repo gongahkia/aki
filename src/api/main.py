@@ -729,36 +729,29 @@ async def ml_status():
 
 
 # Export endpoint
-@app.get("/export/{history_id}")
+@app.get("/export/{generation_id}")
 async def export_generation(
-    history_id: int, format: str = "docx", background_tasks: BackgroundTasks = None
+    generation_id: int, format: str = "docx", background_tasks: BackgroundTasks = None
 ):
-    """Export a generation from history as DOCX or PDF file download."""
+    """Export a generation by SQLite generation ID as DOCX or PDF file download."""
     if format not in ("docx", "pdf"):
         raise HTTPException(status_code=400, detail="Format must be 'docx' or 'pdf'")
-    if history_id < 0:
+    if generation_id <= 0:
         raise HTTPException(
-            status_code=400, detail="history_id must be a non-negative integer"
+            status_code=400, detail="generation_id must be a positive integer"
         )
 
     await database_service.migrate_legacy_history_json()
-    total_generations = await database_service.get_generation_count()
-    if total_generations <= 0:
-        raise HTTPException(status_code=404, detail="No generation history found")
-
-    record = await database_service.get_history_record_by_index(history_id)
-    if not record:
+    row = await database_service.get_generation_by_id(generation_id)
+    if not row:
         raise HTTPException(
-            status_code=404,
-            detail=(
-                f"History ID {history_id} not found. "
-                f"Range: 0-{max(0, total_generations - 1)}"
-            ),
+            status_code=404, detail=f"Generation ID {generation_id} not found"
         )
 
-    hypo = record.get("hypothetical", "")
-    analysis = record.get("analysis", "")
-    model_answer = record.get("model_answer", "")
+    response_record = row.get("response", {})
+    hypo = response_record.get("hypothetical", "")
+    analysis = response_record.get("analysis", "")
+    model_answer = response_record.get("model_answer", "")
 
     try:
         import tempfile
@@ -817,7 +810,7 @@ async def export_generation(
         return FileResponse(
             resp_path,
             media_type=media,
-            filename=f"hypothetical_{history_id}.{format}",
+            filename=f"hypothetical_{generation_id}.{format}",
         )
     except ImportError:
         raise HTTPException(status_code=500, detail="python-docx not installed")
