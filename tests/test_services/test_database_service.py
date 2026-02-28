@@ -378,6 +378,45 @@ class TestDatabaseService:
         assert "Increase factual detail around duty." in context
 
     @pytest.mark.asyncio
+    async def test_migrated_history_records_retrievable_by_generation_id(
+        self, database_service
+    ):
+        """Migrated legacy history rows should be exportable by generation ID."""
+        legacy_history_path = database_service._db_path.parent / "history_export.json"
+        legacy_history_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "timestamp": "2025-01-01T00:00:00",
+                        "config": {
+                            "topic": "negligence",
+                            "provider": "ollama",
+                            "model": "llama3",
+                            "complexity": 3,
+                            "parties": 2,
+                            "method": "pure_llm",
+                        },
+                        "hypothetical": "Legacy hypothetical",
+                        "analysis": "Legacy analysis",
+                        "validation_score": 8.0,
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        await database_service.migrate_legacy_history_json(
+            history_path=str(legacy_history_path)
+        )
+        records = await database_service.get_history_records(limit=5)
+        assert records
+
+        generation_id = records[0]["generation_id"]
+        row = await database_service.get_generation_by_id(generation_id)
+        assert row is not None
+        assert row["id"] == generation_id
+
+    @pytest.mark.asyncio
     async def test_enforce_retention_trims_old_generations(self, database_service):
         """Retention cleanup should delete oldest generations beyond cap."""
         generation_ids = []

@@ -169,3 +169,18 @@ def test_regenerate_endpoint_uses_feedback_context(monkeypatch):
     assert payload["source_generation_id"] == 42
     assert payload["feedback_context"] == "Issue types: topic_mismatch"
     assert payload["regenerated"]["metadata"]["generation_id"] == 77
+
+
+def test_export_endpoint_looks_up_sqlite_generation_id(monkeypatch):
+    client = TestClient(app)
+    get_generation = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "src.api.main.database_service.get_generation_by_id",
+        get_generation,
+    )
+
+    response = client.get("/export/321?format=docx")
+
+    assert response.status_code == 404
+    assert "321" in response.json()["detail"]
+    get_generation.assert_awaited_once_with(321)
