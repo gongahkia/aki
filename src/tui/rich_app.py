@@ -28,6 +28,11 @@ from rich.table import Table
 from rich.text import Text
 
 from ..domain import TORT_TOPICS
+from . import generation as generation_module
+from . import history as history_module
+from . import menus as menus_module
+from . import providers as providers_module
+from . import settings as settings_module
 
 console = Console()
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
@@ -456,6 +461,28 @@ class JikaiTUI:
         self._cached_last_score: str = "—"
         self._history_migrated: bool = False
 
+    # Flow orchestration delegates (modular entrypoints)
+    def main_menu(self):
+        return menus_module.main_menu(self)
+
+    def _more_menu(self):
+        return menus_module.more_menu(self)
+
+    def _tools_menu(self):
+        return menus_module.tools_menu(self)
+
+    def generate_flow(self):
+        return generation_module.generate_flow(self)
+
+    def history_flow(self):
+        return history_module.history_flow(self)
+
+    def providers_flow(self):
+        return providers_module.providers_flow(self)
+
+    def settings_flow(self):
+        return settings_module.settings_flow(self)
+
     def _push_nav(self, label: str):
         self._nav_path.append(label)
 
@@ -564,7 +591,7 @@ class JikaiTUI:
             )
         )
 
-    def main_menu(self):
+    def _main_menu_impl(self):
         self._nav_path = ["Main"]
         while True:
             self._render_breadcrumb()
@@ -779,7 +806,7 @@ class JikaiTUI:
             if choice in _flow_labels:
                 self._pop_nav()
 
-    def _more_menu(self):
+    def _more_menu_impl(self):
         """Submenu for secondary features: History, Stats, Batch Ops, Settings, Providers, Clean Up."""
         while True:
             console.print("\n[bold yellow]More[/bold yellow]")
@@ -901,7 +928,7 @@ class JikaiTUI:
             )
         )
 
-    def _tools_menu(self):
+    def _tools_menu_impl(self):
         """Submenu for power tools outside the core workflow."""
         while True:
             console.print("\n[bold yellow]Batch Operations[/bold yellow]")
@@ -1853,7 +1880,7 @@ class JikaiTUI:
             json.dump(state, f, indent=2)
         os.rename(tmp, ".jikai_state")  # atomic write
 
-    def generate_flow(self):
+    def _generate_flow_impl(self):
         while True:
             console.print("\n[bold yellow]Generate Hypothetical[/bold yellow]")
             mode = _select_quit(
@@ -2837,7 +2864,7 @@ class JikaiTUI:
             return []
 
     # ── history ────────────────────────────────────────────────
-    def history_flow(self):
+    def _history_flow_impl(self):
         """Browse generation history with search/filter/recall."""
         console.print("\n[bold yellow]Generation History[/bold yellow]")
         history = self._load_history()
@@ -3823,7 +3850,7 @@ class JikaiTUI:
         )
 
     # ── settings ────────────────────────────────────────────────
-    def settings_flow(self):
+    def _settings_flow_impl(self):
         console.print("\n[bold yellow]Settings[/bold yellow]")
 
         def _mask(v):
@@ -4116,7 +4143,7 @@ class JikaiTUI:
         return vals
 
     # ── providers ───────────────────────────────────────────────
-    def providers_flow(self):
+    def _providers_flow_impl(self):
         console.print("\n[bold yellow]LLM Providers[/bold yellow]")
         while True:
             c = _select_quit(
