@@ -1,4 +1,3 @@
-(B) Ensure TUI “Report and regenerate” disables comment editing after submit and displays comment as read-only in subsequent retries. +philosophical +tui +integrity
 (B) Persist retry lineage by writing `parent_generation_id`, `retry_reason`, and `retry_attempt` metadata for each regenerated output in SQLite. +philosophical +database +traceability
 (B) Replace `data/history.json` as primary history source with SQLite-backed history queries in both API and TUI while preserving one-time migration for existing JSON history. +philosophical +refactor +api +tui +database
 (B) Refactor API export endpoint in `src/api/main.py` to export by SQLite generation ID instead of JSON index position. +philosophical +api +export +database

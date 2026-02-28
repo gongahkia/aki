@@ -2447,17 +2447,41 @@ class JikaiTUI:
             console.print("[yellow]Select at least one issue flag to continue.[/yellow]")
             return None
 
-        comment_input = _text("Optional comment", default="")
-        if comment_input is None:
-            return None
-        comment = comment_input.strip() or None
-
         try:
             from ..services.database_service import GenerationReport, database_service
             from ..services.hypothetical_service import (
                 GenerationRequest,
                 hypothetical_service,
             )
+
+            existing_reports = _run_async(
+                database_service.get_generation_reports(source_generation_id)
+            )
+            locked_comments = []
+            for existing_report in existing_reports:
+                existing_comment = (existing_report.comment or "").strip()
+                if existing_comment:
+                    locked_comments.append(existing_comment)
+
+            comment = None
+            if locked_comments:
+                locked_comment_text = "\n".join(
+                    f"{idx}. {existing_comment}"
+                    for idx, existing_comment in enumerate(locked_comments, 1)
+                )
+                console.print(
+                    Panel(
+                        locked_comment_text,
+                        title="Reporter Comment (read-only)",
+                        box=box.ROUNDED,
+                        border_style="yellow",
+                    )
+                )
+            else:
+                comment_input = _text("Optional comment", default="")
+                if comment_input is None:
+                    return None
+                comment = comment_input.strip() or None
 
             report = GenerationReport(
                 generation_id=source_generation_id,
