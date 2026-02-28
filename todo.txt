@@ -1,4 +1,3 @@
-(B) Add `GenerationFeedback` and `GenerationReport` models in `src/services/database_service.py` and persist them in new SQLite tables with foreign keys to generation records. +philosophical +feature +database
 (B) Implement `POST /generate/{generation_id}/report` in `src/api/main.py` to store user failure reports with issue type, comment, and timestamp. +philosophical +feature +api
 (B) Implement `POST /generate/{generation_id}/regenerate` in `src/api/main.py` to force regeneration using original config plus stored immutable feedback context. +philosophical +feature +api
 (B) Add immutable comment locking by storing report comments as append-only rows and preventing update/delete operations at both service and API layer. +philosophical +feature +integrity

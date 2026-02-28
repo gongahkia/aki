@@ -1,6 +1,11 @@
 """Services package for Jikai application."""
 
-from .database_service import DatabaseService, database_service
+from .database_service import (
+    DatabaseService,
+    GenerationFeedback,
+    GenerationReport,
+    database_service,
+)
 from .hypothetical_service import (
     GenerationRequest,
     GenerationResponse,
@@ -32,6 +37,8 @@ __all__ = [
     "LLMResponse",
     "llm_service",
     "DatabaseService",
+    "GenerationReport",
+    "GenerationFeedback",
     "database_service",
     "HypotheticalService",
     "hypothetical_service",

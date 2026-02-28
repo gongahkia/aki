@@ -8,7 +8,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from src.services.database_service import DatabaseService
+from src.services.database_service import (
+    DatabaseService,
+    GenerationFeedback,
+    GenerationReport,
+)
 
 
 class TestDatabaseService:
@@ -149,3 +153,58 @@ class TestDatabaseService:
         assert len(results) == 2  # Two entries with 'negligence'
         assert "hypothetical" in results[0]
         assert "topics" in results[0]
+
+    @pytest.mark.asyncio
+    async def test_save_generation_report_and_feedback(self, database_service):
+        """Test saving report and feedback linked to a generation."""
+        generation_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+            },
+            response_data={
+                "hypothetical": "Test hypothetical text...",
+                "analysis": "Test analysis...",
+                "generation_time": 11.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {"generation_timestamp": "2025-01-01T00:00:00"},
+            },
+        )
+
+        report_id = await database_service.save_generation_report(
+            GenerationReport(
+                generation_id=generation_id,
+                issue_types=["topic_mismatch"],
+                comment="Regenerate with stricter topic coverage",
+                is_locked=True,
+            )
+        )
+        assert report_id > 0
+
+        feedback_id = await database_service.save_generation_feedback(
+            GenerationFeedback(
+                report_id=report_id,
+                generation_id=generation_id,
+                feedback_text="Previous attempt missed causation details.",
+            )
+        )
+        assert feedback_id > 0
+
+        reports = await database_service.get_generation_reports(generation_id)
+        assert len(reports) == 1
+        assert reports[0].issue_types == ["topic_mismatch"]
+        assert reports[0].is_locked is True
+
+    @pytest.mark.asyncio
+    async def test_generation_report_foreign_key_enforced(self, database_service):
+        """Report insert should fail when generation row is missing."""
+        with pytest.raises(Exception):
+            await database_service.save_generation_report(
+                GenerationReport(
+                    generation_id=999999,
+                    issue_types=["quality_fail"],
+                    comment="No linked generation should fail.",
+                )
+            )

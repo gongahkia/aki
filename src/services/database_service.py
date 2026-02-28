@@ -10,8 +10,30 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import structlog
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
+
+
+class GenerationReport(BaseModel):
+    """Structured generation issue report."""
+
+    id: Optional[int] = None
+    generation_id: int
+    issue_types: List[str] = Field(default_factory=list)
+    comment: Optional[str] = None
+    is_locked: bool = True
+    created_at: Optional[str] = None
+
+
+class GenerationFeedback(BaseModel):
+    """Follow-up feedback linked to a generation report."""
+
+    id: Optional[int] = None
+    report_id: int
+    generation_id: int
+    feedback_text: str
+    created_at: Optional[str] = None
 
 
 class DatabaseService:
@@ -28,6 +50,7 @@ class DatabaseService:
         """Get database connection."""
         conn = sqlite3.Connection(str(self._db_path))
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
     def _initialize_database(self):
@@ -66,6 +89,40 @@ class DatabaseService:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_topics
                 ON generation_history(topics)
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS generation_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    generation_id INTEGER NOT NULL,
+                    issue_types TEXT NOT NULL,
+                    comment TEXT,
+                    is_locked BOOLEAN NOT NULL DEFAULT 1,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_generation_reports_generation_id
+                ON generation_reports(generation_id)
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS generation_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    report_id INTEGER NOT NULL,
+                    generation_id INTEGER NOT NULL,
+                    feedback_text TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (report_id) REFERENCES generation_reports(id) ON DELETE CASCADE,
+                    FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_generation_feedback_report_id
+                ON generation_feedback(report_id)
             """)
 
             conn.commit()
@@ -174,6 +231,86 @@ class DatabaseService:
 
         except Exception as e:
             logger.error("Failed to get recent generations", error=str(e))
+            return []
+
+    async def save_generation_report(self, report: GenerationReport) -> int:
+        """Persist a report linked to a generation row."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO generation_reports (
+                    generation_id, issue_types, comment, is_locked
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    report.generation_id,
+                    json.dumps(report.issue_types),
+                    report.comment,
+                    bool(report.is_locked),
+                ),
+            )
+            report_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            logger.info("Generation report saved", report_id=report_id)
+            return int(report_id)
+        except Exception as e:
+            logger.error("Failed to save generation report", error=str(e))
+            raise
+
+    async def save_generation_feedback(self, feedback: GenerationFeedback) -> int:
+        """Persist follow-up feedback for a report."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO generation_feedback (
+                    report_id, generation_id, feedback_text
+                ) VALUES (?, ?, ?)
+                """,
+                (feedback.report_id, feedback.generation_id, feedback.feedback_text),
+            )
+            feedback_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            logger.info("Generation feedback saved", feedback_id=feedback_id)
+            return int(feedback_id)
+        except Exception as e:
+            logger.error("Failed to save generation feedback", error=str(e))
+            raise
+
+    async def get_generation_reports(self, generation_id: int) -> List[GenerationReport]:
+        """Fetch reports associated with a generation."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, generation_id, issue_types, comment, is_locked, created_at
+                FROM generation_reports
+                WHERE generation_id = ?
+                ORDER BY created_at ASC
+                """,
+                (generation_id,),
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            return [
+                GenerationReport(
+                    id=row["id"],
+                    generation_id=row["generation_id"],
+                    issue_types=json.loads(row["issue_types"]),
+                    comment=row["comment"],
+                    is_locked=bool(row["is_locked"]),
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+        except Exception as e:
+            logger.error("Failed to load generation reports", error=str(e))
             return []
 
     async def get_statistics(self) -> Dict[str, Any]:
