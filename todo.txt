@@ -1,4 +1,3 @@
-(B) Add immutable comment locking by storing report comments as append-only rows and preventing update/delete operations at both service and API layer. +philosophical +feature +integrity
 (B) Extend TUI generation flow in `src/tui/rich_app.py` with a “Report and regenerate” action that captures structured issue flags and optional comments. +philosophical +feature +tui
 (B) Ensure TUI “Report and regenerate” disables comment editing after submit and displays comment as read-only in subsequent retries. +philosophical +tui +integrity
 (B) Persist retry lineage by writing `parent_generation_id`, `retry_reason`, and `retry_attempt` metadata for each regenerated output in SQLite. +philosophical +database +traceability

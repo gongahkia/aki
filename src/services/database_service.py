@@ -392,6 +392,18 @@ class DatabaseService:
 
         return " | ".join(segments)
 
+    async def update_generation_report_comment(self, report_id: int, comment: str):
+        """Generation reports are append-only and cannot be edited."""
+        raise PermissionError(
+            f"Generation report {report_id} is immutable; create a new report instead"
+        )
+
+    async def delete_generation_report(self, report_id: int):
+        """Generation reports are append-only and cannot be deleted."""
+        raise PermissionError(
+            f"Generation report {report_id} is immutable; deletion is not allowed"
+        )
+
     async def get_statistics(self) -> Dict[str, Any]:
         """
         Get generation statistics from database.

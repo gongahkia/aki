@@ -459,6 +459,30 @@ async def report_generation_failure(
     )
 
 
+@app.put("/generate/{generation_id}/report/{report_id}")
+async def update_generation_report(generation_id: int, report_id: int):
+    """Generation reports are immutable once submitted."""
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            f"Report {report_id} for generation {generation_id} is immutable. "
+            "Submit a new report instead."
+        ),
+    )
+
+
+@app.delete("/generate/{generation_id}/report/{report_id}")
+async def delete_generation_report(generation_id: int, report_id: int):
+    """Generation reports are immutable once submitted."""
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            f"Report {report_id} for generation {generation_id} is immutable. "
+            "Deletion is not allowed."
+        ),
+    )
+
+
 @app.post(
     "/generate/{generation_id}/regenerate",
     response_model=RegenerateGenerationResponse,

@@ -273,3 +273,17 @@ class TestDatabaseService:
         assert "topic_mismatch" in context
         assert "Missing causation detail." in context
         assert "Increase factual detail around duty." in context
+
+    @pytest.mark.asyncio
+    async def test_generation_report_update_is_blocked(self, database_service):
+        """Report comments are immutable and cannot be edited."""
+        with pytest.raises(PermissionError):
+            await database_service.update_generation_report_comment(
+                report_id=1, comment="new comment"
+            )
+
+    @pytest.mark.asyncio
+    async def test_generation_report_delete_is_blocked(self, database_service):
+        """Reports are append-only and cannot be deleted."""
+        with pytest.raises(PermissionError):
+            await database_service.delete_generation_report(report_id=1)
