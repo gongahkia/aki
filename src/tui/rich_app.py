@@ -33,6 +33,7 @@ from . import history as history_module
 from . import menus as menus_module
 from . import providers as providers_module
 from . import settings as settings_module
+from .history_models import validate_history_records
 from .installer import install_service_dependencies, request_install_confirmation
 from .state import LastGenerationConfig, TUIState
 
@@ -2787,13 +2788,21 @@ class JikaiTUI:
         finally:
             self._history_migrated = True
 
-    def _save_to_history(self, record: Dict):
-        """Record success message for SQLite-backed history persistence."""
+    def _save_to_history(self, record: Dict[str, Any]):
+        """Validate history payload and emit SQLite persistence status."""
         from datetime import datetime
 
         if "timestamp" not in record:
             record["timestamp"] = datetime.now().isoformat()
-        generation_id = record.get("generation_id")
+        validated, _ = validate_history_records([record])
+        if not validated:
+            console.print(
+                "[red]✗ Rejected invalid history record; generation metadata was not saved locally.[/red]"
+            )
+            tlog.info("ERROR  history save validation failed")
+            return
+        normalized_record = validated[0]
+        generation_id = normalized_record.get("generation_id")
         if generation_id:
             console.print(f"[green]✓ Saved to history (id={generation_id})[/green]")
         else:
@@ -2801,7 +2810,7 @@ class JikaiTUI:
                 "[yellow]⚠ Saved record has no generation_id; SQLite persistence may be incomplete.[/yellow]"
             )
 
-    def _load_history(self) -> List[Dict]:
+    def _load_history(self) -> List[Dict[str, Any]]:
         """Load generation history from SQLite, with legacy JSON fallback."""
         self._ensure_history_migrated()
         try:
@@ -2809,7 +2818,12 @@ class JikaiTUI:
 
             records = _run_async(database_service.get_history_records(limit=500))
             if records:
-                return records
+                validated_records, dropped = validate_history_records(records)
+                if dropped:
+                    tlog.info(
+                        "HISTORY  dropped invalid sqlite records count=%d", dropped
+                    )
+                return validated_records
         except Exception as e:
             tlog.info("ERROR  history sqlite load: %s", e)
 
@@ -2819,7 +2833,15 @@ class JikaiTUI:
             return []
         try:
             with open(hp, "r") as f:
-                return json.load(f)
+                payload = json.load(f)
+            if not isinstance(payload, list):
+                return []
+            validated_records, dropped = validate_history_records(payload)
+            if dropped:
+                tlog.info(
+                    "HISTORY  dropped invalid legacy json records count=%d", dropped
+                )
+            return validated_records
         except json.JSONDecodeError:
             import shutil
 
