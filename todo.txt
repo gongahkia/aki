@@ -1,0 +1,65 @@
+(B) Replace hardcoded `TOPICS`, `TOPIC_DESCRIPTIONS`, and `TOPIC_CATEGORIES` in `src/tui/rich_app.py` with imports from `src/domain/topics.py` to eliminate topic drift. +philosophical +tui +refactor
+(B) Update `src/services/validation_service.py` to normalize requested topics through `normalize_topic` before keyword matching and return canonical topic identifiers in `topics_found` and `topics_missing`. +philosophical +services +validation
+(B) Update `src/services/prompt_engineering/templates.py` to normalize topic keys before applying `TOPIC_HINTS` so hints work for both spaced and underscored input. +philosophical +services +prompt
+(B) Add `ALLOWED_LAW_DOMAINS=tort` setting in `src/config/settings.py` and reject non-tort `law_domain` values in `GenerationRequest` validation. +philosophical +config +api +safety
+(B) Restrict corpus preprocessing in `src/services/corpus_preprocessor.py` to the `tort` directory by default and add explicit `--include-non-tort` CLI opt-in for optional expansion. +philosophical +services +corpus
+(B) Add an API-level guard in `src/api/main.py` that rejects generation requests containing topics outside canonical tort topic registry even if corpus contains them. +philosophical +api +validation
+(B) Add `GenerationFeedback` and `GenerationReport` models in `src/services/database_service.py` and persist them in new SQLite tables with foreign keys to generation records. +philosophical +feature +database
+(B) Implement `POST /generate/{generation_id}/report` in `src/api/main.py` to store user failure reports with issue type, comment, and timestamp. +philosophical +feature +api
+(B) Implement `POST /generate/{generation_id}/regenerate` in `src/api/main.py` to force regeneration using original config plus stored immutable feedback context. +philosophical +feature +api
+(B) Add immutable comment locking by storing report comments as append-only rows and preventing update/delete operations at both service and API layer. +philosophical +feature +integrity
+(B) Extend TUI generation flow in `src/tui/rich_app.py` with a “Report and regenerate” action that captures structured issue flags and optional comments. +philosophical +feature +tui
+(B) Ensure TUI “Report and regenerate” disables comment editing after submit and displays comment as read-only in subsequent retries. +philosophical +tui +integrity
+(B) Persist retry lineage by writing `parent_generation_id`, `retry_reason`, and `retry_attempt` metadata for each regenerated output in SQLite. +philosophical +database +traceability
+(B) Replace `data/history.json` as primary history source with SQLite-backed history queries in both API and TUI while preserving one-time migration for existing JSON history. +philosophical +refactor +api +tui +database
+(B) Refactor API export endpoint in `src/api/main.py` to export by SQLite generation ID instead of JSON index position. +philosophical +api +export +database
+(B) Fix PDF export creation in `src/api/main.py` by always saving DOCX first, then converting to PDF when requested, and cleaning both temp files safely. +stability +bugfix +api +export
+(B) Add `POST /generate/preview` in `src/api/main.py` that validates request and returns estimated latency/cost metadata without running full generation. +dx +api +latency
+(B) Add optional minimal web UI route group in FastAPI (`src/api/web.py`) using server-rendered templates styled for Apple/Notion-like minimalism and backed by existing generation APIs. +philosophical +feature +web +minimal
+(B) Keep TUI as default entrypoint while adding `make web` and `python -m src.api.web` commands for optional web surface without replacing current stack. +philosophical +dx +make +web
+(B) Split `src/tui/rich_app.py` into modular files (`menus.py`, `generation.py`, `history.py`, `providers.py`, `settings.py`) and keep `JikaiTUI` as thin orchestration layer. +dx +refactor +tui
+(B) Introduce a typed `TUIState` dataclass in a new module and replace ad-hoc dict state reads/writes across generation and settings flows. +dx +types +tui +refactor
+(B) Move direct subprocess dependency installation out of interactive runtime path and gate it behind explicit user confirmation utility in a dedicated installer module. +dx +tui +safety
+(B) Replace hardcoded provider model lists in TUI with runtime model fetch from `llm_service.list_models()` and cache results per provider session. +dx +tui +providers
+(B) Add provider-specific capability map (`supports_stream`, `supports_system_prompt`, `max_tokens`) and validate generation config before invoking provider calls. +dx +services +providers
+(B) Add strict Pydantic models for TUI history records and validate load/save operations instead of writing untyped JSON dicts. +dx +types +tui +history
+(B) Replace `Field` with `Query` in GET endpoint query params in `src/api/main.py` (for `/corpus/entries` limit) to align FastAPI request parsing semantics. +stability +bugfix +api
+(B) Add request ID middleware in `src/api/main.py` that injects a correlation ID into logs and response headers for every request. +dx +observability +api
+(B) Propagate generation correlation IDs from API/TUI into `HypotheticalService`, `LLMService`, and `DatabaseService` logs for traceability. +dx +observability +services
+(B) Add structured latency metrics (topic extraction time, retrieval time, generation time, validation time, analysis time) and expose them in `/stats`. +dx +observability +latency
+(B) Add explicit warmup command `make warmup` that preloads corpus topics, checks provider health, and optionally initializes embedding model to reduce first-generation latency. +stability +latency +make
+(B) Cache extracted topic list in `CorpusService` with file mtime invalidation to avoid re-reading full corpus on every `/generate` request. +stability +latency +services +corpus
+(B) Add async lock protection around first-time vector index initialization to prevent duplicate indexing under concurrent requests. +stability +concurrency +vector +services
+(B) Run vector indexing in background task and fall back immediately to keyword retrieval when index is not ready instead of blocking generation path. +stability +latency +vector +services
+(B) Move synchronous SQLite operations to `asyncio.to_thread` wrappers or switch to `aiosqlite` to prevent blocking FastAPI event loop. +stability +performance +database +api
+(B) Add SQLite schema migration support for new tables and indexes using Alembic and run migrations on startup in non-test environments. +stability +infra +database
+(B) Add bounded retention policy config for generations, reports, and retry lineage with periodic cleanup task to keep local storage predictable. +stability +database +config
+(B) Make rate limiter behavior explicit for local mode by allowing disablement via `API_RATE_LIMIT=0` and bypass middleware in that configuration. +dx +api +config
+(B) Harden `RateLimiterMiddleware` memory usage by adding periodic cleanup for inactive IP buckets and configurable max bucket count. +stability +api +memory
+(B) Add provider timeout override per request in `GenerationRequest.user_preferences` with safe upper/lower bounds and fallback defaults. +latency +services +providers
+(B) Add retry jitter to `retry_on_failure` decorator in `src/services/llm_providers/base.py` to reduce synchronized retry bursts. +stability +providers +network
+(B) Normalize and clamp `complexity_level` to a canonical enum across API and TUI before prompt generation. +stability +types +api +tui +prompt
+(B) Add explicit guardrails in prompt templates to cap verbosity when user prioritizes latency and skip optional analysis generation when requested. +latency +prompt +feature
+(B) Add `include_analysis` flag to `GenerationRequest` and TUI generation menu so users can request hypothetical-only fast mode. +latency +feature +api +tui
+(B) Add fast-path validation mode in `ValidationService` for low-latency generation that runs topic and party checks only. +latency +services +validation
+(B) Add regression tests for API generation endpoints, topic validation, batch generation, provider selection, and new report/regenerate endpoints. +dx +tests +api
+(B) Add regression tests for corpus preprocessor tort-only default behavior and `--include-non-tort` opt-in behavior. +dx +tests +corpus
+(B) Add regression tests for history migration from `data/history.json` to SQLite and export-by-id behavior. +dx +tests +database +export
+(B) Add regression tests for immutable report comment locking and retry lineage persistence. +dx +tests +integrity +database
+(B) Expand TUI tests beyond import checks by adding interaction-level tests for generate, report/regenerate, provider selection, and history browse flows. +dx +tests +tui
+(B) Add unit tests for topic normalization boundary cases (underscore/space/case mismatches) across prompting and validation services. +dx +tests +validation +prompt
+(B) Add tests for vector initialization concurrency guard and fallback-to-keyword retrieval behavior under initialization failure. +dx +tests +vector +concurrency
+(B) Add CI step that fails on mypy errors for touched files while keeping global non-strict mode as interim migration strategy. +dx +ci +types
+(B) Add CI smoke test that boots API app, runs `/health`, and executes one mocked generation request to catch startup regressions. +dx +ci +api
+(B) Add performance test script in `tests/perf` to benchmark end-to-end local generation latency for baseline and fast-mode paths. +stability +tests +latency
+(B) Add Make target `make bench-latency` to run the performance script and output p50/p95 latency summary. +dx +make +latency
+(B) Ensure `pyproject.toml` console script points to a true callable entrypoint (not `FastAPI` app object) by mapping `jikai` to `src.tui.__main__:main`. +stability +bugfix +packaging
+(B) Add centralized exception mapping utility so provider-specific errors become consistent user-facing messages in both API and TUI. +stability +refactor +api +tui +providers
+(B) Add optional in-memory response cache for identical generation requests within a short TTL in local mode to reduce repeated latency during study sessions. +latency +feature +cache
+(B) Add safe cancellation handling in streaming generation to persist partial output snapshots with cancellation metadata for later resume or review. +stability +feature +tui +history
+(B) Add explicit maximum corpus entry size checks during preprocessing to prevent oversized documents from degrading retrieval and generation latency. +stability +performance +corpus
+(B) Add semantic search relevance threshold in `VectorService.semantic_search` and fallback to keyword retrieval when top similarity is below threshold. +stability +quality +vector
+(B) Add a unified service facade module that both API and TUI call for generation/report/regeneration so business logic is not duplicated across interfaces. +philosophical +refactor +api +tui +services
+(B) Add a startup self-check that validates required tort corpus file exists and fails fast with actionable error when missing. +stability +api +tui +startup
+(B) Add provider health cache with short TTL to avoid repeated expensive health probes during interactive TUI sessions. +latency +tui +providers
+(B) Add sqlite indexes on `generation_history(timestamp)`, `generation_reports(generation_id)`, and `generation_history(parent_generation_id)` for faster history and lineage queries. +stability +database +performance
