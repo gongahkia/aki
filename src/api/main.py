@@ -6,6 +6,7 @@ Provides REST API endpoints for generating, validating, and managing legal hypot
 import os
 import time
 import uuid
+import asyncio
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -256,6 +257,11 @@ async def startup_event():
 
     # Initialize services
     try:
+        env_name = os.environ.get("ENVIRONMENT", settings.environment).strip().lower()
+        if env_name != "test" and not os.environ.get("PYTEST_CURRENT_TEST"):
+            from ..services.migrations import run_database_migrations
+
+            await asyncio.to_thread(run_database_migrations)
         migrated_count = await database_service.migrate_legacy_history_json()
         if migrated_count:
             logger.info("Migrated legacy history.json into SQLite", count=migrated_count)
