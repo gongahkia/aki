@@ -158,25 +158,6 @@ PROVIDER_CHOICES = [
     Choice("Google", value="google"),
     Choice("Local LLM", value="local"),
 ]
-PROVIDER_MODELS = {
-    "ollama": ["llama3", "llama3.1", "mistral", "gemma2", "phi3", "codellama", "qwen2"],
-    "openai": [
-        "gpt-4o",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-3.5-turbo",
-        "o1",
-        "o1-mini",
-    ],
-    "anthropic": [
-        "claude-sonnet-4-5-20250929",
-        "claude-opus-4-20250918",
-        "claude-haiku-4-5-20251001",
-        "claude-3-5-sonnet-20241022",
-    ],
-    "google": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
-    "local": ["default"],
-}
 
 REPORT_ISSUE_CHOICES = [
     Choice("Topic mismatch", value="topic_mismatch"),
@@ -186,13 +167,6 @@ REPORT_ISSUE_CHOICES = [
     Choice("Factual inconsistency", value="factual_inconsistency"),
     Choice("Other issue", value="other"),
 ]
-
-
-def _model_choices(provider):
-    choices = [Choice(m, value=m) for m in PROVIDER_MODELS.get(provider, [])]
-    choices.append(Choice("Custom...", value="__custom__"))
-    return choices
-
 
 def _select(message, choices):
     """Arrow-key select menu. Returns value or None on Ctrl+C."""
@@ -462,6 +436,7 @@ class JikaiTUI:
         self._last_history_load_time: float = 0.0
         self._cached_last_score: str = "—"
         self._history_migrated: bool = False
+        self._provider_model_cache: Dict[str, List[str]] = {}
 
     # Flow orchestration delegates (modular entrypoints)
     def main_menu(self):
@@ -1551,13 +1526,9 @@ class JikaiTUI:
             )
             if not _confirm(f"Continue with {provider} anyway?", default=False):
                 return
-        model_name = _select_quit("Model", choices=_model_choices(provider))
+        model_name = self._select_model_for_provider(provider)
         if model_name is None:
             return
-        if model_name == "__custom__":
-            model_name = _text("Custom model name", default="")
-            if model_name is None:
-                return
         complexity = _select_quit("Complexity", choices=COMPLEXITY_CHOICES)
         if complexity is None:
             return
@@ -1947,13 +1918,9 @@ class JikaiTUI:
                     )
                     if not _confirm(f"Continue with {provider} anyway?", default=False):
                         return
-                model_name = _select_quit("Model", choices=_model_choices(provider))
+                model_name = self._select_model_for_provider(provider)
                 if model_name is None:
                     return
-                if model_name == "__custom__":
-                    model_name = _text("Custom model name", default="")
-                    if model_name is None:
-                        return
                 temperature = _select_quit(
                     "Temperature",
                     choices=[
@@ -4175,6 +4142,12 @@ class JikaiTUI:
                 "[bold green]Checking provider health...", spinner="dots"
             ):
                 health, models = _run_async(_health())
+            for provider_name, model_list in models.items():
+                if isinstance(model_list, list):
+                    cleaned = [
+                        m for m in model_list if isinstance(m, str) and m.strip()
+                    ]
+                    self._provider_model_cache[provider_name] = sorted(set(cleaned))
             ht = Table(title="Provider Health", box=box.ROUNDED)
             ht.add_column("Provider", style="cyan")
             ht.add_column("Status", style="yellow")
@@ -4206,6 +4179,51 @@ class JikaiTUI:
             return bool(status)
         except Exception:
             return False
+
+    def _get_provider_models(
+        self, provider: str, force_refresh: bool = False
+    ) -> List[str]:
+        provider_name = (provider or "").strip().lower()
+        if not provider_name:
+            return []
+        if not force_refresh and provider_name in self._provider_model_cache:
+            return self._provider_model_cache[provider_name]
+
+        models: List[str] = []
+        try:
+            from ..services.llm_service import llm_service
+
+            async def _models():
+                available = await llm_service.list_models(provider=provider_name)
+                return available.get(provider_name, [])
+
+            fetched = _run_async(_models())
+            models = [m for m in fetched if isinstance(m, str) and m.strip()]
+        except Exception as e:
+            tlog.warning(
+                "MODEL_LIST_FETCH_FAILED  provider=%s error=%s", provider_name, str(e)
+            )
+
+        unique_models = sorted(set(models))
+        self._provider_model_cache[provider_name] = unique_models
+        return unique_models
+
+    def _select_model_for_provider(self, provider: str) -> Optional[str]:
+        models = self._get_provider_models(provider)
+        if not models:
+            console.print(
+                "[dim]No models reported by provider; enter a custom model to continue.[/dim]"
+            )
+        choices = [Choice(model, value=model) for model in models]
+        choices.append(Choice("Custom...", value="__custom__"))
+        model_name = _select_quit("Model", choices=choices)
+        if model_name is None:
+            return None
+        if model_name == "__custom__":
+            model_name = _text("Custom model name", default="")
+            if model_name is None:
+                return None
+        return model_name
 
     def _has_any_provider(self) -> bool:
         """True if at least one LLM provider is usable (key set or ollama available)."""
