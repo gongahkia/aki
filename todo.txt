@@ -1,4 +1,3 @@
-(B) Add explicit guardrails in prompt templates to cap verbosity when user prioritizes latency and skip optional analysis generation when requested. +latency +prompt +feature
 (B) Add `include_analysis` flag to `GenerationRequest` and TUI generation menu so users can request hypothetical-only fast mode. +latency +feature +api +tui
 (B) Add fast-path validation mode in `ValidationService` for low-latency generation that runs topic and party checks only. +latency +services +validation
 (B) Add regression tests for API generation endpoints, topic validation, batch generation, provider selection, and new report/regenerate endpoints. +dx +tests +api

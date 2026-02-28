@@ -146,6 +146,11 @@ class HypotheticalService:
             return None
         return max(10, min(300, timeout))
 
+    @staticmethod
+    def _should_skip_analysis(request: GenerationRequest) -> bool:
+        preferences = request.user_preferences or {}
+        return bool(preferences.get("skip_analysis") or preferences.get("fast_mode"))
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline."""
         if self._ml_pipeline is None:
@@ -206,9 +211,16 @@ class HypotheticalService:
             )
 
             # Step 4: Generate legal analysis
-            analysis_started = time.perf_counter()
-            analysis = await self._generate_legal_analysis(request, hypothetical)
-            analysis_time_ms = round((time.perf_counter() - analysis_started) * 1000, 2)
+            analysis_skipped = self._should_skip_analysis(request)
+            if analysis_skipped:
+                analysis = ""
+                analysis_time_ms = 0.0
+            else:
+                analysis_started = time.perf_counter()
+                analysis = await self._generate_legal_analysis(request, hypothetical)
+                analysis_time_ms = round(
+                    (time.perf_counter() - analysis_started) * 1000, 2
+                )
 
             # Step 5: Calculate generation time
             generation_time = round(time.perf_counter() - overall_started, 3)
@@ -237,6 +249,7 @@ class HypotheticalService:
                     "retry_attempt": request.retry_attempt,
                     "timeout_seconds": self._resolve_timeout_override(request),
                     "correlation_id": correlation_id,
+                    "analysis_skipped": analysis_skipped,
                     "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),

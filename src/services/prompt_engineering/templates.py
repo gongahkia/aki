@@ -169,6 +169,7 @@ REQUIREMENTS:
 - Topics: Must include all specified topics naturally
 - Style: Professional, clear, engaging narrative
 - No legal analysis or issue identification in the text
+{latency_guardrail}
 
 OUTPUT FORMAT:
 {output_format}"""
@@ -254,9 +255,23 @@ SCENARIO METADATA:
             reference_examples=reference_examples,
             output_format=self.output_format,
             topic_hints=topic_hints + case_section,
+            latency_guardrail=self._build_latency_guardrail(context.user_preferences),
         )
 
         return {"system": self.system_prompt, "user": user_prompt}
+
+    @staticmethod
+    def _build_latency_guardrail(preferences: Optional[Dict[str, Any]]) -> str:
+        if not preferences:
+            return ""
+        if not bool(preferences.get("prioritize_latency")):
+            return ""
+        return (
+            "LATENCY MODE:\n"
+            "- Keep response concise (450-750 words).\n"
+            "- Use direct, compact prose with minimal filler.\n"
+            "- Prioritize core facts needed to analyze liability."
+        )
 
 
 class AdherenceCheckTemplate(PromptTemplate):
@@ -565,6 +580,8 @@ Please provide a detailed legal analysis following this structure:
    - Identify key evidence requirements
    - Recommend expert witnesses if needed
 
+{latency_guardrail}
+
 OUTPUT FORMAT:
 {output_format}"""
 
@@ -609,9 +626,23 @@ LEARNING OBJECTIVES ACHIEVED:
             hypothetical=hypothetical,
             available_topics=", ".join(available_topics),
             output_format=self.output_format,
+            latency_guardrail=self._build_latency_guardrail(context.user_preferences),
         )
 
         return {"system": self.system_prompt, "user": user_prompt}
+
+    @staticmethod
+    def _build_latency_guardrail(preferences: Optional[Dict[str, Any]]) -> str:
+        if not preferences:
+            return ""
+        if not bool(preferences.get("prioritize_latency")):
+            return ""
+        return (
+            "LATENCY MODE:\n"
+            "- Keep analysis concise and focused.\n"
+            "- Limit output to high-impact issues and short conclusions.\n"
+            "- Avoid exhaustive tangents unless critical."
+        )
 
 
 class PromptTemplateManager:
