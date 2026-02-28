@@ -89,7 +89,7 @@ class DatabaseService:
 
             # Create index on timestamp for faster queries
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_timestamp
+                CREATE INDEX IF NOT EXISTS idx_generation_history_timestamp
                 ON generation_history(timestamp DESC)
             """)
 

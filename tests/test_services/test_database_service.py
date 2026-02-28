@@ -42,6 +42,26 @@ class TestDatabaseService:
         assert health["record_count"] == 0
 
     @pytest.mark.asyncio
+    async def test_database_initialization_creates_query_indexes(self, database_service):
+        """Expected query indexes should exist for history/report/lineage lookups."""
+        conn = database_service._get_connection()
+        try:
+            history_indexes = {
+                row["name"]
+                for row in conn.execute("PRAGMA index_list('generation_history')")
+            }
+            report_indexes = {
+                row["name"]
+                for row in conn.execute("PRAGMA index_list('generation_reports')")
+            }
+        finally:
+            conn.close()
+
+        assert "idx_generation_history_timestamp" in history_indexes
+        assert "idx_generation_history_parent_generation_id" in history_indexes
+        assert "idx_generation_reports_generation_id" in report_indexes
+
+    @pytest.mark.asyncio
     async def test_save_generation(self, database_service):
         """Test saving generation to database."""
         request_data = {

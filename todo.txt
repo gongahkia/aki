@@ -1,1 +1,0 @@
-(B) Add sqlite indexes on `generation_history(timestamp)`, `generation_reports(generation_id)`, and `generation_history(parent_generation_id)` for faster history and lineage queries. +stability +database +performance
