@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
+from ...domain import canonicalize_topic
+
 # topic-specific prompt hints for expanded subtopics
 TOPIC_HINTS: Dict[str, str] = {
     "occupiers_liability": "Include premises description, visitor classification (invitee/licensee/trespasser), and state of the premises.",
@@ -223,8 +225,9 @@ SCENARIO METADATA:
                 reference_examples += f"Example {i}:\n{hypo}\n\n"
         hints = []
         for topic in context.topics:
-            if topic in TOPIC_HINTS:
-                hints.append(f"- {topic}: {TOPIC_HINTS[topic]}")
+            canonical_topic = canonicalize_topic(topic)
+            if canonical_topic in TOPIC_HINTS:
+                hints.append(f"- {canonical_topic}: {TOPIC_HINTS[canonical_topic]}")
         topic_hints = "TOPIC-SPECIFIC GUIDANCE:\n" + "\n".join(hints) if hints else ""
 
         # Inject relevant SG case citations
