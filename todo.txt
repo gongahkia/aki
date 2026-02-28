@@ -1,4 +1,3 @@
-(B) Make rate limiter behavior explicit for local mode by allowing disablement via `API_RATE_LIMIT=0` and bypass middleware in that configuration. +dx +api +config
 (B) Harden `RateLimiterMiddleware` memory usage by adding periodic cleanup for inactive IP buckets and configurable max bucket count. +stability +api +memory
 (B) Add provider timeout override per request in `GenerationRequest.user_preferences` with safe upper/lower bounds and fallback defaults. +latency +services +providers
 (B) Add retry jitter to `retry_on_failure` decorator in `src/services/llm_providers/base.py` to reduce synchronized retry bursts. +stability +providers +network

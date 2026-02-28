@@ -170,6 +170,8 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         self._buckets: Dict[str, list] = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next):
+        if self.rate_limit <= 0:
+            return await call_next(request)
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
         # Prune old timestamps
@@ -196,11 +198,17 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(APIKeyMiddleware)
-app.add_middleware(
-    RateLimiterMiddleware,
-    rate_limit=settings.api.rate_limit,
-    window=60,
-)
+if settings.api.rate_limit > 0:
+    app.add_middleware(
+        RateLimiterMiddleware,
+        rate_limit=settings.api.rate_limit,
+        window=60,
+    )
+else:
+    logger.info(
+        "Rate limiter disabled",
+        configured_rate_limit=settings.api.rate_limit,
+    )
 app.add_middleware(RequestIDMiddleware)
 
 
