@@ -775,20 +775,36 @@ async def export_generation(
             for para in model_answer.split("\n\n"):
                 doc.add_paragraph(para.strip())
 
-        tmp = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
-        doc.save(tmp.name)
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as docx_tmp:
+            docx_path = docx_tmp.name
+        doc.save(docx_path)
+        temp_paths = [docx_path]
+        resp_path = docx_path
 
         if format == "pdf":
             try:
                 from docx2pdf import convert
 
-                pdf_path = tmp.name.replace(".docx", ".pdf")
-                convert(tmp.name, pdf_path)
-                tmp.name = pdf_path
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as pdf_tmp:
+                    pdf_path = pdf_tmp.name
+                convert(docx_path, pdf_path)
+                temp_paths.append(pdf_path)
+                resp_path = pdf_path
             except ImportError:
+                try:
+                    os.unlink(docx_path)
+                except OSError:
+                    pass
                 raise HTTPException(
                     status_code=500, detail="docx2pdf not installed for PDF conversion"
                 )
+            except Exception:
+                for path in temp_paths:
+                    try:
+                        os.unlink(path)
+                    except OSError:
+                        pass
+                raise
 
         from fastapi.responses import FileResponse
 
@@ -798,15 +814,15 @@ async def export_generation(
         if format == "pdf":
             media = "application/pdf"
 
-        def _cleanup_tmp(path: str):
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+        def _cleanup_tmp(paths: List[str]):
+            for path in paths:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
 
-        resp_path = tmp.name
         if background_tasks:
-            background_tasks.add_task(_cleanup_tmp, resp_path)
+            background_tasks.add_task(_cleanup_tmp, temp_paths)
         return FileResponse(
             resp_path,
             media_type=media,
