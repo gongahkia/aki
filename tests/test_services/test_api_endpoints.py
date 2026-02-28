@@ -20,7 +20,7 @@ def _mock_generation_response(generation_id: int = 101) -> GenerationResponse:
 
 
 def test_generate_endpoint_accepts_provider_and_model(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     monkeypatch.setattr(
         "src.api.main.corpus_service.extract_all_topics",
@@ -54,7 +54,7 @@ def test_generate_endpoint_accepts_provider_and_model(monkeypatch):
 
 
 def test_generate_endpoint_rejects_invalid_topic(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     monkeypatch.setattr(
         "src.api.main.corpus_service.extract_all_topics",
@@ -71,11 +71,11 @@ def test_generate_endpoint_rejects_invalid_topic(monkeypatch):
     )
 
     assert response.status_code == 400
-    assert "Invalid topics" in response.json()["detail"]
+    assert "Invalid topics" in response.json()["error"]
 
 
 def test_batch_generate_endpoint_returns_results(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     monkeypatch.setattr(
         "src.api.main.corpus_service.extract_all_topics",
@@ -109,7 +109,7 @@ def test_batch_generate_endpoint_returns_results(monkeypatch):
 
 
 def test_report_endpoint_persists_immutable_report(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     monkeypatch.setattr(
         "src.api.main.database_service.save_generation_report",
@@ -131,7 +131,7 @@ def test_report_endpoint_persists_immutable_report(monkeypatch):
 
 
 def test_regenerate_endpoint_uses_feedback_context(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     monkeypatch.setattr(
         "src.api.main.database_service.get_generation_by_id",
@@ -173,7 +173,7 @@ def test_regenerate_endpoint_uses_feedback_context(monkeypatch):
 
 
 def test_export_endpoint_looks_up_sqlite_generation_id(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
     get_generation = AsyncMock(return_value=None)
     monkeypatch.setattr(
         "src.api.main.database_service.get_generation_by_id",
@@ -183,24 +183,24 @@ def test_export_endpoint_looks_up_sqlite_generation_id(monkeypatch):
     response = client.get("/export/321?format=docx")
 
     assert response.status_code == 404
-    assert "321" in response.json()["detail"]
+    assert "321" in response.json()["error"]
     get_generation.assert_awaited_once_with(321)
 
 
 def test_report_update_and_delete_are_immutable():
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     update_resp = client.put("/generate/10/report/99")
     delete_resp = client.delete("/generate/10/report/99")
 
     assert update_resp.status_code == 403
-    assert "immutable" in update_resp.json()["detail"].lower()
+    assert "immutable" in update_resp.json()["error"].lower()
     assert delete_resp.status_code == 403
-    assert "immutable" in delete_resp.json()["detail"].lower()
+    assert "immutable" in delete_resp.json()["error"].lower()
 
 
 def test_regenerate_endpoint_preserves_retry_lineage(monkeypatch):
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
     captured = {}
 
     monkeypatch.setattr(

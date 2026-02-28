@@ -16,6 +16,13 @@ from .hypothetical_service import (
 )
 from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
 from .validation_service import ValidationService, validation_service
+from .workflow_facade import (
+    GenerationExecutionResult,
+    RegenerationExecutionResult,
+    WorkflowFacade,
+    WorkflowFacadeError,
+    workflow_facade,
+)
 
 try:
     from .corpus_service import (
@@ -50,6 +57,11 @@ __all__ = [
     "ValidationResult",
     "ValidationService",
     "validation_service",
+    "WorkflowFacade",
+    "WorkflowFacadeError",
+    "GenerationExecutionResult",
+    "RegenerationExecutionResult",
+    "workflow_facade",
 ]
 
 if _HAS_VECTOR:

@@ -38,7 +38,7 @@ def test_api_health_and_generate_smoke(monkeypatch):
         ),
     )
 
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
 
     health = client.get("/health")
     assert health.status_code == 200

@@ -2145,8 +2145,8 @@ class JikaiTUI:
 
             from ..services.hypothetical_service import (
                 GenerationRequest,
-                hypothetical_service,
             )
+            from ..services.workflow_facade import workflow_facade
 
             feedback = ""
             for attempt in range(1, max_retries + 1):
@@ -2169,7 +2169,11 @@ class JikaiTUI:
                         correlation_id=correlation_id,
                         include_analysis=include_analysis,
                     )
-                    return await hypothetical_service.generate_hypothetical(req)
+                    execution = await workflow_facade.generate_generation(
+                        req,
+                        correlation_id=correlation_id,
+                    )
+                    return execution.response
 
                 with console.status(
                     f"[bold green]Generating hypothetical (attempt {attempt}/{max_retries})...",
@@ -2507,14 +2511,10 @@ class JikaiTUI:
             return None
 
         try:
-            from ..services.database_service import GenerationReport, database_service
-            from ..services.hypothetical_service import (
-                GenerationRequest,
-                hypothetical_service,
-            )
+            from ..services.workflow_facade import workflow_facade
 
             existing_reports = _run_async(
-                database_service.get_generation_reports(source_generation_id)
+                workflow_facade.list_generation_reports(source_generation_id)
             )
             locked_comments = []
             for existing_report in existing_reports:
@@ -2542,31 +2542,42 @@ class JikaiTUI:
                     return None
                 comment = comment_input.strip() or None
 
-            report = GenerationReport(
-                generation_id=source_generation_id,
-                issue_types=issue_types,
-                comment=comment,
-                is_locked=True,
-            )
-            report_id = _run_async(database_service.save_generation_report(report))
-            feedback_context = _run_async(
-                database_service.build_regeneration_feedback_context(
-                    source_generation_id
+            report_id = _run_async(
+                workflow_facade.save_generation_report(
+                    generation_id=source_generation_id,
+                    issue_types=issue_types,
+                    comment=comment,
+                    is_locked=True,
                 )
             )
-            source_row = _run_async(
-                database_service.get_generation_by_id(source_generation_id)
-            )
-            if not source_row:
-                console.print(
-                    f"[red]✗ Source generation #{source_generation_id} not found.[/red]"
+            with console.status(
+                "[bold green]Regenerating from report...", spinner="dots"
+            ):
+                regeneration = _run_async(
+                    workflow_facade.regenerate_generation(
+                        generation_id=source_generation_id,
+                        correlation_id=self._new_correlation_id(),
+                        fallback_request={
+                            "topics": [cfg.topic],
+                            "law_domain": "tort",
+                            "number_parties": cfg.parties,
+                            "complexity_level": str(cfg.complexity),
+                            "sample_size": 3,
+                            "method": cfg.method,
+                            "provider": cfg.provider,
+                            "model": cfg.model,
+                            "include_analysis": cfg.include_analysis,
+                            "user_preferences": {
+                                "temperature": cfg.temperature,
+                                "red_herrings": cfg.red_herrings,
+                            },
+                        },
+                    )
                 )
-                return None
-
-            request_data = source_row.get("request", {})
+            regenerated = regeneration.regenerated
+            request_data = regeneration.request_data
             requested_topics = request_data.get("topics") or [cfg.topic]
             primary_topic = requested_topics[0]
-            user_preferences = dict(request_data.get("user_preferences") or {})
             raw_complexity = request_data.get("complexity_level", str(cfg.complexity))
             try:
                 complexity_value = int(raw_complexity)
@@ -2577,45 +2588,15 @@ class JikaiTUI:
                 parties_value = int(raw_parties)
             except (TypeError, ValueError):
                 parties_value = cfg.parties
-            raw_retry_attempt = source_row.get(
-                "retry_attempt", request_data.get("retry_attempt", 0)
-            )
-            try:
-                retry_attempt = max(1, int(raw_retry_attempt) + 1)
-            except (TypeError, ValueError):
-                retry_attempt = 1
+
             retry_reason = "report_feedback:" + ",".join(issue_types[:3])
-            if feedback_context:
-                existing_feedback = str(user_preferences.get("feedback", "")).strip()
-                user_preferences["feedback"] = (
-                    f"{existing_feedback} {feedback_context}".strip()
-                    if existing_feedback
-                    else feedback_context
-                )
-
-            regenerate_request = GenerationRequest(
-                topics=requested_topics,
-                law_domain=request_data.get("law_domain", "tort"),
-                number_parties=parties_value,
-                complexity_level=str(raw_complexity),
-                sample_size=request_data.get("sample_size", 3),
-                user_preferences=user_preferences,
-                method=request_data.get("method", cfg.method),
-                provider=request_data.get("provider", cfg.provider),
-                model=request_data.get("model", cfg.model),
-                include_analysis=bool(request_data.get("include_analysis", True)),
-                parent_generation_id=source_generation_id,
-                retry_reason=retry_reason,
-                retry_attempt=retry_attempt,
-                correlation_id=self._new_correlation_id(),
+            tlog.info(
+                "GENERATE  report stored source_id=%s report_id=%s retry_reason=%s issue_types=%s",
+                source_generation_id,
+                report_id,
+                retry_reason,
+                ",".join(issue_types),
             )
-
-            with console.status(
-                "[bold green]Regenerating from report...", spinner="dots"
-            ):
-                regenerated = _run_async(
-                    hypothetical_service.generate_hypothetical(regenerate_request)
-                )
 
             console.print(
                 Panel(

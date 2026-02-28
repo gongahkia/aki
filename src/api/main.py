@@ -34,7 +34,7 @@ from ..domain import canonicalize_topic, is_tort_topic
 from ..services import (
     CorpusQuery,
     CorpusService,
-    GenerationReport,
+    WorkflowFacadeError,
     GenerationRequest,
     GenerationResponse,
     HypotheticalEntry,
@@ -45,6 +45,7 @@ from ..services import (
     hypothetical_service,
     llm_service,
     map_exception,
+    workflow_facade,
 )
 from ..services.topic_guard import canonicalize_and_validate_topics
 from .web import web_router
@@ -413,7 +414,6 @@ async def generate_hypothetical(
     request: GenerationRequest,
     background_tasks: BackgroundTasks,
     http_request: Request,
-    service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Generate a legal hypothetical with analysis."""
     correlation_id = None
@@ -429,40 +429,19 @@ async def generate_hypothetical(
             parties=request.number_parties,
             correlation_id=correlation_id,
         )
-
-        canonical_topics = canonicalize_and_validate_topics(request.topics)
-
-        # Validate topics
-        topic_extraction_started = time.perf_counter()
-        available_topics = [
-            canonicalize_topic(topic)
-            for topic in await corpus_service.extract_all_topics()
-        ]
-        topic_extraction_time_ms = round(
-            (time.perf_counter() - topic_extraction_started) * 1000, 2
+        execution = await workflow_facade.generate_generation(
+            request,
+            correlation_id=correlation_id,
         )
-        request = request.model_copy(
-            update={
-                "topics": canonical_topics,
-                "correlation_id": correlation_id,
-                "topic_extraction_time_ms": topic_extraction_time_ms,
-            }
-        )
-        invalid_topics = [
-            topic for topic in request.topics if topic not in available_topics
-        ]
-
-        if invalid_topics:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid topics: {invalid_topics}. Available topics: {available_topics[:10]}...",
-            )
-
-        # Generate hypothetical
-        response = await service.generate_hypothetical(request)
+        normalized_request = execution.request
+        response = execution.response
 
         # Log generation in background
-        background_tasks.add_task(log_generation_event, request.dict(), response.dict())
+        background_tasks.add_task(
+            log_generation_event,
+            normalized_request.model_dump(),
+            response.model_dump(),
+        )
 
         logger.info(
             "Hypothetical generated successfully",
@@ -473,6 +452,11 @@ async def generate_hypothetical(
 
         return response
 
+    except WorkflowFacadeError as workflow_error:
+        raise HTTPException(
+            status_code=workflow_error.status_code,
+            detail=str(workflow_error),
+        ) from workflow_error
     except HTTPException:
         raise
     except Exception as e:
@@ -708,28 +692,18 @@ async def report_generation_failure(
     request: GenerateReportRequest,
 ):
     """Persist a generation failure report for regeneration workflows."""
-    if generation_id <= 0:
-        raise HTTPException(status_code=400, detail="generation_id must be positive")
-
-    from src.services.database_service import database_service
-
-    report = GenerationReport(
-        generation_id=generation_id,
-        issue_types=request.issue_types,
-        comment=request.comment,
-        is_locked=True,
-    )
     try:
-        report_id = await database_service.save_generation_report(report)
-    except Exception as e:
-        if "FOREIGN KEY constraint failed" in str(e):
-            raise HTTPException(
-                status_code=404, detail=f"Generation ID {generation_id} not found"
-            ) from e
-        logger.error("Failed to save generation report", error=str(e))
+        report_id = await workflow_facade.save_generation_report(
+            generation_id=generation_id,
+            issue_types=request.issue_types,
+            comment=request.comment,
+            is_locked=True,
+        )
+    except WorkflowFacadeError as workflow_error:
         raise HTTPException(
-            status_code=500, detail=f"Failed to save generation report: {e}"
-        ) from e
+            status_code=workflow_error.status_code,
+            detail=str(workflow_error),
+        ) from workflow_error
 
     return GenerateReportResponse(
         report_id=report_id,
@@ -771,76 +745,25 @@ async def delete_generation_report(generation_id: int, report_id: int):
 async def regenerate_generation(
     generation_id: int,
     http_request: Request,
-    service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Force regeneration using original request and stored feedback context."""
-    if generation_id <= 0:
-        raise HTTPException(status_code=400, detail="generation_id must be positive")
-
-    from src.services.database_service import database_service
-
-    row = await database_service.get_generation_by_id(generation_id)
-    if not row:
-        raise HTTPException(
-            status_code=404, detail=f"Generation ID {generation_id} not found"
-        )
-
-    request_data = row.get("request", {})
-    original_topics = request_data.get("topics", [])
-    if not original_topics:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Generation ID {generation_id} has no stored topics to regenerate",
-        )
-
-    canonical_topics = canonicalize_and_validate_topics(original_topics)
-    feedback_context = await database_service.build_regeneration_feedback_context(
-        generation_id
-    )
-    reports = await database_service.get_generation_reports(generation_id)
-    latest_report = reports[-1] if reports else None
-    retry_reason = "report_feedback"
-    if latest_report and latest_report.issue_types:
-        retry_reason = "report_feedback:" + ",".join(latest_report.issue_types[:3])
-    raw_retry_attempt = request_data.get("retry_attempt", 0)
     try:
-        retry_attempt = max(1, int(raw_retry_attempt) + 1)
-    except (TypeError, ValueError):
-        retry_attempt = 1
-
-    user_preferences = request_data.get("user_preferences") or {}
-    if feedback_context:
-        existing_feedback = str(user_preferences.get("feedback", "")).strip()
-        user_preferences["feedback"] = (
-            f"{existing_feedback} {feedback_context}".strip()
-            if existing_feedback
-            else feedback_context
+        regeneration = await workflow_facade.regenerate_generation(
+            generation_id=generation_id,
+            correlation_id=(
+                getattr(http_request.state, "request_id", None) or str(uuid.uuid4())
+            ),
         )
+    except WorkflowFacadeError as workflow_error:
+        raise HTTPException(
+            status_code=workflow_error.status_code,
+            detail=str(workflow_error),
+        ) from workflow_error
 
-    regenerate_request = GenerationRequest(
-        topics=canonical_topics,
-        law_domain=request_data.get("law_domain", "tort"),
-        number_parties=request_data.get("number_parties", 3),
-        complexity_level=request_data.get("complexity_level", "intermediate"),
-        sample_size=request_data.get("sample_size", 3),
-        user_preferences=user_preferences,
-        method=request_data.get("method", "pure_llm"),
-        provider=request_data.get("provider"),
-        model=request_data.get("model"),
-        include_analysis=bool(request_data.get("include_analysis", True)),
-        parent_generation_id=generation_id,
-        retry_reason=retry_reason,
-        retry_attempt=retry_attempt,
-        correlation_id=(
-            getattr(http_request.state, "request_id", None) or str(uuid.uuid4())
-        ),
-    )
-
-    regenerated = await service.generate_hypothetical(regenerate_request)
     return RegenerateGenerationResponse(
-        source_generation_id=generation_id,
-        feedback_context=feedback_context,
-        regenerated=regenerated,
+        source_generation_id=regeneration.source_generation_id,
+        feedback_context=regeneration.feedback_context,
+        regenerated=regeneration.regenerated,
     )
 
 
