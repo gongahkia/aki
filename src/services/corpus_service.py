@@ -4,6 +4,7 @@ Handles both local file storage and AWS S3 integration.
 """
 
 import json
+import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -52,6 +53,7 @@ class CorpusService:
         self._s3_client = None
         self._vector_service = vector_service
         self._corpus_indexed = False
+        self._index_lock = asyncio.Lock()
         self._topics_cache: Optional[List[str]] = None
         self._topics_cache_mtime: Optional[float] = None
         self._initialize_s3()
@@ -245,8 +247,7 @@ class CorpusService:
         """
         try:
             # Ensure corpus is indexed in vector DB
-            if not self._corpus_indexed:
-                await self._index_corpus()
+            await self._ensure_corpus_indexed()
 
             # Try semantic search first (ChromaDB + embeddings)
             try:
@@ -337,6 +338,15 @@ class CorpusService:
             logger.warning("Failed to index corpus in vector database", error=str(e))
             self._corpus_indexed = False
             # Don't raise - allow fallback to simple search
+
+    async def _ensure_corpus_indexed(self):
+        """Protect first-time index bootstrap under concurrent access."""
+        if self._corpus_indexed:
+            return
+        async with self._index_lock:
+            if self._corpus_indexed:
+                return
+            await self._index_corpus()
 
     async def extract_all_topics(self) -> List[str]:
         """Extract all unique topics from the corpus."""
