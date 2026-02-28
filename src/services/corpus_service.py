@@ -54,6 +54,7 @@ class CorpusService:
         self._vector_service = vector_service
         self._corpus_indexed = False
         self._index_lock = asyncio.Lock()
+        self._index_task: Optional[asyncio.Task] = None
         self._topics_cache: Optional[List[str]] = None
         self._topics_cache_mtime: Optional[float] = None
         self._initialize_s3()
@@ -246,40 +247,46 @@ class CorpusService:
         Falls back to simple topic matching if vector search unavailable.
         """
         try:
-            # Ensure corpus is indexed in vector DB
-            await self._ensure_corpus_indexed()
+            if not self._corpus_indexed:
+                self._ensure_background_indexing()
+                logger.info(
+                    "Vector index not ready, using fallback search",
+                    query_topics=query.topics,
+                )
 
             # Try semantic search first (ChromaDB + embeddings)
-            try:
-                results = await self._vector_service.semantic_search(
-                    query_topics=query.topics,
-                    n_results=query.sample_size,
-                    exclude_ids=query.exclude_ids,
-                )
-
-                if results:
-                    # Convert vector search results back to HypotheticalEntry
-                    relevant_entries = []
-                    for result in results:
-                        entry = HypotheticalEntry(
-                            id=result["id"],
-                            text=result["text"],
-                            topics=result["topics"],
-                            metadata=result["metadata"],
-                        )
-                        relevant_entries.append(entry)
-
-                    logger.info(
-                        "Semantic search completed",
+            if self._corpus_indexed:
+                try:
+                    results = await self._vector_service.semantic_search(
                         query_topics=query.topics,
-                        results_count=len(relevant_entries),
+                        n_results=query.sample_size,
+                        exclude_ids=query.exclude_ids,
                     )
-                    return relevant_entries
 
-            except (VectorServiceError, Exception) as ve:
-                logger.warning(
-                    "Vector search failed, falling back to simple search", error=str(ve)
-                )
+                    if results:
+                        # Convert vector search results back to HypotheticalEntry
+                        relevant_entries = []
+                        for result in results:
+                            entry = HypotheticalEntry(
+                                id=result["id"],
+                                text=result["text"],
+                                topics=result["topics"],
+                                metadata=result["metadata"],
+                            )
+                            relevant_entries.append(entry)
+
+                        logger.info(
+                            "Semantic search completed",
+                            query_topics=query.topics,
+                            results_count=len(relevant_entries),
+                        )
+                        return relevant_entries
+
+                except (VectorServiceError, Exception) as ve:
+                    logger.warning(
+                        "Vector search failed, falling back to simple search",
+                        error=str(ve),
+                    )
 
             # Fallback: Simple topic overlap (original method)
             corpus = await self.load_corpus()
@@ -339,14 +346,23 @@ class CorpusService:
             self._corpus_indexed = False
             # Don't raise - allow fallback to simple search
 
-    async def _ensure_corpus_indexed(self):
-        """Protect first-time index bootstrap under concurrent access."""
+    def _ensure_background_indexing(self):
+        """Schedule corpus indexing in background if not already running."""
         if self._corpus_indexed:
             return
-        async with self._index_lock:
-            if self._corpus_indexed:
-                return
-            await self._index_corpus()
+        if self._index_task and not self._index_task.done():
+            return
+        self._index_task = asyncio.create_task(self._run_background_index())
+
+    async def _run_background_index(self):
+        """Index corpus once in the background; safe under concurrent callers."""
+        try:
+            async with self._index_lock:
+                if self._corpus_indexed:
+                    return
+                await self._index_corpus()
+        finally:
+            self._index_task = None
 
     async def extract_all_topics(self) -> List[str]:
         """Extract all unique topics from the corpus."""
