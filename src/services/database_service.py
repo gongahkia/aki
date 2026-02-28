@@ -3,6 +3,7 @@ Database Service for persisting generation history using SQLite.
 Lightweight, local-only storage perfect for internal tools.
 """
 
+import asyncio
 import json
 import sqlite3
 from datetime import datetime
@@ -52,6 +53,10 @@ class DatabaseService:
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
+
+    async def _run_in_thread(self, func, *args, **kwargs):
+        """Execute blocking SQLite work off the event loop thread."""
+        return await asyncio.to_thread(func, *args, **kwargs)
 
     def _initialize_database(self):
         """Initialize database schema."""
@@ -280,14 +285,18 @@ class DatabaseService:
         """One-time migration from legacy JSON history to SQLite rows."""
         migration_key = "history_json_to_sqlite_v1"
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT value FROM migration_state WHERE key = ?",
-                (migration_key,),
-            )
-            migrated_row = cursor.fetchone()
-            conn.close()
+            def _read_migration_state():
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT value FROM migration_state WHERE key = ?",
+                    (migration_key,),
+                )
+                row = cursor.fetchone()
+                conn.close()
+                return row
+
+            migrated_row = await self._run_in_thread(_read_migration_state)
             if migrated_row and migrated_row["value"] == "1":
                 return 0
 
@@ -323,20 +332,23 @@ class DatabaseService:
                                 error=str(e),
                             )
 
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO migration_state (key, value, updated_at)
-                VALUES (?, '1', CURRENT_TIMESTAMP)
-                ON CONFLICT(key) DO UPDATE SET
-                    value = excluded.value,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                (migration_key,),
-            )
-            conn.commit()
-            conn.close()
+            def _write_migration_state():
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO migration_state (key, value, updated_at)
+                    VALUES (?, '1', CURRENT_TIMESTAMP)
+                    ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (migration_key,),
+                )
+                conn.commit()
+                conn.close()
+
+            await self._run_in_thread(_write_migration_state)
 
             logger.info(
                 "Legacy history migration completed",
@@ -364,56 +376,60 @@ class DatabaseService:
             The ID of the inserted record
         """
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            try:
-                normalized_retry_attempt = max(0, int(retry_attempt))
-            except (TypeError, ValueError):
-                normalized_retry_attempt = 0
+            def _op() -> int:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                try:
+                    normalized_retry_attempt = max(0, int(retry_attempt))
+                except (TypeError, ValueError):
+                    normalized_retry_attempt = 0
 
-            # Extract key fields for indexing/searching
-            cursor.execute(
-                """
-                INSERT INTO generation_history (
-                    timestamp, topics, law_domain, number_parties, complexity_level,
-                    hypothetical, analysis, generation_time, validation_passed,
-                    quality_score, request_data, response_data,
-                    parent_generation_id, retry_reason, retry_attempt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    response_data.get("metadata", {}).get(
-                        "generation_timestamp", datetime.utcnow().isoformat()
+                cursor.execute(
+                    """
+                    INSERT INTO generation_history (
+                        timestamp, topics, law_domain, number_parties, complexity_level,
+                        hypothetical, analysis, generation_time, validation_passed,
+                        quality_score, request_data, response_data,
+                        parent_generation_id, retry_reason, retry_attempt
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        response_data.get("metadata", {}).get(
+                            "generation_timestamp", datetime.utcnow().isoformat()
+                        ),
+                        json.dumps(request_data.get("topics", [])),
+                        request_data.get("law_domain"),
+                        request_data.get("number_parties"),
+                        request_data.get("complexity_level"),
+                        response_data.get("hypothetical", ""),
+                        response_data.get("analysis", ""),
+                        response_data.get("generation_time", 0.0),
+                        response_data.get("validation_results", {}).get(
+                            "passed", False
+                        ),
+                        response_data.get("validation_results", {}).get(
+                            "quality_score", 0.0
+                        ),
+                        json.dumps(request_data),
+                        json.dumps(response_data),
+                        parent_generation_id,
+                        retry_reason,
+                        normalized_retry_attempt,
                     ),
-                    json.dumps(request_data.get("topics", [])),
-                    request_data.get("law_domain"),
-                    request_data.get("number_parties"),
-                    request_data.get("complexity_level"),
-                    response_data.get("hypothetical", ""),
-                    response_data.get("analysis", ""),
-                    response_data.get("generation_time", 0.0),
-                    response_data.get("validation_results", {}).get("passed", False),
-                    response_data.get("validation_results", {}).get(
-                        "quality_score", 0.0
-                    ),
-                    json.dumps(request_data),
-                    json.dumps(response_data),
-                    parent_generation_id,
-                    retry_reason,
-                    normalized_retry_attempt,
-                ),
-            )
+                )
+                record_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                return int(record_id)
 
-            record_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            record_id = await self._run_in_thread(_op)
 
             logger.info(
                 "Generation saved to database",
                 id=record_id,
                 correlation_id=correlation_id,
             )
-            return record_id  # type: ignore[return-value]
+            return record_id
 
         except Exception as e:
             logger.error(
@@ -434,34 +450,33 @@ class DatabaseService:
             List of generation records
         """
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT
-                    timestamp, request_data, response_data
-                FROM generation_history
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """,
-                (limit,),
-            )
-
-            rows = cursor.fetchall()
-            conn.close()
-
-            # Convert to list of dicts
-            generations = []
-            for row in rows:
-                generations.append(
-                    {
-                        "timestamp": row["timestamp"],
-                        "request": json.loads(row["request_data"]),
-                        "response": json.loads(row["response_data"]),
-                    }
+            def _op() -> List[Dict[str, Any]]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT
+                        timestamp, request_data, response_data
+                    FROM generation_history
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """,
+                    (limit,),
                 )
+                rows = cursor.fetchall()
+                conn.close()
+                generations = []
+                for row in rows:
+                    generations.append(
+                        {
+                            "timestamp": row["timestamp"],
+                            "request": json.loads(row["request_data"]),
+                            "response": json.loads(row["response_data"]),
+                        }
+                    )
+                return generations
 
+            generations = await self._run_in_thread(_op)
             logger.info("Retrieved recent generations", count=len(generations))
             return generations
 
@@ -472,28 +487,31 @@ class DatabaseService:
     async def get_history_records(self, limit: int = 500) -> List[Dict[str, Any]]:
         """Return history in legacy-compatible record shape, sourced from SQLite."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT
-                    id,
-                    timestamp,
-                    request_data,
-                    response_data,
-                    quality_score,
-                    parent_generation_id,
-                    retry_reason,
-                    retry_attempt
-                FROM generation_history
-                ORDER BY timestamp DESC
-                LIMIT ?
-                """,
-                (limit,),
-            )
-            rows = cursor.fetchall()
-            conn.close()
-            return [self._row_to_history_record(row) for row in reversed(rows)]
+            def _op() -> List[Dict[str, Any]]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT
+                        id,
+                        timestamp,
+                        request_data,
+                        response_data,
+                        quality_score,
+                        parent_generation_id,
+                        retry_reason,
+                        retry_attempt
+                    FROM generation_history
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                )
+                rows = cursor.fetchall()
+                conn.close()
+                return [self._row_to_history_record(row) for row in reversed(rows)]
+
+            return await self._run_in_thread(_op)
         except Exception as e:
             logger.error("Failed to get history records", error=str(e))
             return []
@@ -501,12 +519,15 @@ class DatabaseService:
     async def get_generation_count(self) -> int:
         """Count total persisted generations."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) AS count FROM generation_history")
-            row = cursor.fetchone()
-            conn.close()
-            return int(row["count"] if row else 0)
+            def _op() -> int:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) AS count FROM generation_history")
+                row = cursor.fetchone()
+                conn.close()
+                return int(row["count"] if row else 0)
+
+            return await self._run_in_thread(_op)
         except Exception as e:
             logger.error("Failed to count generations", error=str(e))
             return 0
@@ -516,30 +537,33 @@ class DatabaseService:
     ) -> Optional[Dict[str, Any]]:
         """Fetch a single history record by chronological index (0 = oldest)."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT
-                    id,
-                    timestamp,
-                    request_data,
-                    response_data,
-                    quality_score,
-                    parent_generation_id,
-                    retry_reason,
-                    retry_attempt
-                FROM generation_history
-                ORDER BY timestamp ASC
-                LIMIT 1 OFFSET ?
-                """,
-                (history_index,),
-            )
-            row = cursor.fetchone()
-            conn.close()
-            if not row:
-                return None
-            return self._row_to_history_record(row)
+            def _op() -> Optional[Dict[str, Any]]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT
+                        id,
+                        timestamp,
+                        request_data,
+                        response_data,
+                        quality_score,
+                        parent_generation_id,
+                        retry_reason,
+                        retry_attempt
+                    FROM generation_history
+                    ORDER BY timestamp ASC
+                    LIMIT 1 OFFSET ?
+                    """,
+                    (history_index,),
+                )
+                row = cursor.fetchone()
+                conn.close()
+                if not row:
+                    return None
+                return self._row_to_history_record(row)
+
+            return await self._run_in_thread(_op)
         except Exception as e:
             logger.error("Failed to get history record by index", error=str(e))
             return None
@@ -547,30 +571,33 @@ class DatabaseService:
     async def get_generation_by_id(self, generation_id: int) -> Optional[Dict[str, Any]]:
         """Fetch a single generation row by primary key."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT id, timestamp, request_data, response_data,
-                       parent_generation_id, retry_reason, retry_attempt
-                FROM generation_history
-                WHERE id = ?
-                """,
-                (generation_id,),
-            )
-            row = cursor.fetchone()
-            conn.close()
-            if not row:
-                return None
-            return {
-                "id": row["id"],
-                "timestamp": row["timestamp"],
-                "request": json.loads(row["request_data"]),
-                "response": json.loads(row["response_data"]),
-                "parent_generation_id": row["parent_generation_id"],
-                "retry_reason": row["retry_reason"],
-                "retry_attempt": row["retry_attempt"] or 0,
-            }
+            def _op() -> Optional[Dict[str, Any]]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, timestamp, request_data, response_data,
+                           parent_generation_id, retry_reason, retry_attempt
+                    FROM generation_history
+                    WHERE id = ?
+                    """,
+                    (generation_id,),
+                )
+                row = cursor.fetchone()
+                conn.close()
+                if not row:
+                    return None
+                return {
+                    "id": row["id"],
+                    "timestamp": row["timestamp"],
+                    "request": json.loads(row["request_data"]),
+                    "response": json.loads(row["response_data"]),
+                    "parent_generation_id": row["parent_generation_id"],
+                    "retry_reason": row["retry_reason"],
+                    "retry_attempt": row["retry_attempt"] or 0,
+                }
+
+            return await self._run_in_thread(_op)
         except Exception as e:
             logger.error("Failed to get generation by id", error=str(e))
             return None
@@ -578,26 +605,30 @@ class DatabaseService:
     async def save_generation_report(self, report: GenerationReport) -> int:
         """Persist a report linked to a generation row."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO generation_reports (
-                    generation_id, issue_types, comment, is_locked
-                ) VALUES (?, ?, ?, ?)
-                """,
-                (
-                    report.generation_id,
-                    json.dumps(report.issue_types),
-                    report.comment,
-                    bool(report.is_locked),
-                ),
-            )
-            report_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            def _op() -> int:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO generation_reports (
+                        generation_id, issue_types, comment, is_locked
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        report.generation_id,
+                        json.dumps(report.issue_types),
+                        report.comment,
+                        bool(report.is_locked),
+                    ),
+                )
+                report_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                return int(report_id)
+
+            report_id = await self._run_in_thread(_op)
             logger.info("Generation report saved", report_id=report_id)
-            return int(report_id)
+            return report_id
         except Exception as e:
             logger.error("Failed to save generation report", error=str(e))
             raise
@@ -605,21 +636,25 @@ class DatabaseService:
     async def save_generation_feedback(self, feedback: GenerationFeedback) -> int:
         """Persist follow-up feedback for a report."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO generation_feedback (
-                    report_id, generation_id, feedback_text
-                ) VALUES (?, ?, ?)
-                """,
-                (feedback.report_id, feedback.generation_id, feedback.feedback_text),
-            )
-            feedback_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            def _op() -> int:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO generation_feedback (
+                        report_id, generation_id, feedback_text
+                    ) VALUES (?, ?, ?)
+                    """,
+                    (feedback.report_id, feedback.generation_id, feedback.feedback_text),
+                )
+                feedback_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                return int(feedback_id)
+
+            feedback_id = await self._run_in_thread(_op)
             logger.info("Generation feedback saved", feedback_id=feedback_id)
-            return int(feedback_id)
+            return feedback_id
         except Exception as e:
             logger.error("Failed to save generation feedback", error=str(e))
             raise
@@ -627,30 +662,33 @@ class DatabaseService:
     async def get_generation_reports(self, generation_id: int) -> List[GenerationReport]:
         """Fetch reports associated with a generation."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT id, generation_id, issue_types, comment, is_locked, created_at
-                FROM generation_reports
-                WHERE generation_id = ?
-                ORDER BY created_at ASC
-                """,
-                (generation_id,),
-            )
-            rows = cursor.fetchall()
-            conn.close()
-            return [
-                GenerationReport(
-                    id=row["id"],
-                    generation_id=row["generation_id"],
-                    issue_types=json.loads(row["issue_types"]),
-                    comment=row["comment"],
-                    is_locked=bool(row["is_locked"]),
-                    created_at=row["created_at"],
+            def _op() -> List[GenerationReport]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, generation_id, issue_types, comment, is_locked, created_at
+                    FROM generation_reports
+                    WHERE generation_id = ?
+                    ORDER BY created_at ASC
+                    """,
+                    (generation_id,),
                 )
-                for row in rows
-            ]
+                rows = cursor.fetchall()
+                conn.close()
+                return [
+                    GenerationReport(
+                        id=row["id"],
+                        generation_id=row["generation_id"],
+                        issue_types=json.loads(row["issue_types"]),
+                        comment=row["comment"],
+                        is_locked=bool(row["is_locked"]),
+                        created_at=row["created_at"],
+                    )
+                    for row in rows
+                ]
+
+            return await self._run_in_thread(_op)
         except Exception as e:
             logger.error("Failed to load generation reports", error=str(e))
             return []
@@ -658,29 +696,32 @@ class DatabaseService:
     async def get_report_feedback(self, report_id: int) -> List[GenerationFeedback]:
         """Fetch feedback rows linked to a specific report."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT id, report_id, generation_id, feedback_text, created_at
-                FROM generation_feedback
-                WHERE report_id = ?
-                ORDER BY created_at ASC
-                """,
-                (report_id,),
-            )
-            rows = cursor.fetchall()
-            conn.close()
-            return [
-                GenerationFeedback(
-                    id=row["id"],
-                    report_id=row["report_id"],
-                    generation_id=row["generation_id"],
-                    feedback_text=row["feedback_text"],
-                    created_at=row["created_at"],
+            def _op() -> List[GenerationFeedback]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, report_id, generation_id, feedback_text, created_at
+                    FROM generation_feedback
+                    WHERE report_id = ?
+                    ORDER BY created_at ASC
+                    """,
+                    (report_id,),
                 )
-                for row in rows
-            ]
+                rows = cursor.fetchall()
+                conn.close()
+                return [
+                    GenerationFeedback(
+                        id=row["id"],
+                        report_id=row["report_id"],
+                        generation_id=row["generation_id"],
+                        feedback_text=row["feedback_text"],
+                        created_at=row["created_at"],
+                    )
+                    for row in rows
+                ]
+
+            return await self._run_in_thread(_op)
         except Exception as e:
             logger.error("Failed to load report feedback", error=str(e))
             return []
@@ -727,91 +768,96 @@ class DatabaseService:
             Dict with statistics (total, avg_time, success_rate, etc.)
         """
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
+            def _op() -> Dict[str, Any]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
 
-            # Get overall statistics
-            cursor.execute("""
-                SELECT
-                    COUNT(*) as total_generations,
-                    AVG(generation_time) as avg_generation_time,
-                    AVG(CASE WHEN validation_passed THEN 1.0 ELSE 0.0 END) as success_rate,
-                    AVG(quality_score) as avg_quality_score,
-                    MIN(timestamp) as first_generation,
-                    MAX(timestamp) as last_generation
-                FROM generation_history
-            """)
-
-            row = cursor.fetchone()
-
-            # Get topic distribution
-            cursor.execute("""
-                SELECT
-                    topics, COUNT(*) as count
-                FROM generation_history
-                GROUP BY topics
-                ORDER BY count DESC
-                LIMIT 10
-            """)
-
-            topic_rows = cursor.fetchall()
-
-            cursor.execute(
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*) as total_generations,
+                        AVG(generation_time) as avg_generation_time,
+                        AVG(CASE WHEN validation_passed THEN 1.0 ELSE 0.0 END) as success_rate,
+                        AVG(quality_score) as avg_quality_score,
+                        MIN(timestamp) as first_generation,
+                        MAX(timestamp) as last_generation
+                    FROM generation_history
                 """
-                SELECT response_data
-                FROM generation_history
-                WHERE response_data IS NOT NULL
-                """
-            )
-            latency_rows = cursor.fetchall()
-            conn.close()
-
-            latency_keys = [
-                "topic_extraction_time_ms",
-                "retrieval_time_ms",
-                "generation_time_ms",
-                "validation_time_ms",
-                "analysis_time_ms",
-            ]
-            latency_samples: Dict[str, List[float]] = {key: [] for key in latency_keys}
-            for latency_row in latency_rows:
-                try:
-                    response_payload = json.loads(latency_row["response_data"])
-                except Exception:
-                    continue
-                metrics = (
-                    response_payload.get("metadata", {}).get("latency_metrics", {})
                 )
-                if not isinstance(metrics, dict):
-                    continue
-                for key in latency_keys:
-                    value = metrics.get(key)
-                    if isinstance(value, (int, float)):
-                        latency_samples[key].append(float(value))
+                row = cursor.fetchone()
 
-            latency_metrics: Dict[str, Dict[str, Any]] = {}
-            for key, samples in latency_samples.items():
-                average_ms = round(sum(samples) / len(samples), 2) if samples else 0.0
-                latency_metrics[key] = {
-                    "average_ms": average_ms,
-                    "samples": len(samples),
+                cursor.execute(
+                    """
+                    SELECT
+                        topics, COUNT(*) as count
+                    FROM generation_history
+                    GROUP BY topics
+                    ORDER BY count DESC
+                    LIMIT 10
+                """
+                )
+                topic_rows = cursor.fetchall()
+
+                cursor.execute(
+                    """
+                    SELECT response_data
+                    FROM generation_history
+                    WHERE response_data IS NOT NULL
+                    """
+                )
+                latency_rows = cursor.fetchall()
+                conn.close()
+
+                latency_keys = [
+                    "topic_extraction_time_ms",
+                    "retrieval_time_ms",
+                    "generation_time_ms",
+                    "validation_time_ms",
+                    "analysis_time_ms",
+                ]
+                latency_samples: Dict[str, List[float]] = {
+                    key: [] for key in latency_keys
+                }
+                for latency_row in latency_rows:
+                    try:
+                        response_payload = json.loads(latency_row["response_data"])
+                    except Exception:
+                        continue
+                    metrics = (
+                        response_payload.get("metadata", {}).get("latency_metrics", {})
+                    )
+                    if not isinstance(metrics, dict):
+                        continue
+                    for key in latency_keys:
+                        value = metrics.get(key)
+                        if isinstance(value, (int, float)):
+                            latency_samples[key].append(float(value))
+
+                latency_metrics: Dict[str, Dict[str, Any]] = {}
+                for key, samples in latency_samples.items():
+                    average_ms = (
+                        round(sum(samples) / len(samples), 2) if samples else 0.0
+                    )
+                    latency_metrics[key] = {
+                        "average_ms": average_ms,
+                        "samples": len(samples),
+                    }
+
+                return {
+                    "total_generations": row["total_generations"] or 0,
+                    "average_generation_time": row["avg_generation_time"] or 0.0,
+                    "success_rate": (row["success_rate"] or 0.0) * 100,
+                    "average_quality_score": row["avg_quality_score"] or 0.0,
+                    "first_generation": row["first_generation"],
+                    "last_generation": row["last_generation"],
+                    "latency_metrics": latency_metrics,
+                    "popular_topics": [
+                        {"topics": json.loads(t["topics"]), "count": t["count"]}
+                        for t in topic_rows
+                    ],
                 }
 
-            stats = {
-                "total_generations": row["total_generations"] or 0,
-                "average_generation_time": row["avg_generation_time"] or 0.0,
-                "success_rate": (row["success_rate"] or 0.0)
-                * 100,  # Convert to percentage
-                "average_quality_score": row["avg_quality_score"] or 0.0,
-                "first_generation": row["first_generation"],
-                "last_generation": row["last_generation"],
-                "latency_metrics": latency_metrics,
-                "popular_topics": [
-                    {"topics": json.loads(t["topics"]), "count": t["count"]}
-                    for t in topic_rows
-                ],
-            }
-
+            stats = await self._run_in_thread(_op)
             logger.info("Retrieved statistics", total=stats["total_generations"])
             return stats
 
@@ -845,35 +891,37 @@ class DatabaseService:
             List of matching generations
         """
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
+            def _op() -> List[Dict[str, Any]]:
+                conn = self._get_connection()
+                cursor = conn.cursor()
 
-            # build parameterized query
-            conditions = " OR ".join(["topics LIKE ?" for _ in topics])
-            search_params: List[Any] = [f"%{topic}%" for topic in topics]
-            search_params.append(limit)
-            query = (
-                "SELECT timestamp, topics, hypothetical, quality_score "
-                "FROM generation_history "
-                "WHERE " + conditions + " "
-                "ORDER BY timestamp DESC "
-                "LIMIT ?"
-            )
-            cursor.execute(query, search_params)
-
-            rows = cursor.fetchall()
-            conn.close()
-
-            results = []
-            for row in rows:
-                results.append(
-                    {
-                        "timestamp": row["timestamp"],
-                        "topics": json.loads(row["topics"]),
-                        "hypothetical": row["hypothetical"][:200] + "...",  # Preview
-                        "quality_score": row["quality_score"],
-                    }
+                conditions = " OR ".join(["topics LIKE ?" for _ in topics])
+                search_params: List[Any] = [f"%{topic}%" for topic in topics]
+                search_params.append(limit)
+                query = (
+                    "SELECT timestamp, topics, hypothetical, quality_score "
+                    "FROM generation_history "
+                    "WHERE " + conditions + " "
+                    "ORDER BY timestamp DESC "
+                    "LIMIT ?"
                 )
+                cursor.execute(query, search_params)
+                rows = cursor.fetchall()
+                conn.close()
+
+                results = []
+                for row in rows:
+                    results.append(
+                        {
+                            "timestamp": row["timestamp"],
+                            "topics": json.loads(row["topics"]),
+                            "hypothetical": row["hypothetical"][:200] + "...",
+                            "quality_score": row["quality_score"],
+                        }
+                    )
+                return results
+
+            results = await self._run_in_thread(_op)
 
             logger.info("Search completed", topics=topics, results=len(results))
             return results
@@ -892,12 +940,16 @@ class DatabaseService:
         }
 
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM generation_history")
-            health_status["record_count"] = cursor.fetchone()[0]
+            def _op() -> int:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM generation_history")
+                count = cursor.fetchone()[0]
+                conn.close()
+                return int(count)
+
+            health_status["record_count"] = await self._run_in_thread(_op)
             health_status["connection_ok"] = True
-            conn.close()
 
         except Exception as e:
             logger.error("Database health check failed", error=str(e))
