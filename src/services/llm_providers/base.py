@@ -1,6 +1,7 @@
 """Abstract LLM provider interface and provider registry."""
 
 import asyncio
+import random
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Any, AsyncIterator, Dict, List, Optional
@@ -11,7 +12,12 @@ from pydantic import BaseModel, Field
 logger = structlog.get_logger(__name__)
 
 
-def retry_on_failure(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+def retry_on_failure(
+    max_attempts: int = 3,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    jitter_ratio: float = 0.2,
+):
     """Decorator for retrying async functions with exponential backoff."""
 
     def decorator(func):
@@ -28,11 +34,18 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0, backoff: float =
                             error=str(e),
                         )
                         raise
+                    sleep_for = current_delay
+                    if jitter_ratio > 0:
+                        spread = current_delay * jitter_ratio
+                        sleep_for = max(
+                            0.0,
+                            current_delay + random.uniform(-spread, spread),
+                        )
                     logger.warning(
-                        f"{func.__name__} attempt {attempt}/{max_attempts} failed, retrying in {current_delay}s",
+                        f"{func.__name__} attempt {attempt}/{max_attempts} failed, retrying in {sleep_for:.2f}s",
                         error=str(e),
                     )
-                    await asyncio.sleep(current_delay)
+                    await asyncio.sleep(sleep_for)
                     current_delay *= backoff
             return None
 
