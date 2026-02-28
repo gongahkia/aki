@@ -458,6 +458,38 @@ class TestDatabaseService:
             )
 
     @pytest.mark.asyncio
+    async def test_generation_report_comments_are_locked_on_read(self, database_service):
+        """Stored report comments should remain immutable/locked."""
+        generation_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+            },
+            response_data={
+                "hypothetical": "Test hypothetical text...",
+                "analysis": "Test analysis...",
+                "generation_time": 11.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {"generation_timestamp": "2025-01-01T00:00:00"},
+            },
+        )
+        await database_service.save_generation_report(
+            GenerationReport(
+                generation_id=generation_id,
+                issue_types=["topic_mismatch"],
+                comment="locked comment",
+                is_locked=True,
+            )
+        )
+
+        reports = await database_service.get_generation_reports(generation_id)
+        assert len(reports) == 1
+        assert reports[0].is_locked is True
+        assert reports[0].comment == "locked comment"
+
+    @pytest.mark.asyncio
     async def test_generation_report_delete_is_blocked(self, database_service):
         """Reports are append-only and cannot be deleted."""
         with pytest.raises(PermissionError):

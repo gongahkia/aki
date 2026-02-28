@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 from src.api.main import app
+from src.services.database_service import GenerationReport
 from src.services.hypothetical_service import GenerationResponse
 
 
@@ -184,3 +185,73 @@ def test_export_endpoint_looks_up_sqlite_generation_id(monkeypatch):
     assert response.status_code == 404
     assert "321" in response.json()["detail"]
     get_generation.assert_awaited_once_with(321)
+
+
+def test_report_update_and_delete_are_immutable():
+    client = TestClient(app)
+
+    update_resp = client.put("/generate/10/report/99")
+    delete_resp = client.delete("/generate/10/report/99")
+
+    assert update_resp.status_code == 403
+    assert "immutable" in update_resp.json()["detail"].lower()
+    assert delete_resp.status_code == 403
+    assert "immutable" in delete_resp.json()["detail"].lower()
+
+
+def test_regenerate_endpoint_preserves_retry_lineage(monkeypatch):
+    client = TestClient(app)
+    captured = {}
+
+    monkeypatch.setattr(
+        "src.api.main.database_service.get_generation_by_id",
+        AsyncMock(
+            return_value={
+                "id": 44,
+                "request": {
+                    "topics": ["negligence"],
+                    "number_parties": 2,
+                    "complexity_level": "basic",
+                    "method": "pure_llm",
+                    "provider": "ollama",
+                    "model": "llama3",
+                    "retry_attempt": 2,
+                    "user_preferences": {},
+                },
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "src.api.main.database_service.build_regeneration_feedback_context",
+        AsyncMock(return_value="Reporter comment: refine causation"),
+    )
+    monkeypatch.setattr(
+        "src.api.main.database_service.get_generation_reports",
+        AsyncMock(
+            return_value=[
+                GenerationReport(
+                    generation_id=44,
+                    issue_types=["topic_mismatch"],
+                    comment="refine causation",
+                    is_locked=True,
+                )
+            ]
+        ),
+    )
+
+    async def _fake_generate(request):
+        captured["request"] = request
+        return _mock_generation_response(generation_id=88)
+
+    monkeypatch.setattr(
+        "src.api.main.hypothetical_service.generate_hypothetical",
+        _fake_generate,
+    )
+
+    response = client.post("/generate/44/regenerate")
+
+    assert response.status_code == 200
+    regenerated_request = captured["request"]
+    assert regenerated_request.parent_generation_id == 44
+    assert regenerated_request.retry_attempt == 3
+    assert regenerated_request.retry_reason.startswith("report_feedback")
