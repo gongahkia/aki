@@ -22,6 +22,7 @@ from ..domain import canonicalize_topic, is_tort_topic
 from ..services import (
     CorpusQuery,
     CorpusService,
+    GenerationReport,
     GenerationRequest,
     GenerationResponse,
     HypotheticalEntry,
@@ -337,6 +338,19 @@ class BatchGenerateResult(BaseModel):
     validation_score: float
 
 
+class GenerateReportRequest(BaseModel):
+    issue_types: List[str] = Field(..., min_items=1, max_items=10)
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+
+class GenerateReportResponse(BaseModel):
+    report_id: int
+    generation_id: int
+    issue_types: List[str]
+    comment: Optional[str] = None
+    timestamp: str
+
+
 @app.post("/generate/batch")
 async def batch_generate(
     request: BatchGenerateRequest,
@@ -396,6 +410,47 @@ async def batch_generate(
                 }
             )
     return {"results": results, "count": len(results)}
+
+
+@app.post(
+    "/generate/{generation_id}/report",
+    response_model=GenerateReportResponse,
+)
+async def report_generation_failure(
+    generation_id: int,
+    request: GenerateReportRequest,
+):
+    """Persist a generation failure report for regeneration workflows."""
+    if generation_id <= 0:
+        raise HTTPException(status_code=400, detail="generation_id must be positive")
+
+    from src.services.database_service import database_service
+
+    report = GenerationReport(
+        generation_id=generation_id,
+        issue_types=request.issue_types,
+        comment=request.comment,
+        is_locked=True,
+    )
+    try:
+        report_id = await database_service.save_generation_report(report)
+    except Exception as e:
+        if "FOREIGN KEY constraint failed" in str(e):
+            raise HTTPException(
+                status_code=404, detail=f"Generation ID {generation_id} not found"
+            ) from e
+        logger.error("Failed to save generation report", error=str(e))
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save generation report: {e}"
+        ) from e
+
+    return GenerateReportResponse(
+        report_id=report_id,
+        generation_id=generation_id,
+        issue_types=request.issue_types,
+        comment=request.comment,
+        timestamp=datetime.utcnow().isoformat(),
+    )
 
 
 # Topics endpoint
