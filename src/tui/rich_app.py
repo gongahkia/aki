@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,6 +59,7 @@ for key, meta in TORT_TOPICS.items():
     TOPIC_CATEGORIES.setdefault(meta.category, []).append(key)
 
 PROVIDERS = ["ollama", "openai", "anthropic", "google", "local"]
+PROVIDER_HEALTH_CACHE_TTL_SECONDS = 20.0
 
 _CATEGORY_ICONS = {
     "Negligence-Based": "⚖",
@@ -456,6 +458,7 @@ class JikaiTUI:
         self._cached_last_score: str = "—"
         self._history_migrated: bool = False
         self._provider_model_cache: Dict[str, List[str]] = {}
+        self._provider_health_cache: Dict[str, Dict[str, Any]] = {}
 
     def _new_correlation_id(self) -> str:
         return f"tui-{uuid.uuid4()}"
@@ -4197,25 +4200,57 @@ class JikaiTUI:
             elif c == "2":
                 self._set_default_provider()
 
-    def _check_health(self):
+    def _invalidate_provider_health_cache(self):
+        self._provider_health_cache.clear()
+
+    def _get_provider_health_snapshot(
+        self, *, force_refresh: bool = False
+    ) -> tuple[Dict[str, Any], Dict[str, List[str]]]:
+        cache_key = "snapshot"
+        now = time.monotonic()
+        if not force_refresh:
+            cached = self._provider_health_cache.get(cache_key)
+            if cached and float(cached.get("expires_at", 0.0)) > now:
+                return cached["health"], cached["models"]
+
+        from ..services.llm_service import llm_service
+
+        async def _health():
+            h = await llm_service.health_check()
+            m = await llm_service.list_models()
+            return h, m
+
+        health, models = _run_async(_health())
+        normalized_models: Dict[str, List[str]] = {}
+        for provider_name, model_list in models.items():
+            if not isinstance(model_list, list):
+                normalized_models[provider_name] = []
+                continue
+            cleaned = sorted(
+                {
+                    model.strip()
+                    for model in model_list
+                    if isinstance(model, str) and model.strip()
+                }
+            )
+            normalized_models[provider_name] = cleaned
+            self._provider_model_cache[provider_name] = cleaned
+
+        self._provider_health_cache[cache_key] = {
+            "expires_at": now + PROVIDER_HEALTH_CACHE_TTL_SECONDS,
+            "health": health,
+            "models": normalized_models,
+        }
+        return health, normalized_models
+
+    def _check_health(self, force_refresh: bool = False):
         try:
-            from ..services.llm_service import llm_service
-
-            async def _health():
-                h = await llm_service.health_check()
-                m = await llm_service.list_models()
-                return h, m
-
             with console.status(
                 "[bold green]Checking provider health...", spinner="dots"
             ):
-                health, models = _run_async(_health())
-            for provider_name, model_list in models.items():
-                if isinstance(model_list, list):
-                    cleaned = [
-                        m for m in model_list if isinstance(m, str) and m.strip()
-                    ]
-                    self._provider_model_cache[provider_name] = sorted(set(cleaned))
+                health, models = self._get_provider_health_snapshot(
+                    force_refresh=force_refresh
+                )
             ht = Table(title="Provider Health", box=box.ROUNDED)
             ht.add_column("Provider", style="cyan")
             ht.add_column("Status", style="yellow")
@@ -4235,13 +4270,8 @@ class JikaiTUI:
     def _ping_provider(self, provider: str) -> bool:
         """Ping a provider to check if it's reachable. Returns True if healthy."""
         try:
-            from ..services.llm_service import llm_service
-
-            async def _check():
-                h = await llm_service.health_check()
-                return h.get(provider, {})
-
-            status = _run_async(_check())
+            health, _ = self._get_provider_health_snapshot(force_refresh=False)
+            status = health.get(provider, {})
             if isinstance(status, dict):
                 return status.get("healthy", False)
             return bool(status)
@@ -4256,6 +4286,15 @@ class JikaiTUI:
             return []
         if not force_refresh and provider_name in self._provider_model_cache:
             return self._provider_model_cache[provider_name]
+
+        if not force_refresh:
+            cached = self._provider_health_cache.get("snapshot")
+            now = time.monotonic()
+            if cached and float(cached.get("expires_at", 0.0)) > now:
+                cached_models = cached.get("models", {}).get(provider_name)
+                if isinstance(cached_models, list):
+                    self._provider_model_cache[provider_name] = cached_models
+                    return cached_models
 
         models: List[str] = []
         try:
@@ -4318,6 +4357,7 @@ class JikaiTUI:
             from ..services.llm_service import llm_service
 
             llm_service.select_provider(provider)
+            self._invalidate_provider_health_cache()
             console.print(f"[green]✓ Default provider: {provider}[/green]")
             tlog.info("PROVIDER  default=%s", provider)
         except Exception as e:
@@ -4648,7 +4688,7 @@ class JikaiTUI:
                 self.settings_flow()
                 # post-settings provider health check
                 try:
-                    self._check_health()
+                    self._check_health(force_refresh=True)
                 except Exception:
                     pass
             elif action == "ocr":
