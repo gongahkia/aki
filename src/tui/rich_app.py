@@ -33,6 +33,7 @@ from . import history as history_module
 from . import menus as menus_module
 from . import providers as providers_module
 from . import settings as settings_module
+from .installer import install_service_dependencies, request_install_confirmation
 from .state import LastGenerationConfig, TUIState
 
 console = Console()
@@ -4385,8 +4386,7 @@ class JikaiTUI:
                 console.print(
                     f"[yellow]⚠ {provider.title()} provider dependencies are missing.[/yellow]"
                 )
-                if _confirm(f"Install dependencies for {provider}?", default=True):
-                    self._install_service_deps(provider)
+                self._install_service_deps(provider)
 
     # ── first-run wizard ─────────────────────────────────────────
     def _needs_first_run(self) -> bool:
@@ -4410,46 +4410,22 @@ class JikaiTUI:
 
     def _install_service_deps(self, service_key: str):
         """Install dependencies for a specific service."""
-        import subprocess
-        import sys
-
         deps = SERVICE_DEPS.get(service_key, [])
         if not deps:
             return True
 
-        console.print(f"[cyan]Installing dependencies for {service_key}...[/cyan]")
-        failed = []
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("{task.completed}/{task.total}"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                f"[cyan]Installing {service_key} deps", total=len(deps)
+        if not request_install_confirmation(service_key, deps, _confirm):
+            console.print(
+                f"[dim]Skipped installing dependencies for {service_key}.[/dim]"
             )
-            for pkg in deps:
-                progress.update(task, description=f"[cyan]Installing {pkg}")
-                # Use --no-cache-dir to ensure fresh install if needed, but --quiet to keep it clean
-                result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", pkg, "--quiet"],
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    failed.append(pkg)
-                progress.advance(task)
-
-        if failed:
-            console.print(f"[red]✗ Failed to install: {', '.join(failed)}[/red]")
             return False
-        console.print(f"[green]✓ Dependencies for {service_key} installed.[/green]")
-        # Re-apply patch if needed after installing chromadb
-        if "chromadb" in deps and sys.version_info >= (3, 14):
-            self._apply_chromadb_py314_patch()
-        return True
+
+        return install_service_dependencies(
+            service_key=service_key,
+            dependencies=deps,
+            console=console,
+            on_chromadb_installed=self._apply_chromadb_py314_patch,
+        )
 
     def _deps_installed(self) -> bool:
         """Check if core dependencies are installed."""
