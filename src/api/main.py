@@ -351,6 +351,12 @@ class GenerateReportResponse(BaseModel):
     timestamp: str
 
 
+class RegenerateGenerationResponse(BaseModel):
+    source_generation_id: int
+    feedback_context: str = ""
+    regenerated: GenerationResponse
+
+
 @app.post("/generate/batch")
 async def batch_generate(
     request: BatchGenerateRequest,
@@ -450,6 +456,68 @@ async def report_generation_failure(
         issue_types=request.issue_types,
         comment=request.comment,
         timestamp=datetime.utcnow().isoformat(),
+    )
+
+
+@app.post(
+    "/generate/{generation_id}/regenerate",
+    response_model=RegenerateGenerationResponse,
+)
+async def regenerate_generation(
+    generation_id: int,
+    service: HypotheticalService = Depends(get_hypothetical_service),
+):
+    """Force regeneration using original request and stored feedback context."""
+    if generation_id <= 0:
+        raise HTTPException(status_code=400, detail="generation_id must be positive")
+
+    from src.services.database_service import database_service
+
+    row = await database_service.get_generation_by_id(generation_id)
+    if not row:
+        raise HTTPException(
+            status_code=404, detail=f"Generation ID {generation_id} not found"
+        )
+
+    request_data = row.get("request", {})
+    original_topics = request_data.get("topics", [])
+    if not original_topics:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Generation ID {generation_id} has no stored topics to regenerate",
+        )
+
+    canonical_topics = canonicalize_and_validate_topics(original_topics)
+    feedback_context = await database_service.build_regeneration_feedback_context(
+        generation_id
+    )
+
+    user_preferences = request_data.get("user_preferences") or {}
+    if feedback_context:
+        existing_feedback = str(user_preferences.get("feedback", "")).strip()
+        user_preferences["feedback"] = (
+            f"{existing_feedback} {feedback_context}".strip()
+            if existing_feedback
+            else feedback_context
+        )
+
+    regenerate_request = GenerationRequest(
+        topics=canonical_topics,
+        law_domain=request_data.get("law_domain", "tort"),
+        number_parties=request_data.get("number_parties", 3),
+        complexity_level=request_data.get("complexity_level", "intermediate"),
+        sample_size=request_data.get("sample_size", 3),
+        user_preferences=user_preferences,
+        method=request_data.get("method", "pure_llm"),
+        provider=request_data.get("provider"),
+        model=request_data.get("model"),
+    )
+
+    regenerated = await service.generate_hypothetical(regenerate_request)
+    return RegenerateGenerationResponse(
+        source_generation_id=generation_id,
+        feedback_context=feedback_context,
+        regenerated=regenerated,
     )
 
 

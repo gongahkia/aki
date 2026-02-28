@@ -233,6 +233,33 @@ class DatabaseService:
             logger.error("Failed to get recent generations", error=str(e))
             return []
 
+    async def get_generation_by_id(self, generation_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch a single generation row by primary key."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, timestamp, request_data, response_data
+                FROM generation_history
+                WHERE id = ?
+                """,
+                (generation_id,),
+            )
+            row = cursor.fetchone()
+            conn.close()
+            if not row:
+                return None
+            return {
+                "id": row["id"],
+                "timestamp": row["timestamp"],
+                "request": json.loads(row["request_data"]),
+                "response": json.loads(row["response_data"]),
+            }
+        except Exception as e:
+            logger.error("Failed to get generation by id", error=str(e))
+            return None
+
     async def save_generation_report(self, report: GenerationReport) -> int:
         """Persist a report linked to a generation row."""
         try:
@@ -312,6 +339,58 @@ class DatabaseService:
         except Exception as e:
             logger.error("Failed to load generation reports", error=str(e))
             return []
+
+    async def get_report_feedback(self, report_id: int) -> List[GenerationFeedback]:
+        """Fetch feedback rows linked to a specific report."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, report_id, generation_id, feedback_text, created_at
+                FROM generation_feedback
+                WHERE report_id = ?
+                ORDER BY created_at ASC
+                """,
+                (report_id,),
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            return [
+                GenerationFeedback(
+                    id=row["id"],
+                    report_id=row["report_id"],
+                    generation_id=row["generation_id"],
+                    feedback_text=row["feedback_text"],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+        except Exception as e:
+            logger.error("Failed to load report feedback", error=str(e))
+            return []
+
+    async def build_regeneration_feedback_context(self, generation_id: int) -> str:
+        """Build immutable feedback context from stored reports and feedback."""
+        reports = await self.get_generation_reports(generation_id)
+        if not reports:
+            return ""
+
+        segments: List[str] = []
+        for report in reports:
+            report_parts: List[str] = []
+            if report.issue_types:
+                report_parts.append("Issue types: " + ", ".join(report.issue_types))
+            if report.comment:
+                report_parts.append("Reporter comment: " + report.comment)
+            if report.id is not None:
+                feedback_rows = await self.get_report_feedback(report.id)
+                for feedback in feedback_rows:
+                    report_parts.append("Feedback: " + feedback.feedback_text)
+            if report_parts:
+                segments.append("; ".join(report_parts))
+
+        return " | ".join(segments)
 
     async def get_statistics(self) -> Dict[str, Any]:
         """

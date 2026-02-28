@@ -208,3 +208,68 @@ class TestDatabaseService:
                     comment="No linked generation should fail.",
                 )
             )
+
+    @pytest.mark.asyncio
+    async def test_get_generation_by_id(self, database_service):
+        """Generation rows should be retrievable by primary key."""
+        generation_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+            },
+            response_data={
+                "hypothetical": "Test hypothetical text...",
+                "analysis": "Test analysis...",
+                "generation_time": 11.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {"generation_timestamp": "2025-01-01T00:00:00"},
+            },
+        )
+        row = await database_service.get_generation_by_id(generation_id)
+
+        assert row is not None
+        assert row["id"] == generation_id
+        assert row["request"]["topics"] == ["negligence"]
+
+    @pytest.mark.asyncio
+    async def test_build_regeneration_feedback_context(self, database_service):
+        """Feedback context should include report issue types and comments."""
+        generation_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+            },
+            response_data={
+                "hypothetical": "Test hypothetical text...",
+                "analysis": "Test analysis...",
+                "generation_time": 11.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {"generation_timestamp": "2025-01-01T00:00:00"},
+            },
+        )
+        report_id = await database_service.save_generation_report(
+            GenerationReport(
+                generation_id=generation_id,
+                issue_types=["topic_mismatch"],
+                comment="Missing causation detail.",
+                is_locked=True,
+            )
+        )
+        await database_service.save_generation_feedback(
+            GenerationFeedback(
+                report_id=report_id,
+                generation_id=generation_id,
+                feedback_text="Increase factual detail around duty.",
+            )
+        )
+
+        context = await database_service.build_regeneration_feedback_context(
+            generation_id
+        )
+        assert "topic_mismatch" in context
+        assert "Missing causation detail." in context
+        assert "Increase factual detail around duty." in context
