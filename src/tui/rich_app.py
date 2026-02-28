@@ -440,6 +440,7 @@ class GenerationConfig:
     method: str
     temperature: float = 0.7
     red_herrings: bool = False
+    include_analysis: bool = True
 
 
 class JikaiTUI:
@@ -1899,6 +1900,7 @@ class JikaiTUI:
                 complexity = defaults.complexity
                 parties = defaults.parties
                 method = defaults.method
+                include_analysis = defaults.include_analysis
                 red_herrings = False
 
                 dt = Table(title="Quick Generate Defaults", box=box.SIMPLE)
@@ -1910,6 +1912,7 @@ class JikaiTUI:
                 dt.add_row("Complexity", complexity)
                 dt.add_row("Parties", parties)
                 dt.add_row("Method", method)
+                dt.add_row("Include Analysis", "Yes" if include_analysis else "No")
                 console.print(dt)
 
                 if not _confirm("Use these settings?", default=True):
@@ -1961,6 +1964,7 @@ class JikaiTUI:
                 method = _select_quit("Method", choices=METHOD_CHOICES)
                 if method is None:
                     return
+                include_analysis = _confirm("Include legal analysis?", default=True)
                 red_herrings = _confirm("Include red herrings?", default=False)
 
             cfg = Table(box=box.SIMPLE, title="Generation Config")
@@ -1973,13 +1977,14 @@ class JikaiTUI:
             cfg.add_row("Complexity", str(complexity))
             cfg.add_row("Parties", str(parties))
             cfg.add_row("Method", method)
+            cfg.add_row("Include Analysis", "Yes" if include_analysis else "No")
             cfg.add_row("Red Herrings", "Yes" if red_herrings else "No")
             console.print(cfg)
             if not _confirm("Proceed with generation?", default=True):
                 return
             tlog.info(
                 "GENERATE  topic=%s provider=%s model=%s temp=%.1f "
-                "complexity=%s parties=%s method=%s",
+                "complexity=%s parties=%s method=%s include_analysis=%s",
                 topic,
                 provider,
                 model_name,
@@ -1987,6 +1992,7 @@ class JikaiTUI:
                 complexity,
                 parties,
                 method,
+                include_analysis,
             )
             self._do_generate(
                 GenerationConfig(
@@ -1998,6 +2004,7 @@ class JikaiTUI:
                     method=method,
                     temperature=float(temperature),
                     red_herrings=red_herrings,
+                    include_analysis=include_analysis,
                 )
             )
             # Persist last-used config for quick-generate
@@ -2009,6 +2016,7 @@ class JikaiTUI:
                 complexity=str(complexity),
                 parties=str(parties),
                 method=method,
+                include_analysis=include_analysis,
             )
             self._save_state(state)
             if not _confirm("Generate another?", default=False):
@@ -2018,6 +2026,7 @@ class JikaiTUI:
         topic, provider, model = cfg.topic, cfg.provider, cfg.model
         complexity, parties, method = cfg.complexity, cfg.parties, cfg.method
         complexity_level = _normalize_complexity_level(complexity)
+        include_analysis = cfg.include_analysis
         temperature, red_herrings = cfg.temperature, cfg.red_herrings
         max_retries = 3
         partial_result = ""
@@ -2057,79 +2066,81 @@ class JikaiTUI:
                         live.update(Text(partial_result))
                 return partial_result
 
-            try:
-                console.print("[dim]Attempt 1/{0}[/dim]".format(max_retries))
-                result = _run_async(_stream())
-                if result:
-                    vr = validation_service.validate_hypothetical(
-                        text=result,
-                        required_topics=[topic],
-                        expected_parties=parties,
-                    )
-                    score = vr.get("overall_score", 0.0)
-                    passed = vr.get("passed", False)
-                    console.print(
-                        Panel(
-                            result,
-                            title="Generated Hypothetical",
-                            box=box.ROUNDED,
-                            border_style="green",
+            if not include_analysis:
+                try:
+                    console.print("[dim]Attempt 1/{0}[/dim]".format(max_retries))
+                    result = _run_async(_stream())
+                    if result:
+                        vr = validation_service.validate_hypothetical(
+                            text=result,
+                            required_topics=[topic],
+                            expected_parties=parties,
                         )
-                    )
-                    self._show_validation(vr)
-                    if passed or score >= 7.0:
-                        tlog.info(
-                            "GENERATE  stream success, len=%d score=%.1f",
-                            len(result),
-                            score,
+                        score = vr.get("overall_score", 0.0)
+                        passed = vr.get("passed", False)
+                        console.print(
+                            Panel(
+                                result,
+                                title="Generated Hypothetical",
+                                box=box.ROUNDED,
+                                border_style="green",
+                            )
                         )
-                        generation_id = self._persist_stream_generation(
-                            topic=topic,
-                            provider=provider,
-                            model=model,
-                            complexity=complexity,
-                            parties=parties,
-                            method=method,
-                            temperature=temperature,
-                            red_herrings=red_herrings,
-                            hypothetical=result,
-                            validation_results=vr,
-                            correlation_id=correlation_id,
-                        )
-                        self._save_to_history(
-                            {
-                                "config": {
-                                    "topic": topic,
-                                    "provider": provider,
-                                    "model": model,
-                                    "complexity": complexity,
-                                    "parties": parties,
-                                    "method": method,
+                        self._show_validation(vr)
+                        if passed or score >= 7.0:
+                            tlog.info(
+                                "GENERATE  stream success, len=%d score=%.1f",
+                                len(result),
+                                score,
+                            )
+                            generation_id = self._persist_stream_generation(
+                                topic=topic,
+                                provider=provider,
+                                model=model,
+                                complexity=complexity,
+                                parties=parties,
+                                method=method,
+                                temperature=temperature,
+                                red_herrings=red_herrings,
+                                hypothetical=result,
+                                validation_results=vr,
+                                correlation_id=correlation_id,
+                                include_analysis=include_analysis,
+                            )
+                            self._save_to_history(
+                                {
+                                    "config": {
+                                        "topic": topic,
+                                        "provider": provider,
+                                        "model": model,
+                                        "complexity": complexity,
+                                        "parties": parties,
+                                        "method": method,
+                                    },
+                                    "hypothetical": result,
+                                    "validation_score": score,
+                                    "generation_id": generation_id,
+                                }
+                            )
+                            self._post_generation_actions(
+                                {
+                                    "generation_id": generation_id,
+                                    "hypothetical": result,
+                                    "analysis": "",
+                                    "validation_results": vr,
+                                    "validation_score": score,
                                 },
-                                "hypothetical": result,
-                                "validation_score": score,
-                                "generation_id": generation_id,
-                            }
-                        )
-                        self._post_generation_actions(
-                            {
-                                "generation_id": generation_id,
-                                "hypothetical": result,
-                                "analysis": "",
-                                "validation_results": vr,
-                                "validation_score": score,
-                            },
-                            cfg,
-                        )
-                        return
-                    retry_reason = self._build_retry_reason(vr, score)
-                    console.print(f"[yellow]{retry_reason}[/yellow]")
-            except Exception as stream_err:
-                tlog.info("GENERATE  stream failed: %s, trying full", stream_err)
-                console.print(
-                    "[yellow]Stream unavailable "
-                    f"({stream_err}), using full generation...[/yellow]"
-                )
+                                cfg,
+                            )
+                            return
+                        retry_reason = self._build_retry_reason(vr, score)
+                        console.print(f"[yellow]{retry_reason}[/yellow]")
+                except Exception as stream_err:
+                    tlog.info("GENERATE  stream failed: %s, trying full", stream_err)
+                    console.print(
+                        "[yellow]Stream unavailable "
+                        f"({stream_err}), using full generation...[/yellow]"
+                    )
 
             from ..services.hypothetical_service import (
                 GenerationRequest,
@@ -2155,6 +2166,7 @@ class JikaiTUI:
                         model=model,
                         user_preferences=prefs,
                         correlation_id=correlation_id,
+                        include_analysis=include_analysis,
                     )
                     return await hypothetical_service.generate_hypothetical(req)
 
@@ -2374,6 +2386,7 @@ class JikaiTUI:
         hypothetical: str,
         validation_results: Dict[str, Any],
         correlation_id: Optional[str] = None,
+        include_analysis: bool = False,
     ) -> Optional[int]:
         """Persist a stream-generated output so it can be reported/regenerated."""
         from datetime import datetime
@@ -2394,6 +2407,7 @@ class JikaiTUI:
             "provider": provider,
             "model": model,
             "correlation_id": correlation_id,
+            "include_analysis": include_analysis,
         }
         response_data = {
             "hypothetical": hypothetical,
@@ -2571,6 +2585,7 @@ class JikaiTUI:
                 method=request_data.get("method", cfg.method),
                 provider=request_data.get("provider", cfg.provider),
                 model=request_data.get("model", cfg.model),
+                include_analysis=bool(request_data.get("include_analysis", True)),
                 parent_generation_id=source_generation_id,
                 retry_reason=retry_reason,
                 retry_attempt=retry_attempt,

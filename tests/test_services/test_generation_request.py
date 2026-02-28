@@ -23,3 +23,8 @@ def test_generation_request_normalizes_complexity_level():
 def test_generation_request_rejects_unknown_complexity_level():
     with pytest.raises(ValueError):
         GenerationRequest(topics=["negligence"], complexity_level="impossible")
+
+
+def test_generation_request_include_analysis_defaults_true():
+    request = GenerationRequest(topics=["negligence"])
+    assert request.include_analysis is True

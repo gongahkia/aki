@@ -77,6 +77,7 @@ class GenerationRequest(BaseModel):
     retry_attempt: int = Field(default=0, ge=0)
     correlation_id: Optional[str] = None
     topic_extraction_time_ms: Optional[float] = Field(default=None, ge=0.0)
+    include_analysis: bool = True
 
     @field_validator("law_domain")
     @classmethod
@@ -149,7 +150,11 @@ class HypotheticalService:
     @staticmethod
     def _should_skip_analysis(request: GenerationRequest) -> bool:
         preferences = request.user_preferences or {}
-        return bool(preferences.get("skip_analysis") or preferences.get("fast_mode"))
+        return bool(
+            (not request.include_analysis)
+            or preferences.get("skip_analysis")
+            or preferences.get("fast_mode")
+        )
 
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline."""
@@ -247,6 +252,7 @@ class HypotheticalService:
                     "parent_generation_id": request.parent_generation_id,
                     "retry_reason": request.retry_reason,
                     "retry_attempt": request.retry_attempt,
+                    "include_analysis": request.include_analysis,
                     "timeout_seconds": self._resolve_timeout_override(request),
                     "correlation_id": correlation_id,
                     "analysis_skipped": analysis_skipped,

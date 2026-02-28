@@ -823,6 +823,7 @@ async def regenerate_generation(
         method=request_data.get("method", "pure_llm"),
         provider=request_data.get("provider"),
         model=request_data.get("model"),
+        include_analysis=bool(request_data.get("include_analysis", True)),
         parent_generation_id=generation_id,
         retry_reason=retry_reason,
         retry_attempt=retry_attempt,
