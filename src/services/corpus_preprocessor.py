@@ -1,6 +1,7 @@
 """
 Corpus preprocessor: converts raw files (TXT/PDF/PNG/DOCX) to clean corpus JSON.
-Scans corpus/raw/*/ directories, infers topic from directory name, and rebuilds
+Scans corpus/raw/*/ directories (tort only by default), infers topic from
+directory name, and rebuilds
 corpus/clean/tort/corpus.json with all entries.
 """
 
@@ -112,9 +113,11 @@ def normalize_text(text: str) -> str:
 
 def scan_raw_directory(
     raw_dir: Optional[Path] = None,
+    include_non_tort: bool = False,
 ) -> List[Dict]:
     """
     Scan corpus/raw/*/ for supported files, extract text, infer topics.
+    By default only scans corpus/raw/tort; set include_non_tort=True to scan all.
     Returns list of {"text": ..., "topic": [...], "metadata": {...}} dicts.
     """
     raw_dir = raw_dir or RAW_DIR
@@ -125,6 +128,8 @@ def scan_raw_directory(
 
     for subdir in sorted(raw_dir.iterdir()):
         if not subdir.is_dir():
+            continue
+        if not include_non_tort and subdir.name.lower() != "tort":
             continue
         base_topics = infer_topics_from_dir(subdir.name)
         for fpath in sorted(subdir.iterdir()):
@@ -156,6 +161,7 @@ def build_corpus(
     raw_dir: Optional[Path] = None,
     output_path: Optional[Path] = None,
     merge_existing: bool = True,
+    include_non_tort: bool = False,
 ) -> int:
     """
     Build clean corpus JSON from raw directory.
@@ -170,7 +176,7 @@ def build_corpus(
             existing = json.load(f)
 
     curated = [e for e in existing if not e.get("metadata", {}).get("source_file")]
-    raw_entries = scan_raw_directory(raw_dir)
+    raw_entries = scan_raw_directory(raw_dir, include_non_tort=include_non_tort)
 
     merged = curated + raw_entries
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -219,5 +225,6 @@ if __name__ == "__main__":
         out = convert_file_to_txt(p)
         print(f"Converted → {out}")
     else:
-        count = build_corpus()
+        include_non_tort = "--include-non-tort" in sys.argv
+        count = build_corpus(include_non_tort=include_non_tort)
         print(f"Corpus rebuilt: {count} entries → {CORPUS_FILE}")
