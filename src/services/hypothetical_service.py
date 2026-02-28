@@ -3,6 +3,9 @@ Hypothetical Generation Service - Main orchestration service for generating lega
 Combines prompt engineering, LLM service, and corpus service to create high-quality legal scenarios.
 """
 
+import asyncio
+import hashlib
+import json
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +32,8 @@ from .validation_service import validation_service
 logger = structlog.get_logger(__name__)
 
 MAX_HISTORY_SIZE = 100
+RESPONSE_CACHE_TTL_SECONDS = 120
+RESPONSE_CACHE_MAX_ENTRIES = 128
 CANONICAL_COMPLEXITY_LEVELS = ["beginner", "basic", "intermediate", "advanced", "expert"]
 COMPLEXITY_LEVEL_MAP: Dict[str, str] = {
     "1": "beginner",
@@ -131,6 +136,31 @@ class HypotheticalService:
         self.prompt_manager = PromptTemplateManager()
         self._generation_history: List[Dict[str, Any]] = []
         self._ml_pipeline = None
+        self._response_cache: Dict[str, Dict[str, Any]] = {}
+        self._response_cache_lock = asyncio.Lock()
+        self._response_cache_ttl_seconds = max(
+            0,
+            int(
+                getattr(
+                    settings,
+                    "local_response_cache_ttl_seconds",
+                    RESPONSE_CACHE_TTL_SECONDS,
+                )
+            ),
+        )
+        self._response_cache_max_entries = max(
+            1,
+            int(
+                getattr(
+                    settings,
+                    "local_response_cache_max_entries",
+                    RESPONSE_CACHE_MAX_ENTRIES,
+                )
+            ),
+        )
+        self._response_cache_enabled = bool(
+            getattr(settings, "local_response_cache_enabled", True)
+        )
 
     @staticmethod
     def _resolve_timeout_override(request: GenerationRequest) -> Optional[int]:
@@ -165,6 +195,95 @@ class HypotheticalService:
             or preferences.get("fast_validation")
         )
 
+    @staticmethod
+    def _cache_key(request: GenerationRequest) -> str:
+        payload = {
+            "topics": sorted(request.topics),
+            "law_domain": request.law_domain,
+            "number_parties": request.number_parties,
+            "complexity_level": request.complexity_level,
+            "sample_size": request.sample_size,
+            "user_preferences": request.user_preferences or {},
+            "method": request.method,
+            "provider": request.provider,
+            "model": request.model,
+            "include_analysis": request.include_analysis,
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+        return hashlib.sha256(encoded).hexdigest()
+
+    @staticmethod
+    def _is_local_mode() -> bool:
+        return str(settings.environment).strip().lower() != "production"
+
+    def _is_cacheable_request(self, request: GenerationRequest) -> bool:
+        if (
+            not self._response_cache_enabled
+            or self._response_cache_ttl_seconds <= 0
+            or not self._is_local_mode()
+        ):
+            return False
+        if request.parent_generation_id is not None:
+            return False
+        if request.retry_attempt > 0 or request.retry_reason:
+            return False
+        preferences = request.user_preferences or {}
+        return not bool(
+            preferences.get("disable_cache") or preferences.get("force_regenerate")
+        )
+
+    async def _get_cached_response(
+        self, request: GenerationRequest
+    ) -> Optional[GenerationResponse]:
+        if not self._is_cacheable_request(request):
+            return None
+        cache_key = self._cache_key(request)
+        now = time.monotonic()
+
+        async with self._response_cache_lock:
+            entry = self._response_cache.get(cache_key)
+            if not entry:
+                return None
+            if float(entry.get("expires_at", 0.0)) <= now:
+                self._response_cache.pop(cache_key, None)
+                return None
+            cached_payload = dict(entry["response"])
+
+        return GenerationResponse(**cached_payload)
+
+    async def _cache_response(
+        self, request: GenerationRequest, response: GenerationResponse
+    ) -> None:
+        if not self._is_cacheable_request(request):
+            return
+        cache_key = self._cache_key(request)
+        now = time.monotonic()
+        expires_at = now + float(self._response_cache_ttl_seconds)
+
+        async with self._response_cache_lock:
+            expired_keys = [
+                key
+                for key, value in self._response_cache.items()
+                if float(value.get("expires_at", 0.0)) <= now
+            ]
+            for key in expired_keys:
+                self._response_cache.pop(key, None)
+
+            self._response_cache[cache_key] = {
+                "expires_at": expires_at,
+                "response": response.model_dump(mode="python"),
+            }
+
+            if len(self._response_cache) > self._response_cache_max_entries:
+                oldest_keys = sorted(
+                    self._response_cache.items(),
+                    key=lambda item: float(item[1].get("expires_at", 0.0)),
+                )[: len(self._response_cache) - self._response_cache_max_entries]
+                for key, _ in oldest_keys:
+                    self._response_cache.pop(key, None)
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline."""
         if self._ml_pipeline is None:
@@ -194,6 +313,25 @@ class HypotheticalService:
                 complexity=request.complexity_level,
                 correlation_id=correlation_id,
             )
+
+            cached_response = await self._get_cached_response(request)
+            if cached_response:
+                cached_metadata = dict(cached_response.metadata)
+                cached_metadata.update(
+                    {
+                        "cache_hit": True,
+                        "correlation_id": correlation_id,
+                    }
+                )
+                cached_response = cached_response.model_copy(
+                    update={"metadata": cached_metadata}
+                )
+                logger.info(
+                    "Returning cached hypothetical response",
+                    topics=request.topics,
+                    correlation_id=correlation_id,
+                )
+                return cached_response
 
             # Step 1: Get relevant context from corpus
             retrieval_started = time.perf_counter()
@@ -265,6 +403,7 @@ class HypotheticalService:
                     "timeout_seconds": self._resolve_timeout_override(request),
                     "correlation_id": correlation_id,
                     "analysis_skipped": analysis_skipped,
+                    "cache_hit": False,
                     "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
@@ -309,6 +448,8 @@ class HypotheticalService:
                 validation_passed=validation_results.passed,
                 correlation_id=correlation_id,
             )
+
+            await self._cache_response(request, response)
 
             return response
 

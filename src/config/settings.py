@@ -201,6 +201,15 @@ class Settings(BaseSettings):
     retention_cleanup_interval_minutes: int = Field(
         default=60, env="RETENTION_CLEANUP_INTERVAL_MINUTES"
     )
+    local_response_cache_enabled: bool = Field(
+        default=True, env="LOCAL_RESPONSE_CACHE_ENABLED"
+    )
+    local_response_cache_ttl_seconds: int = Field(
+        default=120, env="LOCAL_RESPONSE_CACHE_TTL_SECONDS"
+    )
+    local_response_cache_max_entries: int = Field(
+        default=128, env="LOCAL_RESPONSE_CACHE_MAX_ENTRIES"
+    )
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
 
     # Sub-configurations
@@ -237,11 +246,13 @@ class Settings(BaseSettings):
         "retention_generations",
         "retention_reports",
         "retention_cleanup_interval_minutes",
+        "local_response_cache_ttl_seconds",
+        "local_response_cache_max_entries",
     )
     @classmethod
     def validate_retention_values(cls, v):
         if int(v) < 1:
-            raise ValueError("Retention values must be >= 1")
+            raise ValueError("Configured values must be >= 1")
         return int(v)
 
     @property
