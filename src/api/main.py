@@ -42,6 +42,7 @@ from ..services import (
     LLMService,
     corpus_service,
     database_service,
+    ensure_required_tort_corpus_file,
     hypothetical_service,
     llm_service,
     map_exception,
@@ -329,6 +330,8 @@ async def startup_event():
 
     # Initialize services
     try:
+        corpus_file = ensure_required_tort_corpus_file(settings.corpus_path)
+        logger.info("Validated required corpus file", path=str(corpus_file))
         env_name = os.environ.get("ENVIRONMENT", settings.environment).strip().lower()
         if env_name != "test" and not os.environ.get("PYTEST_CURRENT_TEST"):
             from ..services.migrations import run_database_migrations

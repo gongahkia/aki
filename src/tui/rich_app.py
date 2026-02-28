@@ -4665,7 +4665,23 @@ class JikaiTUI:
         console.print("[bold green]Setup complete! Entering main menu.[/bold green]\n")
 
     # ── entry point ─────────────────────────────────────────────
+    def _assert_required_corpus_ready(self):
+        """Fail fast when the required tort corpus is missing or invalid."""
+        from ..config import settings
+        from ..services.startup_checks import (
+            StartupCheckError,
+            ensure_required_tort_corpus_file,
+        )
+
+        try:
+            corpus_path = ensure_required_tort_corpus_file(settings.corpus_path)
+            self._corpus_path = str(corpus_path)
+        except StartupCheckError as exc:
+            console.print(f"[red]✗ {exc}[/red]")
+            raise SystemExit(1) from exc
+
     def run(self):
+        self._assert_required_corpus_ready()
         self.display_banner()
         self._start_services()
         if self._needs_first_run():

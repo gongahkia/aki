@@ -1,3 +1,2 @@
-(B) Add a startup self-check that validates required tort corpus file exists and fails fast with actionable error when missing. +stability +api +tui +startup
 (B) Add provider health cache with short TTL to avoid repeated expensive health probes during interactive TUI sessions. +latency +tui +providers
 (B) Add sqlite indexes on `generation_history(timestamp)`, `generation_reports(generation_id)`, and `generation_history(parent_generation_id)` for faster history and lineage queries. +stability +database +performance

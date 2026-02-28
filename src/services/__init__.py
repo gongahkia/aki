@@ -15,6 +15,7 @@ from .hypothetical_service import (
     hypothetical_service,
 )
 from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
+from .startup_checks import StartupCheckError, ensure_required_tort_corpus_file
 from .validation_service import ValidationService, validation_service
 from .workflow_facade import (
     GenerationExecutionResult,
@@ -57,6 +58,8 @@ __all__ = [
     "ValidationResult",
     "ValidationService",
     "validation_service",
+    "StartupCheckError",
+    "ensure_required_tort_corpus_file",
     "WorkflowFacade",
     "WorkflowFacadeError",
     "GenerationExecutionResult",
