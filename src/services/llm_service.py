@@ -14,6 +14,8 @@ from .llm_providers import LLMRequest, LLMResponse, LLMServiceError, registry
 logger = structlog.get_logger(__name__)
 
 GENERATION_TIMEOUT = 120
+MIN_GENERATION_TIMEOUT = 10
+MAX_GENERATION_TIMEOUT = 300
 HEALTH_CHECK_TIMEOUT = 30
 CIRCUIT_BREAKER_THRESHOLD = 3  # consecutive failures before marking unhealthy
 CIRCUIT_BREAKER_COOLDOWN = 60
@@ -218,6 +220,16 @@ class LLMService:
         raw = (request.correlation_id or "").strip()
         return raw or None
 
+    @staticmethod
+    def _resolve_request_timeout(request: LLMRequest) -> int:
+        if request.timeout_seconds is None:
+            return GENERATION_TIMEOUT
+        try:
+            requested = int(request.timeout_seconds)
+        except (TypeError, ValueError):
+            return GENERATION_TIMEOUT
+        return max(MIN_GENERATION_TIMEOUT, min(MAX_GENERATION_TIMEOUT, requested))
+
     def _track_cost(self, model: str, usage: Dict[str, int]):
         """Estimate and accumulate token costs."""
         costs = TOKEN_COSTS.get(model, {"input": 0, "output": 0})
@@ -254,6 +266,7 @@ class LLMService:
     ) -> LLMResponse:
         """Generate using specified or default provider+model. Auto-fallback on circuit break."""
         correlation_id = self._extract_correlation_id(request)
+        request_timeout = self._resolve_request_timeout(request)
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
             raise LLMServiceError(f"Provider '{provider_name}' not available")
@@ -281,7 +294,7 @@ class LLMService:
         try:
             response = await asyncio.wait_for(
                 provider_instance.generate(request),
-                timeout=GENERATION_TIMEOUT,
+                timeout=request_timeout,
             )
             self._record_success(provider_name)
             cost = self._track_cost(response.model, response.usage)
@@ -300,11 +313,11 @@ class LLMService:
             logger.warning(
                 "LLM generation timed out",
                 provider=provider_name,
-                timeout_seconds=GENERATION_TIMEOUT,
+                timeout_seconds=request_timeout,
                 correlation_id=correlation_id,
             )
             raise LLMServiceError(
-                f"Generation timed out after {GENERATION_TIMEOUT}s on provider '{provider_name}'"
+                f"Generation timed out after {request_timeout}s on provider '{provider_name}'"
             )
         except Exception as e:
             self._record_failure(provider_name)
@@ -324,6 +337,7 @@ class LLMService:
     ):
         """Stream tokens from provider. Yields str chunks."""
         correlation_id = self._extract_correlation_id(request)
+        request_timeout = self._resolve_request_timeout(request)
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
             raise LLMServiceError(f"Provider '{provider_name}' not available")
@@ -342,14 +356,26 @@ class LLMService:
         self._validate_generation_config(provider_name, request)
         provider_instance = registry.get(provider_name)
         try:
-            async for chunk in provider_instance.stream_generate(request):
-                yield chunk
+            async with asyncio.timeout(request_timeout):
+                async for chunk in provider_instance.stream_generate(request):
+                    yield chunk
             self._record_success(provider_name)
             logger.info(
                 "LLM stream completed",
                 provider=provider_name,
                 model=request.model,
                 correlation_id=correlation_id,
+            )
+        except TimeoutError:
+            self._record_failure(provider_name)
+            logger.warning(
+                "LLM stream timed out",
+                provider=provider_name,
+                timeout_seconds=request_timeout,
+                correlation_id=correlation_id,
+            )
+            raise LLMServiceError(
+                f"Stream timed out after {request_timeout}s on provider '{provider_name}'"
             )
         except Exception as e:
             self._record_failure(provider_name)

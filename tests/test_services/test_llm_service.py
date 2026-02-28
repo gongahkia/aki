@@ -306,3 +306,13 @@ class TestLLMService:
                 llm_service._validate_generation_config("openai", request)
         finally:
             PROVIDER_CAPABILITIES["openai"]["supports_stream"] = original
+
+    def test_request_timeout_override_is_clamped(self, llm_service):
+        """Per-request timeout overrides should enforce safe min/max bounds."""
+        low = LLMRequest(prompt="Test prompt", timeout_seconds=1)
+        high = LLMRequest(prompt="Test prompt", timeout_seconds=999)
+        default = LLMRequest(prompt="Test prompt")
+
+        assert llm_service._resolve_request_timeout(low) == 10
+        assert llm_service._resolve_request_timeout(high) == 300
+        assert llm_service._resolve_request_timeout(default) == 120

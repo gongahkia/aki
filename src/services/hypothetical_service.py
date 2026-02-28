@@ -97,6 +97,21 @@ class HypotheticalService:
         self._generation_history: List[Dict[str, Any]] = []
         self._ml_pipeline = None
 
+    @staticmethod
+    def _resolve_timeout_override(request: GenerationRequest) -> Optional[int]:
+        """Read optional timeout override from user preferences with safe bounds."""
+        preferences = request.user_preferences or {}
+        raw_timeout = preferences.get("timeout_seconds")
+        if raw_timeout is None:
+            raw_timeout = preferences.get("provider_timeout_seconds")
+        if raw_timeout is None:
+            return None
+        try:
+            timeout = int(float(raw_timeout))
+        except (TypeError, ValueError):
+            return None
+        return max(10, min(300, timeout))
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline."""
         if self._ml_pipeline is None:
@@ -186,6 +201,7 @@ class HypotheticalService:
                     "parent_generation_id": request.parent_generation_id,
                     "retry_reason": request.retry_reason,
                     "retry_attempt": request.retry_attempt,
+                    "timeout_seconds": self._resolve_timeout_override(request),
                     "correlation_id": correlation_id,
                     "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
@@ -411,12 +427,14 @@ class HypotheticalService:
             if request.user_preferences and "temperature" in request.user_preferences:
                 temp = float(request.user_preferences["temperature"])
             temp = max(0.0, min(2.0, temp))  # clamp temperature
+            timeout_override = self._resolve_timeout_override(request)
             llm_request = LLMRequest(
                 prompt=user_prompt,
                 system_prompt=prompt_data["system"],
                 temperature=temp,
                 max_tokens=2048,
                 correlation_id=request.correlation_id,
+                timeout_seconds=timeout_override,
             )
 
             # Generate response
@@ -599,6 +617,7 @@ class HypotheticalService:
                 temperature=0.5,
                 max_tokens=2048,
                 correlation_id=request.correlation_id,
+                timeout_seconds=self._resolve_timeout_override(request),
             )
 
             llm_response = await self.llm_service.generate(llm_request)
