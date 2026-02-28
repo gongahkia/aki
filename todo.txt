@@ -1,4 +1,3 @@
-(B) Add unit tests for topic normalization boundary cases (underscore/space/case mismatches) across prompting and validation services. +dx +tests +validation +prompt
 (B) Add tests for vector initialization concurrency guard and fallback-to-keyword retrieval behavior under initialization failure. +dx +tests +vector +concurrency
 (B) Add CI step that fails on mypy errors for touched files while keeping global non-strict mode as interim migration strategy. +dx +ci +types
 (B) Add CI smoke test that boots API app, runs `/health`, and executes one mocked generation request to catch startup regressions. +dx +ci +api

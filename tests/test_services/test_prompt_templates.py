@@ -21,3 +21,11 @@ def test_topic_hints_support_underscored_topic_keys():
     prompt = manager.format_prompt(PromptTemplateType.HYPOTHETICAL_GENERATION, context)
 
     assert "- occupiers_liability:" in prompt["user"]
+
+
+def test_topic_hints_normalize_case_and_whitespace_variants():
+    manager = PromptTemplateManager()
+    context = PromptContext(topics=["  OcCuPiErS   LiAbIlItY  "])
+    prompt = manager.format_prompt(PromptTemplateType.HYPOTHETICAL_GENERATION, context)
+
+    assert "- occupiers_liability:" in prompt["user"]

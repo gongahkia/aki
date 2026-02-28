@@ -72,6 +72,20 @@ class TestValidationService:
         assert "duty_of_care" in result["topics_found"]
         assert "duty of care" not in result["topics_found"]
 
+    def test_validate_topic_inclusion_normalizes_boundary_topic_variants(
+        self, validation_service
+    ):
+        """Boundary variants (case/space/underscore) should normalize consistently."""
+        text = "The defendant owed a duty of care and was negligent in supervision."
+        result = validation_service.validate_topic_inclusion(
+            text,
+            required_topics=["Duty Of Care", "duty_of_care", "NEGLIGENCE"],
+        )
+
+        assert "duty_of_care" in result["topics_found"]
+        assert "negligence" in result["topics_found"]
+        assert result["topics_missing"] == []
+
     def test_validate_word_count_success(self, validation_service):
         """Test word count validation with appropriate length."""
         text = " ".join(["word"] * 1000)  # 1000 words
