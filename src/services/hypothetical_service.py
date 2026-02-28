@@ -166,10 +166,12 @@ class HypotheticalService:
                 self._generation_history = self._generation_history[-MAX_HISTORY_SIZE:]
 
             # Persist to database (async, don't block on this)
+            generation_id = None
             try:
-                await self.database_service.save_generation(
+                generation_id = await self.database_service.save_generation(
                     request_data=request.dict(), response_data=response.dict()
                 )
+                response.metadata["generation_id"] = generation_id
             except Exception as db_error:
                 logger.error(
                     "Failed to persist to database (non-fatal)", error=str(db_error)

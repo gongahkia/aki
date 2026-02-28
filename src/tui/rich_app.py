@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import questionary
 from prompt_toolkit.styles import Style as _PtStyle
@@ -170,6 +170,15 @@ PROVIDER_MODELS = {
     "google": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
     "local": ["default"],
 }
+
+REPORT_ISSUE_CHOICES = [
+    Choice("Topic mismatch", value="topic_mismatch"),
+    Choice("Wrong party count", value="party_count_error"),
+    Choice("Missing Singapore context", value="missing_singapore_context"),
+    Choice("Low legal quality", value="low_quality"),
+    Choice("Factual inconsistency", value="factual_inconsistency"),
+    Choice("Other issue", value="other"),
+]
 
 
 def _model_choices(provider):
@@ -2052,6 +2061,18 @@ class JikaiTUI:
                             len(result),
                             score,
                         )
+                        generation_id = self._persist_stream_generation(
+                            topic=topic,
+                            provider=provider,
+                            model=model,
+                            complexity=complexity,
+                            parties=parties,
+                            method=method,
+                            temperature=temperature,
+                            red_herrings=red_herrings,
+                            hypothetical=result,
+                            validation_results=vr,
+                        )
                         self._save_to_history(
                             {
                                 "config": {
@@ -2064,12 +2085,19 @@ class JikaiTUI:
                                 },
                                 "hypothetical": result,
                                 "validation_score": score,
+                                "generation_id": generation_id,
                             }
                         )
-                        self._offer_model_answer(
-                            result, topic, provider, model, temperature
+                        self._post_generation_actions(
+                            {
+                                "generation_id": generation_id,
+                                "hypothetical": result,
+                                "analysis": "",
+                                "validation_results": vr,
+                                "validation_score": score,
+                            },
+                            cfg,
                         )
-                        self._offer_export_now()
                         return
                     retry_reason = self._build_retry_reason(vr, score)
                     console.print(f"[yellow]{retry_reason}[/yellow]")
@@ -2140,6 +2168,7 @@ class JikaiTUI:
                         attempt,
                         score,
                     )
+                    generation_id = response.metadata.get("generation_id")
                     self._save_to_history(
                         {
                             "config": {
@@ -2153,12 +2182,19 @@ class JikaiTUI:
                             "hypothetical": response.hypothetical,
                             "analysis": response.analysis,
                             "validation_score": score,
+                            "generation_id": generation_id,
                         }
                     )
-                    self._offer_model_answer(
-                        response.hypothetical, topic, provider, model, temperature
+                    self._post_generation_actions(
+                        {
+                            "generation_id": generation_id,
+                            "hypothetical": response.hypothetical,
+                            "analysis": response.analysis,
+                            "validation_results": vr,
+                            "validation_score": score,
+                        },
+                        cfg,
                     )
-                    self._offer_export_now()
                     return
 
                 if attempt < max_retries:
@@ -2300,11 +2336,262 @@ class JikaiTUI:
             console.print(f"[red]✗ Generation failed: {e}[/red]")
             console.print("[dim]Tip: check provider health via More → Providers[/dim]")
 
+    def _persist_stream_generation(
+        self,
+        *,
+        topic: str,
+        provider: str,
+        model: Optional[str],
+        complexity: int,
+        parties: int,
+        method: str,
+        temperature: float,
+        red_herrings: bool,
+        hypothetical: str,
+        validation_results: Dict[str, Any],
+    ) -> Optional[int]:
+        """Persist a stream-generated output so it can be reported/regenerated."""
+        from datetime import datetime
+
+        from ..services.database_service import database_service
+
+        request_data = {
+            "topics": [topic],
+            "law_domain": "tort",
+            "number_parties": parties,
+            "complexity_level": str(complexity),
+            "sample_size": 3,
+            "user_preferences": {
+                "temperature": temperature,
+                "red_herrings": red_herrings,
+            },
+            "method": method,
+            "provider": provider,
+            "model": model,
+        }
+        response_data = {
+            "hypothetical": hypothetical,
+            "analysis": "",
+            "metadata": {
+                "topics": [topic],
+                "law_domain": "tort",
+                "number_parties": parties,
+                "complexity_level": str(complexity),
+                "generation_timestamp": datetime.utcnow().isoformat(),
+            },
+            "generation_time": 0.0,
+            "validation_results": validation_results,
+        }
+        try:
+            generation_id = _run_async(
+                database_service.save_generation(
+                    request_data=request_data,
+                    response_data=response_data,
+                )
+            )
+            return int(generation_id)
+        except Exception as e:
+            console.print(
+                "[yellow]⚠ Could not persist generation for report/regenerate workflow.[/yellow]"
+            )
+            tlog.info("GENERATE  stream persistence failed: %s", e)
+            return None
+
+    def _post_generation_actions(self, record: Dict[str, Any], cfg: "GenerationConfig"):
+        """Offer actions after generation, including report/regenerate."""
+        current = dict(record)
+        while True:
+            action = _select_quit(
+                "Post-generation action",
+                choices=[
+                    Choice("Done", value="done"),
+                    Choice("Report and regenerate", value="report_regenerate"),
+                    Choice("Generate model answer", value="model_answer"),
+                    Choice("Export now", value="export"),
+                ],
+            )
+            if action is None or action == "done":
+                return
+            if action == "model_answer":
+                self._offer_model_answer(
+                    current.get("hypothetical", ""),
+                    cfg.topic,
+                    cfg.provider,
+                    cfg.model,
+                    cfg.temperature,
+                    ask_confirm=False,
+                )
+            elif action == "export":
+                self.export_flow()
+            elif action == "report_regenerate":
+                regenerated = self._report_and_regenerate(current, cfg)
+                if regenerated:
+                    current = regenerated
+
+    def _report_and_regenerate(
+        self, record: Dict[str, Any], cfg: "GenerationConfig"
+    ) -> Optional[Dict[str, Any]]:
+        """Capture issue report and force regeneration from persisted generation data."""
+        source_generation_id = record.get("generation_id")
+        if not isinstance(source_generation_id, int) or source_generation_id <= 0:
+            console.print(
+                "[yellow]⚠ This output is not linked to a persisted generation; cannot report/regenerate.[/yellow]"
+            )
+            return None
+
+        issue_types = _checkbox("Select issue flags", choices=REPORT_ISSUE_CHOICES)
+        if issue_types is None:
+            return None
+        issue_types = [issue for issue in issue_types if issue]
+        if not issue_types:
+            console.print("[yellow]Select at least one issue flag to continue.[/yellow]")
+            return None
+
+        comment_input = _text("Optional comment", default="")
+        if comment_input is None:
+            return None
+        comment = comment_input.strip() or None
+
+        try:
+            from ..services.database_service import GenerationReport, database_service
+            from ..services.hypothetical_service import (
+                GenerationRequest,
+                hypothetical_service,
+            )
+
+            report = GenerationReport(
+                generation_id=source_generation_id,
+                issue_types=issue_types,
+                comment=comment,
+                is_locked=True,
+            )
+            report_id = _run_async(database_service.save_generation_report(report))
+            feedback_context = _run_async(
+                database_service.build_regeneration_feedback_context(
+                    source_generation_id
+                )
+            )
+            source_row = _run_async(
+                database_service.get_generation_by_id(source_generation_id)
+            )
+            if not source_row:
+                console.print(
+                    f"[red]✗ Source generation #{source_generation_id} not found.[/red]"
+                )
+                return None
+
+            request_data = source_row.get("request", {})
+            requested_topics = request_data.get("topics") or [cfg.topic]
+            primary_topic = requested_topics[0]
+            user_preferences = dict(request_data.get("user_preferences") or {})
+            raw_complexity = request_data.get("complexity_level", str(cfg.complexity))
+            try:
+                complexity_value = int(raw_complexity)
+            except (TypeError, ValueError):
+                complexity_value = cfg.complexity
+            raw_parties = request_data.get("number_parties", cfg.parties)
+            try:
+                parties_value = int(raw_parties)
+            except (TypeError, ValueError):
+                parties_value = cfg.parties
+            if feedback_context:
+                existing_feedback = str(user_preferences.get("feedback", "")).strip()
+                user_preferences["feedback"] = (
+                    f"{existing_feedback} {feedback_context}".strip()
+                    if existing_feedback
+                    else feedback_context
+                )
+
+            regenerate_request = GenerationRequest(
+                topics=requested_topics,
+                law_domain=request_data.get("law_domain", "tort"),
+                number_parties=parties_value,
+                complexity_level=str(raw_complexity),
+                sample_size=request_data.get("sample_size", 3),
+                user_preferences=user_preferences,
+                method=request_data.get("method", cfg.method),
+                provider=request_data.get("provider", cfg.provider),
+                model=request_data.get("model", cfg.model),
+            )
+
+            with console.status(
+                "[bold green]Regenerating from report...", spinner="dots"
+            ):
+                regenerated = _run_async(
+                    hypothetical_service.generate_hypothetical(regenerate_request)
+                )
+
+            console.print(
+                Panel(
+                    regenerated.hypothetical,
+                    title=f"Regenerated Hypothetical (from report #{report_id})",
+                    box=box.ROUNDED,
+                    border_style="green",
+                )
+            )
+            if regenerated.analysis:
+                console.print(
+                    Panel(
+                        regenerated.analysis,
+                        title="Legal Analysis",
+                        box=box.ROUNDED,
+                        border_style="cyan",
+                    )
+                )
+
+            validation = regenerated.validation_results
+            self._show_validation(validation)
+            score = validation.get("quality_score", validation.get("overall_score", 0.0))
+            try:
+                score_value = float(score)
+            except (TypeError, ValueError):
+                score_value = 0.0
+
+            new_generation_id = regenerated.metadata.get("generation_id")
+            self._save_to_history(
+                {
+                    "config": {
+                        "topic": primary_topic,
+                        "provider": request_data.get("provider", cfg.provider),
+                        "model": request_data.get("model", cfg.model),
+                        "complexity": complexity_value,
+                        "parties": parties_value,
+                        "method": request_data.get("method", cfg.method),
+                    },
+                    "hypothetical": regenerated.hypothetical,
+                    "analysis": regenerated.analysis,
+                    "validation_score": score_value,
+                    "generation_id": new_generation_id,
+                    "regenerated_from": source_generation_id,
+                    "report_id": report_id,
+                    "report_issue_types": issue_types,
+                    "report_comment": comment,
+                }
+            )
+
+            tlog.info(
+                "GENERATE  report+regenerate source_id=%s report_id=%s new_id=%s",
+                source_generation_id,
+                report_id,
+                new_generation_id,
+            )
+            return {
+                "generation_id": new_generation_id,
+                "hypothetical": regenerated.hypothetical,
+                "analysis": regenerated.analysis,
+                "validation_results": validation,
+                "validation_score": score_value,
+            }
+        except Exception as e:
+            console.print(f"[red]✗ Report and regenerate failed: {e}[/red]")
+            tlog.info("ERROR  report+regenerate: %s", e)
+            return None
+
     def _offer_model_answer(
-        self, hypothetical_text, topic, provider, model, temperature
+        self, hypothetical_text, topic, provider, model, temperature, ask_confirm=True
     ):
         """Offer to generate a model answer (IRAC analysis) for the hypothetical."""
-        if not _confirm("Generate model answer?", default=False):
+        if ask_confirm and not _confirm("Generate model answer?", default=False):
             return
         try:
             from ..services.llm_service import LLMRequest, llm_service
