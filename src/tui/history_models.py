@@ -48,7 +48,7 @@ class TUIHistoryRecord(BaseModel):
 
         payload = dict(value)
         if "validation_score" not in payload and "score" in payload:
-            payload["validation_score"] = payload.get("score")
+            payload["validation_score"] = payload.pop("score")
         payload.setdefault("timestamp", datetime.utcnow().isoformat())
         payload.setdefault("analysis", "")
         payload.setdefault("model_answer", "")

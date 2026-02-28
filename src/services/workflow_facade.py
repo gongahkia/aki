@@ -75,9 +75,6 @@ class WorkflowFacade:
             for topic in await self._corpus_service.extract_all_topics()
         ]
         extraction_time_ms = round((time.perf_counter() - extraction_started) * 1000, 2)
-        invalid_topics = [
-            topic for topic in canonical_topics if topic not in available_topics
-        ]
         return canonical_topics, extraction_time_ms, available_topics
 
     async def generate_generation(
@@ -90,7 +87,9 @@ class WorkflowFacade:
         canonical_topics, extraction_time_ms, available_topics = (
             await self._validate_topics(request.topics)
         )
-        invalid_topics = [topic for topic in canonical_topics if topic not in available_topics]
+        invalid_topics = [
+            topic for topic in canonical_topics if topic not in available_topics
+        ]
         if invalid_topics:
             raise WorkflowFacadeError(
                 (
@@ -110,7 +109,9 @@ class WorkflowFacade:
                 "topic_extraction_time_ms": extraction_time_ms,
             }
         )
-        response = await self._hypothetical_service.generate_hypothetical(prepared_request)
+        response = await self._hypothetical_service.generate_hypothetical(
+            prepared_request
+        )
         return GenerationExecutionResult(request=prepared_request, response=response)
 
     async def save_generation_report(
@@ -178,8 +179,10 @@ class WorkflowFacade:
             )
 
         canonical_topics = canonicalize_and_validate_topics(original_topics)
-        feedback_context = await self._database_service.build_regeneration_feedback_context(
-            generation_id
+        feedback_context = (
+            await self._database_service.build_regeneration_feedback_context(
+                generation_id
+            )
         )
         reports = await self._database_service.get_generation_reports(generation_id)
         latest_report = reports[-1] if reports else None
@@ -212,7 +215,9 @@ class WorkflowFacade:
 
         regenerate_request = GenerationRequest(
             topics=canonical_topics,
-            law_domain=request_data.get("law_domain", fallback.get("law_domain", "tort")),
+            law_domain=request_data.get(
+                "law_domain", fallback.get("law_domain", "tort")
+            ),
             number_parties=request_data.get(
                 "number_parties", fallback.get("number_parties", 3)
             ),
@@ -225,7 +230,9 @@ class WorkflowFacade:
             provider=request_data.get("provider", fallback.get("provider")),
             model=request_data.get("model", fallback.get("model")),
             include_analysis=bool(
-                request_data.get("include_analysis", fallback.get("include_analysis", True))
+                request_data.get(
+                    "include_analysis", fallback.get("include_analysis", True)
+                )
             ),
             parent_generation_id=generation_id,
             retry_reason=retry_reason,

@@ -64,7 +64,7 @@ class LLMRequest(BaseModel):
     model: Optional[str] = None
     stream: bool = False
     correlation_id: Optional[str] = None
-    timeout_seconds: Optional[int] = Field(default=None, ge=1, le=600)
+    timeout_seconds: Optional[int] = Field(default=None, ge=1)
 
 
 class LLMResponse(BaseModel):
