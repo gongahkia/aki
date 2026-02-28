@@ -1,6 +1,6 @@
 # Jikai Makefile - Development and deployment commands
 
-.PHONY: help install dev test lint format clean build run web pre-commit pre-commit-update
+.PHONY: help install dev test lint format clean build run web warmup pre-commit pre-commit-update
 
 # Default target
 help: ## Show this help message
@@ -51,6 +51,9 @@ api: ## Run API server only
 
 web: ## Run optional web surface (keeps TUI workflow unchanged)
 	python -m src.api.web
+
+warmup: ## Preload corpus topics, check provider health, and optionally init embeddings
+	python -m src.warmup $(if $(INIT_EMBEDDINGS),--init-embeddings,)
 
 run-prod: ## Run the application in production mode
 	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
