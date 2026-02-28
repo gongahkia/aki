@@ -170,6 +170,9 @@ class Settings(BaseSettings):
     app_name: str = Field(default="Jikai", env="APP_NAME")
     app_version: str = Field(default="2.0.0", env="APP_VERSION")
     environment: str = Field(default="development", env="ENVIRONMENT")
+    allowed_law_domains: List[str] = Field(
+        default=["tort"], env="ALLOWED_LAW_DOMAINS"
+    )
     corpus_path: str = Field(default="corpus/clean/tort/corpus.json", env="CORPUS_PATH")
     database_path: str = Field(default="data/jikai.db", env="DATABASE_PATH")
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
@@ -192,6 +195,17 @@ class Settings(BaseSettings):
         if v.lower() not in valid_envs:
             raise ValueError(f"Environment must be one of {valid_envs}")
         return v.lower()
+
+    @field_validator("allowed_law_domains", mode="before")
+    @classmethod
+    def validate_allowed_law_domains(cls, v):
+        if isinstance(v, str):
+            parsed = [domain.strip().lower() for domain in v.split(",") if domain.strip()]
+            return parsed or ["tort"]
+        if isinstance(v, list):
+            parsed = [str(domain).strip().lower() for domain in v if str(domain).strip()]
+            return parsed or ["tort"]
+        return ["tort"]
 
     @property
     def anthropic_api_key(self):

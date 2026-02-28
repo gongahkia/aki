@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from ..config import settings
 
 try:
     from .corpus_service import CorpusQuery, HypotheticalEntry, corpus_service
@@ -39,6 +41,18 @@ class GenerationRequest(BaseModel):
     method: str = Field(default="pure_llm")  # pure_llm, ml_assisted, hybrid
     provider: Optional[str] = None
     model: Optional[str] = None
+
+    @field_validator("law_domain")
+    @classmethod
+    def validate_law_domain(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        allowed = set(getattr(settings, "allowed_law_domains", ["tort"]))
+        if normalized not in allowed:
+            allowed_list = ", ".join(sorted(allowed))
+            raise ValueError(
+                f"Unsupported law_domain '{value}'. Allowed values: {allowed_list}"
+            )
+        return normalized
 
 
 class GenerationResponse(BaseModel):

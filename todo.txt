@@ -1,4 +1,3 @@
-(B) Add `ALLOWED_LAW_DOMAINS=tort` setting in `src/config/settings.py` and reject non-tort `law_domain` values in `GenerationRequest` validation. +philosophical +config +api +safety
 (B) Restrict corpus preprocessing in `src/services/corpus_preprocessor.py` to the `tort` directory by default and add explicit `--include-non-tort` CLI opt-in for optional expansion. +philosophical +services +corpus
 (B) Add an API-level guard in `src/api/main.py` that rejects generation requests containing topics outside canonical tort topic registry even if corpus contains them. +philosophical +api +validation
 (B) Add `GenerationFeedback` and `GenerationReport` models in `src/services/database_service.py` and persist them in new SQLite tables with foreign keys to generation records. +philosophical +feature +database
