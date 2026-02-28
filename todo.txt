@@ -1,4 +1,3 @@
-(B) Replace hardcoded `TOPICS`, `TOPIC_DESCRIPTIONS`, and `TOPIC_CATEGORIES` in `src/tui/rich_app.py` with imports from `src/domain/topics.py` to eliminate topic drift. +philosophical +tui +refactor
 (B) Update `src/services/validation_service.py` to normalize requested topics through `normalize_topic` before keyword matching and return canonical topic identifiers in `topics_found` and `topics_missing`. +philosophical +services +validation
 (B) Update `src/services/prompt_engineering/templates.py` to normalize topic keys before applying `TOPIC_HINTS` so hints work for both spaced and underscored input. +philosophical +services +prompt
 (B) Add `ALLOWED_LAW_DOMAINS=tort` setting in `src/config/settings.py` and reject non-tort `law_domain` values in `GenerationRequest` validation. +philosophical +config +api +safety

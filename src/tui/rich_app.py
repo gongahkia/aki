@@ -27,6 +27,8 @@ from rich.progress import (
 from rich.table import Table
 from rich.text import Text
 
+from ..domain import TORT_TOPICS
+
 console = Console()
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -39,74 +41,12 @@ tlog = logging.getLogger("jikai.tui")
 tlog.setLevel(logging.INFO)
 tlog.addHandler(_fh)
 
-TOPICS = [
-    "negligence",
-    "duty_of_care",
-    "causation",
-    "remoteness",
-    "battery",
-    "assault",
-    "false_imprisonment",
-    "defamation",
-    "private_nuisance",
-    "trespass_to_land",
-    "vicarious_liability",
-    "strict_liability",
-    "harassment",
-    "occupiers_liability",
-    "product_liability",
-    "contributory_negligence",
-    "economic_loss",
-    "psychiatric_harm",
-    "employers_liability",
-]
+TOPICS = list(TORT_TOPICS.keys())
+TOPIC_DESCRIPTIONS = {key: meta.description for key, meta in TORT_TOPICS.items()}
 
-TOPIC_DESCRIPTIONS = {
-    "negligence": "duty, breach, damage, causation",
-    "duty_of_care": "neighbour principle, proximity",
-    "causation": "but-for test, legal causation",
-    "remoteness": "foreseeability of damage",
-    "contributory_negligence": "claimant's own fault",
-    "battery": "intentional application of force",
-    "assault": "apprehension of immediate contact",
-    "false_imprisonment": "unlawful restraint of liberty",
-    "trespass_to_land": "unlawful entry onto land",
-    "vicarious_liability": "employer liability for employee torts",
-    "strict_liability": "liability without fault",
-    "occupiers_liability": "duties to visitors and trespassers",
-    "employers_liability": "workplace safety duties",
-    "product_liability": "defective product claims",
-    "defamation": "false statements harming reputation",
-    "private_nuisance": "unreasonable interference with land use",
-    "harassment": "course of conduct causing alarm",
-    "economic_loss": "pure financial loss claims",
-    "psychiatric_harm": "nervous shock and mental injury",
-}
-
-TOPIC_CATEGORIES = {
-    "Negligence-Based": [
-        "negligence",
-        "duty_of_care",
-        "causation",
-        "remoteness",
-        "contributory_negligence",
-    ],
-    "Intentional Torts": [
-        "battery",
-        "assault",
-        "false_imprisonment",
-        "trespass_to_land",
-    ],
-    "Liability": [
-        "vicarious_liability",
-        "strict_liability",
-        "occupiers_liability",
-        "employers_liability",
-        "product_liability",
-    ],
-    "Specific Torts": ["defamation", "private_nuisance", "harassment"],
-    "Damages": ["economic_loss", "psychiatric_harm"],
-}
+TOPIC_CATEGORIES: Dict[str, List[str]] = {}
+for key, meta in TORT_TOPICS.items():
+    TOPIC_CATEGORIES.setdefault(meta.category, []).append(key)
 
 PROVIDERS = ["ollama", "openai", "anthropic", "google", "local"]
 
@@ -116,6 +56,7 @@ _CATEGORY_ICONS = {
     "Liability": "⛓",
     "Specific Torts": "◈",
     "Damages": "◉",
+    "Doctrines & Defences": "⌁",
 }
 _CATEGORY_COLORS = {
     "Negligence-Based": "#4fc3f7",
@@ -123,6 +64,7 @@ _CATEGORY_COLORS = {
     "Liability": "#a5d6a7",
     "Specific Torts": "#ce93d8",
     "Damages": "#fff176",
+    "Doctrines & Defences": "#80cbc4",
 }
 
 TOPIC_STYLE = _PtStyle.from_dict(
@@ -132,6 +74,7 @@ TOPIC_STYLE = _PtStyle.from_dict(
         "topic-lib": "#a5d6a7",
         "topic-spe": "#ce93d8",
         "topic-dmg": "#fff176",
+        "topic-doc": "#80cbc4",
         "topic-sep": "bold #888888",
         "topic-desc": "italic #666666",
         "topic-name": "#ffffff",
@@ -143,6 +86,7 @@ _CATEGORY_STYLE_CLASS = {
     "Liability": "class:topic-lib",
     "Specific Torts": "class:topic-spe",
     "Damages": "class:topic-dmg",
+    "Doctrines & Defences": "class:topic-doc",
 }
 
 
