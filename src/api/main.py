@@ -515,6 +515,16 @@ async def regenerate_generation(
     feedback_context = await database_service.build_regeneration_feedback_context(
         generation_id
     )
+    reports = await database_service.get_generation_reports(generation_id)
+    latest_report = reports[-1] if reports else None
+    retry_reason = "report_feedback"
+    if latest_report and latest_report.issue_types:
+        retry_reason = "report_feedback:" + ",".join(latest_report.issue_types[:3])
+    raw_retry_attempt = request_data.get("retry_attempt", 0)
+    try:
+        retry_attempt = max(1, int(raw_retry_attempt) + 1)
+    except (TypeError, ValueError):
+        retry_attempt = 1
 
     user_preferences = request_data.get("user_preferences") or {}
     if feedback_context:
@@ -535,6 +545,9 @@ async def regenerate_generation(
         method=request_data.get("method", "pure_llm"),
         provider=request_data.get("provider"),
         model=request_data.get("model"),
+        parent_generation_id=generation_id,
+        retry_reason=retry_reason,
+        retry_attempt=retry_attempt,
     )
 
     regenerated = await service.generate_hypothetical(regenerate_request)

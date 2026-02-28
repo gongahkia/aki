@@ -2518,6 +2518,14 @@ class JikaiTUI:
                 parties_value = int(raw_parties)
             except (TypeError, ValueError):
                 parties_value = cfg.parties
+            raw_retry_attempt = source_row.get(
+                "retry_attempt", request_data.get("retry_attempt", 0)
+            )
+            try:
+                retry_attempt = max(1, int(raw_retry_attempt) + 1)
+            except (TypeError, ValueError):
+                retry_attempt = 1
+            retry_reason = "report_feedback:" + ",".join(issue_types[:3])
             if feedback_context:
                 existing_feedback = str(user_preferences.get("feedback", "")).strip()
                 user_preferences["feedback"] = (
@@ -2536,6 +2544,9 @@ class JikaiTUI:
                 method=request_data.get("method", cfg.method),
                 provider=request_data.get("provider", cfg.provider),
                 model=request_data.get("model", cfg.model),
+                parent_generation_id=source_generation_id,
+                retry_reason=retry_reason,
+                retry_attempt=retry_attempt,
             )
 
             with console.status(

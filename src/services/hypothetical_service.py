@@ -41,6 +41,9 @@ class GenerationRequest(BaseModel):
     method: str = Field(default="pure_llm")  # pure_llm, ml_assisted, hybrid
     provider: Optional[str] = None
     model: Optional[str] = None
+    parent_generation_id: Optional[int] = None
+    retry_reason: Optional[str] = None
+    retry_attempt: int = Field(default=0, ge=0)
 
     @field_validator("law_domain")
     @classmethod
@@ -148,6 +151,9 @@ class HypotheticalService:
                     "law_domain": request.law_domain,
                     "number_parties": request.number_parties,
                     "complexity_level": request.complexity_level,
+                    "parent_generation_id": request.parent_generation_id,
+                    "retry_reason": request.retry_reason,
+                    "retry_attempt": request.retry_attempt,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
                 },
@@ -169,7 +175,11 @@ class HypotheticalService:
             generation_id = None
             try:
                 generation_id = await self.database_service.save_generation(
-                    request_data=request.dict(), response_data=response.dict()
+                    request_data=request.dict(),
+                    response_data=response.dict(),
+                    parent_generation_id=request.parent_generation_id,
+                    retry_reason=request.retry_reason,
+                    retry_attempt=request.retry_attempt,
                 )
                 response.metadata["generation_id"] = generation_id
             except Exception as db_error:

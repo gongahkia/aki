@@ -234,6 +234,51 @@ class TestDatabaseService:
         assert row["request"]["topics"] == ["negligence"]
 
     @pytest.mark.asyncio
+    async def test_retry_lineage_persisted_on_generation_rows(self, database_service):
+        """Regenerated rows should persist lineage metadata."""
+        parent_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+            },
+            response_data={
+                "hypothetical": "Parent hypothetical",
+                "analysis": "Parent analysis",
+                "generation_time": 10.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {"generation_timestamp": "2025-01-01T00:00:00"},
+            },
+        )
+
+        child_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+                "retry_attempt": 1,
+            },
+            response_data={
+                "hypothetical": "Child hypothetical",
+                "analysis": "Child analysis",
+                "generation_time": 11.0,
+                "validation_results": {"passed": True, "quality_score": 8.5},
+                "metadata": {"generation_timestamp": "2025-01-01T00:01:00"},
+            },
+            parent_generation_id=parent_id,
+            retry_reason="report_feedback:topic_mismatch",
+            retry_attempt=1,
+        )
+
+        row = await database_service.get_generation_by_id(child_id)
+        assert row is not None
+        assert row["parent_generation_id"] == parent_id
+        assert row["retry_reason"] == "report_feedback:topic_mismatch"
+        assert row["retry_attempt"] == 1
+
+    @pytest.mark.asyncio
     async def test_build_regeneration_feedback_context(self, database_service):
         """Feedback context should include report issue types and comments."""
         generation_id = await database_service.save_generation(

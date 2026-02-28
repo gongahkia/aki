@@ -75,6 +75,9 @@ class DatabaseService:
                     quality_score REAL,
                     request_data TEXT,
                     response_data TEXT,
+                    parent_generation_id INTEGER,
+                    retry_reason TEXT,
+                    retry_attempt INTEGER DEFAULT 0,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -90,6 +93,15 @@ class DatabaseService:
                 CREATE INDEX IF NOT EXISTS idx_topics
                 ON generation_history(topics)
             """)
+
+            self._ensure_generation_history_lineage_columns(cursor)
+
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_generation_history_parent_generation_id
+                ON generation_history(parent_generation_id)
+                """
+            )
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS generation_reports (
@@ -134,8 +146,31 @@ class DatabaseService:
             logger.error("Failed to initialize database", error=str(e))
             raise
 
+    def _ensure_generation_history_lineage_columns(self, cursor: sqlite3.Cursor):
+        """Backfill lineage columns for existing databases created before lineage support."""
+        cursor.execute("PRAGMA table_info(generation_history)")
+        columns = {row["name"] for row in cursor.fetchall()}
+
+        if "parent_generation_id" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN parent_generation_id INTEGER"
+            )
+        if "retry_reason" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN retry_reason TEXT"
+            )
+        if "retry_attempt" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN retry_attempt INTEGER DEFAULT 0"
+            )
+
     async def save_generation(
-        self, request_data: Dict[str, Any], response_data: Dict[str, Any]
+        self,
+        request_data: Dict[str, Any],
+        response_data: Dict[str, Any],
+        parent_generation_id: Optional[int] = None,
+        retry_reason: Optional[str] = None,
+        retry_attempt: int = 0,
     ) -> int:
         """
         Save a generation to the database.
@@ -146,6 +181,10 @@ class DatabaseService:
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
+            try:
+                normalized_retry_attempt = max(0, int(retry_attempt))
+            except (TypeError, ValueError):
+                normalized_retry_attempt = 0
 
             # Extract key fields for indexing/searching
             cursor.execute(
@@ -153,8 +192,9 @@ class DatabaseService:
                 INSERT INTO generation_history (
                     timestamp, topics, law_domain, number_parties, complexity_level,
                     hypothetical, analysis, generation_time, validation_passed,
-                    quality_score, request_data, response_data
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    quality_score, request_data, response_data,
+                    parent_generation_id, retry_reason, retry_attempt
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     response_data.get("metadata", {}).get(
@@ -173,6 +213,9 @@ class DatabaseService:
                     ),
                     json.dumps(request_data),
                     json.dumps(response_data),
+                    parent_generation_id,
+                    retry_reason,
+                    normalized_retry_attempt,
                 ),
             )
 
@@ -240,7 +283,8 @@ class DatabaseService:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT id, timestamp, request_data, response_data
+                SELECT id, timestamp, request_data, response_data,
+                       parent_generation_id, retry_reason, retry_attempt
                 FROM generation_history
                 WHERE id = ?
                 """,
@@ -255,6 +299,9 @@ class DatabaseService:
                 "timestamp": row["timestamp"],
                 "request": json.loads(row["request_data"]),
                 "response": json.loads(row["response_data"]),
+                "parent_generation_id": row["parent_generation_id"],
+                "retry_reason": row["retry_reason"],
+                "retry_attempt": row["retry_attempt"] or 0,
             }
         except Exception as e:
             logger.error("Failed to get generation by id", error=str(e))
