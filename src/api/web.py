@@ -1,5 +1,6 @@
 """Server-rendered optional web surface for local generation workflows."""
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -142,3 +143,16 @@ async def web_generate(request: Request):
 
 
 __all__ = ["web_router"]
+
+
+def main():
+    """Launch API app with web surface enabled for browser-first usage."""
+    import uvicorn
+
+    host = os.getenv("WEB_HOST", "127.0.0.1")
+    port = int(os.getenv("WEB_PORT", "8001"))
+    uvicorn.run("src.api.main:app", host=host, port=port, reload=True)
+
+
+if __name__ == "__main__":
+    main()
