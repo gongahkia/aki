@@ -1,4 +1,3 @@
-(B) Add regression tests for corpus preprocessor tort-only default behavior and `--include-non-tort` opt-in behavior. +dx +tests +corpus
 (B) Add regression tests for history migration from `data/history.json` to SQLite and export-by-id behavior. +dx +tests +database +export
 (B) Add regression tests for immutable report comment locking and retry lineage persistence. +dx +tests +integrity +database
 (B) Expand TUI tests beyond import checks by adding interaction-level tests for generate, report/regenerate, provider selection, and history browse flows. +dx +tests +tui
