@@ -1,4 +1,3 @@
-(B) Replace `data/history.json` as primary history source with SQLite-backed history queries in both API and TUI while preserving one-time migration for existing JSON history. +philosophical +refactor +api +tui +database
 (B) Refactor API export endpoint in `src/api/main.py` to export by SQLite generation ID instead of JSON index position. +philosophical +api +export +database
 (B) Fix PDF export creation in `src/api/main.py` by always saving DOCX first, then converting to PDF when requested, and cleaning both temp files safely. +stability +bugfix +api +export
 (B) Add `POST /generate/preview` in `src/api/main.py` that validates request and returns estimated latency/cost metadata without running full generation. +dx +api +latency

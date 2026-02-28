@@ -454,6 +454,7 @@ class JikaiTUI:
         self._nav_path: list = []
         self._last_history_load_time: float = 0.0
         self._cached_last_score: str = "—"
+        self._history_migrated: bool = False
 
     def _push_nav(self, label: str):
         self._nav_path.append(label)
@@ -2771,32 +2772,52 @@ class JikaiTUI:
             return
         self.export_flow()
 
+    def _ensure_history_migrated(self):
+        """Run one-time legacy JSON -> SQLite migration for history records."""
+        if self._history_migrated:
+            return
+        try:
+            from ..services.database_service import database_service
+
+            migrated_count = _run_async(
+                database_service.migrate_legacy_history_json(history_path=HISTORY_PATH)
+            )
+            if migrated_count > 0:
+                console.print(
+                    f"[green]✓ Migrated {migrated_count} legacy history records to SQLite[/green]"
+                )
+        except Exception as e:
+            tlog.info("ERROR  history migration: %s", e)
+        finally:
+            self._history_migrated = True
+
     def _save_to_history(self, record: Dict):
-        """Append a generation record to data/history.json."""
+        """Record success message for SQLite-backed history persistence."""
         from datetime import datetime
 
-        record["timestamp"] = datetime.now().isoformat()
-        hp = Path(HISTORY_PATH)
-        hp.parent.mkdir(parents=True, exist_ok=True)
-        history = []
-        if hp.exists():
-            try:
-                with open(hp, "r") as f:
-                    history = json.load(f)
-            except Exception:
-                history = []
-        history.append(record)
-        record_num = len(history)
-        if len(history) > 500:  # cap history size
-            history = history[-500:]
-        tmp = hp.with_suffix(".json.tmp")
-        with open(tmp, "w") as f:
-            json.dump(history, f, indent=2, ensure_ascii=False)
-        os.rename(tmp, hp)  # atomic write
-        console.print(f"[green]✓ Saved to history (#{record_num})[/green]")
+        if "timestamp" not in record:
+            record["timestamp"] = datetime.now().isoformat()
+        generation_id = record.get("generation_id")
+        if generation_id:
+            console.print(f"[green]✓ Saved to history (id={generation_id})[/green]")
+        else:
+            console.print(
+                "[yellow]⚠ Saved record has no generation_id; SQLite persistence may be incomplete.[/yellow]"
+            )
 
     def _load_history(self) -> List[Dict]:
-        """Load generation history from data/history.json."""
+        """Load generation history from SQLite, with legacy JSON fallback."""
+        self._ensure_history_migrated()
+        try:
+            from ..services.database_service import database_service
+
+            records = _run_async(database_service.get_history_records(limit=500))
+            if records:
+                return records
+        except Exception as e:
+            tlog.info("ERROR  history sqlite load: %s", e)
+
+        # Fallback for resilience if DB is unavailable
         hp = Path(HISTORY_PATH)
         if not hp.exists():
             return []
@@ -3100,6 +3121,7 @@ class JikaiTUI:
                     "hypothetical": resp.hypothetical,
                     "analysis": resp.analysis,
                     "validation_score": score,
+                    "generation_id": resp.metadata.get("generation_id"),
                     "variation_of": original_record.get("timestamp", ""),
                 }
             )
@@ -3707,7 +3729,7 @@ class JikaiTUI:
                 ],
             },
             "history": {
-                "label": "Generation History — data/history.json",
+                "label": "Legacy History JSON — data/history.json",
                 "paths": ["data/history.json"],
             },
             "embeddings": {

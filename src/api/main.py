@@ -29,6 +29,7 @@ from ..services import (
     HypotheticalService,
     LLMService,
     corpus_service,
+    database_service,
     hypothetical_service,
     llm_service,
 )
@@ -202,6 +203,9 @@ async def startup_event():
 
     # Initialize services
     try:
+        migrated_count = await database_service.migrate_legacy_history_json()
+        if migrated_count:
+            logger.info("Migrated legacy history.json into SQLite", count=migrated_count)
         # Health check all services
         health_status = await hypothetical_service.health_check()
         logger.info("Services initialized", health_status=health_status)
@@ -730,9 +734,6 @@ async def export_generation(
     history_id: int, format: str = "docx", background_tasks: BackgroundTasks = None
 ):
     """Export a generation from history as DOCX or PDF file download."""
-    import json
-    from pathlib import Path
-
     if format not in ("docx", "pdf"):
         raise HTTPException(status_code=400, detail="Format must be 'docx' or 'pdf'")
     if history_id < 0:
@@ -740,21 +741,21 @@ async def export_generation(
             status_code=400, detail="history_id must be a non-negative integer"
         )
 
-    # Load history
-    history_path = Path("data/history.json")
-    if not history_path.exists():
+    await database_service.migrate_legacy_history_json()
+    total_generations = await database_service.get_generation_count()
+    if total_generations <= 0:
         raise HTTPException(status_code=404, detail="No generation history found")
-    try:
-        with open(history_path, "r") as f:
-            history = json.load(f)
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to load history")
-    if history_id < 0 or history_id >= len(history):
+
+    record = await database_service.get_history_record_by_index(history_id)
+    if not record:
         raise HTTPException(
             status_code=404,
-            detail=f"History ID {history_id} not found. Range: 0-{len(history)-1}",
+            detail=(
+                f"History ID {history_id} not found. "
+                f"Range: 0-{max(0, total_generations - 1)}"
+            ),
         )
-    record = history[history_id]
+
     hypo = record.get("hypothetical", "")
     analysis = record.get("analysis", "")
     model_answer = record.get("model_answer", "")

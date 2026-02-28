@@ -137,6 +137,16 @@ class DatabaseService:
                 ON generation_feedback(report_id)
             """)
 
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS migration_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+
             conn.commit()
             conn.close()
 
@@ -163,6 +173,180 @@ class DatabaseService:
             cursor.execute(
                 "ALTER TABLE generation_history ADD COLUMN retry_attempt INTEGER DEFAULT 0"
             )
+
+    def _legacy_history_record_to_payload(
+        self, record: Dict[str, Any]
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Convert old data/history.json record format to request/response payloads."""
+        config = record.get("config", {}) if isinstance(record, dict) else {}
+        topics = config.get("topics")
+        if not topics:
+            topic = config.get("topic")
+            topics = [topic] if topic else ["negligence"]
+        if not isinstance(topics, list):
+            topics = [str(topics)]
+
+        raw_parties = config.get("parties", 3)
+        try:
+            number_parties = int(raw_parties)
+        except (TypeError, ValueError):
+            number_parties = 3
+
+        raw_score = record.get("validation_score", record.get("score", 0.0))
+        try:
+            quality_score = float(raw_score)
+        except (TypeError, ValueError):
+            quality_score = 0.0
+
+        timestamp = record.get("timestamp") or datetime.utcnow().isoformat()
+
+        request_data = {
+            "topics": topics,
+            "law_domain": "tort",
+            "number_parties": number_parties,
+            "complexity_level": str(config.get("complexity", "intermediate")),
+            "method": config.get("method", "pure_llm"),
+            "provider": config.get("provider"),
+            "model": config.get("model"),
+        }
+        response_data = {
+            "hypothetical": record.get("hypothetical", ""),
+            "analysis": record.get("analysis", ""),
+            "model_answer": record.get("model_answer", ""),
+            "generation_time": record.get("generation_time", 0.0),
+            "validation_results": {
+                "passed": quality_score >= 7.0,
+                "quality_score": quality_score,
+            },
+            "metadata": {
+                "generation_timestamp": timestamp,
+            },
+        }
+        return request_data, response_data
+
+    def _row_to_history_record(self, row: sqlite3.Row) -> Dict[str, Any]:
+        """Normalize a generation_history row into legacy-compatible history shape."""
+        request_data = json.loads(row["request_data"])
+        response_data = json.loads(row["response_data"])
+        topics = request_data.get("topics", [])
+        topic = topics[0] if topics else ""
+
+        raw_parties = request_data.get("number_parties", 3)
+        try:
+            parties = int(raw_parties)
+        except (TypeError, ValueError):
+            parties = 3
+
+        complexity_value: Any = request_data.get("complexity_level", "intermediate")
+        try:
+            complexity_value = int(complexity_value)
+        except (TypeError, ValueError):
+            pass
+
+        quality_score = (
+            response_data.get("validation_results", {}).get("quality_score")
+            or row["quality_score"]
+            or 0.0
+        )
+        try:
+            quality_score = float(quality_score)
+        except (TypeError, ValueError):
+            quality_score = 0.0
+
+        return {
+            "generation_id": row["id"],
+            "timestamp": row["timestamp"],
+            "config": {
+                "topic": topic,
+                "topics": topics,
+                "provider": request_data.get("provider"),
+                "model": request_data.get("model"),
+                "complexity": complexity_value,
+                "parties": parties,
+                "method": request_data.get("method", "pure_llm"),
+            },
+            "hypothetical": response_data.get("hypothetical", ""),
+            "analysis": response_data.get("analysis", ""),
+            "model_answer": response_data.get("model_answer", ""),
+            "validation_score": quality_score,
+            "parent_generation_id": row["parent_generation_id"],
+            "retry_reason": row["retry_reason"],
+            "retry_attempt": row["retry_attempt"] or 0,
+        }
+
+    async def migrate_legacy_history_json(
+        self, history_path: str = "data/history.json"
+    ) -> int:
+        """One-time migration from legacy JSON history to SQLite rows."""
+        migration_key = "history_json_to_sqlite_v1"
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT value FROM migration_state WHERE key = ?",
+                (migration_key,),
+            )
+            migrated_row = cursor.fetchone()
+            conn.close()
+            if migrated_row and migrated_row["value"] == "1":
+                return 0
+
+            path = Path(history_path)
+            migrated_count = 0
+            if path.exists():
+                try:
+                    with open(path, "r", encoding="utf-8") as handle:
+                        history_records = json.load(handle)
+                except Exception as e:
+                    logger.error("Failed to load legacy history JSON", error=str(e))
+                    history_records = []
+
+                if isinstance(history_records, list):
+                    for record in history_records:
+                        if not isinstance(record, dict):
+                            continue
+                        request_data, response_data = self._legacy_history_record_to_payload(
+                            record
+                        )
+                        try:
+                            await self.save_generation(
+                                request_data=request_data,
+                                response_data=response_data,
+                                parent_generation_id=record.get("parent_generation_id"),
+                                retry_reason=record.get("retry_reason"),
+                                retry_attempt=record.get("retry_attempt", 0),
+                            )
+                            migrated_count += 1
+                        except Exception as e:
+                            logger.warning(
+                                "Skipping invalid legacy history record",
+                                error=str(e),
+                            )
+
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO migration_state (key, value, updated_at)
+                VALUES (?, '1', CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (migration_key,),
+            )
+            conn.commit()
+            conn.close()
+
+            logger.info(
+                "Legacy history migration completed",
+                migrated_count=migrated_count,
+                history_path=history_path,
+            )
+            return migrated_count
+        except Exception as e:
+            logger.error("Legacy history migration failed", error=str(e))
+            return 0
 
     async def save_generation(
         self,
@@ -275,6 +459,81 @@ class DatabaseService:
         except Exception as e:
             logger.error("Failed to get recent generations", error=str(e))
             return []
+
+    async def get_history_records(self, limit: int = 500) -> List[Dict[str, Any]]:
+        """Return history in legacy-compatible record shape, sourced from SQLite."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    timestamp,
+                    request_data,
+                    response_data,
+                    quality_score,
+                    parent_generation_id,
+                    retry_reason,
+                    retry_attempt
+                FROM generation_history
+                ORDER BY timestamp DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            return [self._row_to_history_record(row) for row in reversed(rows)]
+        except Exception as e:
+            logger.error("Failed to get history records", error=str(e))
+            return []
+
+    async def get_generation_count(self) -> int:
+        """Count total persisted generations."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) AS count FROM generation_history")
+            row = cursor.fetchone()
+            conn.close()
+            return int(row["count"] if row else 0)
+        except Exception as e:
+            logger.error("Failed to count generations", error=str(e))
+            return 0
+
+    async def get_history_record_by_index(
+        self, history_index: int
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch a single history record by chronological index (0 = oldest)."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    timestamp,
+                    request_data,
+                    response_data,
+                    quality_score,
+                    parent_generation_id,
+                    retry_reason,
+                    retry_attempt
+                FROM generation_history
+                ORDER BY timestamp ASC
+                LIMIT 1 OFFSET ?
+                """,
+                (history_index,),
+            )
+            row = cursor.fetchone()
+            conn.close()
+            if not row:
+                return None
+            return self._row_to_history_record(row)
+        except Exception as e:
+            logger.error("Failed to get history record by index", error=str(e))
+            return None
 
     async def get_generation_by_id(self, generation_id: int) -> Optional[Dict[str, Any]]:
         """Fetch a single generation row by primary key."""

@@ -2,6 +2,7 @@
 Tests for DatabaseService.
 """
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -277,6 +278,52 @@ class TestDatabaseService:
         assert row["parent_generation_id"] == parent_id
         assert row["retry_reason"] == "report_feedback:topic_mismatch"
         assert row["retry_attempt"] == 1
+
+    @pytest.mark.asyncio
+    async def test_legacy_history_json_migrates_once(self, database_service):
+        """Legacy JSON history should migrate once and then be marked complete."""
+        legacy_history_path = database_service._db_path.parent / "history.json"
+        legacy_history_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "timestamp": "2025-01-01T00:00:00",
+                        "config": {
+                            "topic": "negligence",
+                            "provider": "ollama",
+                            "model": "llama3",
+                            "complexity": 3,
+                            "parties": 2,
+                            "method": "pure_llm",
+                        },
+                        "hypothetical": "Legacy hypothetical",
+                        "analysis": "Legacy analysis",
+                        "validation_score": 8.1,
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        first_migration_count = await database_service.migrate_legacy_history_json(
+            history_path=str(legacy_history_path)
+        )
+        second_migration_count = await database_service.migrate_legacy_history_json(
+            history_path=str(legacy_history_path)
+        )
+
+        assert first_migration_count == 1
+        assert second_migration_count == 0
+        assert await database_service.get_generation_count() == 1
+
+        records = await database_service.get_history_records(limit=10)
+        assert len(records) == 1
+        assert records[0]["config"]["topic"] == "negligence"
+        assert records[0]["hypothetical"] == "Legacy hypothetical"
+
+        indexed_record = await database_service.get_history_record_by_index(0)
+        assert indexed_record is not None
+        assert indexed_record["generation_id"] == records[0]["generation_id"]
 
     @pytest.mark.asyncio
     async def test_build_regeneration_feedback_context(self, database_service):
