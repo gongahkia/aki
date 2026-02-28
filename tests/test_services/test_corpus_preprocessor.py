@@ -66,3 +66,27 @@ def test_build_corpus_include_non_tort_opt_in(tmp_path):
         "tort",
         "contract",
     }
+
+
+def test_scan_raw_directory_skips_oversized_entries(tmp_path):
+    raw_dir = tmp_path / "raw"
+    _write_case(raw_dir / "tort" / "ok.txt", "T" * 120)
+    _write_case(raw_dir / "tort" / "too_big.txt", "X" * 300)
+
+    entries = scan_raw_directory(raw_dir=raw_dir, max_entry_chars=200)
+
+    assert len(entries) == 1
+    assert entries[0]["metadata"]["source_file"] == "tort/ok.txt"
+
+
+def test_build_corpus_skips_oversized_entries(tmp_path):
+    raw_dir = tmp_path / "raw"
+    output_path = tmp_path / "clean" / "corpus.json"
+    _write_case(raw_dir / "tort" / "ok.txt", "T" * 120)
+    _write_case(raw_dir / "tort" / "too_big.txt", "X" * 300)
+
+    count = build_corpus(raw_dir=raw_dir, output_path=output_path, max_entry_chars=200)
+
+    assert count == 1
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload[0]["metadata"]["source_file"] == "tort/ok.txt"

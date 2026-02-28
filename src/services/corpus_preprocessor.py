@@ -17,6 +17,8 @@ RAW_DIR = Path("corpus/raw")
 CLEAN_DIR = Path("corpus/clean/tort")
 CORPUS_FILE = CLEAN_DIR / "corpus.json"
 SUPPORTED_RAW = {".txt", ".pdf", ".png", ".jpg", ".jpeg", ".docx"}
+MIN_ENTRY_CHARS = 50
+MAX_ENTRY_CHARS = 50_000
 
 DIR_TOPIC_MAP: Dict[str, List[str]] = {
     "tort": [
@@ -114,6 +116,7 @@ def normalize_text(text: str) -> str:
 def scan_raw_directory(
     raw_dir: Optional[Path] = None,
     include_non_tort: bool = False,
+    max_entry_chars: int = MAX_ENTRY_CHARS,
 ) -> List[Dict]:
     """
     Scan corpus/raw/*/ for supported files, extract text, infer topics.
@@ -138,10 +141,18 @@ def scan_raw_directory(
             if fpath.suffix.lower() not in SUPPORTED_RAW:
                 continue
             text = extract_text(fpath)
-            if not text or len(text) < 50:
+            if not text or len(text) < MIN_ENTRY_CHARS:
                 logger.info("Skipping short/empty file: %s", fpath)
                 continue
             text = normalize_text(text)
+            if len(text) > max_entry_chars:
+                logger.warning(
+                    "Skipping oversized file: %s (%d chars > max %d)",
+                    fpath,
+                    len(text),
+                    max_entry_chars,
+                )
+                continue
             entries.append(
                 {
                     "text": text,
@@ -162,6 +173,7 @@ def build_corpus(
     output_path: Optional[Path] = None,
     merge_existing: bool = True,
     include_non_tort: bool = False,
+    max_entry_chars: int = MAX_ENTRY_CHARS,
 ) -> int:
     """
     Build clean corpus JSON from raw directory.
@@ -176,7 +188,11 @@ def build_corpus(
             existing = json.load(f)
 
     curated = [e for e in existing if not e.get("metadata", {}).get("source_file")]
-    raw_entries = scan_raw_directory(raw_dir, include_non_tort=include_non_tort)
+    raw_entries = scan_raw_directory(
+        raw_dir,
+        include_non_tort=include_non_tort,
+        max_entry_chars=max_entry_chars,
+    )
 
     merged = curated + raw_entries
     output_path.parent.mkdir(parents=True, exist_ok=True)
