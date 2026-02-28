@@ -1,4 +1,3 @@
-(B) Add optional minimal web UI route group in FastAPI (`src/api/web.py`) using server-rendered templates styled for Apple/Notion-like minimalism and backed by existing generation APIs. +philosophical +feature +web +minimal
 (B) Keep TUI as default entrypoint while adding `make web` and `python -m src.api.web` commands for optional web surface without replacing current stack. +philosophical +dx +make +web
 (B) Split `src/tui/rich_app.py` into modular files (`menus.py`, `generation.py`, `history.py`, `providers.py`, `settings.py`) and keep `JikaiTUI` as thin orchestration layer. +dx +refactor +tui
 (B) Introduce a typed `TUIState` dataclass in a new module and replace ad-hoc dict state reads/writes across generation and settings flows. +dx +types +tui +refactor

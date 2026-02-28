@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jikai Web</title>
+    <style>
+      :root {
+        --bg: #f5f5f3;
+        --surface: #ffffff;
+        --surface-muted: #fafaf9;
+        --text: #151515;
+        --text-subtle: #585b5f;
+        --border: #dfdfdb;
+        --accent: #0f6fff;
+        --accent-soft: #eaf2ff;
+        --ok: #0a7a4a;
+        --warn: #8a3f1f;
+        --shadow: 0 20px 60px rgba(22, 24, 28, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "SF Pro Text", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 12%, #ffffff, transparent 42%),
+          radial-gradient(circle at 87% 18%, #e9eef7, transparent 36%),
+          linear-gradient(180deg, #f5f5f3 0%, #efefec 100%);
+        min-height: 100vh;
+      }
+
+      .shell {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+
+      .header {
+        margin-bottom: 22px;
+        animation: rise 420ms ease both;
+      }
+
+      .eyebrow {
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 11px;
+        color: var(--text-subtle);
+        margin-bottom: 8px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.65rem, 2.6vw, 2.2rem);
+        line-height: 1.18;
+      }
+
+      .subtitle {
+        margin-top: 10px;
+        color: var(--text-subtle);
+        max-width: 760px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 360px) 1fr;
+        gap: 18px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+      }
+
+      .card form {
+        padding: 18px;
+        display: grid;
+        gap: 13px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 0.82rem;
+        color: var(--text-subtle);
+      }
+
+      input,
+      select {
+        border: 1px solid var(--border);
+        background: var(--surface-muted);
+        border-radius: 10px;
+        padding: 9px 11px;
+        font-size: 0.93rem;
+        color: var(--text);
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+
+      .inline {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.86rem;
+      }
+
+      .toggle input {
+        width: 16px;
+        height: 16px;
+      }
+
+      .btn {
+        margin-top: 2px;
+        border: 1px solid #1259cb;
+        background: linear-gradient(180deg, #1f7cff, #0f63dc);
+        color: #ffffff;
+        border-radius: 11px;
+        height: 40px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        filter: brightness(1.04);
+      }
+
+      .result {
+        padding: 18px;
+        animation: rise 520ms ease both;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .chip {
+        border: 1px solid var(--border);
+        background: var(--surface-muted);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.76rem;
+        color: var(--text-subtle);
+      }
+
+      .chip.ok {
+        border-color: #b8dfcc;
+        background: #ebfaf2;
+        color: var(--ok);
+      }
+
+      .chip.warn {
+        border-color: #f2ccb6;
+        background: #fff2ea;
+        color: var(--warn);
+      }
+
+      .section {
+        margin-top: 12px;
+      }
+
+      .section h2 {
+        margin: 0 0 7px;
+        font-size: 0.95rem;
+        color: var(--text-subtle);
+        letter-spacing: 0.03em;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        background: #fbfbfa;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        line-height: 1.5;
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+        font-size: 0.95rem;
+      }
+
+      .placeholder {
+        padding: 18px;
+        color: var(--text-subtle);
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        background: #fafaf8;
+      }
+
+      .error {
+        padding: 11px 12px;
+        border: 1px solid #f2ccb6;
+        background: #fff4ee;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        color: #7a2f14;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div class="eyebrow">Jikai Web Surface</div>
+        <h1>Minimal generation workspace for Singapore tort hypotheticals</h1>
+        <p class="subtitle">
+          Optional browser interface for local study runs. TUI remains primary; this page is a lean alternative.
+        </p>
+      </header>
+
+      <section class="layout">
+        <article class="card">
+          <form method="post" action="/web/generate">
+            <label>
+              Topic
+              <select name="topic" required>
+                {% for topic in topics %}
+                <option value="{{ topic }}" {% if topic == form_data.topic %}selected{% endif %}>
+                  {{ topic.replace("_", " ").title() }}
+                </option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <div class="inline">
+              <label>
+                Provider
+                <select name="provider">
+                  {% for provider in providers %}
+                  <option value="{{ provider }}" {% if provider == form_data.provider %}selected{% endif %}>
+                    {{ provider }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </label>
+
+              <label>
+                Model (optional)
+                <input name="model" value="{{ form_data.model }}" placeholder="auto/default" />
+              </label>
+            </div>
+
+            <div class="inline">
+              <label>
+                Complexity
+                <select name="complexity_level">
+                  {% for level in ["1", "2", "3", "4", "5"] %}
+                  <option value="{{ level }}" {% if level == form_data.complexity_level %}selected{% endif %}>
+                    {{ level }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </label>
+
+              <label>
+                Parties
+                <select name="number_parties">
+                  {% for party in ["2", "3", "4", "5"] %}
+                  <option value="{{ party }}" {% if party == form_data.number_parties %}selected{% endif %}>
+                    {{ party }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Method
+              <select name="method">
+                {% for method in methods %}
+                <option value="{{ method }}" {% if method == form_data.method %}selected{% endif %}>
+                  {{ method }}
+                </option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label class="toggle">
+              <input type="checkbox" name="red_herrings" {% if form_data.red_herrings %}checked{% endif %} />
+              Include red herrings
+            </label>
+
+            <button class="btn" type="submit">Generate</button>
+          </form>
+        </article>
+
+        <article class="card result">
+          {% if error %}
+          <div class="error">{{ error }}</div>
+          {% endif %}
+
+          {% if result %}
+          <div class="meta">
+            <div class="chip">Generation #{{ result.generation_id or "n/a" }}</div>
+            <div class="chip">Time {{ "%.2f"|format(result.generation_time or 0) }}s</div>
+            <div class="chip">Score {{ "%.1f"|format(result.quality_score or 0) }}</div>
+            <div class="chip {{ 'ok' if result.validation_passed else 'warn' }}">
+              {{ "Validation passed" if result.validation_passed else "Validation failed" }}
+            </div>
+          </div>
+
+          <section class="section">
+            <h2>Hypothetical</h2>
+            <pre>{{ result.hypothetical }}</pre>
+          </section>
+
+          {% if result.analysis %}
+          <section class="section">
+            <h2>Analysis</h2>
+            <pre>{{ result.analysis }}</pre>
+          </section>
+          {% endif %}
+          {% else %}
+          <div class="placeholder">
+            Submit the form to generate. Output appears here with score and timing metadata.
+          </div>
+          {% endif %}
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
