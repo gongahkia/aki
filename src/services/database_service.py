@@ -755,7 +755,47 @@ class DatabaseService:
             """)
 
             topic_rows = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT response_data
+                FROM generation_history
+                WHERE response_data IS NOT NULL
+                """
+            )
+            latency_rows = cursor.fetchall()
             conn.close()
+
+            latency_keys = [
+                "topic_extraction_time_ms",
+                "retrieval_time_ms",
+                "generation_time_ms",
+                "validation_time_ms",
+                "analysis_time_ms",
+            ]
+            latency_samples: Dict[str, List[float]] = {key: [] for key in latency_keys}
+            for latency_row in latency_rows:
+                try:
+                    response_payload = json.loads(latency_row["response_data"])
+                except Exception:
+                    continue
+                metrics = (
+                    response_payload.get("metadata", {}).get("latency_metrics", {})
+                )
+                if not isinstance(metrics, dict):
+                    continue
+                for key in latency_keys:
+                    value = metrics.get(key)
+                    if isinstance(value, (int, float)):
+                        latency_samples[key].append(float(value))
+
+            latency_metrics: Dict[str, Dict[str, Any]] = {}
+            for key, samples in latency_samples.items():
+                average_ms = round(sum(samples) / len(samples), 2) if samples else 0.0
+                latency_metrics[key] = {
+                    "average_ms": average_ms,
+                    "samples": len(samples),
+                }
 
             stats = {
                 "total_generations": row["total_generations"] or 0,
@@ -765,6 +805,7 @@ class DatabaseService:
                 "average_quality_score": row["avg_quality_score"] or 0.0,
                 "first_generation": row["first_generation"],
                 "last_generation": row["last_generation"],
+                "latency_metrics": latency_metrics,
                 "popular_topics": [
                     {"topics": json.loads(t["topics"]), "count": t["count"]}
                     for t in topic_rows
@@ -781,6 +822,13 @@ class DatabaseService:
                 "average_generation_time": 0.0,
                 "success_rate": 0.0,
                 "average_quality_score": 0.0,
+                "latency_metrics": {
+                    "topic_extraction_time_ms": {"average_ms": 0.0, "samples": 0},
+                    "retrieval_time_ms": {"average_ms": 0.0, "samples": 0},
+                    "generation_time_ms": {"average_ms": 0.0, "samples": 0},
+                    "validation_time_ms": {"average_ms": 0.0, "samples": 0},
+                    "analysis_time_ms": {"average_ms": 0.0, "samples": 0},
+                },
             }
 
     async def search_by_topics(

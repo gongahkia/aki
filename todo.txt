@@ -1,4 +1,3 @@
-(B) Add structured latency metrics (topic extraction time, retrieval time, generation time, validation time, analysis time) and expose them in `/stats`. +dx +observability +latency
 (B) Add explicit warmup command `make warmup` that preloads corpus topics, checks provider health, and optionally initializes embedding model to reduce first-generation latency. +stability +latency +make
 (B) Cache extracted topic list in `CorpusService` with file mtime invalidation to avoid re-reading full corpus on every `/generate` request. +stability +latency +services +corpus
 (B) Add async lock protection around first-time vector index initialization to prevent duplicate indexing under concurrent requests. +stability +concurrency +vector +services

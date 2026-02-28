@@ -111,7 +111,16 @@ class TestDatabaseService:
                 "analysis": "Analysis",
                 "generation_time": 10.0 + i,
                 "validation_results": {"passed": i % 2 == 0, "quality_score": 7.0},
-                "metadata": {"generation_timestamp": f"2025-01-01T00:0{i}:00"},
+                "metadata": {
+                    "generation_timestamp": f"2025-01-01T00:0{i}:00",
+                    "latency_metrics": {
+                        "topic_extraction_time_ms": 2.5 + i,
+                        "retrieval_time_ms": 5.0 + i,
+                        "generation_time_ms": 200.0 + (i * 10),
+                        "validation_time_ms": 4.0 + i,
+                        "analysis_time_ms": 30.0 + i,
+                    },
+                },
             }
             await database_service.save_generation(request_data, response_data)
 
@@ -121,6 +130,8 @@ class TestDatabaseService:
         assert stats["average_generation_time"] > 0
         assert 0 <= stats["success_rate"] <= 100
         assert stats["average_quality_score"] > 0
+        assert "latency_metrics" in stats
+        assert stats["latency_metrics"]["generation_time_ms"]["samples"] == 10
 
     @pytest.mark.asyncio
     async def test_search_by_topics(self, database_service):

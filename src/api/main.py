@@ -224,6 +224,7 @@ class GenerationStatsResponse(BaseModel):
     total_generations: int
     average_generation_time: float
     success_rate: float
+    latency_metrics: Dict[str, Any] = Field(default_factory=dict)
     recent_generations: List[Dict[str, Any]]
 
 
@@ -340,15 +341,23 @@ async def generate_hypothetical(
         )
 
         canonical_topics = canonicalize_and_validate_topics(request.topics)
-        request = request.model_copy(
-            update={"topics": canonical_topics, "correlation_id": correlation_id}
-        )
 
         # Validate topics
+        topic_extraction_started = time.perf_counter()
         available_topics = [
             canonicalize_topic(topic)
             for topic in await corpus_service.extract_all_topics()
         ]
+        topic_extraction_time_ms = round(
+            (time.perf_counter() - topic_extraction_started) * 1000, 2
+        )
+        request = request.model_copy(
+            update={
+                "topics": canonical_topics,
+                "correlation_id": correlation_id,
+                "topic_extraction_time_ms": topic_extraction_time_ms,
+            }
+        )
         invalid_topics = [
             topic for topic in request.topics if topic not in available_topics
         ]
@@ -855,6 +864,7 @@ async def get_generation_stats(
             total_generations=db_stats["total_generations"],
             average_generation_time=db_stats["average_generation_time"],
             success_rate=db_stats["success_rate"],
+            latency_metrics=db_stats.get("latency_metrics", {}),
             recent_generations=recent,
         )
 

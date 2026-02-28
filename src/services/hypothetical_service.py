@@ -6,6 +6,7 @@ Combines prompt engineering, LLM service, and corpus service to create high-qual
 import uuid
 from datetime import datetime
 from pathlib import Path
+import time
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -46,6 +47,7 @@ class GenerationRequest(BaseModel):
     retry_reason: Optional[str] = None
     retry_attempt: int = Field(default=0, ge=0)
     correlation_id: Optional[str] = None
+    topic_extraction_time_ms: Optional[float] = Field(default=None, ge=0.0)
 
     @field_validator("law_domain")
     @classmethod
@@ -113,6 +115,7 @@ class HypotheticalService:
         """Generate a complete legal hypothetical with analysis."""
         try:
             start_time = datetime.utcnow()
+            overall_started = time.perf_counter()
             correlation_id = (request.correlation_id or "").strip() or str(uuid.uuid4())
             request = request.model_copy(update={"correlation_id": correlation_id})
 
@@ -125,9 +128,14 @@ class HypotheticalService:
             )
 
             # Step 1: Get relevant context from corpus
+            retrieval_started = time.perf_counter()
             context_entries = await self._get_relevant_context(request)
+            retrieval_time_ms = round(
+                (time.perf_counter() - retrieval_started) * 1000, 2
+            )
 
             # Step 2: Generate the hypothetical
+            generation_started = time.perf_counter()
             hypothetical = await self._generate_hypothetical_text(
                 request, context_entries
             )
@@ -135,17 +143,36 @@ class HypotheticalService:
             # Step 2.5: ML-assisted post-processing
             if request.method in ("ml_assisted", "hybrid"):
                 hypothetical = await self._ml_post_process(request, hypothetical)
+            generation_time_ms = round(
+                (time.perf_counter() - generation_started) * 1000, 2
+            )
 
             # Step 3: Validate the generated hypothetical
+            validation_started = time.perf_counter()
             validation_results = await self._validate_hypothetical(
                 request, hypothetical, context_entries
             )
+            validation_time_ms = round(
+                (time.perf_counter() - validation_started) * 1000, 2
+            )
 
             # Step 4: Generate legal analysis
+            analysis_started = time.perf_counter()
             analysis = await self._generate_legal_analysis(request, hypothetical)
+            analysis_time_ms = round((time.perf_counter() - analysis_started) * 1000, 2)
 
             # Step 5: Calculate generation time
-            generation_time = (datetime.utcnow() - start_time).total_seconds()
+            generation_time = round(time.perf_counter() - overall_started, 3)
+            topic_extraction_time_ms = round(
+                float(request.topic_extraction_time_ms or 0.0), 2
+            )
+            latency_metrics = {
+                "topic_extraction_time_ms": topic_extraction_time_ms,
+                "retrieval_time_ms": retrieval_time_ms,
+                "generation_time_ms": generation_time_ms,
+                "validation_time_ms": validation_time_ms,
+                "analysis_time_ms": analysis_time_ms,
+            }
 
             # Create response
             response = GenerationResponse(
@@ -160,6 +187,7 @@ class HypotheticalService:
                     "retry_reason": request.retry_reason,
                     "retry_attempt": request.retry_attempt,
                     "correlation_id": correlation_id,
+                    "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
                 },
