@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..config import settings
+from ..domain import canonicalize_topic, is_tort_topic
 from ..services import (
     CorpusQuery,
     CorpusService,
@@ -30,6 +31,7 @@ from ..services import (
     hypothetical_service,
     llm_service,
 )
+from ..services.topic_guard import canonicalize_and_validate_topics
 
 # Configure structured logging
 structlog.configure(
@@ -273,8 +275,14 @@ async def generate_hypothetical(
             parties=request.number_parties,
         )
 
+        canonical_topics = canonicalize_and_validate_topics(request.topics)
+        request = request.model_copy(update={"topics": canonical_topics})
+
         # Validate topics
-        available_topics = await corpus_service.extract_all_topics()
+        available_topics = [
+            canonicalize_topic(topic)
+            for topic in await corpus_service.extract_all_topics()
+        ]
         invalid_topics = [
             topic for topic in request.topics if topic not in available_topics
         ]
@@ -337,23 +345,31 @@ async def batch_generate(
     """Generate multiple hypotheticals sequentially. Max 10 per request."""
     # validate topics upfront
     try:
-        available_topics = await corpus_service.extract_all_topics()
+        available_topics = {
+            canonicalize_topic(topic)
+            for topic in await corpus_service.extract_all_topics()
+        }
     except Exception:
-        available_topics = []
+        available_topics = set()
     if available_topics:
         invalid = [
-            (i, cfg.topic)
+            (i, cfg.topic, canonicalize_topic(cfg.topic))
             for i, cfg in enumerate(request.configs)
-            if cfg.topic not in available_topics
+            if not is_tort_topic(canonicalize_topic(cfg.topic))
+            or canonicalize_topic(cfg.topic) not in available_topics
         ]
         if invalid:
-            detail = "; ".join(f"config[{i}]: unknown topic '{t}'" for i, t in invalid)
+            detail = "; ".join(
+                f"config[{i}]: unknown topic '{raw}' (canonical '{canonical}')"
+                for i, raw, canonical in invalid
+            )
             raise HTTPException(status_code=400, detail=detail)
     results = []
     for cfg in request.configs[:10]:
         try:
+            canonical_topic = canonicalize_and_validate_topics([cfg.topic])[0]
             gen_req = GenerationRequest(
-                topics=[cfg.topic],
+                topics=[canonical_topic],
                 number_parties=cfg.parties,
                 complexity_level=cfg.complexity,
                 method=cfg.method,
