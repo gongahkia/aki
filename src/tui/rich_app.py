@@ -33,6 +33,7 @@ from . import history as history_module
 from . import menus as menus_module
 from . import providers as providers_module
 from . import settings as settings_module
+from .state import LastGenerationConfig, TUIState
 
 console = Console()
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
@@ -534,9 +535,9 @@ class JikaiTUI:
     def _render_status_bar(self):
         """Render a persistent contextual status bar."""
         state = self._load_state()
-        last_cfg = state.get("last_config", {})
-        provider = last_cfg.get("provider", "—")
-        model = last_cfg.get("model", "—")
+        last_cfg = state.last_config
+        provider = last_cfg.provider or "—"
+        model = last_cfg.model or "—"
         corpus_count = 0
         if self._corpus_ready():
             try:
@@ -1857,11 +1858,11 @@ class JikaiTUI:
             tlog.info("ERROR  import_cases: %s", e)
 
     # ── generate ────────────────────────────────────────────────
-    def _load_state(self) -> Dict:
-        """Load persisted state from .jikai_state."""
+    def _load_state(self) -> TUIState:
+        """Load persisted typed state from .jikai_state."""
         try:
             with open(".jikai_state", "r") as f:
-                return json.load(f)
+                return TUIState.from_dict(json.load(f))
         except json.JSONDecodeError:
             import shutil
 
@@ -1869,15 +1870,15 @@ class JikaiTUI:
             console.print(
                 "[yellow]⚠ .jikai_state corrupted, backed up to .jikai_state.bak[/yellow]"
             )
-            return {}
+            return TUIState()
         except Exception:
-            return {}
+            return TUIState()
 
-    def _save_state(self, state: Dict):
+    def _save_state(self, state: TUIState):
         """Save state to .jikai_state."""
         tmp = ".jikai_state.tmp"
         with open(tmp, "w") as f:
-            json.dump(state, f, indent=2)
+            json.dump(state.to_dict(), f, indent=2)
         os.rename(tmp, ".jikai_state")  # atomic write
 
     def _generate_flow_impl(self):
@@ -1894,16 +1895,16 @@ class JikaiTUI:
                 return
 
             state = self._load_state()
-            defaults = state.get("last_config", {})
+            defaults = state.last_config
 
             if mode == "quick":
                 # Show defaults first before committing
-                provider = defaults.get("provider", "ollama")
-                model_name = defaults.get("model", None)
-                temperature = defaults.get("temperature", 0.7)
-                complexity = defaults.get("complexity", "3")
-                parties = defaults.get("parties", "2")
-                method = defaults.get("method", "pure_llm")
+                provider = defaults.provider
+                model_name = defaults.model
+                temperature = defaults.temperature
+                complexity = defaults.complexity
+                parties = defaults.parties
+                method = defaults.method
                 red_herrings = False
 
                 dt = Table(title="Quick Generate Defaults", box=box.SIMPLE)
@@ -2011,14 +2012,14 @@ class JikaiTUI:
             )
             # Persist last-used config for quick-generate
             state = self._load_state()
-            state["last_config"] = {
-                "provider": provider,
-                "model": model_name,
-                "temperature": float(temperature),
-                "complexity": str(complexity),
-                "parties": str(parties),
-                "method": method,
-            }
+            state.last_config = LastGenerationConfig(
+                provider=provider,
+                model=model_name or None,
+                temperature=float(temperature),
+                complexity=str(complexity),
+                parties=str(parties),
+                method=method,
+            )
             self._save_state(state)
             if not _confirm("Generate another?", default=False):
                 return
@@ -4271,7 +4272,7 @@ class JikaiTUI:
     def _configured_provider(self) -> str:
         """Best-effort read of the configured LLM provider from state or .env."""
         state = self._load_state()
-        provider = state.get("last_config", {}).get("provider", "")
+        provider = state.last_config.provider
         if provider:
             return provider
         env_file = Path(".env")
