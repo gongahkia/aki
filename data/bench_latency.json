@@ -1,0 +1,27 @@
+{
+  "iterations": 1,
+  "baseline": {
+    "count": 1,
+    "avg_ms": 36.79,
+    "p50_ms": 36.79,
+    "p95_ms": 36.79,
+    "min_ms": 36.79,
+    "max_ms": 36.79
+  },
+  "fast_mode": {
+    "count": 1,
+    "avg_ms": 12.76,
+    "p50_ms": 12.76,
+    "p95_ms": 12.76,
+    "min_ms": 12.76,
+    "max_ms": 12.76
+  },
+  "status_codes": {
+    "baseline": {
+      "200": 1
+    },
+    "fast_mode": {
+      "200": 1
+    }
+  }
+}
