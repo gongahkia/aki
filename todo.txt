@@ -1,4 +1,3 @@
-(B) Add provider-specific capability map (`supports_stream`, `supports_system_prompt`, `max_tokens`) and validate generation config before invoking provider calls. +dx +services +providers
 (B) Add strict Pydantic models for TUI history records and validate load/save operations instead of writing untyped JSON dicts. +dx +types +tui +history
 (B) Replace `Field` with `Query` in GET endpoint query params in `src/api/main.py` (for `/corpus/entries` limit) to align FastAPI request parsing semantics. +stability +bugfix +api
 (B) Add request ID middleware in `src/api/main.py` that injects a correlation ID into logs and response headers for every request. +dx +observability +api

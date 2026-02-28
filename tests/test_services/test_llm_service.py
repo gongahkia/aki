@@ -14,6 +14,7 @@ from src.services.llm_service import (
     LLMResponse,
     LLMService,
     LLMServiceError,
+    PROVIDER_CAPABILITIES,
 )
 
 
@@ -287,3 +288,21 @@ class TestLLMService:
         await llm_service.close()
 
         llm_service._registry.close_all.assert_called_once()
+
+    def test_validate_generation_config_rejects_excess_max_tokens(self, llm_service):
+        """Provider max_tokens limits should be enforced before provider invocation."""
+        request = LLMRequest(prompt="Test prompt", max_tokens=20000)
+
+        with pytest.raises(LLMServiceError, match="exceeds provider"):
+            llm_service._validate_generation_config("openai", request)
+
+    def test_validate_generation_config_respects_stream_capability(self, llm_service):
+        """Streaming requests should fail when provider marks stream unsupported."""
+        request = LLMRequest(prompt="Test prompt", stream=True)
+        original = PROVIDER_CAPABILITIES["openai"]["supports_stream"]
+        PROVIDER_CAPABILITIES["openai"]["supports_stream"] = False
+        try:
+            with pytest.raises(LLMServiceError, match="does not support streaming"):
+                llm_service._validate_generation_config("openai", request)
+        finally:
+            PROVIDER_CAPABILITIES["openai"]["supports_stream"] = original

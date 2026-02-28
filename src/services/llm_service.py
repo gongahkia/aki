@@ -31,6 +31,40 @@ TOKEN_COSTS = {
     "gemini-2.5-pro": {"input": 0.00125, "output": 0.005},
 }
 
+PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
+    "ollama": {
+        "supports_stream": True,
+        "supports_system_prompt": True,
+        "max_tokens": 8192,
+    },
+    "openai": {
+        "supports_stream": True,
+        "supports_system_prompt": True,
+        "max_tokens": 16384,
+    },
+    "anthropic": {
+        "supports_stream": True,
+        "supports_system_prompt": True,
+        "max_tokens": 8192,
+    },
+    "google": {
+        "supports_stream": True,
+        "supports_system_prompt": True,
+        "max_tokens": 8192,
+    },
+    "local": {
+        "supports_stream": True,
+        "supports_system_prompt": True,
+        "max_tokens": 4096,
+    },
+}
+
+DEFAULT_PROVIDER_CAPABILITIES: Dict[str, Any] = {
+    "supports_stream": True,
+    "supports_system_prompt": True,
+    "max_tokens": 2048,
+}
+
 
 class LLMService:
     """Main LLM service that manages providers via registry."""
@@ -150,6 +184,35 @@ class LLMService:
     def _record_success(self, name: str):
         self._failure_counts[name] = 0
 
+    def get_provider_capabilities(self, provider: str) -> Dict[str, Any]:
+        """Get capability profile for a provider."""
+        caps = PROVIDER_CAPABILITIES.get(provider, {})
+        merged = dict(DEFAULT_PROVIDER_CAPABILITIES)
+        merged.update(caps)
+        return merged
+
+    def _validate_generation_config(self, provider: str, request: LLMRequest):
+        """Validate request against provider capability map before provider call."""
+        caps = self.get_provider_capabilities(provider)
+
+        if request.stream and not bool(caps.get("supports_stream", False)):
+            raise LLMServiceError(
+                f"Provider '{provider}' does not support streaming generation"
+            )
+
+        if request.system_prompt and not bool(
+            caps.get("supports_system_prompt", False)
+        ):
+            raise LLMServiceError(
+                f"Provider '{provider}' does not support system prompts"
+            )
+
+        max_tokens = caps.get("max_tokens")
+        if isinstance(max_tokens, int) and request.max_tokens > max_tokens:
+            raise LLMServiceError(
+                f"max_tokens={request.max_tokens} exceeds provider '{provider}' limit ({max_tokens})"
+            )
+
     def _track_cost(self, model: str, usage: Dict[str, int]):
         """Estimate and accumulate token costs."""
         costs = TOKEN_COSTS.get(model, {"input": 0, "output": 0})
@@ -206,6 +269,7 @@ class LLMService:
             request = request.model_copy(update={"model": model})
         elif self._default_model and not request.model:
             request = request.model_copy(update={"model": self._default_model})
+        self._validate_generation_config(provider_name, request)
         provider_instance = registry.get(provider_name)
         try:
             response = await asyncio.wait_for(
@@ -256,6 +320,7 @@ class LLMService:
             request = request.model_copy(update={"model": model, "stream": True})
         else:
             request = request.model_copy(update={"stream": True})
+        self._validate_generation_config(provider_name, request)
         provider_instance = registry.get(provider_name)
         try:
             async for chunk in provider_instance.stream_generate(request):
