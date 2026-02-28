@@ -1,4 +1,3 @@
-(B) Add safe cancellation handling in streaming generation to persist partial output snapshots with cancellation metadata for later resume or review. +stability +feature +tui +history
 (B) Add explicit maximum corpus entry size checks during preprocessing to prevent oversized documents from degrading retrieval and generation latency. +stability +performance +corpus
 (B) Add semantic search relevance threshold in `VectorService.semantic_search` and fallback to keyword retrieval when top similarity is below threshold. +stability +quality +vector
 (B) Add a unified service facade module that both API and TUI call for generation/report/regeneration so business logic is not duplicated across interfaces. +philosophical +refactor +api +tui +services

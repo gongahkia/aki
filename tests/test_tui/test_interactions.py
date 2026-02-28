@@ -133,3 +133,45 @@ def test_history_browse_flow_invokes_display(monkeypatch):
     app._history_flow_impl()
 
     assert displayed["count"] == 1
+
+
+def test_persist_stream_generation_stores_cancellation_snapshot(monkeypatch):
+    app = JikaiTUI()
+    captured = {}
+
+    async def fake_save_generation(**kwargs):
+        captured.update(kwargs)
+        return 77
+
+    fake_db_service = SimpleNamespace(save_generation=fake_save_generation)
+    monkeypatch.setitem(
+        sys.modules,
+        "src.services.database_service",
+        SimpleNamespace(database_service=fake_db_service),
+    )
+
+    generation_id = app._persist_stream_generation(
+        topic="negligence",
+        provider="ollama",
+        model="llama3",
+        complexity=3,
+        parties=2,
+        method="pure_llm",
+        temperature=0.6,
+        red_herrings=False,
+        hypothetical="Partial hypothetical text for cancellation snapshot persistence.",
+        validation_results={"passed": False, "quality_score": 0.0, "cancelled": True},
+        correlation_id="cancel-test-1",
+        include_analysis=False,
+        partial_snapshot=True,
+        cancellation_metadata={"cancelled": True, "reason": "user_interrupt"},
+    )
+
+    assert generation_id == 77
+    assert (
+        captured["request_data"]["user_preferences"]["cancellation_metadata"][
+            "cancelled"
+        ]
+        is True
+    )
+    assert captured["response_data"]["metadata"]["partial_snapshot"] is True

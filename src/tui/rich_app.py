@@ -2286,6 +2286,7 @@ class JikaiTUI:
             tlog.info("ERROR  import: %s", e)
         except KeyboardInterrupt:
             word_count = len(partial_result.split()) if partial_result else 0
+            snapshot_generation_id = None
             if partial_result and word_count > 20:
                 console.print(
                     f"\n[yellow]Generation cancelled. Partial result ({word_count} words):[/yellow]"
@@ -2298,6 +2299,53 @@ class JikaiTUI:
                         border_style="yellow",
                     )
                 )
+                snapshot_generation_id = self._persist_stream_generation(
+                    topic=topic,
+                    provider=provider,
+                    model=model,
+                    complexity=complexity,
+                    parties=parties,
+                    method=method,
+                    temperature=temperature,
+                    red_herrings=red_herrings,
+                    hypothetical=partial_result,
+                    validation_results={
+                        "passed": False,
+                        "quality_score": 0.0,
+                        "cancelled": True,
+                        "partial_word_count": word_count,
+                    },
+                    correlation_id=correlation_id,
+                    include_analysis=False,
+                    partial_snapshot=True,
+                    cancellation_metadata={
+                        "cancelled": True,
+                        "reason": "user_interrupt",
+                        "partial_word_count": word_count,
+                        "can_resume": True,
+                    },
+                )
+                self._save_to_history(
+                    {
+                        "config": {
+                            "topic": topic,
+                            "provider": provider,
+                            "model": model,
+                            "complexity": complexity,
+                            "parties": parties,
+                            "method": method,
+                        },
+                        "hypothetical": partial_result,
+                        "analysis": "",
+                        "validation_score": 0.0,
+                        "generation_id": snapshot_generation_id,
+                    }
+                )
+                if snapshot_generation_id:
+                    console.print(
+                        "[dim]Saved cancellation snapshot for review/regeneration "
+                        f"(generation_id={snapshot_generation_id}).[/dim]"
+                    )
             else:
                 console.print("\n[yellow]Generation cancelled.[/yellow]")
             tlog.info("GENERATE  cancelled by user")
@@ -2349,6 +2397,8 @@ class JikaiTUI:
         validation_results: Dict[str, Any],
         correlation_id: Optional[str] = None,
         include_analysis: bool = False,
+        partial_snapshot: bool = False,
+        cancellation_metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[int]:
         """Persist a stream-generated output so it can be reported/regenerated."""
         from datetime import datetime
@@ -2371,6 +2421,10 @@ class JikaiTUI:
             "correlation_id": correlation_id,
             "include_analysis": include_analysis,
         }
+        if cancellation_metadata:
+            request_data["user_preferences"]["cancellation_metadata"] = dict(
+                cancellation_metadata
+            )
         response_data = {
             "hypothetical": hypothetical,
             "analysis": "",
@@ -2379,6 +2433,8 @@ class JikaiTUI:
                 "law_domain": "tort",
                 "number_parties": parties,
                 "complexity_level": str(complexity),
+                "partial_snapshot": partial_snapshot,
+                "cancellation_metadata": dict(cancellation_metadata or {}),
                 "generation_timestamp": datetime.utcnow().isoformat(),
             },
             "generation_time": 0.0,
