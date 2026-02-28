@@ -322,18 +322,27 @@ async def health_check():
 async def generate_hypothetical(
     request: GenerationRequest,
     background_tasks: BackgroundTasks,
+    http_request: Request,
     service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Generate a legal hypothetical with analysis."""
     try:
+        correlation_id = (
+            request.correlation_id
+            or getattr(http_request.state, "request_id", None)
+            or str(uuid.uuid4())
+        )
         logger.info(
             "Hypothetical generation requested",
             topics=request.topics,
             parties=request.number_parties,
+            correlation_id=correlation_id,
         )
 
         canonical_topics = canonicalize_and_validate_topics(request.topics)
-        request = request.model_copy(update={"topics": canonical_topics})
+        request = request.model_copy(
+            update={"topics": canonical_topics, "correlation_id": correlation_id}
+        )
 
         # Validate topics
         available_topics = [
@@ -360,6 +369,7 @@ async def generate_hypothetical(
             "Hypothetical generated successfully",
             generation_time=response.generation_time,
             validation_passed=response.validation_results.get("passed", False),
+            correlation_id=correlation_id,
         )
 
         return response
@@ -367,7 +377,11 @@ async def generate_hypothetical(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Hypothetical generation failed", error=str(e))
+        logger.error(
+            "Hypothetical generation failed",
+            error=str(e),
+            correlation_id=correlation_id,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Generation failed: {e}",
@@ -519,9 +533,13 @@ async def preview_generation(
 @app.post("/generate/batch")
 async def batch_generate(
     request: BatchGenerateRequest,
+    http_request: Request,
     service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Generate multiple hypotheticals sequentially. Max 10 per request."""
+    batch_correlation_id = (
+        getattr(http_request.state, "request_id", None) or str(uuid.uuid4())
+    )
     # validate topics upfront
     try:
         available_topics = {
@@ -544,9 +562,10 @@ async def batch_generate(
             )
             raise HTTPException(status_code=400, detail=detail)
     results = []
-    for cfg in request.configs[:10]:
+    for idx, cfg in enumerate(request.configs[:10], 1):
         try:
             canonical_topic = canonicalize_and_validate_topics([cfg.topic])[0]
+            correlation_id = f"{batch_correlation_id}-batch-{idx}"
             gen_req = GenerationRequest(
                 topics=[canonical_topic],
                 number_parties=cfg.parties,
@@ -554,6 +573,7 @@ async def batch_generate(
                 method=cfg.method,
                 provider=cfg.provider,
                 model=cfg.model,
+                correlation_id=correlation_id,
             )
             resp = await service.generate_hypothetical(gen_req)
             results.append(
@@ -648,6 +668,7 @@ async def delete_generation_report(generation_id: int, report_id: int):
 )
 async def regenerate_generation(
     generation_id: int,
+    http_request: Request,
     service: HypotheticalService = Depends(get_hypothetical_service),
 ):
     """Force regeneration using original request and stored feedback context."""
@@ -707,6 +728,9 @@ async def regenerate_generation(
         parent_generation_id=generation_id,
         retry_reason=retry_reason,
         retry_attempt=retry_attempt,
+        correlation_id=(
+            getattr(http_request.state, "request_id", None) or str(uuid.uuid4())
+        ),
     )
 
     regenerated = await service.generate_hypothetical(regenerate_request)

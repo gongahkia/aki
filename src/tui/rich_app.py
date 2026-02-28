@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -438,6 +439,9 @@ class JikaiTUI:
         self._cached_last_score: str = "—"
         self._history_migrated: bool = False
         self._provider_model_cache: Dict[str, List[str]] = {}
+
+    def _new_correlation_id(self) -> str:
+        return f"tui-{uuid.uuid4()}"
 
     # Flow orchestration delegates (modular entrypoints)
     def main_menu(self):
@@ -1581,6 +1585,7 @@ class JikaiTUI:
                             method=method,
                             provider=provider,
                             model=model_name or None,
+                            correlation_id=self._new_correlation_id(),
                         )
                         return await hypothetical_service.generate_hypothetical(req)
 
@@ -1999,6 +2004,7 @@ class JikaiTUI:
         temperature, red_herrings = cfg.temperature, cfg.red_herrings
         max_retries = 3
         partial_result = ""
+        correlation_id = self._new_correlation_id()
         try:
             from ..services.llm_service import LLMRequest, llm_service
             from ..services.validation_service import validation_service
@@ -2017,6 +2023,7 @@ class JikaiTUI:
                 ),
                 temperature=temperature,
                 stream=True,
+                correlation_id=correlation_id,
             )
 
             async def _stream():
@@ -2070,6 +2077,7 @@ class JikaiTUI:
                             red_herrings=red_herrings,
                             hypothetical=result,
                             validation_results=vr,
+                            correlation_id=correlation_id,
                         )
                         self._save_to_history(
                             {
@@ -2129,6 +2137,7 @@ class JikaiTUI:
                         provider=provider,
                         model=model,
                         user_preferences=prefs,
+                        correlation_id=correlation_id,
                     )
                     return await hypothetical_service.generate_hypothetical(req)
 
@@ -2347,6 +2356,7 @@ class JikaiTUI:
         red_herrings: bool,
         hypothetical: str,
         validation_results: Dict[str, Any],
+        correlation_id: Optional[str] = None,
     ) -> Optional[int]:
         """Persist a stream-generated output so it can be reported/regenerated."""
         from datetime import datetime
@@ -2366,6 +2376,7 @@ class JikaiTUI:
             "method": method,
             "provider": provider,
             "model": model,
+            "correlation_id": correlation_id,
         }
         response_data = {
             "hypothetical": hypothetical,
@@ -2385,6 +2396,7 @@ class JikaiTUI:
                 database_service.save_generation(
                     request_data=request_data,
                     response_data=response_data,
+                    correlation_id=correlation_id,
                 )
             )
             return int(generation_id)
@@ -2545,6 +2557,7 @@ class JikaiTUI:
                 parent_generation_id=source_generation_id,
                 retry_reason=retry_reason,
                 retry_attempt=retry_attempt,
+                correlation_id=self._new_correlation_id(),
             )
 
             with console.status(
@@ -2644,6 +2657,7 @@ class JikaiTUI:
                 prompt=prompt,
                 temperature=max(0.3, temperature - 0.2),
                 max_tokens=3000,
+                correlation_id=self._new_correlation_id(),
             )
 
             async def _gen():
@@ -3119,6 +3133,7 @@ class JikaiTUI:
                     provider=new_cfg.get("provider"),
                     model=new_cfg.get("model"),
                     user_preferences=prefs,
+                    correlation_id=self._new_correlation_id(),
                 )
                 return await hypothetical_service.generate_hypothetical(req)
 

@@ -50,6 +50,7 @@ class LLMRequest(BaseModel):
     max_tokens: int = Field(default=2048, gt=0)
     model: Optional[str] = None
     stream: bool = False
+    correlation_id: Optional[str] = None
 
 
 class LLMResponse(BaseModel):

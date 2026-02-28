@@ -213,6 +213,11 @@ class LLMService:
                 f"max_tokens={request.max_tokens} exceeds provider '{provider}' limit ({max_tokens})"
             )
 
+    @staticmethod
+    def _extract_correlation_id(request: LLMRequest) -> Optional[str]:
+        raw = (request.correlation_id or "").strip()
+        return raw or None
+
     def _track_cost(self, model: str, usage: Dict[str, int]):
         """Estimate and accumulate token costs."""
         costs = TOKEN_COSTS.get(model, {"input": 0, "output": 0})
@@ -248,6 +253,7 @@ class LLMService:
         model: Optional[str] = None,
     ) -> LLMResponse:
         """Generate using specified or default provider+model. Auto-fallback on circuit break."""
+        correlation_id = self._extract_correlation_id(request)
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
             raise LLMServiceError(f"Provider '{provider_name}' not available")
@@ -259,6 +265,7 @@ class LLMService:
                     "Provider unhealthy, falling back",
                     unhealthy=provider_name,
                     fallback=fallback,
+                    correlation_id=correlation_id,
                 )
                 provider_name = fallback
             else:
@@ -285,16 +292,28 @@ class LLMService:
                 response_time=response.response_time,
                 tokens=response.usage.get("total_tokens", 0),
                 cost_usd=round(cost, 6),
+                correlation_id=correlation_id,
             )
             return response
         except asyncio.TimeoutError:
             self._record_failure(provider_name)
+            logger.warning(
+                "LLM generation timed out",
+                provider=provider_name,
+                timeout_seconds=GENERATION_TIMEOUT,
+                correlation_id=correlation_id,
+            )
             raise LLMServiceError(
                 f"Generation timed out after {GENERATION_TIMEOUT}s on provider '{provider_name}'"
             )
         except Exception as e:
             self._record_failure(provider_name)
-            logger.error("LLM generation failed", provider=provider_name, error=str(e))
+            logger.error(
+                "LLM generation failed",
+                provider=provider_name,
+                error=str(e),
+                correlation_id=correlation_id,
+            )
             raise
 
     async def stream_generate(
@@ -304,7 +323,7 @@ class LLMService:
         model: Optional[str] = None,
     ):
         """Stream tokens from provider. Yields str chunks."""
-
+        correlation_id = self._extract_correlation_id(request)
         provider_name = provider or self._default_provider
         if not provider_name or provider_name not in registry.list_instances():
             raise LLMServiceError(f"Provider '{provider_name}' not available")
@@ -326,8 +345,20 @@ class LLMService:
             async for chunk in provider_instance.stream_generate(request):
                 yield chunk
             self._record_success(provider_name)
+            logger.info(
+                "LLM stream completed",
+                provider=provider_name,
+                model=request.model,
+                correlation_id=correlation_id,
+            )
         except Exception as e:
             self._record_failure(provider_name)
+            logger.error(
+                "LLM stream failed",
+                provider=provider_name,
+                error=str(e),
+                correlation_id=correlation_id,
+            )
             raise LLMServiceError(f"Stream failed on '{provider_name}': {e}")
 
     async def health_check(self, provider: Optional[str] = None) -> Dict[str, Any]:

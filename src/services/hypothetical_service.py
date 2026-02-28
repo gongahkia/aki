@@ -3,6 +3,7 @@ Hypothetical Generation Service - Main orchestration service for generating lega
 Combines prompt engineering, LLM service, and corpus service to create high-quality legal scenarios.
 """
 
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -44,6 +45,7 @@ class GenerationRequest(BaseModel):
     parent_generation_id: Optional[int] = None
     retry_reason: Optional[str] = None
     retry_attempt: int = Field(default=0, ge=0)
+    correlation_id: Optional[str] = None
 
     @field_validator("law_domain")
     @classmethod
@@ -111,12 +113,15 @@ class HypotheticalService:
         """Generate a complete legal hypothetical with analysis."""
         try:
             start_time = datetime.utcnow()
+            correlation_id = (request.correlation_id or "").strip() or str(uuid.uuid4())
+            request = request.model_copy(update={"correlation_id": correlation_id})
 
             logger.info(
                 "Starting hypothetical generation",
                 topics=request.topics,
                 parties=request.number_parties,
                 complexity=request.complexity_level,
+                correlation_id=correlation_id,
             )
 
             # Step 1: Get relevant context from corpus
@@ -154,6 +159,7 @@ class HypotheticalService:
                     "parent_generation_id": request.parent_generation_id,
                     "retry_reason": request.retry_reason,
                     "retry_attempt": request.retry_attempt,
+                    "correlation_id": correlation_id,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
                 },
@@ -180,11 +186,14 @@ class HypotheticalService:
                     parent_generation_id=request.parent_generation_id,
                     retry_reason=request.retry_reason,
                     retry_attempt=request.retry_attempt,
+                    correlation_id=correlation_id,
                 )
                 response.metadata["generation_id"] = generation_id
             except Exception as db_error:
                 logger.error(
-                    "Failed to persist to database (non-fatal)", error=str(db_error)
+                    "Failed to persist to database (non-fatal)",
+                    error=str(db_error),
+                    correlation_id=correlation_id,
                 )
                 # Don't raise - generation succeeded, only persistence failed
 
@@ -192,12 +201,17 @@ class HypotheticalService:
                 "Hypothetical generation completed",
                 generation_time=generation_time,
                 validation_passed=validation_results.passed,
+                correlation_id=correlation_id,
             )
 
             return response
 
         except Exception as e:
-            logger.error("Hypothetical generation failed", error=str(e))
+            logger.error(
+                "Hypothetical generation failed",
+                error=str(e),
+                correlation_id=(request.correlation_id or None),
+            )
             raise HypotheticalServiceError(f"Generation failed: {e}")
 
     async def _ml_post_process(
@@ -272,12 +286,14 @@ class HypotheticalService:
                             "Context retrieved via semantic search",
                             topics=request.topics,
                             entries_found=len(entries),
+                            correlation_id=request.correlation_id,
                         )
                         return entries
         except Exception as e:
             logger.warning(
                 "Semantic search failed, falling back to keyword matching",
                 error=str(e),
+                correlation_id=request.correlation_id,
             )
 
         # Fallback: keyword-based corpus query
@@ -297,15 +313,24 @@ class HypotheticalService:
                 "Context retrieved via keyword matching",
                 topics=request.topics,
                 entries_found=len(context_entries),
+                correlation_id=request.correlation_id,
             )
 
         except Exception as e:
-            logger.error("Failed to get relevant context", error=str(e))
+            logger.error(
+                "Failed to get relevant context",
+                error=str(e),
+                correlation_id=request.correlation_id,
+            )
             raise HypotheticalServiceError(f"Context retrieval failed: {e}")
 
         # warn if no context entries found from either method
         if not context_entries:
-            logger.warning("No corpus context found for topics", topics=request.topics)
+            logger.warning(
+                "No corpus context found for topics",
+                topics=request.topics,
+                correlation_id=request.correlation_id,
+            )
             if request.user_preferences is None:
                 request.user_preferences = {}
             existing = request.user_preferences.get("feedback", "")
@@ -363,6 +388,7 @@ class HypotheticalService:
                 system_prompt=prompt_data["system"],
                 temperature=temp,
                 max_tokens=2048,
+                correlation_id=request.correlation_id,
             )
 
             # Generate response
@@ -384,12 +410,17 @@ class HypotheticalService:
                 "Hypothetical text generated",
                 length=len(hypothetical),
                 model=llm_response.model,
+                correlation_id=request.correlation_id,
             )
 
             return hypothetical
 
         except Exception as e:
-            logger.error("Failed to generate hypothetical text", error=str(e))
+            logger.error(
+                "Failed to generate hypothetical text",
+                error=str(e),
+                correlation_id=request.correlation_id,
+            )
             raise HypotheticalServiceError(f"Text generation failed: {e}")
 
     async def _validate_hypothetical(
@@ -413,7 +444,9 @@ class HypotheticalService:
 
             # Run similarity check (lightweight text comparison)
             similarity_result = await self._check_text_similarity(
-                hypothetical, context_entries
+                hypothetical,
+                context_entries,
+                correlation_id=request.correlation_id,
             )
 
             # Combine results
@@ -432,12 +465,17 @@ class HypotheticalService:
                 passed=passed,
                 quality_score=quality_score,
                 method="deterministic",
+                correlation_id=request.correlation_id,
             )
 
             return result
 
         except Exception as e:
-            logger.error("Validation failed", error=str(e))
+            logger.error(
+                "Validation failed",
+                error=str(e),
+                correlation_id=request.correlation_id,
+            )
             # Return failed validation instead of raising
             return ValidationResult(
                 adherence_check={"passed": False, "error": str(e)},
@@ -447,7 +485,10 @@ class HypotheticalService:
             )
 
     async def _check_text_similarity(
-        self, hypothetical: str, context_entries: List[HypotheticalEntry]
+        self,
+        hypothetical: str,
+        context_entries: List[HypotheticalEntry],
+        correlation_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Check text similarity using simple text overlap.
@@ -483,6 +524,7 @@ class HypotheticalService:
                 max_similarity=f"{max_similarity:.2%}",
                 passed=passed,
                 method="jaccard",
+                correlation_id=correlation_id,
             )
 
             return {
@@ -493,7 +535,11 @@ class HypotheticalService:
             }
 
         except Exception as e:
-            logger.error("Similarity check failed", error=str(e))
+            logger.error(
+                "Similarity check failed",
+                error=str(e),
+                correlation_id=correlation_id,
+            )
             return {
                 "passed": True,  # Default to pass on error
                 "max_similarity": 0.0,
@@ -524,6 +570,7 @@ class HypotheticalService:
                 system_prompt=prompt_data["system"],
                 temperature=0.5,
                 max_tokens=2048,
+                correlation_id=request.correlation_id,
             )
 
             llm_response = await self.llm_service.generate(llm_request)
@@ -532,12 +579,17 @@ class HypotheticalService:
                 "Legal analysis generated",
                 length=len(llm_response.content),
                 model=llm_response.model,
+                correlation_id=request.correlation_id,
             )
 
             return llm_response.content
 
         except Exception as e:
-            logger.error("Legal analysis generation failed", error=str(e))
+            logger.error(
+                "Legal analysis generation failed",
+                error=str(e),
+                correlation_id=request.correlation_id,
+            )
             return f"Legal analysis generation failed: {e}"
 
     def _extract_hypothetical_from_response(self, response_content: str) -> str:

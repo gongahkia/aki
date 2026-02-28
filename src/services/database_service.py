@@ -355,6 +355,7 @@ class DatabaseService:
         parent_generation_id: Optional[int] = None,
         retry_reason: Optional[str] = None,
         retry_attempt: int = 0,
+        correlation_id: Optional[str] = None,
     ) -> int:
         """
         Save a generation to the database.
@@ -407,11 +408,19 @@ class DatabaseService:
             conn.commit()
             conn.close()
 
-            logger.info("Generation saved to database", id=record_id)
+            logger.info(
+                "Generation saved to database",
+                id=record_id,
+                correlation_id=correlation_id,
+            )
             return record_id  # type: ignore[return-value]
 
         except Exception as e:
-            logger.error("Failed to save generation", error=str(e))
+            logger.error(
+                "Failed to save generation",
+                error=str(e),
+                correlation_id=correlation_id,
+            )
             raise
 
     async def get_recent_generations(self, limit: int = 10) -> List[Dict[str, Any]]:
