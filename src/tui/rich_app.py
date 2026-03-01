@@ -170,6 +170,17 @@ PROVIDER_CHOICES = [
     Choice("Google", value="google"),
     Choice("Local LLM", value="local"),
 ]
+GENERATION_PRESETS = {
+    "exam_practice": {
+        "label": "Exam Practice",
+        "temperature": 0.2,
+        "complexity": "5",
+        "parties": "4",
+        "method": "hybrid",
+        "include_analysis": True,
+        "red_herrings": False,
+    }
+}
 
 REPORT_ISSUE_CHOICES = [
     Choice("Topic mismatch", value="topic_mismatch"),
@@ -1904,6 +1915,10 @@ class JikaiTUI:
                 "Mode",
                 choices=[
                     Choice("Quick generate — topic only, use defaults", value="quick"),
+                    Choice(
+                        "Exam practice preset — realism-first defaults",
+                        value="exam_practice",
+                    ),
                     Choice("Custom generate — full config", value="custom"),
                 ],
             )
@@ -1945,6 +1960,20 @@ class JikaiTUI:
                     )
                     if topic is None:
                         return
+
+            if mode == "exam_practice":
+                preset = GENERATION_PRESETS["exam_practice"]
+                provider = defaults.provider
+                model_name = defaults.model
+                temperature = preset["temperature"]
+                complexity = preset["complexity"]
+                parties = preset["parties"]
+                method = preset["method"]
+                include_analysis = preset["include_analysis"]
+                red_herrings = preset["red_herrings"]
+                topic = _select_quit("Topic", choices=_topic_choices(), style=TOPIC_STYLE)
+                if topic is None:
+                    return
 
             if mode == "custom":
                 topic = _select_quit(
