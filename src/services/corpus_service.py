@@ -5,6 +5,7 @@ Handles both local file storage and AWS S3 integration.
 
 import json
 import asyncio
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -58,6 +59,7 @@ class CorpusService:
         self._index_task: Optional[asyncio.Task] = None
         self._topics_cache: Optional[List[str]] = None
         self._topics_cache_mtime: Optional[float] = None
+        self._indexed_corpus_hash: Optional[str] = None
         self._initialize_s3()
 
     def _get_local_corpus_mtime(self) -> Optional[float]:
@@ -69,6 +71,27 @@ class CorpusService:
     def _invalidate_topic_cache(self):
         self._topics_cache = None
         self._topics_cache_mtime = None
+
+    def _compute_current_corpus_hash(self) -> Optional[str]:
+        try:
+            payload = self._local_corpus_path.read_bytes()
+        except OSError:
+            return None
+        return hashlib.sha256(payload).hexdigest()
+
+    @staticmethod
+    def _compute_entries_hash(entries: List[HypotheticalEntry]) -> str:
+        normalized_entries = [
+            {
+                "id": entry.id,
+                "text": entry.text,
+                "topics": list(entry.topics),
+                "metadata": entry.metadata,
+            }
+            for entry in entries
+        ]
+        serialized = json.dumps(normalized_entries, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def _initialize_s3(self):
         """Initialize AWS S3 client if credentials are available."""
@@ -343,6 +366,19 @@ class CorpusService:
         """Index corpus in vector database for semantic search."""
         try:
             corpus = await self.load_corpus()
+            corpus_hash = self._compute_current_corpus_hash() or self._compute_entries_hash(
+                corpus
+            )
+
+            indexed_hash = self._vector_service.get_indexed_corpus_hash()
+            if indexed_hash and indexed_hash == corpus_hash:
+                self._corpus_indexed = True
+                self._indexed_corpus_hash = corpus_hash
+                logger.info(
+                    "Vector index already up to date; skipping rebuild",
+                    corpus_hash=corpus_hash,
+                )
+                return
 
             # Convert to format expected by vector service
             hypotheticals_data = []
@@ -357,10 +393,19 @@ class CorpusService:
                 )
 
             # Index in vector database
-            count = await self._vector_service.index_hypotheticals(hypotheticals_data)
+            count = await self._vector_service.index_hypotheticals(
+                hypotheticals_data,
+                corpus_hash=corpus_hash,
+            )
             self._corpus_indexed = True
+            self._indexed_corpus_hash = corpus_hash
 
-            logger.info("Corpus indexed in vector database", count=count)
+            logger.info(
+                "Corpus indexed in vector database",
+                count=count,
+                corpus_hash=corpus_hash,
+                previous_corpus_hash=indexed_hash,
+            )
 
         except Exception as e:
             logger.warning("Failed to index corpus in vector database", error=str(e))
@@ -370,7 +415,13 @@ class CorpusService:
     def _ensure_background_indexing(self):
         """Schedule corpus indexing in background if not already running."""
         if self._corpus_indexed:
-            return
+            current_hash = self._compute_current_corpus_hash()
+            if (
+                current_hash is not None
+                and self._indexed_corpus_hash is not None
+                and current_hash == self._indexed_corpus_hash
+            ):
+                return
         if self._index_task and not self._index_task.done():
             return
         self._index_task = asyncio.create_task(self._run_background_index())
