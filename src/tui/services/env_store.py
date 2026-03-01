@@ -6,6 +6,72 @@ import os
 from pathlib import Path
 from typing import Dict, Iterable
 
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+class EnvSchema(BaseModel):
+    """Validated subset of managed environment settings."""
+
+    model_config = ConfigDict(extra="allow")
+
+    OLLAMA_HOST: str | None = None
+    LOCAL_LLM_HOST: str | None = None
+    DEFAULT_TEMPERATURE: str | None = None
+    DEFAULT_MAX_TOKENS: str | None = None
+    CORPUS_PATH: str | None = None
+    DATABASE_PATH: str | None = None
+    LOG_LEVEL: str | None = None
+
+    @field_validator("OLLAMA_HOST", "LOCAL_LLM_HOST")
+    @classmethod
+    def _validate_hosts(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return value
+        text = str(value).strip()
+        if not text.startswith(("http://", "https://")):
+            raise ValueError("host values must start with http:// or https://")
+        return text
+
+    @field_validator("DEFAULT_TEMPERATURE")
+    @classmethod
+    def _validate_temperature(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return value
+        number = float(value)
+        if number < 0.0 or number > 2.0:
+            raise ValueError("DEFAULT_TEMPERATURE must be between 0.0 and 2.0")
+        return str(value)
+
+    @field_validator("DEFAULT_MAX_TOKENS")
+    @classmethod
+    def _validate_max_tokens(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return value
+        number = int(value)
+        if number < 1 or number > 100000:
+            raise ValueError("DEFAULT_MAX_TOKENS must be between 1 and 100000")
+        return str(value)
+
+    @field_validator("CORPUS_PATH", "DATABASE_PATH")
+    @classmethod
+    def _validate_paths(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        text = str(value).strip()
+        if not text:
+            raise ValueError("path values cannot be empty")
+        return text
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def _validate_log_level(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return value
+        level = str(value).strip().upper()
+        if level not in {"DEBUG", "INFO", "WARNING", "ERROR"}:
+            raise ValueError("LOG_LEVEL must be DEBUG, INFO, WARNING, or ERROR")
+        return level
+
 
 class EnvStore:
     """Read/write .env files with backup and atomic replacement."""
@@ -26,6 +92,7 @@ class EnvStore:
         return values
 
     def save(self, env: Dict[str, str], managed_keys: Iterable[str]) -> None:
+        EnvSchema(**env)
         ordered_lines = []
         managed_set = set(managed_keys)
         for key in managed_keys:
