@@ -14,7 +14,7 @@ def run_api():
 def run_tui(ui: str = "textual"):
     """Run selected TUI runtime."""
     if ui == "rich":
-        from src.tui.rich_app import JikaiTUI
+        from src.tui.legacy.rich_app import JikaiTUI
 
         JikaiTUI().run()
         return
