@@ -1,27 +1,8 @@
 """CLI entry point for Jikai TUI/API."""
 
 import argparse
-import threading
 
-
-def run_api():
-    """Run FastAPI server."""
-    import uvicorn
-
-    uvicorn.run("src.api.main:app", host="127.0.0.1", port=8000, reload=False)
-
-
-def run_tui(ui: str = "textual"):
-    """Run selected TUI runtime."""
-    if ui == "rich":
-        from src.tui.legacy.rich_app import JikaiTUI
-
-        JikaiTUI().run()
-        return
-
-    from src.tui.textual_app import JikaiTextualApp
-
-    JikaiTextualApp().run()
+from .app_runner import run
 
 
 def main():
@@ -38,15 +19,13 @@ def main():
     args = parser.parse_args()
 
     if args.api_only:
-        run_api()
+        run("api-only", ui=args.ui)
     elif args.tui_only:
-        run_tui(ui=args.ui)
+        run("tui-only", ui=args.ui)
     elif args.both:
-        api_thread = threading.Thread(target=run_api, daemon=True)
-        api_thread.start()
-        run_tui(ui=args.ui)
+        run("both", ui=args.ui)
     else:
-        run_tui(ui=args.ui)
+        run("default", ui=args.ui)
 
 
 if __name__ == "__main__":
