@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict
 
-from textual import on
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
@@ -205,8 +205,8 @@ class JikaiTextualApp(App[None]):
                 "or run `make preprocess` to rebuild it."
             )
 
-    @on(App.PoppedScreen)
-    def _on_popped_screen(self) -> None:
+    @on(events.ScreenResume)
+    def _on_screen_resume(self, _event: events.ScreenResume) -> None:
         if not self.screen_stack:
             self.push_screen(self._screens["home"])
 

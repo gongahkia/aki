@@ -675,7 +675,9 @@ class ValidationService:
                 + (party_role_score * 0.15),
                 3,
             )
-            passed = realism_score >= 0.6
+            if singapore_context_score == 0.0:
+                realism_score = min(realism_score, 0.59)
+            passed = realism_score >= 0.6 and singapore_context_score > 0.0
 
             return {
                 "passed": passed,

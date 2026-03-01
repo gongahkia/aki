@@ -56,7 +56,8 @@ async def test_generate_hypothetical_uses_cached_response():
         )
     )
     service_any._generate_legal_analysis = AsyncMock(return_value="")
-    service.database_service.save_generation = AsyncMock(return_value=101)
+    database_service_any = cast(Any, service.database_service)
+    database_service_any.save_generation = AsyncMock(return_value=101)
 
     request = GenerationRequest(
         topics=["negligence"],
@@ -72,7 +73,7 @@ async def test_generate_hypothetical_uses_cached_response():
     assert first.metadata["cache_hit"] is False
     assert second.metadata["cache_hit"] is True
     assert second.hypothetical == first.hypothetical
-    assert service._get_relevant_context.await_count == 1
+    assert service_any._get_relevant_context.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -95,7 +96,8 @@ async def test_seeded_requests_reuse_cache_for_identical_seed():
         )
     )
     service_any._generate_legal_analysis = AsyncMock(return_value="")
-    service.database_service.save_generation = AsyncMock(return_value=102)
+    database_service_any = cast(Any, service.database_service)
+    database_service_any.save_generation = AsyncMock(return_value=102)
 
     request = GenerationRequest(
         topics=["negligence"],
@@ -110,7 +112,7 @@ async def test_seeded_requests_reuse_cache_for_identical_seed():
 
     assert first.metadata["deterministic_seed"] == 424242
     assert second.metadata["cache_hit"] is True
-    assert service._generate_hypothetical_text.await_count == 1
+    assert service_any._generate_hypothetical_text.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -136,7 +138,8 @@ async def test_seeded_requests_do_not_share_cache_across_different_seeds():
         )
     )
     service_any._generate_legal_analysis = AsyncMock(return_value="")
-    service.database_service.save_generation = AsyncMock(return_value=103)
+    database_service_any = cast(Any, service.database_service)
+    database_service_any.save_generation = AsyncMock(return_value=103)
 
     request_a = GenerationRequest(
         topics=["negligence"],
@@ -154,4 +157,4 @@ async def test_seeded_requests_do_not_share_cache_across_different_seeds():
 
     assert first.metadata["cache_hit"] is False
     assert second.metadata["cache_hit"] is False
-    assert service._generate_hypothetical_text.await_count == 2
+    assert service_any._generate_hypothetical_text.await_count == 2

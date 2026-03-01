@@ -28,6 +28,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ..domain import TORT_TOPICS
+from ..services.workflow_facade import workflow_facade
 from . import corpus as corpus_module
 from . import generation as generation_module
 from . import history as history_module
@@ -2195,7 +2196,6 @@ class JikaiTUI:
             from ..services.hypothetical_service import (
                 GenerationRequest,
             )
-            from ..services.workflow_facade import workflow_facade
 
             feedback = ""
             for attempt in range(1, max_retries + 1):
@@ -2552,11 +2552,11 @@ class JikaiTUI:
 
         action_correlation_id = self._new_correlation_id()
         try:
-            from ..services.workflow_facade import workflow_facade
-
-            existing_reports = _run_async(
-                workflow_facade.list_generation_reports(source_generation_id)
-            )
+            reports_result = workflow_facade.list_generation_reports(source_generation_id)
+            if asyncio.iscoroutine(reports_result):
+                existing_reports = _run_async(reports_result)
+            else:
+                existing_reports = reports_result
             locked_comments = []
             for existing_report in existing_reports:
                 existing_comment = (existing_report.comment or "").strip()

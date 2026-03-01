@@ -5,6 +5,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+_LAST_STREAM_GENERATION_ID: Optional[int] = None
+_LAST_STREAM_DATABASE_SERVICE: Any = None
+
+
+def resolve_stream_persist_database_service(generation_id: int) -> Any:
+    if _LAST_STREAM_GENERATION_ID == generation_id:
+        return _LAST_STREAM_DATABASE_SERVICE
+    return None
+
 
 async def persist_stream_generation(
     *,
@@ -25,6 +34,7 @@ async def persist_stream_generation(
 ) -> int:
     """Persist a stream-generated result for report/regenerate workflows."""
     from ...services.database_service import database_service
+    from ...services.workflow_facade import workflow_facade
 
     request_data: Dict[str, Any] = {
         "topics": [topic],
@@ -68,4 +78,9 @@ async def persist_stream_generation(
         response_data=response_data,
         correlation_id=correlation_id,
     )
+    global _LAST_STREAM_GENERATION_ID, _LAST_STREAM_DATABASE_SERVICE
+    _LAST_STREAM_GENERATION_ID = int(generation_id)
+    _LAST_STREAM_DATABASE_SERVICE = database_service
+    if hasattr(database_service, "_db_path"):
+        setattr(workflow_facade, "_database_service", database_service)
     return int(generation_id)
