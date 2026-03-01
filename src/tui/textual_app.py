@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Static
 
 from .navigation import ROUTE_MAP
+from .widgets import Breadcrumb
 
 
 class _BaseScreen(Screen):
@@ -22,8 +23,13 @@ class _BaseScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
+            yield Breadcrumb(id="breadcrumb")
             yield Label(self.screen_title, id="screen-title")
             yield Static(self.screen_help, id="screen-help")
+
+    def on_mount(self) -> None:
+        breadcrumb = self.query_one("#breadcrumb", Breadcrumb)
+        breadcrumb.set_path(f"Home > {self.screen_title}")
 
 
 class HomeScreen(_BaseScreen):
