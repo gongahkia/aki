@@ -508,6 +508,76 @@ class ValidationService:
             logger.error("Fast score calculation failed", error=str(e))
             return 0.0, False
 
+    def validate_legal_realism(self, text: str) -> Dict[str, Any]:
+        """Score legal realism signals: SG venue cues, procedure cues, and timeline coherence."""
+        try:
+            text_lower = text.lower()
+            venue_cues = [
+                "singapore",
+                "state courts",
+                "high court",
+                "district court",
+                "subordinate courts",
+            ]
+            procedure_cues = [
+                "plaintiff",
+                "defendant",
+                "claim",
+                "liability",
+                "damages",
+                "defence",
+                "breach",
+                "duty",
+                "causation",
+            ]
+            timeline_cues = [
+                "on",
+                "before",
+                "after",
+                "later",
+                "subsequently",
+                "then",
+                "months",
+                "years",
+            ]
+
+            found_venue = [cue for cue in venue_cues if cue in text_lower]
+            found_procedure = [cue for cue in procedure_cues if cue in text_lower]
+            found_timeline = [cue for cue in timeline_cues if cue in text_lower]
+
+            venue_score = min(1.0, len(found_venue) / 2.0)
+            procedure_score = min(1.0, len(found_procedure) / 4.0)
+            timeline_score = min(1.0, len(found_timeline) / 3.0)
+            realism_score = round(
+                (venue_score * 0.4) + (procedure_score * 0.35) + (timeline_score * 0.25),
+                3,
+            )
+            passed = realism_score >= 0.6
+
+            return {
+                "passed": passed,
+                "realism_score": realism_score,
+                "components": {
+                    "venue_score": round(venue_score, 3),
+                    "procedure_score": round(procedure_score, 3),
+                    "timeline_score": round(timeline_score, 3),
+                },
+                "evidence": {
+                    "venue": found_venue,
+                    "procedure": found_procedure,
+                    "timeline": found_timeline,
+                },
+            }
+        except Exception as e:
+            logger.error("Legal realism validation failed", error=str(e))
+            return {
+                "passed": False,
+                "realism_score": 0.0,
+                "components": {},
+                "evidence": {},
+                "error": str(e),
+            }
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline for enhanced validation."""
         if not hasattr(self, "_ml_pipeline"):
@@ -559,6 +629,7 @@ class ValidationService:
 
             word_result = self.validate_word_count(text)
             singapore_result = self.validate_singapore_context(text)
+            legal_realism_result = self.validate_legal_realism(text)
 
             # Collect all results
             all_results = {
@@ -566,6 +637,7 @@ class ValidationService:
                 "topic_inclusion": topic_result,
                 "word_count": word_result,
                 "singapore_context": singapore_result,
+                "legal_realism": legal_realism_result,
             }
 
             # Calculate overall score
@@ -586,6 +658,7 @@ class ValidationService:
                     "topics": f"{len(topic_result['topics_found'])}/{len(required_topics)}",
                     "words": word_result["word_count"],
                     "singapore_context": singapore_result["passed"],
+                    "legal_realism": legal_realism_result["realism_score"],
                 },
             }
 
