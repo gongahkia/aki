@@ -275,6 +275,22 @@ class HypotheticalService:
     def _is_local_mode() -> bool:
         return str(settings.environment).strip().lower() != "production"
 
+    @staticmethod
+    def _enforce_singapore_scope(request: GenerationRequest) -> None:
+        """Reject generation requests that explicitly target non-Singapore jurisdiction."""
+        preferences = request.user_preferences or {}
+        requested_scope = str(
+            preferences.get("jurisdiction")
+            or preferences.get("country")
+            or preferences.get("legal_system")
+            or "singapore"
+        ).strip().lower()
+        allowed_scopes = {"singapore", "sg", "singapore_law", "singapore tort"}
+        if requested_scope not in allowed_scopes:
+            raise HypotheticalServiceError(
+                "Unsupported jurisdiction scope. Only Singapore tort-law generation is supported."
+            )
+
     def _is_cacheable_request(self, request: GenerationRequest) -> bool:
         if (
             not self._response_cache_enabled
@@ -362,6 +378,7 @@ class HypotheticalService:
             overall_started = time.perf_counter()
             correlation_id = (request.correlation_id or "").strip() or str(uuid.uuid4())
             request = request.model_copy(update={"correlation_id": correlation_id})
+            self._enforce_singapore_scope(request)
 
             logger.info(
                 "Starting hypothetical generation",
