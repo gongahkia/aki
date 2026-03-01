@@ -29,11 +29,13 @@ from rich.table import Table
 from rich.text import Text
 
 from ..domain import TORT_TOPICS
+from . import corpus as corpus_module
 from . import generation as generation_module
 from . import history as history_module
 from . import menus as menus_module
 from . import providers as providers_module
 from . import settings as settings_module
+from . import tools_flow as tools_flow_module
 from .history_models import validate_history_records
 from .installer import install_service_dependencies, request_install_confirmation
 from .models import GenerationConfig
@@ -470,10 +472,13 @@ class JikaiTUI:
         return menus_module.more_menu(self)
 
     def _tools_menu(self):
-        return menus_module.tools_menu(self)
+        return tools_flow_module.tools_flow(self)
 
     def generate_flow(self):
         return generation_module.generate_flow(self)
+
+    def corpus_flow(self):
+        return corpus_module.corpus_flow(self)
 
     def history_flow(self):
         return history_module.history_flow(self)
@@ -3520,7 +3525,7 @@ class JikaiTUI:
             tlog.info("ERROR  embedding: %s", e)
 
     # ── corpus ──────────────────────────────────────────────────
-    def corpus_flow(self):
+    def _corpus_flow_impl(self):
         console.print("\n[bold yellow]Browse Corpus[/bold yellow]")
         # Auto-use default corpus if it exists and has entries
         path = self._corpus_path
