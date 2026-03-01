@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, DataTable, Label, Select, Static
 
 from ...services.error_mapper import map_exception
+from ..logging import log_tui_event
 
 class ProvidersScreen(Screen):
     """Manage provider availability and default provider/model selection."""
@@ -55,6 +56,7 @@ class ProvidersScreen(Screen):
         self.dismiss()
 
     def action_refresh(self) -> None:
+        log_tui_event("providers_refresh_requested")
         asyncio.create_task(self._refresh())
 
     async def _refresh(self) -> None:
@@ -71,9 +73,11 @@ class ProvidersScreen(Screen):
             self._render_table(health, self._models_by_provider)
             self._rebuild_selectors()
             status.update("Provider status: loaded")
+            log_tui_event("providers_loaded", provider_count=len(health))
         except Exception as exc:
             mapped = map_exception(exc, default_status=503)
             status.update(f"Provider status: load failed ({mapped.message})")
+            log_tui_event("providers_load_failed", error=mapped.message)
 
     def _render_table(self, health: Dict, models: Dict[str, List[str]]) -> None:
         table = self.query_one("#providers-table", DataTable)
@@ -134,6 +138,7 @@ class ProvidersScreen(Screen):
         try:
             self._provider_service.select_provider(provider)
             status.update(f"Provider status: default provider set to {provider}")
+            log_tui_event("provider_default_set", provider=provider)
         except Exception as exc:
             mapped = map_exception(exc, default_status=400)
             status.update(f"Provider status: failed to set provider ({mapped.message})")
@@ -147,6 +152,7 @@ class ProvidersScreen(Screen):
         try:
             self._provider_service.select_model(model)
             status.update(f"Provider status: default model set to {model}")
+            log_tui_event("provider_model_set", model=model)
         except Exception as exc:
             mapped = map_exception(exc, default_status=400)
             status.update(f"Provider status: failed to set model ({mapped.message})")

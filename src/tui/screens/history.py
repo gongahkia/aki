@@ -14,6 +14,7 @@ from textual.screen import Screen
 from textual.widgets import Button, DataTable, Input, Label, Select, Static
 
 from ...services.error_mapper import map_exception
+from ..logging import log_tui_event
 
 class HistoryScreen(Screen):
     """SQLite-backed generation history browser."""
@@ -231,6 +232,11 @@ class HistoryScreen(Screen):
             return
         try:
             correlation_id = f"tui-regenerate-{uuid.uuid4()}"
+            log_tui_event(
+                "history_regenerate_requested",
+                generation_id=generation_id,
+                correlation_id=correlation_id,
+            )
             await self._workflow_service.regenerate_generation(
                 generation_id=int(generation_id),
                 correlation_id=correlation_id,
@@ -260,6 +266,7 @@ class HistoryScreen(Screen):
             with open(out_path, "w", encoding="utf-8") as handle:
                 handle.write(hypothetical)
             status.update(f"Action: exported {out_path}")
+            log_tui_event("history_exported", generation_id=generation_id, path=out_path)
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: export failed ({mapped.message})")
@@ -276,6 +283,11 @@ class HistoryScreen(Screen):
             return
         try:
             correlation_id = f"tui-report-{uuid.uuid4()}"
+            log_tui_event(
+                "history_report_requested",
+                generation_id=generation_id,
+                correlation_id=correlation_id,
+            )
             await self._workflow_service.save_generation_report(
                 generation_id=int(generation_id),
                 issue_types=["manual_review"],

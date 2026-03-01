@@ -16,6 +16,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Input, Label, Select, Static
 
 from ...services.error_mapper import map_exception
+from ..logging import log_tui_event
 from ..services import persist_stream_generation
 
 _VALID_COMPLEXITY = ["beginner", "basic", "intermediate", "advanced", "expert"]
@@ -105,11 +106,13 @@ class GenerateFormScreen(Screen):
         self.dismiss()
 
     def action_preview(self) -> None:
+        log_tui_event("generate_preview_requested")
         asyncio.create_task(self._load_preview())
 
     def action_start_stream(self) -> None:
         if self._stream_task and not self._stream_task.done():
             return
+        log_tui_event("generate_stream_started")
         self._stream_paused = False
         self._stream_cancelled = False
         self._stream_task = asyncio.create_task(self._run_stream())
@@ -125,6 +128,7 @@ class GenerateFormScreen(Screen):
             self.query_one("#stream-state", Static).update("Stream state: streaming")
 
     def action_cancel_stream(self) -> None:
+        log_tui_event("generate_stream_cancelled")
         self._stream_cancelled = True
         if self._stream_task and not self._stream_task.done():
             self._stream_task.cancel()
@@ -267,9 +271,16 @@ class GenerateFormScreen(Screen):
                     ]
                 )
             )
+            log_tui_event(
+                "generate_preview_loaded",
+                estimated_total_tokens=data.get("estimated_total_tokens"),
+                estimated_latency_seconds=data.get("estimated_latency_seconds"),
+                estimated_cost_usd=data.get("estimated_cost_usd"),
+            )
         except Exception as exc:
             mapped = map_exception(exc, default_status=503)
             panel.update(f"[red]Preview failed: {mapped.message}[/red]")
+            log_tui_event("generate_preview_failed", error=mapped.message)
 
     async def _run_stream(self) -> None:
         output = self.query_one("#stream-output", Static)
@@ -317,13 +328,20 @@ class GenerateFormScreen(Screen):
                 state.update("Stream state: cancelled")
             else:
                 state.update("Stream state: complete")
+            log_tui_event(
+                "generate_stream_completed",
+                cancelled=self._stream_cancelled,
+                chunk_count=len(chunks),
+            )
             self._update_validation_panel("".join(chunks))
         except asyncio.CancelledError:
             state.update("Stream state: cancelled")
+            log_tui_event("generate_stream_cancelled_exception")
             self._update_validation_panel("".join(chunks))
         except Exception as exc:
             mapped = map_exception(exc, default_status=503)
             state.update(f"Stream state: failed ({mapped.message})")
+            log_tui_event("generate_stream_failed", error=mapped.message)
             self._update_validation_panel("".join(chunks))
         finally:
             if chunks and not saved:
