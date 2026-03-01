@@ -53,6 +53,8 @@ class GenerateFormScreen(Screen):
     _stream_task: asyncio.Task | None = None
     _stream_paused = False
     _stream_cancelled = False
+    _missing_topics: List[str] = []
+    _regeneration_feedback: str = ""
 
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
@@ -86,6 +88,7 @@ class GenerateFormScreen(Screen):
                 yield Button("Save Preset", id="action-save-preset")
             yield Static("Action dock: idle", id="action-status")
             yield Static("", id="validation-panel")
+            yield Static("", id="coverage-warning")
             yield Static("Press Esc to close", id="screen-help")
 
     def action_close(self) -> None:
@@ -194,6 +197,12 @@ class GenerateFormScreen(Screen):
             "action-save-preset": "Save Preset",
         }
         label = action_map.get(event.button.id or "", "Unknown")
+        if event.button.id == "action-regenerate" and self._missing_topics:
+            self._regeneration_feedback = (
+                "Missing topic coverage detected. Ensure explicit treatment of: "
+                + ", ".join(self._missing_topics)
+            )
+            self.action_start_stream()
         status.update(f"Action dock: {label} selected")
 
     def _apply_preset(self, preset_key: str) -> None:
@@ -274,6 +283,11 @@ class GenerateFormScreen(Screen):
                 prompt=(
                     "Generate a Singapore tort law hypothetical about "
                     f"{topic} with {parties} parties at {complexity} complexity."
+                    + (
+                        f" {self._regeneration_feedback}"
+                        if self._regeneration_feedback
+                        else ""
+                    )
                 ),
                 temperature=0.7,
                 stream=True,
@@ -349,6 +363,7 @@ class GenerateFormScreen(Screen):
             len(topics_found) / len(topic_tokens) if topic_tokens else 0.0
         )
         coverage_pass = coverage_ratio >= 0.7
+        self._missing_topics = [topic for topic in topic_tokens if topic not in topics_found]
 
         # Similarity remains placeholder until corpus-backed comparison wiring is added.
         similarity_score = 0.0
@@ -375,3 +390,12 @@ class GenerateFormScreen(Screen):
                 ]
             )
         )
+        warning = self.query_one("#coverage-warning", Static)
+        if self._missing_topics:
+            warning.update(
+                "[yellow]Coverage warning:[/yellow] missing "
+                + ", ".join(self._missing_topics)
+                + " | use [bold]Regenerate[/bold] for one-click feedback injection."
+            )
+        else:
+            warning.update("[green]Coverage complete for selected topics.[/green]")
