@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import List
 
+import httpx
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
@@ -39,6 +41,7 @@ class GenerateFormScreen(Screen):
 
     BINDINGS = [
         Binding("escape", "close", "Close"),
+        Binding("ctrl+p", "preview", "Preview"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -63,10 +66,14 @@ class GenerateFormScreen(Screen):
             yield Static("", id="topics-error")
             yield Static("", id="parties-error")
             yield Static("", id="complexity-error")
+            yield Static("Preview not loaded. Press Ctrl+P.", id="preview-panel")
             yield Static("Press Esc to close", id="screen-help")
 
     def action_close(self) -> None:
         self.dismiss()
+
+    def action_preview(self) -> None:
+        asyncio.create_task(self._load_preview())
 
     def on_mount(self) -> None:
         self._apply_preset("exam_drill")
@@ -147,3 +154,45 @@ class GenerateFormScreen(Screen):
         summary.update(
             f"[dim]{preset['label']}: topics={preset['topics']} parties={preset['parties']} complexity={preset['complexity']}[/dim]"
         )
+
+    async def _load_preview(self) -> None:
+        panel = self.query_one("#preview-panel", Static)
+        if not self._validate_all():
+            panel.update("[yellow]Preview unavailable until inputs are valid.[/yellow]")
+            return
+
+        topics = self._topics()
+        parties = int(self.query_one("#parties", Input).value.strip())
+        complexity = str(self.query_one("#complexity", Select).value or "intermediate")
+        payload = {
+            "topics": topics,
+            "law_domain": "tort",
+            "number_parties": parties,
+            "complexity_level": complexity,
+            "sample_size": 3,
+            "method": "pure_llm",
+            "include_analysis": True,
+        }
+
+        panel.update("[dim]Loading preview...[/dim]")
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                response = await client.post(
+                    "http://127.0.0.1:8000/generate/preview",
+                    json=payload,
+                )
+            response.raise_for_status()
+            data = response.json()
+            panel.update(
+                " | ".join(
+                    [
+                        f"input={data.get('estimated_input_tokens', '?')}",
+                        f"output={data.get('estimated_output_tokens', '?')}",
+                        f"total={data.get('estimated_total_tokens', '?')}",
+                        f"latency={data.get('estimated_latency_seconds', '?')}s",
+                        f"cost=${data.get('estimated_cost_usd', '?')}",
+                    ]
+                )
+            )
+        except Exception as exc:
+            panel.update(f"[red]Preview failed: {exc}[/red]")
