@@ -46,9 +46,6 @@ run: ## Run both API and TUI
 tui: ## Run TUI only
 	python -m src.tui --tui-only
 
-api: ## Run API server only
-	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
-
 warmup: ## Preload corpus topics, check provider health, and optionally init embeddings
 	python -m src.warmup $(if $(INIT_EMBEDDINGS),--init-embeddings,)
 
