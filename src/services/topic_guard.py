@@ -2,9 +2,11 @@
 
 from typing import List
 
-from fastapi import HTTPException, status
-
 from ..domain import canonicalize_topic, is_tort_topic
+
+
+class TopicValidationError(ValueError):
+    """Raised when one or more topics fall outside the supported tort domain."""
 
 
 def canonicalize_and_validate_topics(topics: List[str]) -> List[str]:
@@ -19,11 +21,8 @@ def canonicalize_and_validate_topics(topics: List[str]) -> List[str]:
         canonical_topics.append(canonical)
 
     if invalid_topics:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Invalid non-tort topics: "
-                f"{invalid_topics}. Allowed domain topics are tort topics only."
-            ),
+        raise TopicValidationError(
+            "Invalid non-tort topics: "
+            f"{invalid_topics}. Allowed domain topics are tort topics only."
         )
     return canonical_topics
