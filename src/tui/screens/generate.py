@@ -12,6 +12,26 @@ from textual.screen import Screen
 from textual.widgets import Input, Label, Select, Static
 
 _VALID_COMPLEXITY = ["beginner", "basic", "intermediate", "advanced", "expert"]
+_PRESETS = {
+    "exam_drill": {
+        "label": "Exam Drill",
+        "complexity": "advanced",
+        "parties": "3",
+        "topics": "negligence, causation",
+    },
+    "revision_sprint": {
+        "label": "Revision Sprint",
+        "complexity": "intermediate",
+        "parties": "2",
+        "topics": "duty_of_care",
+    },
+    "deep_dive": {
+        "label": "Deep Dive",
+        "complexity": "expert",
+        "parties": "5",
+        "topics": "negligence, remoteness, novus_actus_interveniens",
+    },
+}
 
 
 class GenerateFormScreen(Screen):
@@ -24,6 +44,14 @@ class GenerateFormScreen(Screen):
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
             yield Label("Generate", id="screen-title")
+            yield Select(
+                options=[
+                    (preset["label"], key)
+                    for key, preset in _PRESETS.items()
+                ],
+                value="revision_sprint",
+                id="preset",
+            )
             yield Input(placeholder="Topics (comma-separated)", id="topics")
             yield Input(placeholder="Parties (2-5)", id="parties")
             yield Select(
@@ -31,6 +59,7 @@ class GenerateFormScreen(Screen):
                 value="intermediate",
                 id="complexity",
             )
+            yield Static("", id="preset-summary")
             yield Static("", id="topics-error")
             yield Static("", id="parties-error")
             yield Static("", id="complexity-error")
@@ -38,6 +67,9 @@ class GenerateFormScreen(Screen):
 
     def action_close(self) -> None:
         self.dismiss()
+
+    def on_mount(self) -> None:
+        self._apply_preset("revision_sprint")
 
     def on_key(self, event: Key) -> None:
         if event.key == "enter":
@@ -98,5 +130,20 @@ class GenerateFormScreen(Screen):
             self._validate_parties()
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        if event.select.id == "complexity":
+        if event.select.id == "preset":
+            selected = str(event.value or "")
+            self._apply_preset(selected)
+        elif event.select.id == "complexity":
             self._validate_complexity()
+
+    def _apply_preset(self, preset_key: str) -> None:
+        preset = _PRESETS.get(preset_key)
+        if not preset:
+            return
+        self.query_one("#topics", Input).value = preset["topics"]
+        self.query_one("#parties", Input).value = preset["parties"]
+        self.query_one("#complexity", Select).value = preset["complexity"]
+        summary = self.query_one("#preset-summary", Static)
+        summary.update(
+            f"[dim]{preset['label']}: topics={preset['topics']} parties={preset['parties']} complexity={preset['complexity']}[/dim]"
+        )
