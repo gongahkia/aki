@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import List
 
 import httpx
@@ -84,6 +85,7 @@ class GenerateFormScreen(Screen):
                 yield Button("Export", id="action-export")
                 yield Button("Save Preset", id="action-save-preset")
             yield Static("Action dock: idle", id="action-status")
+            yield Static("", id="validation-panel")
             yield Static("Press Esc to close", id="screen-help")
 
     def action_close(self) -> None:
@@ -287,10 +289,13 @@ class GenerateFormScreen(Screen):
                 state.update("Stream state: cancelled")
             else:
                 state.update("Stream state: complete")
+            self._update_validation_panel("".join(chunks))
         except asyncio.CancelledError:
             state.update("Stream state: cancelled")
+            self._update_validation_panel("".join(chunks))
         except Exception as exc:
             state.update(f"Stream state: failed ({exc})")
+            self._update_validation_panel("".join(chunks))
         finally:
             if chunks and not saved:
                 complexity_score = _VALID_COMPLEXITY.index(complexity) + 1
@@ -323,3 +328,50 @@ class GenerateFormScreen(Screen):
                 except Exception:
                     # Non-fatal: stream result can still be shown in UI even if persistence fails.
                     pass
+
+    def _update_validation_panel(self, text: str) -> None:
+        panel = self.query_one("#validation-panel", Static)
+        if not text.strip():
+            panel.update("Validation: awaiting generated output")
+            return
+
+        expected_parties = int(self.query_one("#parties", Input).value.strip() or "2")
+        topic_tokens = self._topics()
+        party_candidates = set(
+            re.findall(r"\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b", text)
+        )
+        actual_parties = len(party_candidates)
+        party_pass = actual_parties >= expected_parties
+
+        text_lower = text.lower()
+        topics_found = [topic for topic in topic_tokens if topic.lower() in text_lower]
+        coverage_ratio = (
+            len(topics_found) / len(topic_tokens) if topic_tokens else 0.0
+        )
+        coverage_pass = coverage_ratio >= 0.7
+
+        # Similarity remains placeholder until corpus-backed comparison wiring is added.
+        similarity_score = 0.0
+        similarity_pass = similarity_score <= 0.8
+
+        overall_score = round(
+            (
+                (1.0 if party_pass else 0.0) * 0.3
+                + coverage_ratio * 0.5
+                + (1.0 - similarity_score) * 0.2
+            )
+            * 10,
+            2,
+        )
+        overall_pass = overall_score >= 6.0
+
+        panel.update(
+            " | ".join(
+                [
+                    f"parties {actual_parties}/{expected_parties} {'PASS' if party_pass else 'FAIL'} (>= expected)",
+                    f"coverage {coverage_ratio:.2f} {'PASS' if coverage_pass else 'FAIL'} (>= 0.70)",
+                    f"similarity {similarity_score:.2f} {'PASS' if similarity_pass else 'FAIL'} (<= 0.80)",
+                    f"overall {overall_score:.2f} {'PASS' if overall_pass else 'FAIL'} (>= 6.00)",
+                ]
+            )
+        )
