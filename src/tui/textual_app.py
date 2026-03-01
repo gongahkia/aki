@@ -13,6 +13,7 @@ from textual.screen import Screen
 from textual.events import Key
 from textual.widgets import Footer, Header, Label, Static
 
+from ..services.error_mapper import map_exception
 from .navigation import ROUTE_MAP
 from .widgets import Breadcrumb, StatusBar
 
@@ -79,7 +80,8 @@ class ProvidersScreen(_BaseScreen):
                     provider_state = "error"
                 elif statuses:
                     provider_state = "warn"
-            except Exception:
+            except Exception as exc:
+                map_exception(exc, default_status=503)
                 provider_state = "warn"
             status_bar = self.query_one("#status-bar", StatusBar)
             status_bar.provider_state = provider_state

@@ -12,6 +12,7 @@ from textual.containers import Container, Horizontal
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Input, Label, Select, Static
 
+from ...services.error_mapper import map_exception
 
 class HistoryScreen(Screen):
     """SQLite-backed generation history browser."""
@@ -83,7 +84,8 @@ class HistoryScreen(Screen):
             self._rebuild_provider_filter()
             self._render_page()
         except Exception as exc:
-            page.update(f"Failed to load history: {exc}")
+            mapped = map_exception(exc, default_status=500)
+            page.update(f"Failed to load history: {mapped.message}")
 
     def action_close(self) -> None:
         self.dismiss()
@@ -232,7 +234,8 @@ class HistoryScreen(Screen):
             )
             status.update(f"Action: regenerated generation_id={generation_id}")
         except Exception as exc:
-            status.update(f"Action: regenerate failed ({exc})")
+            mapped = map_exception(exc, default_status=500)
+            status.update(f"Action: regenerate failed ({mapped.message})")
 
     async def _export_selected(self) -> None:
         status = self.query_one("#history-action-status", Static)
@@ -252,7 +255,8 @@ class HistoryScreen(Screen):
                 handle.write(hypothetical)
             status.update(f"Action: exported {out_path}")
         except Exception as exc:
-            status.update(f"Action: export failed ({exc})")
+            mapped = map_exception(exc, default_status=500)
+            status.update(f"Action: export failed ({mapped.message})")
 
     async def _report_selected(self) -> None:
         status = self.query_one("#history-action-status", Static)
@@ -272,4 +276,5 @@ class HistoryScreen(Screen):
             )
             status.update(f"Action: report saved for generation_id={generation_id}")
         except Exception as exc:
-            status.update(f"Action: report failed ({exc})")
+            mapped = map_exception(exc, default_status=500)
+            status.update(f"Action: report failed ({mapped.message})")

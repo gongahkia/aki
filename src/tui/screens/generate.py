@@ -14,6 +14,7 @@ from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Button, Input, Label, Select, Static
 
+from ...services.error_mapper import map_exception
 from ..services import persist_stream_generation
 
 _VALID_COMPLEXITY = ["beginner", "basic", "intermediate", "advanced", "expert"]
@@ -265,7 +266,8 @@ class GenerateFormScreen(Screen):
                 )
             )
         except Exception as exc:
-            panel.update(f"[red]Preview failed: {exc}[/red]")
+            mapped = map_exception(exc, default_status=503)
+            panel.update(f"[red]Preview failed: {mapped.message}[/red]")
 
     async def _run_stream(self) -> None:
         output = self.query_one("#stream-output", Static)
@@ -316,7 +318,8 @@ class GenerateFormScreen(Screen):
             state.update("Stream state: cancelled")
             self._update_validation_panel("".join(chunks))
         except Exception as exc:
-            state.update(f"Stream state: failed ({exc})")
+            mapped = map_exception(exc, default_status=503)
+            state.update(f"Stream state: failed ({mapped.message})")
             self._update_validation_panel("".join(chunks))
         finally:
             if chunks and not saved:
@@ -347,7 +350,8 @@ class GenerateFormScreen(Screen):
                         include_analysis=False,
                     )
                     saved = True
-                except Exception:
+                except Exception as exc:
+                    map_exception(exc, default_status=500)
                     # Non-fatal: stream result can still be shown in UI even if persistence fails.
                     pass
 

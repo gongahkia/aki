@@ -11,6 +11,7 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Button, Label, Select, Static
 
+from ...services.error_mapper import map_exception
 _POLICY_PATH = Path("data/tui_policy.json")
 
 _POLICY_OPTIONS = {
@@ -77,7 +78,8 @@ class SettingsScreen(Screen):
             policy = str(data.get("fallback_policy", "local_first"))
             if policy in _POLICY_OPTIONS:
                 self.query_one("#fallback-policy", Select).value = policy
-        except Exception:
+        except Exception as exc:
+            map_exception(exc, default_status=500)
             pass
 
     def _save_policy(self) -> None:
@@ -95,4 +97,5 @@ class SettingsScreen(Screen):
             _POLICY_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
             status.update(f"Settings status: saved policy {selected}")
         except Exception as exc:
-            status.update(f"Settings status: save failed ({exc})")
+            mapped = map_exception(exc, default_status=500)
+            status.update(f"Settings status: save failed ({mapped.message})")

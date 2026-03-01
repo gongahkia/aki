@@ -11,6 +11,7 @@ from textual.containers import Container, Horizontal
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Label, Select, Static
 
+from ...services.error_mapper import map_exception
 
 class ProvidersScreen(Screen):
     """Manage provider availability and default provider/model selection."""
@@ -71,7 +72,8 @@ class ProvidersScreen(Screen):
             self._rebuild_selectors()
             status.update("Provider status: loaded")
         except Exception as exc:
-            status.update(f"Provider status: load failed ({exc})")
+            mapped = map_exception(exc, default_status=503)
+            status.update(f"Provider status: load failed ({mapped.message})")
 
     def _render_table(self, health: Dict, models: Dict[str, List[str]]) -> None:
         table = self.query_one("#providers-table", DataTable)
@@ -133,7 +135,8 @@ class ProvidersScreen(Screen):
             self._provider_service.select_provider(provider)
             status.update(f"Provider status: default provider set to {provider}")
         except Exception as exc:
-            status.update(f"Provider status: failed to set provider ({exc})")
+            mapped = map_exception(exc, default_status=400)
+            status.update(f"Provider status: failed to set provider ({mapped.message})")
 
     async def _set_default_model(self) -> None:
         status = self.query_one("#provider-status", Static)
@@ -145,7 +148,8 @@ class ProvidersScreen(Screen):
             self._provider_service.select_model(model)
             status.update(f"Provider status: default model set to {model}")
         except Exception as exc:
-            status.update(f"Provider status: failed to set model ({exc})")
+            mapped = map_exception(exc, default_status=400)
+            status.update(f"Provider status: failed to set model ({mapped.message})")
 
     async def _run_ollama_diagnostics(self) -> None:
         panel = self.query_one("#ollama-diagnostics", Static)
@@ -169,7 +173,8 @@ class ProvidersScreen(Screen):
                     names = [name for name in names if isinstance(name, str) and name]
                     model_count = len(names)
                     model_preview = ", ".join(names[:3]) if names else "-"
-        except Exception:
+        except Exception as exc:
+            map_exception(exc, default_status=503)
             reachable = False
 
         try:
@@ -179,7 +184,8 @@ class ProvidersScreen(Screen):
             if log_path.exists():
                 lines = log_path.read_text(encoding="utf-8").splitlines()
                 log_tail = " | ".join(lines[-3:]) if lines else "empty log"
-        except Exception:
+        except Exception as exc:
+            map_exception(exc, default_status=500)
             log_tail = "log read failed"
 
         panel.update(
