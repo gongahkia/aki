@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import uuid
 from typing import Any, Dict, List
 
@@ -15,6 +16,7 @@ from textual.widgets import Button, DataTable, Input, Label, Select, Static
 
 from ...services.error_mapper import map_exception
 from ..logging import log_tui_event
+from ..services import latency_metrics
 
 class HistoryScreen(Screen):
     """SQLite-backed generation history browser."""
@@ -74,6 +76,7 @@ class HistoryScreen(Screen):
         asyncio.create_task(self._load_records())
 
     async def _load_records(self) -> None:
+        started = time.perf_counter()
         page = self.query_one("#history-page", Static)
         page.update("Loading history...")
         try:
@@ -88,6 +91,11 @@ class HistoryScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             page.update(f"Failed to load history: {mapped.message}")
+        finally:
+            latency_metrics.record(
+                "history_load_records",
+                (time.perf_counter() - started) * 1000,
+            )
 
     def action_close(self) -> None:
         self.dismiss()
@@ -221,6 +229,7 @@ class HistoryScreen(Screen):
         return self._page_records[row_index]
 
     async def _regenerate_selected(self) -> None:
+        started = time.perf_counter()
         status = self.query_one("#history-action-status", Static)
         record = self._selected_record()
         if not record:
@@ -247,8 +256,14 @@ class HistoryScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: regenerate failed ({mapped.message})")
+        finally:
+            latency_metrics.record(
+                "history_regenerate",
+                (time.perf_counter() - started) * 1000,
+            )
 
     async def _export_selected(self) -> None:
+        started = time.perf_counter()
         status = self.query_one("#history-action-status", Static)
         record = self._selected_record()
         if not record:
@@ -270,8 +285,14 @@ class HistoryScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: export failed ({mapped.message})")
+        finally:
+            latency_metrics.record(
+                "history_export",
+                (time.perf_counter() - started) * 1000,
+            )
 
     async def _report_selected(self) -> None:
+        started = time.perf_counter()
         status = self.query_one("#history-action-status", Static)
         record = self._selected_record()
         if not record:
@@ -302,3 +323,8 @@ class HistoryScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: report failed ({mapped.message})")
+        finally:
+            latency_metrics.record(
+                "history_report",
+                (time.perf_counter() - started) * 1000,
+            )

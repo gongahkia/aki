@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Dict, List
 
 from textual.app import ComposeResult
@@ -13,6 +14,7 @@ from textual.widgets import Button, DataTable, Label, Select, Static
 
 from ...services.error_mapper import map_exception
 from ..logging import log_tui_event
+from ..services import latency_metrics
 
 class ProvidersScreen(Screen):
     """Manage provider availability and default provider/model selection."""
@@ -60,6 +62,7 @@ class ProvidersScreen(Screen):
         asyncio.create_task(self._refresh())
 
     async def _refresh(self) -> None:
+        started = time.perf_counter()
         status = self.query_one("#provider-status", Static)
         status.update("Provider status: loading...")
         try:
@@ -78,6 +81,11 @@ class ProvidersScreen(Screen):
             mapped = map_exception(exc, default_status=503)
             status.update(f"Provider status: load failed ({mapped.message})")
             log_tui_event("providers_load_failed", error=mapped.message)
+        finally:
+            latency_metrics.record(
+                "providers_refresh",
+                (time.perf_counter() - started) * 1000,
+            )
 
     def _render_table(self, health: Dict, models: Dict[str, List[str]]) -> None:
         table = self.query_one("#providers-table", DataTable)
@@ -130,6 +138,7 @@ class ProvidersScreen(Screen):
             asyncio.create_task(self._run_ollama_diagnostics())
 
     async def _set_default_provider(self) -> None:
+        started = time.perf_counter()
         status = self.query_one("#provider-status", Static)
         provider = str(self.query_one("#provider-select", Select).value or "").strip()
         if not provider:
@@ -142,8 +151,14 @@ class ProvidersScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=400)
             status.update(f"Provider status: failed to set provider ({mapped.message})")
+        finally:
+            latency_metrics.record(
+                "providers_set_default_provider",
+                (time.perf_counter() - started) * 1000,
+            )
 
     async def _set_default_model(self) -> None:
+        started = time.perf_counter()
         status = self.query_one("#provider-status", Static)
         model = str(self.query_one("#model-select", Select).value or "").strip()
         if not model:
@@ -156,8 +171,14 @@ class ProvidersScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=400)
             status.update(f"Provider status: failed to set model ({mapped.message})")
+        finally:
+            latency_metrics.record(
+                "providers_set_default_model",
+                (time.perf_counter() - started) * 1000,
+            )
 
     async def _run_ollama_diagnostics(self) -> None:
+        started = time.perf_counter()
         panel = self.query_one("#ollama-diagnostics", Static)
         panel.update("Ollama diagnostics: running...")
         host = "http://127.0.0.1:11434"
@@ -204,4 +225,8 @@ class ProvidersScreen(Screen):
                     f"logs={log_tail}",
                 ]
             )
+        )
+        latency_metrics.record(
+            "providers_ollama_diagnostics",
+            (time.perf_counter() - started) * 1000,
         )

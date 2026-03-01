@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 import uuid
 from typing import List
 
@@ -17,7 +18,7 @@ from textual.widgets import Button, Input, Label, Select, Static
 
 from ...services.error_mapper import map_exception
 from ..logging import log_tui_event
-from ..services import persist_stream_generation
+from ..services import latency_metrics, persist_stream_generation
 
 _VALID_COMPLEXITY = ["beginner", "basic", "intermediate", "advanced", "expert"]
 _PRESETS = {
@@ -232,6 +233,7 @@ class GenerateFormScreen(Screen):
         )
 
     async def _load_preview(self) -> None:
+        started = time.perf_counter()
         panel = self.query_one("#preview-panel", Static)
         if not self._validate_all():
             panel.update("[yellow]Preview unavailable until inputs are valid.[/yellow]")
@@ -281,8 +283,14 @@ class GenerateFormScreen(Screen):
             mapped = map_exception(exc, default_status=503)
             panel.update(f"[red]Preview failed: {mapped.message}[/red]")
             log_tui_event("generate_preview_failed", error=mapped.message)
+        finally:
+            latency_metrics.record(
+                "generate_preview",
+                (time.perf_counter() - started) * 1000,
+            )
 
     async def _run_stream(self) -> None:
+        started = time.perf_counter()
         output = self.query_one("#stream-output", Static)
         state = self.query_one("#stream-state", Static)
         if not self._validate_all():
@@ -377,6 +385,10 @@ class GenerateFormScreen(Screen):
                     map_exception(exc, default_status=500)
                     # Non-fatal: stream result can still be shown in UI even if persistence fails.
                     pass
+            latency_metrics.record(
+                "generate_stream",
+                (time.perf_counter() - started) * 1000,
+            )
 
     def _update_validation_panel(self, text: str) -> None:
         panel = self.query_one("#validation-panel", Static)
