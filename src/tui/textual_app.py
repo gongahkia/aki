@@ -16,6 +16,10 @@ from textual.widgets import Footer, Header, Label, Static
 from ..config import settings
 from ..services.error_mapper import map_exception
 from .navigation import ROUTE_MAP
+from .screens.generate import GenerateFormScreen
+from .screens.history import HistoryScreen as HistoryDataScreen
+from .screens.providers import ProvidersScreen as ProvidersDataScreen
+from .screens.settings import SettingsScreen
 from .widgets import Breadcrumb, StatusBar
 
 
@@ -74,59 +78,6 @@ class HomeScreen(_BaseScreen):
     screen_help = ROUTE_MAP["home"].description
 
 
-class GenerateScreen(_BaseScreen):
-    screen_title = ROUTE_MAP["generate"].label
-    screen_help = ROUTE_MAP["generate"].description
-
-
-class HistoryScreen(_BaseScreen):
-    screen_title = ROUTE_MAP["history"].label
-    screen_help = ROUTE_MAP["history"].description
-
-
-class ProvidersScreen(_BaseScreen):
-    screen_title = ROUTE_MAP["providers"].label
-    screen_help = ROUTE_MAP["providers"].description
-    _health_task: asyncio.Task | None = None
-
-    async def _provider_health_loop(self) -> None:
-        while True:
-            provider_state = "unknown"
-            try:
-                provider_service = self.app.get_provider_service()
-                health = await provider_service.health_check()
-                statuses = [
-                    details.get("status", "unknown")
-                    for details in health.values()
-                    if isinstance(details, dict)
-                ]
-                if statuses and all(status == "healthy" for status in statuses):
-                    provider_state = "ok"
-                elif any(status == "unhealthy" for status in statuses):
-                    provider_state = "error"
-                elif statuses:
-                    provider_state = "warn"
-            except Exception as exc:
-                map_exception(exc, default_status=503)
-                provider_state = "warn"
-            status_bar = self.query_one("#status-bar", StatusBar)
-            status_bar.provider_state = provider_state
-            await asyncio.sleep(10)
-
-    def on_mount(self) -> None:
-        super().on_mount()
-        self._health_task = asyncio.create_task(self._provider_health_loop())
-
-    async def on_unmount(self) -> None:
-        if self._health_task:
-            self._health_task.cancel()
-            try:
-                await self._health_task
-            except asyncio.CancelledError:
-                pass
-            self._health_task = None
-
-
 class HelpScreen(_BaseScreen):
     screen_title = "Help"
     screen_help = (
@@ -142,10 +93,11 @@ class CommandPaletteScreen(Screen):
             "1 Generate",
             "2 History",
             "3 Providers",
-            "4 Home",
-            "5 Help",
+            "4 Settings",
+            "5 Home",
+            "6 Help",
             "",
-            "Press 1-5 to navigate, Esc to close.",
+            "Press 1-6 to navigate, Esc to close.",
         ]
         with Container(id="screen-body"):
             yield Label("Command Palette", id="screen-title")
@@ -159,8 +111,9 @@ class CommandPaletteScreen(Screen):
             "1": "generate",
             "2": "history",
             "3": "providers",
-            "4": "home",
-            "5": "help",
+            "4": "settings",
+            "5": "home",
+            "6": "help",
         }
         route = route_map.get(event.key)
         if not route:
@@ -195,6 +148,7 @@ class JikaiTextualApp(App[None]):
         Binding("g", "show_generate", "Generate"),
         Binding("h", "show_history", "History"),
         Binding("p", "show_providers", "Providers"),
+        Binding("s", "show_settings", "Settings"),
         Binding("home", "show_home", "Home"),
     ]
 
@@ -212,9 +166,10 @@ class JikaiTextualApp(App[None]):
         self._corpus_service = corpus_service
         self._screens: Dict[str, Screen] = {
             "home": HomeScreen(),
-            "generate": GenerateScreen(),
-            "history": HistoryScreen(),
-            "providers": ProvidersScreen(),
+            "generate": GenerateFormScreen(provider_service=self._provider_service),
+            "history": HistoryDataScreen(),
+            "providers": ProvidersDataScreen(provider_service=self._provider_service),
+            "settings": SettingsScreen(),
             "help": HelpScreen(),
         }
 
@@ -271,6 +226,9 @@ class JikaiTextualApp(App[None]):
 
     def action_show_providers(self) -> None:
         self._switch_to("providers")
+
+    def action_show_settings(self) -> None:
+        self._switch_to("settings")
 
     def action_open_command_palette(self) -> None:
         self.push_screen(CommandPaletteScreen())
