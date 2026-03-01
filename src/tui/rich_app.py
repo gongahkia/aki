@@ -1051,7 +1051,7 @@ class JikaiTUI:
                 console.print(f"[green]✓ Saved to {out}[/green]")
             tlog.info("OCR  %s → %d chars", path, len(text))
         except Exception as e:
-            console.print(f"[red]✗ OCR failed: {e}[/red]")
+            self._render_user_exception(e, context="OCR failed")
             console.print(
                 "[dim]Tip: ensure pytesseract and tesseract are installed[/dim]"
             )
@@ -1163,7 +1163,7 @@ class JikaiTUI:
                 save_scraped,
             )
         except ImportError as e:
-            console.print(f"[red]✗ Scraper import failed: {e}[/red]")
+            self._render_user_exception(e, context="Scraper import failed")
             return
 
         with console.status("[bold green]Scraping cases...", spinner="dots"):
@@ -1179,7 +1179,7 @@ class JikaiTUI:
                     )
                 )
             except Exception as e:
-                console.print(f"[red]✗ Scraping failed: {e}[/red]")
+                self._render_user_exception(e, context="Scraping failed")
                 tlog.info("ERROR  scrape: %s", e)
                 return
 
@@ -1256,7 +1256,7 @@ class JikaiTUI:
                 data = json.load(f)
             entries = data if isinstance(data, list) else data.get("entries", [])
         except Exception as e:
-            console.print(f"[red]✗ Failed to load corpus: {e}[/red]")
+            self._render_user_exception(e, context="Failed to load corpus")
             return
         if not entries:
             console.print("[red]✗ No entries in corpus[/red]")
@@ -1415,7 +1415,7 @@ class JikaiTUI:
                 data = json.load(f)
             entries = data if isinstance(data, list) else data.get("entries", [])
         except Exception as e:
-            console.print(f"[red]✗ Failed to load corpus: {e}[/red]")
+            self._render_user_exception(e, context="Failed to load corpus")
             return
         if not entries:
             console.print("[red]✗ No entries[/red]")
@@ -1635,7 +1635,9 @@ class JikaiTUI:
                                 "topic": topic,
                                 "score": 0.0,
                                 "words": 0,
-                                "error": str(e),
+                                "error": self._map_user_exception(
+                                    e, default_status=400
+                                ).message,
                             }
                         finally:
                             progress.advance(task)
@@ -1809,7 +1811,7 @@ class JikaiTUI:
                 "[red]✗ python-docx not installed. Run: pip install python-docx[/red]"
             )
         except Exception as e:
-            console.print(f"[red]✗ Export failed: {e}[/red]")
+            self._render_user_exception(e, context="Export failed")
             tlog.info("ERROR  export: %s", e)
 
     # ── import cases ─────────────────────────────────────────────
@@ -1875,7 +1877,7 @@ class JikaiTUI:
             console.print(f"[green]✓ Case saved → {out_path}[/green]")
             tlog.info("IMPORT_CASE  %s → %s", case_name, out_path)
         except Exception as e:
-            console.print(f"[red]✗ Import failed: {e}[/red]")
+            self._render_user_exception(e, context="Import failed")
             tlog.info("ERROR  import_cases: %s", e)
 
     # ── generate ────────────────────────────────────────────────
@@ -2330,7 +2332,7 @@ class JikaiTUI:
             )
             tlog.info("GENERATE  max retries reached, score=%.1f", score)
         except ImportError as e:
-            console.print(f"[red]✗ Missing dependency: {e}[/red]")
+            self._render_user_exception(e, context="Missing dependency")
             console.print(
                 "[yellow]Run: pip install chromadb sentence-transformers[/yellow]"
             )
@@ -2404,11 +2406,28 @@ class JikaiTUI:
             self._handle_generation_error(e)
             tlog.info("ERROR  generation: %s", e)
 
-    def _handle_generation_error(self, e: Exception):
-        """Render normalized generation errors with contextual recovery hints."""
+    def _map_user_exception(self, exc: Exception, *, default_status: int = 400):
         from ..services.error_mapper import map_exception
 
-        mapped_error = map_exception(e, default_status=500)
+        return map_exception(exc, default_status=default_status)
+
+    def _render_user_exception(
+        self,
+        exc: Exception,
+        *,
+        context: str,
+        style: str = "red",
+        icon: str = "✗",
+        default_status: int = 400,
+    ) -> None:
+        mapped_error = self._map_user_exception(exc, default_status=default_status)
+        console.print(f"[{style}]{icon} {context}: {mapped_error.message}[/{style}]")
+        if mapped_error.hint:
+            console.print(f"[dim]{mapped_error.hint}[/dim]")
+
+    def _handle_generation_error(self, e: Exception):
+        """Render normalized generation errors with contextual recovery hints."""
+        mapped_error = self._map_user_exception(e, default_status=500)
         console.print(f"[red]✗ {mapped_error.message}[/red]")
 
         if mapped_error.code in {"provider_connection_error", "provider_timeout"}:
@@ -2683,7 +2702,7 @@ class JikaiTUI:
                 "validation_score": score_value,
             }
         except Exception as e:
-            console.print(f"[red]✗ Report and regenerate failed: {e}[/red]")
+            self._render_user_exception(e, context="Report and regenerate failed")
             tlog.info("ERROR  report+regenerate: %s", e)
             return None
 
@@ -2731,7 +2750,7 @@ class JikaiTUI:
             )
             tlog.info("MODEL_ANSWER  generated, len=%d", len(resp.content))
         except Exception as e:
-            console.print(f"[red]✗ Model answer generation failed: {e}[/red]")
+            self._render_user_exception(e, context="Model answer generation failed")
 
     def _show_validation(self, vr):
         """Display validation results table with detailed check results."""
@@ -3226,7 +3245,7 @@ class JikaiTUI:
             )
             console.print(f"[green]✓ Variation saved (score: {score:.1f})[/green]")
         except Exception as e:
-            console.print(f"[red]✗ Variation failed: {e}[/red]")
+            self._render_user_exception(e, context="Variation failed")
 
     # ── train ───────────────────────────────────────────────────
     def train_flow(self):
@@ -3454,7 +3473,7 @@ class JikaiTUI:
             console.print(mt)
             tlog.info("TRAIN  complete")
         except Exception as e:
-            console.print(f"[red]✗ Training failed: {e}[/red]")
+            self._render_user_exception(e, context="Training failed")
             console.print(
                 "[dim]Tip: ensure training CSV exists at specified path[/dim]"
             )
@@ -3521,7 +3540,7 @@ class JikaiTUI:
             )
             tlog.info("EMBED  %d entries indexed", len(hypos))
         except Exception as e:
-            console.print(f"[red]✗ Embedding failed: {e}[/red]")
+            self._render_user_exception(e, context="Embedding failed")
             console.print(
                 "[dim]Tip: check sentence-transformers and chromadb deps[/dim]"
             )
@@ -3608,7 +3627,7 @@ class JikaiTUI:
             self._display_entries(self._entries)
             tlog.info("CORPUS  loaded %d entries from %s", len(self._entries), path)
         except Exception as e:
-            console.print(f"[red]✗ Load error: {e}[/red]")
+            self._render_user_exception(e, context="Load error")
 
     def _display_entries(self, entries, page=0, page_size=20):
         while True:
@@ -3726,7 +3745,7 @@ class JikaiTUI:
             console.print(f"[green]✓ Exported to {path}[/green]")
             tlog.info("EXPORT  %s → %s", fmt, path)
         except Exception as e:
-            console.print(f"[red]✗ Export failed: {e}[/red]")
+            self._render_user_exception(e, context="Export failed")
 
     def _preprocess_raw(self):
         raw_dir = _path("Raw corpus directory", default=self._raw_dir)
@@ -3754,7 +3773,7 @@ class JikaiTUI:
             self._load_corpus(output_path)
             tlog.info("PREPROCESS  %d entries → %s", count, output_path)
         except Exception as e:
-            console.print(f"[red]✗ Preprocess failed: {e}[/red]")
+            self._render_user_exception(e, context="Preprocess failed")
             console.print(
                 "[dim]Tip: ensure raw directory exists with subdirectories[/dim]"
             )
@@ -3907,7 +3926,9 @@ class JikaiTUI:
                             path.unlink()
                             removed += 1
                     except OSError as e:
-                        console.print(f"[red]✗ Failed to remove {p}: {e}[/red]")
+                        self._render_user_exception(
+                            e, context=f"Failed to remove {p}"
+                        )
                         skipped += 1
                 else:
                     skipped += 1
@@ -4254,7 +4275,7 @@ class JikaiTUI:
             console.print(ht)
             tlog.info("HEALTH  %s", {k: str(v) for k, v in health.items()})
         except Exception as e:
-            console.print(f"[red]✗ Health check failed: {e}[/red]")
+            self._render_user_exception(e, context="Health check failed")
 
     def _ping_provider(self, provider: str) -> bool:
         """Ping a provider to check if it's reachable. Returns True if healthy."""
@@ -4341,7 +4362,7 @@ class JikaiTUI:
             console.print(f"[green]✓ Default provider: {provider}[/green]")
             tlog.info("PROVIDER  default=%s", provider)
         except Exception as e:
-            console.print(f"[red]✗ Failed: {e}[/red]")
+            self._render_user_exception(e, context="Failed to set default provider")
 
     # ── service startup ──────────────────────────────────────────
     def _ping_ollama(
@@ -4422,7 +4443,7 @@ class JikaiTUI:
                 start_new_session=True,
             )
         except Exception as e:
-            console.print(f"[red]✗ Could not start Ollama: {e}[/red]")
+            self._render_user_exception(e, context="Could not start Ollama")
             return False
 
         # Wait up to 8 s for Ollama to become reachable
@@ -4581,7 +4602,12 @@ class JikaiTUI:
                 "[green]✓ Applied pydantic v1 / Python 3.14 compatibility patch.[/green]"
             )
         except Exception as e:
-            console.print(f"[yellow]⚠ Could not apply pydantic v1 patch: {e}[/yellow]")
+            self._render_user_exception(
+                e,
+                context="Could not apply pydantic v1 patch",
+                style="yellow",
+                icon="⚠",
+            )
 
     def first_run_wizard(self):
         """Walk user through initial setup."""
@@ -4697,7 +4723,7 @@ class JikaiTUI:
             corpus_path = ensure_required_tort_corpus_file(settings.corpus_path)
             self._corpus_path = str(corpus_path)
         except StartupCheckError as exc:
-            console.print(f"[red]✗ {exc}[/red]")
+            self._render_user_exception(exc, context="Startup check failed")
             raise SystemExit(1) from exc
 
     def run(self):
