@@ -547,6 +547,69 @@ class ValidationService:
                 "error": str(e),
             }
 
+    def validate_party_role_clarity(self, text: str) -> Dict[str, Any]:
+        """Check whether party roles are explicit enough for exam-style issue analysis."""
+        try:
+            text_lower = text.lower()
+            claimant_terms = [
+                "plaintiff",
+                "claimant",
+                "applicant",
+                "injured party",
+            ]
+            defendant_terms = [
+                "defendant",
+                "respondent",
+                "alleged tortfeasor",
+                "liable party",
+            ]
+            role_context_terms = [
+                "employer",
+                "employee",
+                "driver",
+                "pedestrian",
+                "occupier",
+                "visitor",
+            ]
+
+            claimant_hits = [term for term in claimant_terms if term in text_lower]
+            defendant_hits = [term for term in defendant_terms if term in text_lower]
+            role_context_hits = [term for term in role_context_terms if term in text_lower]
+            named_party_tokens = re.findall(r"\b[A-Z][a-z]{2,}\b", text)
+
+            role_pair_present = bool(claimant_hits and defendant_hits)
+            named_party_count = len(set(named_party_tokens))
+            clarity_score = (
+                (0.45 if claimant_hits else 0.0)
+                + (0.45 if defendant_hits else 0.0)
+                + (0.1 if role_context_hits else 0.0)
+            )
+            if named_party_count >= 2:
+                clarity_score = min(1.0, clarity_score + 0.1)
+            clarity_score = round(clarity_score, 3)
+
+            return {
+                "passed": role_pair_present and clarity_score >= 0.6,
+                "clarity_score": clarity_score,
+                "role_pair_present": role_pair_present,
+                "named_party_count": named_party_count,
+                "evidence": {
+                    "claimant_terms": claimant_hits,
+                    "defendant_terms": defendant_hits,
+                    "role_context_terms": role_context_hits,
+                },
+            }
+        except Exception as e:
+            logger.error("Party-role clarity validation failed", error=str(e))
+            return {
+                "passed": False,
+                "clarity_score": 0.0,
+                "role_pair_present": False,
+                "named_party_count": 0,
+                "evidence": {},
+                "error": str(e),
+            }
+
     def validate_legal_realism(self, text: str) -> Dict[str, Any]:
         """Score legal realism signals: SG venue cues, procedure cues, and timeline coherence."""
         try:
@@ -597,16 +660,19 @@ class ValidationService:
             found_procedure = [cue for cue in procedure_cues if cue in text_lower]
             found_timeline = [cue for cue in timeline_cues if cue in text_lower]
             chronology_result = self.validate_chronology_coherence(text)
+            party_role_result = self.validate_party_role_clarity(text)
 
             singapore_context_score = min(1.0, len(found_singapore_context) / 4.0)
             procedure_score = min(1.0, len(found_procedure) / 4.0)
             timeline_score = min(1.0, len(found_timeline) / 3.0)
             chronology_score = float(chronology_result.get("coherence_score", 0.0))
+            party_role_score = float(party_role_result.get("clarity_score", 0.0))
             realism_score = round(
-                (singapore_context_score * 0.4)
-                + (procedure_score * 0.25)
-                + (timeline_score * 0.15)
+                (singapore_context_score * 0.32)
+                + (procedure_score * 0.23)
+                + (timeline_score * 0.1)
                 + (chronology_score * 0.2),
+                + (party_role_score * 0.15),
                 3,
             )
             passed = realism_score >= 0.6
@@ -619,12 +685,14 @@ class ValidationService:
                     "procedure_score": round(procedure_score, 3),
                     "timeline_score": round(timeline_score, 3),
                     "chronology_score": round(chronology_score, 3),
+                    "party_role_score": round(party_role_score, 3),
                 },
                 "evidence": {
                     "singapore_context": found_singapore_context,
                     "procedure": found_procedure,
                     "timeline": found_timeline,
                     "chronology": chronology_result,
+                    "party_roles": party_role_result,
                 },
             }
         except Exception as e:
