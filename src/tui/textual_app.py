@@ -13,6 +13,7 @@ from textual.screen import Screen
 from textual.events import Key
 from textual.widgets import Footer, Header, Label, Static
 
+from ..config import settings
 from ..services.error_mapper import map_exception
 from .navigation import ROUTE_MAP
 from .widgets import Breadcrumb, StatusBar
@@ -195,7 +196,24 @@ class JikaiTextualApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
+        warning = self._startup_self_check()
+        if warning:
+            self.notify(warning, title="Startup Check", severity="warning")
         self.push_screen(self._screens["home"])
+
+    def _startup_self_check(self) -> str:
+        """Validate required corpus files and return actionable remediation guidance."""
+        try:
+            from ..services.startup_checks import ensure_required_tort_corpus_file
+
+            ensure_required_tort_corpus_file(settings.corpus_path)
+            return ""
+        except Exception as exc:
+            mapped = map_exception(exc, default_status=500)
+            return (
+                f"{mapped.message}. Ensure corpus exists at '{settings.corpus_path}' "
+                "or run `make preprocess` to rebuild it."
+            )
 
     @on(App.PoppedScreen)
     def _on_popped_screen(self) -> None:
