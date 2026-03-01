@@ -42,7 +42,14 @@ class GenerateFormScreen(Screen):
     BINDINGS = [
         Binding("escape", "close", "Close"),
         Binding("ctrl+p", "preview", "Preview"),
+        Binding("ctrl+s", "start_stream", "Stream"),
+        Binding("ctrl+z", "pause_stream", "Pause"),
+        Binding("ctrl+r", "resume_stream", "Resume"),
+        Binding("ctrl+x", "cancel_stream", "Cancel"),
     ]
+    _stream_task: asyncio.Task | None = None
+    _stream_paused = False
+    _stream_cancelled = False
 
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
@@ -67,6 +74,8 @@ class GenerateFormScreen(Screen):
             yield Static("", id="parties-error")
             yield Static("", id="complexity-error")
             yield Static("Preview not loaded. Press Ctrl+P.", id="preview-panel")
+            yield Static("Stream state: idle", id="stream-state")
+            yield Static("", id="stream-output")
             yield Static("Press Esc to close", id="screen-help")
 
     def action_close(self) -> None:
@@ -74,6 +83,29 @@ class GenerateFormScreen(Screen):
 
     def action_preview(self) -> None:
         asyncio.create_task(self._load_preview())
+
+    def action_start_stream(self) -> None:
+        if self._stream_task and not self._stream_task.done():
+            return
+        self._stream_paused = False
+        self._stream_cancelled = False
+        self._stream_task = asyncio.create_task(self._run_stream())
+
+    def action_pause_stream(self) -> None:
+        if self._stream_task and not self._stream_task.done():
+            self._stream_paused = True
+            self.query_one("#stream-state", Static).update("Stream state: paused")
+
+    def action_resume_stream(self) -> None:
+        if self._stream_task and not self._stream_task.done():
+            self._stream_paused = False
+            self.query_one("#stream-state", Static).update("Stream state: streaming")
+
+    def action_cancel_stream(self) -> None:
+        self._stream_cancelled = True
+        if self._stream_task and not self._stream_task.done():
+            self._stream_task.cancel()
+        self.query_one("#stream-state", Static).update("Stream state: cancelled")
 
     def on_mount(self) -> None:
         self._apply_preset("exam_drill")
@@ -196,3 +228,46 @@ class GenerateFormScreen(Screen):
             )
         except Exception as exc:
             panel.update(f"[red]Preview failed: {exc}[/red]")
+
+    async def _run_stream(self) -> None:
+        output = self.query_one("#stream-output", Static)
+        state = self.query_one("#stream-state", Static)
+        if not self._validate_all():
+            state.update("Stream state: blocked (invalid inputs)")
+            return
+
+        topics = self._topics()
+        topic = topics[0]
+        parties = int(self.query_one("#parties", Input).value.strip())
+        complexity = str(self.query_one("#complexity", Select).value or "intermediate")
+        complexity = complexity.lower().strip()
+
+        state.update("Stream state: streaming")
+        chunks: List[str] = []
+
+        try:
+            from ...services.llm_service import LLMRequest, llm_service
+
+            request = LLMRequest(
+                prompt=(
+                    "Generate a Singapore tort law hypothetical about "
+                    f"{topic} with {parties} parties at {complexity} complexity."
+                ),
+                temperature=0.7,
+                stream=True,
+            )
+            async for chunk in llm_service.stream_generate(request):
+                if self._stream_cancelled:
+                    break
+                while self._stream_paused and not self._stream_cancelled:
+                    await asyncio.sleep(0.1)
+                chunks.append(chunk)
+                output.update("".join(chunks))
+            if self._stream_cancelled:
+                state.update("Stream state: cancelled")
+            else:
+                state.update("Stream state: complete")
+        except asyncio.CancelledError:
+            state.update("Stream state: cancelled")
+        except Exception as exc:
+            state.update(f"Stream state: failed ({exc})")
