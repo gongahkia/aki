@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Dict, List, Optional
 
 import structlog
 from pydantic import BaseModel, Field, field_validator
@@ -178,6 +178,49 @@ class HypotheticalService:
         except (TypeError, ValueError):
             return None
         return max(10, min(300, timeout))
+
+    @staticmethod
+    def _resolve_provider_timeout(request: GenerationRequest) -> int:
+        """Resolve bounded timeout used for provider operations."""
+        override = HypotheticalService._resolve_timeout_override(request)
+        if override is not None:
+            return override
+        try:
+            configured = int(getattr(settings.llm, "timeout", 120))
+        except (TypeError, ValueError):
+            configured = 120
+        return max(10, min(300, configured))
+
+    async def _await_provider_operation(
+        self,
+        operation: Awaitable[Any],
+        *,
+        operation_name: str,
+        timeout_seconds: int,
+        correlation_id: Optional[str],
+    ) -> Any:
+        """Run provider operation with timeout and cancellation-aware handling."""
+        try:
+            async with asyncio.timeout(timeout_seconds):
+                return await operation
+        except asyncio.CancelledError:
+            logger.info(
+                "Provider operation cancelled",
+                operation=operation_name,
+                timeout_seconds=timeout_seconds,
+                correlation_id=correlation_id,
+            )
+            raise
+        except TimeoutError as timeout_error:
+            logger.warning(
+                "Provider operation timed out",
+                operation=operation_name,
+                timeout_seconds=timeout_seconds,
+                correlation_id=correlation_id,
+            )
+            raise HypotheticalServiceError(
+                f"{operation_name} timed out after {timeout_seconds}s"
+            ) from timeout_error
 
     @staticmethod
     def _should_skip_analysis(request: GenerationRequest) -> bool:
@@ -761,21 +804,26 @@ class HypotheticalService:
             if seed is not None:
                 temp = 0.0
             temp = max(0.0, min(2.0, temp))  # clamp temperature
-            timeout_override = self._resolve_timeout_override(request)
+            timeout_seconds = self._resolve_provider_timeout(request)
             llm_request = LLMRequest(
                 prompt=user_prompt,
                 system_prompt=prompt_data["system"],
                 temperature=temp,
                 max_tokens=2048,
                 correlation_id=request.correlation_id,
-                timeout_seconds=timeout_override,
+                timeout_seconds=timeout_seconds,
             )
 
             # Generate response
-            llm_response = await self.llm_service.generate(
-                llm_request,
-                provider=request.provider,
-                model=request.model,
+            llm_response = await self._await_provider_operation(
+                self.llm_service.generate(
+                    llm_request,
+                    provider=request.provider,
+                    model=request.model,
+                ),
+                operation_name="hypothetical generation",
+                timeout_seconds=timeout_seconds,
+                correlation_id=request.correlation_id,
             )
 
             # Extract hypothetical from response
@@ -795,6 +843,12 @@ class HypotheticalService:
 
             return hypothetical
 
+        except asyncio.CancelledError:
+            logger.info(
+                "Hypothetical text generation cancelled",
+                correlation_id=request.correlation_id,
+            )
+            raise
         except Exception as e:
             logger.error(
                 "Failed to generate hypothetical text",
@@ -982,16 +1036,22 @@ class HypotheticalService:
                 available_topics=all_topics,
             )
 
+            timeout_seconds = self._resolve_provider_timeout(request)
             llm_request = LLMRequest(
                 prompt=prompt_data["user"],
                 system_prompt=prompt_data["system"],
                 temperature=0.5,
                 max_tokens=2048,
                 correlation_id=request.correlation_id,
-                timeout_seconds=self._resolve_timeout_override(request),
+                timeout_seconds=timeout_seconds,
             )
 
-            llm_response = await self.llm_service.generate(llm_request)
+            llm_response = await self._await_provider_operation(
+                self.llm_service.generate(llm_request),
+                operation_name="legal analysis generation",
+                timeout_seconds=timeout_seconds,
+                correlation_id=request.correlation_id,
+            )
 
             logger.info(
                 "Legal analysis generated",
@@ -1002,6 +1062,12 @@ class HypotheticalService:
 
             return llm_response.content
 
+        except asyncio.CancelledError:
+            logger.info(
+                "Legal analysis generation cancelled",
+                correlation_id=request.correlation_id,
+            )
+            raise
         except Exception as e:
             logger.error(
                 "Legal analysis generation failed",
