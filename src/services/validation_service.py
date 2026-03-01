@@ -512,12 +512,23 @@ class ValidationService:
         """Score legal realism signals: SG venue cues, procedure cues, and timeline coherence."""
         try:
             text_lower = text.lower()
-            venue_cues = [
+            singapore_context_cues = [
                 "singapore",
                 "state courts",
                 "high court",
                 "district court",
                 "subordinate courts",
+                "attorney-general",
+                "singapore law reports",
+                "rules of court",
+                "hdb",
+                "mrt",
+                "lta",
+                "mom",
+                "cpf",
+                "orchard road",
+                "jurong",
+                "tampines",
             ]
             procedure_cues = [
                 "plaintiff",
@@ -541,15 +552,19 @@ class ValidationService:
                 "years",
             ]
 
-            found_venue = [cue for cue in venue_cues if cue in text_lower]
+            found_singapore_context = [
+                cue for cue in singapore_context_cues if cue in text_lower
+            ]
             found_procedure = [cue for cue in procedure_cues if cue in text_lower]
             found_timeline = [cue for cue in timeline_cues if cue in text_lower]
 
-            venue_score = min(1.0, len(found_venue) / 2.0)
+            singapore_context_score = min(1.0, len(found_singapore_context) / 4.0)
             procedure_score = min(1.0, len(found_procedure) / 4.0)
             timeline_score = min(1.0, len(found_timeline) / 3.0)
             realism_score = round(
-                (venue_score * 0.4) + (procedure_score * 0.35) + (timeline_score * 0.25),
+                (singapore_context_score * 0.5)
+                + (procedure_score * 0.3)
+                + (timeline_score * 0.2),
                 3,
             )
             passed = realism_score >= 0.6
@@ -558,12 +573,12 @@ class ValidationService:
                 "passed": passed,
                 "realism_score": realism_score,
                 "components": {
-                    "venue_score": round(venue_score, 3),
+                    "singapore_context_score": round(singapore_context_score, 3),
                     "procedure_score": round(procedure_score, 3),
                     "timeline_score": round(timeline_score, 3),
                 },
                 "evidence": {
-                    "venue": found_venue,
+                    "singapore_context": found_singapore_context,
                     "procedure": found_procedure,
                     "timeline": found_timeline,
                 },
