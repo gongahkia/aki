@@ -10,7 +10,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
 from textual.screen import Screen
-from textual.widgets import DataTable, Input, Label, Select, Static
+from textual.widgets import Button, DataTable, Input, Label, Select, Static
 
 
 class HistoryScreen(Screen):
@@ -41,6 +41,11 @@ class HistoryScreen(Screen):
                 )
             yield DataTable(id="history-table")
             yield Static("Page 1/1", id="history-page")
+            with Horizontal():
+                yield Button("Regenerate", id="history-action-regenerate")
+                yield Button("Export", id="history-action-export")
+                yield Button("Report", id="history-action-report")
+            yield Static("Action: idle", id="history-action-status")
             with Horizontal():
                 yield Static("Hypothetical", id="detail-hypothetical")
                 yield Static("Analysis", id="detail-analysis")
@@ -93,6 +98,15 @@ class HistoryScreen(Screen):
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "provider-filter":
             self._apply_filters()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        action = event.button.id or ""
+        if action == "history-action-regenerate":
+            asyncio.create_task(self._regenerate_selected())
+        elif action == "history-action-export":
+            asyncio.create_task(self._export_selected())
+        elif action == "history-action-report":
+            asyncio.create_task(self._report_selected())
 
     def _rebuild_provider_filter(self) -> None:
         provider_filter = self.query_one("#provider-filter", Select)
@@ -183,3 +197,70 @@ class HistoryScreen(Screen):
         self.query_one("#detail-hypothetical", Static).update(hypothetical)
         self.query_one("#detail-analysis", Static).update(analysis)
         self.query_one("#detail-metadata", Static).update(metadata)
+
+    def _selected_record(self) -> Dict[str, Any] | None:
+        if not self._page_records:
+            return None
+        table = self.query_one("#history-table", DataTable)
+        row_index = max(0, min(table.cursor_row, len(self._page_records) - 1))
+        return self._page_records[row_index]
+
+    async def _regenerate_selected(self) -> None:
+        status = self.query_one("#history-action-status", Static)
+        record = self._selected_record()
+        if not record:
+            status.update("Action: no record selected")
+            return
+        generation_id = record.get("id")
+        if not generation_id:
+            status.update("Action: selected row has no generation id")
+            return
+        try:
+            from ...services.workflow_facade import workflow_facade
+
+            await workflow_facade.regenerate_generation(generation_id=int(generation_id))
+            status.update(f"Action: regenerated generation_id={generation_id}")
+        except Exception as exc:
+            status.update(f"Action: regenerate failed ({exc})")
+
+    async def _export_selected(self) -> None:
+        status = self.query_one("#history-action-status", Static)
+        record = self._selected_record()
+        if not record:
+            status.update("Action: no record selected")
+            return
+        try:
+            response = record.get("response") or {}
+            hypothetical = str(response.get("hypothetical", "")).strip()
+            generation_id = record.get("id", "unknown")
+            if not hypothetical:
+                status.update("Action: export skipped (empty hypothetical)")
+                return
+            out_path = f"data/export_{generation_id}.txt"
+            with open(out_path, "w", encoding="utf-8") as handle:
+                handle.write(hypothetical)
+            status.update(f"Action: exported {out_path}")
+        except Exception as exc:
+            status.update(f"Action: export failed ({exc})")
+
+    async def _report_selected(self) -> None:
+        status = self.query_one("#history-action-status", Static)
+        record = self._selected_record()
+        if not record:
+            status.update("Action: no record selected")
+            return
+        generation_id = record.get("id")
+        if not generation_id:
+            status.update("Action: selected row has no generation id")
+            return
+        try:
+            from ...services.workflow_facade import workflow_facade
+
+            await workflow_facade.save_generation_report(
+                generation_id=int(generation_id),
+                issue_types=["manual_review"],
+                comment="Reported from Textual history screen.",
+            )
+            status.update(f"Action: report saved for generation_id={generation_id}")
+        except Exception as exc:
+            status.update(f"Action: report failed ({exc})")
