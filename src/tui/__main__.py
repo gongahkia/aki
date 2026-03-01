@@ -7,7 +7,6 @@ from .app_runner import run
 
 def main():
     parser = argparse.ArgumentParser(description="Jikai - Legal Hypothetical Generator")
-    parser.add_argument("--tui-only", action="store_true", help="Run TUI only")
     parser.add_argument(
         "--ui",
         choices=["rich", "textual"],
@@ -15,11 +14,7 @@ def main():
         help="Select TUI runtime",
     )
     args = parser.parse_args()
-
-    if args.tui_only:
-        run("tui-only", ui=args.ui)
-    else:
-        run("default", ui=args.ui)
+    run("tui-only", ui=args.ui)
 
 
 if __name__ == "__main__":
