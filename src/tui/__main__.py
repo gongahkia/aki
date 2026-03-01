@@ -7,7 +7,6 @@ from .app_runner import run
 
 def main():
     parser = argparse.ArgumentParser(description="Jikai - Legal Hypothetical Generator")
-    parser.add_argument("--api-only", action="store_true", help="Run API server only")
     parser.add_argument("--tui-only", action="store_true", help="Run TUI only")
     parser.add_argument("--both", action="store_true", help="Run both API and TUI")
     parser.add_argument(
@@ -18,9 +17,7 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.api_only:
-        run("api-only", ui=args.ui)
-    elif args.tui_only:
+    if args.tui_only:
         run("tui-only", ui=args.ui)
     elif args.both:
         run("both", ui=args.ui)
