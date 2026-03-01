@@ -25,7 +25,7 @@ class ValidationService:
         ]
 
         # Singapore tort law keywords by topic
-        self._topic_keywords = {
+        raw_topic_keywords = {
             "negligence": [
                 "negligent",
                 "negligence",
@@ -191,6 +191,27 @@ class ValidationService:
                 "willing participant",
             ],
         }
+        self._topic_keywords = self._normalize_topic_keywords(raw_topic_keywords)
+
+    @staticmethod
+    def _normalize_topic_keywords(
+        topic_keywords: Dict[str, List[str]]
+    ) -> Dict[str, List[str]]:
+        """Normalize topic keyword map to canonical topic keys."""
+        normalized: Dict[str, List[str]] = {}
+        for raw_key, raw_keywords in topic_keywords.items():
+            canonical_key = canonicalize_topic(raw_key)
+            existing = normalized.setdefault(canonical_key, [])
+            cleaned_keywords = []
+            for keyword in raw_keywords:
+                text = str(keyword).strip().lower()
+                if text:
+                    cleaned_keywords.append(text)
+            # preserve insertion order while deduplicating
+            for keyword in cleaned_keywords:
+                if keyword not in existing:
+                    existing.append(keyword)
+        return normalized
 
     def validate_party_count(self, text: str, expected_count: int) -> Dict[str, Any]:
         """
@@ -265,14 +286,13 @@ class ValidationService:
                     canonical_required_topics.append(canonical)
 
             for canonical_topic in canonical_required_topics:
-                keyword_key = canonical_topic.replace("_", " ")
                 keywords = self._topic_keywords.get(
                     canonical_topic,
-                    self._topic_keywords.get(keyword_key, [keyword_key]),
+                    [canonical_topic.replace("_", " ")],
                 )
 
                 # Check if any keyword appears in text
-                found_keywords = [kw for kw in keywords if kw.lower() in text_lower]
+                found_keywords = [kw for kw in keywords if kw in text_lower]
 
                 if found_keywords:
                     topics_found.append(canonical_topic)
