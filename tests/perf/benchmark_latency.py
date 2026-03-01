@@ -1,18 +1,18 @@
-"""Benchmark end-to-end API latency for baseline vs fast-mode generation paths."""
+"""Benchmark Rich-generation flow latency for baseline, fast, and realism-first presets."""
 
 import argparse
 import asyncio
 import json
-import os
 import statistics
 import time
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from fastapi.testclient import TestClient
-
-from src.api.main import app
-from src.services.hypothetical_service import GenerationResponse
+from src.services.hypothetical_service import (
+    GenerationRequest,
+    ValidationResult,
+    hypothetical_service,
+)
 
 
 def _percentile(values: list[float], percentile: float) -> float:
@@ -35,111 +35,212 @@ def _summarize(latencies_ms: list[float]) -> dict:
     }
 
 
-def _request_headers() -> dict[str, str]:
-    api_key = os.environ.get("JIKAI_API_KEY", "").strip()
-    if not api_key:
-        return {}
-    return {"X-API-Key": api_key}
+def _is_realism_first(request: GenerationRequest) -> bool:
+    preferences = request.user_preferences or {}
+    temperature = float(preferences.get("temperature", 0.7))
+    return bool(
+        request.include_analysis
+        and request.method == "hybrid"
+        and request.number_parties == 4
+        and request.complexity_level == "expert"
+        and temperature <= 0.21
+    )
 
 
-def _run_mode(
-    client: TestClient, payload: dict, iterations: int, headers: dict[str, str]
-) -> tuple[list[float], dict[int, int], str]:
+def _is_fast_mode(request: GenerationRequest) -> bool:
+    preferences = request.user_preferences or {}
+    return bool(
+        (not request.include_analysis)
+        or preferences.get("prioritize_latency")
+        or preferences.get("fast_validation")
+    )
+
+
+async def _run_mode(payload: dict, iterations: int) -> tuple[list[float], int, str]:
     latencies_ms: list[float] = []
-    status_counts: dict[int, int] = {}
+    failure_count = 0
     sample_failure = ""
 
     for _ in range(iterations):
-        start = time.perf_counter()
-        response = client.post("/generate", json=payload, headers=headers)
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        status_code = int(response.status_code)
-        status_counts[status_code] = status_counts.get(status_code, 0) + 1
-        if status_code == 200:
-            latencies_ms.append(elapsed_ms)
-        elif not sample_failure:
-            sample_failure = response.text[:500]
+        request = GenerationRequest(**payload)
+        started = time.perf_counter()
+        try:
+            await hypothetical_service.generate_hypothetical(request)
+            latencies_ms.append((time.perf_counter() - started) * 1000)
+        except Exception as exc:  # noqa: BLE001 - benchmark should continue on failures
+            failure_count += 1
+            if not sample_failure:
+                sample_failure = str(exc)
 
-    return latencies_ms, status_counts, sample_failure
+    return latencies_ms, failure_count, sample_failure
 
 
 def run_benchmark(iterations: int = 20) -> dict:
-    client = TestClient(app, base_url="http://localhost")
-    headers = _request_headers()
+    async def _fake_context(_request: GenerationRequest):
+        await asyncio.sleep(0.003)
+        return []
 
-    async def _fake_generate(request):
-        # Simulate heavier baseline path vs faster hypothetical-only mode.
-        await asyncio.sleep(0.03 if request.include_analysis else 0.01)
-        return GenerationResponse(
-            hypothetical="Benchmark hypothetical",
-            analysis="Benchmark analysis" if request.include_analysis else "",
-            metadata={"generation_id": 9001},
-            generation_time=0.1,
-            validation_results={"passed": True, "quality_score": 8.0},
+    async def _fake_generate_text(request: GenerationRequest, _context_entries):
+        if _is_realism_first(request):
+            await asyncio.sleep(0.045)
+        elif _is_fast_mode(request):
+            await asyncio.sleep(0.010)
+        else:
+            await asyncio.sleep(0.022)
+        return (
+            "In Singapore, the plaintiff alleged negligence against the defendant "
+            "after an accident causing injury and damages. "
+            "The case involved duty of care, breach, and causation."
         )
+
+    async def _fake_validate(
+        request: GenerationRequest,
+        _hypothetical: str,
+        _context_entries,
+    ) -> ValidationResult:
+        if _is_realism_first(request):
+            await asyncio.sleep(0.018)
+            realism_score = 0.88
+            exam_score = 0.82
+            quality_score = 8.8
+        elif _is_fast_mode(request):
+            await asyncio.sleep(0.006)
+            realism_score = 0.68
+            exam_score = 0.66
+            quality_score = 7.4
+        else:
+            await asyncio.sleep(0.011)
+            realism_score = 0.75
+            exam_score = 0.72
+            quality_score = 8.0
+
+        return ValidationResult(
+            adherence_check={
+                "passed": True,
+                "quality_gate": {"passed": True, "failed_checks": []},
+            },
+            similarity_check={"passed": True, "max_similarity": 0.12},
+            quality_score=quality_score,
+            legal_realism_score=realism_score,
+            exam_likeness_score=exam_score,
+            passed=True,
+        )
+
+    async def _fake_analysis(request: GenerationRequest, _hypothetical: str) -> str:
+        if _is_realism_first(request):
+            await asyncio.sleep(0.020)
+        else:
+            await asyncio.sleep(0.012)
+        return "IRAC analysis output."
 
     baseline_payload = {
         "topics": ["negligence"],
         "number_parties": 3,
         "complexity_level": "intermediate",
+        "method": "pure_llm",
         "include_analysis": True,
+        "user_preferences": {"disable_cache": True},
     }
     fast_payload = {
         "topics": ["negligence"],
         "number_parties": 3,
         "complexity_level": "intermediate",
+        "method": "pure_llm",
         "include_analysis": False,
-        "user_preferences": {"prioritize_latency": True, "fast_validation": True},
+        "user_preferences": {
+            "prioritize_latency": True,
+            "fast_validation": True,
+            "disable_cache": True,
+        },
     }
-
-    with (
-        patch(
-            "src.api.main.corpus_service.extract_all_topics",
-            AsyncMock(return_value=["negligence"]),
-        ),
-        patch(
-            "src.api.main.hypothetical_service.generate_hypothetical",
-            AsyncMock(side_effect=_fake_generate),
-        ),
-    ):
-        baseline_latencies, baseline_statuses, baseline_failure = _run_mode(
-            client=client,
-            payload=baseline_payload,
-            iterations=iterations,
-            headers=headers,
-        )
-        fast_latencies, fast_statuses, fast_failure = _run_mode(
-            client=client,
-            payload=fast_payload,
-            iterations=iterations,
-            headers=headers,
-        )
-
-    if not baseline_latencies or not fast_latencies:
-        raise RuntimeError(
-            "Latency benchmark did not record successful responses. "
-            f"baseline_statuses={baseline_statuses} fast_statuses={fast_statuses} "
-            f"baseline_sample_error={baseline_failure!r} fast_sample_error={fast_failure!r}"
-        )
-
-    return {
-        "iterations": iterations,
-        "baseline": _summarize(baseline_latencies),
-        "fast_mode": _summarize(fast_latencies),
-        "status_codes": {
-            "baseline": baseline_statuses,
-            "fast_mode": fast_statuses,
+    realism_first_payload = {
+        "topics": ["negligence"],
+        "number_parties": 4,
+        "complexity_level": "5",
+        "method": "hybrid",
+        "include_analysis": True,
+        "user_preferences": {
+            "temperature": 0.2,
+            "red_herrings": False,
+            "disable_cache": True,
         },
     }
 
+    async def _run() -> dict:
+        with (
+            patch.object(
+                hypothetical_service,
+                "_get_relevant_context",
+                AsyncMock(side_effect=_fake_context),
+            ),
+            patch.object(
+                hypothetical_service,
+                "_generate_hypothetical_text",
+                AsyncMock(side_effect=_fake_generate_text),
+            ),
+            patch.object(
+                hypothetical_service,
+                "_validate_hypothetical",
+                AsyncMock(side_effect=_fake_validate),
+            ),
+            patch.object(
+                hypothetical_service,
+                "_generate_legal_analysis",
+                AsyncMock(side_effect=_fake_analysis),
+            ),
+            patch.object(
+                hypothetical_service.database_service,
+                "save_generation",
+                AsyncMock(return_value=9001),
+            ),
+        ):
+            baseline_latencies, baseline_failures, baseline_error = await _run_mode(
+                baseline_payload, iterations
+            )
+            fast_latencies, fast_failures, fast_error = await _run_mode(
+                fast_payload, iterations
+            )
+            realism_latencies, realism_failures, realism_error = await _run_mode(
+                realism_first_payload, iterations
+            )
+
+        if (
+            not baseline_latencies
+            or not fast_latencies
+            or not realism_latencies
+        ):
+            raise RuntimeError(
+                "Latency benchmark did not record successful responses for all modes. "
+                f"baseline_failures={baseline_failures} fast_failures={fast_failures} "
+                f"realism_first_failures={realism_failures} "
+                f"baseline_error={baseline_error!r} fast_error={fast_error!r} "
+                f"realism_first_error={realism_error!r}"
+            )
+
+        return {
+            "iterations": iterations,
+            "baseline": _summarize(baseline_latencies),
+            "fast_mode": _summarize(fast_latencies),
+            "realism_first": _summarize(realism_latencies),
+            "failures": {
+                "baseline": baseline_failures,
+                "fast_mode": fast_failures,
+                "realism_first": realism_failures,
+            },
+        }
+
+    return asyncio.run(_run())
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Benchmark generation API latency.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Rich-generation flow latency profiles."
+    )
     parser.add_argument(
         "--iterations",
         type=int,
         default=20,
-        help="Number of requests per mode (baseline and fast mode).",
+        help="Number of generation runs per mode.",
     )
     parser.add_argument(
         "--output",
