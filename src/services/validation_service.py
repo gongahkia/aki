@@ -578,6 +578,82 @@ class ValidationService:
                 "error": str(e),
             }
 
+    def validate_exam_likeness(self, text: str) -> Dict[str, Any]:
+        """Score exam-likeness signals: issue density, ambiguity balance, fact sufficiency."""
+        try:
+            text_lower = text.lower()
+            issue_terms = [
+                "issue",
+                "duty",
+                "breach",
+                "causation",
+                "remoteness",
+                "defence",
+                "liability",
+                "damages",
+            ]
+            ambiguity_terms = [
+                "unclear",
+                "disputed",
+                "arguably",
+                "may",
+                "might",
+                "however",
+                "alternatively",
+            ]
+            fact_terms = [
+                "date",
+                "time",
+                "location",
+                "injury",
+                "contract",
+                "statement",
+                "witness",
+                "evidence",
+            ]
+
+            issue_hits = [term for term in issue_terms if term in text_lower]
+            ambiguity_hits = [term for term in ambiguity_terms if term in text_lower]
+            fact_hits = [term for term in fact_terms if term in text_lower]
+
+            issue_density = min(1.0, len(issue_hits) / 5.0)
+            # Ambiguity should not be too low or too high; centered around 3 hits.
+            ambiguity_count = len(ambiguity_hits)
+            ambiguity_balance = max(0.0, 1.0 - (abs(ambiguity_count - 3) / 3.0))
+            fact_sufficiency = min(1.0, len(fact_hits) / 4.0)
+
+            exam_score = round(
+                (issue_density * 0.45)
+                + (ambiguity_balance * 0.25)
+                + (fact_sufficiency * 0.30),
+                3,
+            )
+            passed = exam_score >= 0.6
+
+            return {
+                "passed": passed,
+                "exam_likeness_score": exam_score,
+                "components": {
+                    "issue_density": round(issue_density, 3),
+                    "ambiguity_balance": round(ambiguity_balance, 3),
+                    "fact_sufficiency": round(fact_sufficiency, 3),
+                },
+                "evidence": {
+                    "issues": issue_hits,
+                    "ambiguity": ambiguity_hits,
+                    "facts": fact_hits,
+                },
+            }
+        except Exception as e:
+            logger.error("Exam-likeness validation failed", error=str(e))
+            return {
+                "passed": False,
+                "exam_likeness_score": 0.0,
+                "components": {},
+                "evidence": {},
+                "error": str(e),
+            }
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline for enhanced validation."""
         if not hasattr(self, "_ml_pipeline"):
@@ -630,6 +706,7 @@ class ValidationService:
             word_result = self.validate_word_count(text)
             singapore_result = self.validate_singapore_context(text)
             legal_realism_result = self.validate_legal_realism(text)
+            exam_likeness_result = self.validate_exam_likeness(text)
 
             # Collect all results
             all_results = {
@@ -638,6 +715,7 @@ class ValidationService:
                 "word_count": word_result,
                 "singapore_context": singapore_result,
                 "legal_realism": legal_realism_result,
+                "exam_likeness": exam_likeness_result,
             }
 
             # Calculate overall score
@@ -659,6 +737,7 @@ class ValidationService:
                     "words": word_result["word_count"],
                     "singapore_context": singapore_result["passed"],
                     "legal_realism": legal_realism_result["realism_score"],
+                    "exam_likeness": exam_likeness_result["exam_likeness_score"],
                 },
             }
 
