@@ -118,6 +118,10 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
+module = ["src.tui.*", "src.services.*"]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
 module = [
     "chromadb.*",
     "ollama.*",
