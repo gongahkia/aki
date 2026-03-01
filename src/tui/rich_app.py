@@ -1551,6 +1551,14 @@ class JikaiTUI:
         method = _select_quit("Method", choices=METHOD_CHOICES)
         if method is None:
             return
+        max_parallel = _validated_text(
+            "Max parallel jobs (1-10)",
+            default="3",
+            validate=_validate_number(1, 10),
+        )
+        if max_parallel is None:
+            return
+        max_parallel_jobs = int(max_parallel)
         if not _confirm(f"Generate {count} hypotheticals?", default=True):
             return
 
@@ -1569,48 +1577,58 @@ class JikaiTUI:
             console=console,
         ) as progress:
             task = progress.add_task("[cyan]Generating batch", total=count)
+            planned_topics: List[str] = []
             for i in range(count):
-                # Pick topic based on strategy
-                if strategy == "balanced":
-                    topic = topics_list[i % len(topics_list)]
-                elif strategy == "specified":
-                    topic = topics_list[i % len(topics_list)]
+                if strategy in ("balanced", "specified"):
+                    planned_topics.append(topics_list[i % len(topics_list)])
                 else:
                     import random
 
-                    topic = random.choice(topics_list)
-                progress.update(
-                    task,
-                    description=f"[cyan]Generating {i+1}/{count}: {topic}",
-                )
-                try:
+                    planned_topics.append(random.choice(topics_list))
 
-                    async def _gen(t=topic):
-                        req = GenerationRequest(
-                            topics=[t],
-                            number_parties=max(2, min(5, int(parties))),
-                            complexity_level=str(complexity),
-                            method=method,
-                            provider=provider,
-                            model=model_name or None,
-                            correlation_id=self._new_correlation_id(),
+            async def _run_batch() -> List[Dict[str, Any]]:
+                semaphore = asyncio.Semaphore(max_parallel_jobs)
+                batch_results: List[Dict[str, Any]] = [None] * len(planned_topics)  # type: ignore[list-item]
+
+                async def _worker(index: int, topic: str):
+                    async with semaphore:
+                        progress.update(
+                            task,
+                            description=f"[cyan]Generating {index+1}/{count}: {topic}",
                         )
-                        return await hypothetical_service.generate_hypothetical(req)
+                        try:
+                            req = GenerationRequest(
+                                topics=[topic],
+                                number_parties=max(2, min(5, int(parties))),
+                                complexity_level=str(complexity),
+                                method=method,
+                                provider=provider,
+                                model=model_name or None,
+                                correlation_id=self._new_correlation_id(),
+                            )
+                            resp = await hypothetical_service.generate_hypothetical(req)
+                            score = resp.validation_results.get("quality_score", 0.0)
+                            batch_results[index] = {
+                                "topic": topic,
+                                "score": score,
+                                "words": len(resp.hypothetical.split()),
+                            }
+                        except Exception as e:
+                            batch_results[index] = {
+                                "topic": topic,
+                                "score": 0.0,
+                                "words": 0,
+                                "error": str(e),
+                            }
+                        finally:
+                            progress.advance(task)
 
-                    resp = _run_async(_gen(topic))
-                    score = resp.validation_results.get("quality_score", 0.0)
-                    results.append(
-                        {
-                            "topic": topic,
-                            "score": score,
-                            "words": len(resp.hypothetical.split()),
-                        }
-                    )
-                except Exception as e:
-                    results.append(
-                        {"topic": topic, "score": 0.0, "words": 0, "error": str(e)}
-                    )
-                progress.advance(task)
+                await asyncio.gather(
+                    *(_worker(i, topic) for i, topic in enumerate(planned_topics))
+                )
+                return [r for r in batch_results if r is not None]
+
+            results = _run_async(_run_batch())
 
         # Summary table
         st = Table(title=f"Batch Results ({count} hypotheticals)", box=box.ROUNDED)
