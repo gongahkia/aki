@@ -196,6 +196,18 @@ class HypotheticalService:
         )
 
     @staticmethod
+    def _resolve_deterministic_seed(request: GenerationRequest) -> Optional[int]:
+        """Resolve optional deterministic seed from user preferences."""
+        preferences = request.user_preferences or {}
+        raw_seed = preferences.get("seed")
+        if raw_seed in (None, ""):
+            return None
+        try:
+            return int(raw_seed)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
     def _cache_key(request: GenerationRequest) -> str:
         payload = {
             "topics": sorted(request.topics),
@@ -403,6 +415,7 @@ class HypotheticalService:
                     "timeout_seconds": self._resolve_timeout_override(request),
                     "correlation_id": correlation_id,
                     "analysis_skipped": analysis_skipped,
+                    "deterministic_seed": self._resolve_deterministic_seed(request),
                     "cache_hit": False,
                     "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
@@ -625,10 +638,21 @@ class HypotheticalService:
                     f"{request.user_preferences['feedback']}"
                 )
 
+            seed = self._resolve_deterministic_seed(request)
+            if seed is not None:
+                user_prompt += (
+                    "\n\nDETERMINISTIC DEMO MODE:\n"
+                    f"- Use deterministic reasoning seed: {seed}\n"
+                    "- Keep structure and party chronology stable.\n"
+                    "- Avoid random alternative phrasings.\n"
+                )
+
             # Create LLM request
             temp = 0.7
             if request.user_preferences and "temperature" in request.user_preferences:
                 temp = float(request.user_preferences["temperature"])
+            if seed is not None:
+                temp = 0.0
             temp = max(0.0, min(2.0, temp))  # clamp temperature
             timeout_override = self._resolve_timeout_override(request)
             llm_request = LLMRequest(
