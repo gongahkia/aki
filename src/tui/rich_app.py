@@ -34,6 +34,7 @@ from . import generation as generation_module
 from . import history as history_module
 from . import menus as menus_module
 from . import providers as providers_module
+from . import runtime as runtime_module
 from . import settings as settings_module
 from . import tools_flow as tools_flow_module
 from .history_models import validate_history_records
@@ -778,7 +779,7 @@ class JikaiTUI:
             elif choice == "scrape":
                 self.scrape_flow()
             elif choice == "corpus":
-                self.corpus_flow()
+                runtime_module.dispatch_flow(self, "corpus")
             elif choice == "label":
                 self.label_flow()
             elif choice == "train":
@@ -786,7 +787,7 @@ class JikaiTUI:
             elif choice == "embed":
                 self.embed_flow()
             elif choice == "gen":
-                self.generate_flow()
+                runtime_module.dispatch_flow(self, "generate")
             elif choice == "export":
                 self.export_flow()
             elif choice == "more":
@@ -799,15 +800,15 @@ class JikaiTUI:
                     self._pop_nav()
                     continue
             elif choice == "tools":
-                self._tools_menu()
+                runtime_module.dispatch_flow(self, "tools")
             elif choice == "history":
-                self.history_flow()
+                runtime_module.dispatch_flow(self, "history")
             elif choice == "stats":
                 self.stats_flow()
             elif choice == "settings":
-                self.settings_flow()
+                runtime_module.dispatch_flow(self, "settings")
             elif choice == "providers":
-                self.providers_flow()
+                runtime_module.dispatch_flow(self, "providers")
             # Pop nav after returning from submenu
             if choice in _flow_labels:
                 self._pop_nav()
@@ -844,19 +845,19 @@ class JikaiTUI:
             if c in _labels:
                 self._push_nav(_labels[c])
             if c == "history":
-                self.history_flow()
+                runtime_module.dispatch_flow(self, "history")
             elif c == "stats":
                 self.stats_flow()
             elif c == "tools":
-                result = self._tools_menu()
+                result = runtime_module.dispatch_flow(self, "tools")
                 if result == "__jump_gen__":
                     if c in _labels:
                         self._pop_nav()
                     return "__jump_gen__"
             elif c == "settings":
-                self.settings_flow()
+                runtime_module.dispatch_flow(self, "settings")
             elif c == "providers":
-                self.providers_flow()
+                runtime_module.dispatch_flow(self, "providers")
             elif c == "guided":
                 self.guided_mode()
             elif c == "cleanup":
@@ -4698,12 +4699,7 @@ class JikaiTUI:
             raise SystemExit(1) from exc
 
     def run(self):
-        self._assert_required_corpus_ready()
-        self.display_banner()
-        self._start_services()
-        if self._needs_first_run():
-            self.first_run_wizard()
-        self.main_menu()
+        runtime_module.run_runtime(self)
 
 
 if __name__ == "__main__":
