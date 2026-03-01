@@ -1862,10 +1862,22 @@ class JikaiTUI:
 
     def _save_state(self, state: TUIState):
         """Save state to .jikai_state."""
-        tmp = ".jikai_state.tmp"
-        with open(tmp, "w") as f:
-            json.dump(state.to_dict(), f, indent=2)
-        os.rename(tmp, ".jikai_state")  # atomic write
+        target = Path(".jikai_state")
+        backup = Path(".jikai_state.bak")
+        tmp = target.with_suffix(".tmp")
+
+        payload = json.dumps(state.to_dict(), indent=2)
+        with open(tmp, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        if target.exists():
+            try:
+                backup.write_text(target.read_text(encoding="utf-8"), encoding="utf-8")
+            except Exception:
+                pass
+        os.replace(tmp, target)  # atomic replace
 
     def _generate_flow_impl(self):
         while True:
