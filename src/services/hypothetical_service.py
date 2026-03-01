@@ -357,6 +357,11 @@ class HypotheticalService:
                 for key, _ in oldest_keys:
                     self._response_cache.pop(key, None)
 
+    async def clear_response_cache(self) -> None:
+        """Clear local response cache under existing cache lock."""
+        async with self._response_cache_lock:
+            self._response_cache.clear()
+
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline."""
         if self._ml_pipeline is None:

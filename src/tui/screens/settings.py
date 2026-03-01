@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -119,7 +120,9 @@ class SettingsScreen(Screen):
             clear_cache = getattr(self._generation_service, "clear_response_cache", None)
             if clear_cache is None:
                 raise AttributeError("Generation service does not expose clear_response_cache")
-            clear_cache()
+            maybe_result = clear_cache()
+            if asyncio.iscoroutine(maybe_result):
+                await maybe_result
             status.update("Settings status: local response cache cleared")
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
