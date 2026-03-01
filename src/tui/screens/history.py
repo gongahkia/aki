@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any, Dict, List
 
 from textual.app import ComposeResult
@@ -18,11 +19,13 @@ class HistoryScreen(Screen):
     BINDINGS = [
         Binding("left", "prev_page", "Prev"),
         Binding("right", "next_page", "Next"),
+        Binding("enter", "show_detail", "Detail"),
         Binding("escape", "close", "Close"),
     ]
 
     _all_records: List[Dict[str, Any]] = []
     _filtered_records: List[Dict[str, Any]] = []
+    _page_records: List[Dict[str, Any]] = []
     _page_size = 20
     _page = 0
 
@@ -38,6 +41,10 @@ class HistoryScreen(Screen):
                 )
             yield DataTable(id="history-table")
             yield Static("Page 1/1", id="history-page")
+            with Horizontal():
+                yield Static("Hypothetical", id="detail-hypothetical")
+                yield Static("Analysis", id="detail-analysis")
+                yield Static("Metadata", id="detail-metadata")
             yield Static("Use left/right to paginate.", id="screen-help")
 
     def on_mount(self) -> None:
@@ -64,6 +71,9 @@ class HistoryScreen(Screen):
 
     def action_close(self) -> None:
         self.dismiss()
+
+    def action_show_detail(self) -> None:
+        self._update_detail_from_cursor()
 
     def action_prev_page(self) -> None:
         if self._page > 0:
@@ -132,6 +142,7 @@ class HistoryScreen(Screen):
         start = self._page * self._page_size
         end = start + self._page_size
         page_records = self._filtered_records[start:end]
+        self._page_records = page_records
 
         for record in page_records:
             request = record.get("request") or {}
@@ -152,3 +163,23 @@ class HistoryScreen(Screen):
         page_label.update(
             f"Page {self._page + 1}/{total_pages} | records={len(self._filtered_records)}"
         )
+        self._update_detail_from_cursor()
+
+    def _update_detail_from_cursor(self) -> None:
+        table = self.query_one("#history-table", DataTable)
+        if not self._page_records:
+            self.query_one("#detail-hypothetical", Static).update("Hypothetical: -")
+            self.query_one("#detail-analysis", Static).update("Analysis: -")
+            self.query_one("#detail-metadata", Static).update("Metadata: -")
+            return
+
+        row_index = max(0, min(table.cursor_row, len(self._page_records) - 1))
+        record = self._page_records[row_index]
+        response = record.get("response") or {}
+        hypothetical = str(response.get("hypothetical", ""))[:400] or "-"
+        analysis = str(response.get("analysis", ""))[:400] or "-"
+        metadata = json.dumps(response.get("metadata", {}), indent=2)[:400] or "-"
+
+        self.query_one("#detail-hypothetical", Static).update(hypothetical)
+        self.query_one("#detail-analysis", Static).update(analysis)
+        self.query_one("#detail-metadata", Static).update(metadata)
