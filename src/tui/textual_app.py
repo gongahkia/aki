@@ -11,6 +11,8 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Static
 
+from .navigation import ROUTE_MAP
+
 
 class _BaseScreen(Screen):
     """Simple base screen with a title and helper copy."""
@@ -25,23 +27,23 @@ class _BaseScreen(Screen):
 
 
 class HomeScreen(_BaseScreen):
-    screen_title = "Home"
-    screen_help = "Use global shortcuts to navigate core workflows."
+    screen_title = ROUTE_MAP["home"].label
+    screen_help = ROUTE_MAP["home"].description
 
 
 class GenerateScreen(_BaseScreen):
-    screen_title = "Generate"
-    screen_help = "Generation workflow entry point."
+    screen_title = ROUTE_MAP["generate"].label
+    screen_help = ROUTE_MAP["generate"].description
 
 
 class HistoryScreen(_BaseScreen):
-    screen_title = "History"
-    screen_help = "Browse generation history."
+    screen_title = ROUTE_MAP["history"].label
+    screen_help = ROUTE_MAP["history"].description
 
 
 class ProvidersScreen(_BaseScreen):
-    screen_title = "Providers"
-    screen_help = "Inspect provider health and defaults."
+    screen_title = ROUTE_MAP["providers"].label
+    screen_help = ROUTE_MAP["providers"].description
 
 
 class HelpScreen(_BaseScreen):
