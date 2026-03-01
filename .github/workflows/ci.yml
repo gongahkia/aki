@@ -15,96 +15,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Lint changed Python files
-        shell: bash
+      - name: Lint source and tests
         run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-          fi
-
-          if [[ -z "${BASE_SHA:-}" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-            CHANGED_PY_FILES="$(git show --pretty='' --name-only "${{ github.sha }}" -- '*.py' || true)"
-          else
-            CHANGED_PY_FILES="$(git diff --name-only "$BASE_SHA" "${{ github.sha }}" -- '*.py' || true)"
-          fi
-
-          FILES_TO_CHECK=()
-          while IFS= read -r file; do
-            [[ -n "$file" ]] || continue
-            [[ -f "$file" ]] || continue
-            FILES_TO_CHECK+=("$file")
-          done <<< "$CHANGED_PY_FILES"
-
-          if [[ "${#FILES_TO_CHECK[@]}" -eq 0 ]]; then
-            echo "No changed Python files to lint."
-            exit 0
-          fi
-
-          echo "Running lint on changed files:"
-          printf ' - %s\n' "${FILES_TO_CHECK[@]}"
-          flake8 "${FILES_TO_CHECK[@]}"
-          isort --check-only "${FILES_TO_CHECK[@]}"
-          black --check "${FILES_TO_CHECK[@]}"
+          flake8 src tests
+          isort --check-only src tests
+          black --check src tests
 
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: mypy src/ --ignore-missing-imports || true
-      - name: Mypy changed Python files (enforced)
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-          fi
-
-          if [[ -z "${BASE_SHA:-}" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-            CHANGED_PY_FILES="$(git show --pretty='' --name-only "${{ github.sha }}" -- '*.py' || true)"
-          else
-            CHANGED_PY_FILES="$(git diff --name-only "$BASE_SHA" "${{ github.sha }}" -- '*.py' || true)"
-          fi
-
-          if [[ -z "$CHANGED_PY_FILES" ]]; then
-            echo "No changed Python files to type-check."
-            exit 0
-          fi
-
-          FILES_TO_CHECK=()
-          while IFS= read -r file; do
-            [[ -n "$file" ]] || continue
-            [[ -f "$file" ]] || continue
-            FILES_TO_CHECK+=("$file")
-          done <<< "$CHANGED_PY_FILES"
-
-          if [[ "${#FILES_TO_CHECK[@]}" -eq 0 ]]; then
-            echo "No existing changed Python files to type-check."
-            exit 0
-          fi
-
-          echo "Running mypy on changed files:"
-          printf ' - %s\n' "${FILES_TO_CHECK[@]}"
-          mypy --ignore-missing-imports --follow-imports=skip "${FILES_TO_CHECK[@]}"
+      - name: Type-check source and tests
+        run: mypy src tests --ignore-missing-imports --follow-imports=skip
 
   test:
     name: Test (Python ${{ matrix.python-version }})
