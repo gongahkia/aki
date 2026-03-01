@@ -26,7 +26,7 @@ async def persist_stream_generation(
     """Persist a stream-generated result for report/regenerate workflows."""
     from ...services.database_service import database_service
 
-    request_data = {
+    request_data: Dict[str, Any] = {
         "topics": [topic],
         "law_domain": "tort",
         "number_parties": parties,
@@ -47,7 +47,7 @@ async def persist_stream_generation(
             cancellation_metadata
         )
 
-    response_data = {
+    response_data: Dict[str, Any] = {
         "hypothetical": hypothetical,
         "analysis": "",
         "metadata": {

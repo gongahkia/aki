@@ -3,6 +3,8 @@ Hypothetical Generation Service - Main orchestration service for generating lega
 Combines prompt engineering, LLM service, and corpus service to create high-quality legal scenarios.
 """
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json
@@ -10,7 +12,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 import time
-from typing import Any, Awaitable, Dict, List, Optional
+from typing import Any, Awaitable, Dict, List, Optional, cast
 
 import structlog
 from pydantic import BaseModel, Field, field_validator
@@ -23,6 +25,8 @@ try:
     _HAS_CORPUS = True
 except (ImportError, ModuleNotFoundError):
     _HAS_CORPUS = False
+    CorpusQuery = Any  # type: ignore[misc,assignment]
+    HypotheticalEntry = Any  # type: ignore[misc,assignment]
     corpus_service = None  # type: ignore[assignment]
 from .database_service import database_service
 from .llm_service import LLMRequest, llm_service
@@ -248,7 +252,7 @@ class HypotheticalService:
         if raw_seed in (None, ""):
             return None
         try:
-            return int(raw_seed)
+            return int(cast(Any, raw_seed))
         except (TypeError, ValueError):
             return None
 
@@ -707,6 +711,14 @@ class HypotheticalService:
             )
 
         # Fallback: keyword-based corpus query
+        if not _HAS_CORPUS or self.corpus_service is None:
+            logger.warning(
+                "Corpus service unavailable; proceeding without context entries",
+                topics=request.topics,
+                correlation_id=request.correlation_id,
+            )
+            return []
+
         context_entries = []
         try:
             query = CorpusQuery(

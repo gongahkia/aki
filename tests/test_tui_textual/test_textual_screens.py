@@ -1,6 +1,7 @@
 """Textual screen unit tests for navigation and generate interactions."""
 
 from types import SimpleNamespace
+from typing import Any
 
 from src.tui.screens.generate import GenerateFormScreen
 from src.tui.textual_app import JikaiTextualApp
@@ -35,7 +36,7 @@ def test_navigation_bindings_include_core_routes():
 def test_generate_form_validation_flags_invalid_parties(monkeypatch):
     screen = GenerateFormScreen(provider_service=SimpleNamespace(stream_generate=None))
 
-    widgets = {
+    widgets: dict[str, Any] = {
         "#topics": _FakeInput("negligence, causation"),
         "#parties": _FakeInput("1"),
         "#complexity": _FakeSelect("intermediate"),
@@ -54,7 +55,7 @@ def test_generate_form_validation_flags_invalid_parties(monkeypatch):
 def test_generate_post_action_updates_status(monkeypatch):
     screen = GenerateFormScreen(provider_service=SimpleNamespace(stream_generate=None))
 
-    widgets = {
+    widgets: dict[str, Any] = {
         "#action-status": _FakeStatic("Action dock: idle"),
     }
     monkeypatch.setattr(screen, "query_one", lambda selector, *_: widgets[selector])

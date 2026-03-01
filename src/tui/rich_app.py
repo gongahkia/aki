@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-import time
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -193,6 +192,7 @@ REPORT_ISSUE_CHOICES = [
     Choice("Factual inconsistency", value="factual_inconsistency"),
     Choice("Other issue", value="other"),
 ]
+
 
 def _select(message, choices):
     """Arrow-key select menu. Returns value or None on Ctrl+C."""

@@ -2,7 +2,7 @@
 
 import subprocess
 import sys
-from typing import Callable, Sequence
+from typing import Callable, Protocol, Sequence
 
 from rich.console import Console
 from rich.progress import (
@@ -13,7 +13,9 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-ConfirmFn = Callable[[str, bool], bool]
+
+class ConfirmFn(Protocol):
+    def __call__(self, message: str, default: bool = False) -> bool: ...
 
 
 def request_install_confirmation(

@@ -7,12 +7,10 @@ jikai.egg-info/entry_points.txt
 jikai.egg-info/requires.txt
 jikai.egg-info/top_level.txt
 src/warmup.py
-src/api/__init__.py
-src/api/main.py
-src/api/web.py
 src/config/__init__.py
 src/config/settings.py
 src/domain/__init__.py
+src/domain/packs.py
 src/domain/topics.py
 src/ml/__init__.py
 src/ml/classifier.py
@@ -28,6 +26,7 @@ src/services/error_mapper.py
 src/services/hypothetical_service.py
 src/services/llm_service.py
 src/services/migrations.py
+src/services/preview_estimator.py
 src/services/scraper_service.py
 src/services/startup_checks.py
 src/services/topic_guard.py
@@ -47,6 +46,7 @@ src/tui/__init__.py
 src/tui/__main__.py
 src/tui/app_runner.py
 src/tui/contracts.py
+src/tui/corpus.py
 src/tui/generation.py
 src/tui/history.py
 src/tui/history_models.py
@@ -57,9 +57,11 @@ src/tui/models.py
 src/tui/navigation.py
 src/tui/providers.py
 src/tui/rich_app.py
+src/tui/runtime.py
 src/tui/settings.py
 src/tui/state.py
 src/tui/textual_app.py
+src/tui/tools_flow.py
 src/tui/legacy/__init__.py
 src/tui/legacy/rich_app.py
 src/tui/screens/__init__.py

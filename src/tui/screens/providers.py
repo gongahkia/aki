@@ -16,6 +16,7 @@ from ...services.error_mapper import map_exception
 from ..logging import log_tui_event
 from ..services import latency_metrics
 
+
 class ProvidersScreen(Screen):
     """Manage provider availability and default provider/model selection."""
 

@@ -2,6 +2,7 @@
 
 import sys
 from types import SimpleNamespace
+from typing import Any
 
 from src.services.hypothetical_service import GenerationResponse
 from src.tui import JikaiTUI
@@ -11,7 +12,7 @@ from src.tui.state import LastGenerationConfig, TUIState
 
 def test_generate_flow_quick_uses_saved_defaults(monkeypatch):
     app = JikaiTUI()
-    captured = {}
+    captured: dict[str, Any] = {}
 
     select_values = iter(["quick", "negligence"])
     confirm_values = iter([True, True, False])
@@ -91,7 +92,7 @@ def test_report_regenerate_requires_issue_flags(monkeypatch):
 
 def test_set_default_provider_flow(monkeypatch):
     app = JikaiTUI()
-    selected = {}
+    selected: dict[str, Any] = {}
 
     fake_llm_service = SimpleNamespace(
         select_provider=lambda provider: selected.setdefault("provider", provider)
@@ -110,7 +111,7 @@ def test_set_default_provider_flow(monkeypatch):
 
 def test_history_browse_flow_invokes_display(monkeypatch):
     app = JikaiTUI()
-    displayed = {}
+    displayed: dict[str, Any] = {}
     history = [
         {
             "timestamp": "2026-01-01T00:00:00",
@@ -139,7 +140,7 @@ def test_history_browse_flow_invokes_display(monkeypatch):
 
 def test_persist_stream_generation_stores_cancellation_snapshot(monkeypatch):
     app = JikaiTUI()
-    captured = {}
+    captured: dict[str, Any] = {}
 
     async def fake_save_generation(**kwargs):
         captured.update(kwargs)
@@ -181,7 +182,7 @@ def test_persist_stream_generation_stores_cancellation_snapshot(monkeypatch):
 
 def test_report_regenerate_persists_lineage_metadata(monkeypatch):
     app = JikaiTUI()
-    saved = {}
+    saved: dict[str, Any] = {}
 
     async def fake_save_generation_report(**kwargs):
         return 11

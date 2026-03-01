@@ -1,5 +1,7 @@
 """Tests for ML classifier."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
@@ -9,7 +11,7 @@ from scipy.sparse import csr_matrix
 def small_dataset():
     """Small fixture dataset for testing."""
     X = csr_matrix(np.random.rand(20, 50))
-    y = np.zeros((20, 3), dtype=int)
+    y: Any = np.zeros((20, 3), dtype=int)
     for i in range(20):
         y[i, i % 3] = 1
     return X, y

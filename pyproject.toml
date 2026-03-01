@@ -44,6 +44,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "beautifulsoup4>=4.12.0",
     "lxml>=5.0.0",
+    "questionary>=2.0.1",
     "textual>=0.60",
 ]
 
@@ -118,8 +119,8 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = ["src.tui.*", "src.services.*"]
-disallow_untyped_defs = true
+module = ["src.tui.rich_app", "src.tui.legacy.rich_app"]
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [

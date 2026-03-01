@@ -1,5 +1,6 @@
 """Tests for local response cache in HypotheticalService."""
 
+from typing import Any, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -40,12 +41,13 @@ async def test_generate_hypothetical_uses_cached_response():
     service = HypotheticalService()
     service._response_cache_enabled = True
     service._response_cache_ttl_seconds = 60
+    service_any = cast(Any, service)
 
-    service._get_relevant_context = AsyncMock(return_value=[])
-    service._generate_hypothetical_text = AsyncMock(
+    service_any._get_relevant_context = AsyncMock(return_value=[])
+    service_any._generate_hypothetical_text = AsyncMock(
         return_value="A negligence hypothetical with sufficient length for testing."
     )
-    service._validate_hypothetical = AsyncMock(
+    service_any._validate_hypothetical = AsyncMock(
         return_value=ValidationResult(
             adherence_check={"passed": True},
             similarity_check={"passed": True},
@@ -53,7 +55,7 @@ async def test_generate_hypothetical_uses_cached_response():
             passed=True,
         )
     )
-    service._generate_legal_analysis = AsyncMock(return_value="")
+    service_any._generate_legal_analysis = AsyncMock(return_value="")
     service.database_service.save_generation = AsyncMock(return_value=101)
 
     request = GenerationRequest(
@@ -78,12 +80,13 @@ async def test_seeded_requests_reuse_cache_for_identical_seed():
     service = HypotheticalService()
     service._response_cache_enabled = True
     service._response_cache_ttl_seconds = 60
+    service_any = cast(Any, service)
 
-    service._get_relevant_context = AsyncMock(return_value=[])
-    service._generate_hypothetical_text = AsyncMock(
+    service_any._get_relevant_context = AsyncMock(return_value=[])
+    service_any._generate_hypothetical_text = AsyncMock(
         return_value="Seeded deterministic hypothetical output for cache test."
     )
-    service._validate_hypothetical = AsyncMock(
+    service_any._validate_hypothetical = AsyncMock(
         return_value=ValidationResult(
             adherence_check={"passed": True},
             similarity_check={"passed": True},
@@ -91,7 +94,7 @@ async def test_seeded_requests_reuse_cache_for_identical_seed():
             passed=True,
         )
     )
-    service._generate_legal_analysis = AsyncMock(return_value="")
+    service_any._generate_legal_analysis = AsyncMock(return_value="")
     service.database_service.save_generation = AsyncMock(return_value=102)
 
     request = GenerationRequest(
@@ -115,15 +118,16 @@ async def test_seeded_requests_do_not_share_cache_across_different_seeds():
     service = HypotheticalService()
     service._response_cache_enabled = True
     service._response_cache_ttl_seconds = 60
+    service_any = cast(Any, service)
 
-    service._get_relevant_context = AsyncMock(return_value=[])
-    service._generate_hypothetical_text = AsyncMock(
+    service_any._get_relevant_context = AsyncMock(return_value=[])
+    service_any._generate_hypothetical_text = AsyncMock(
         side_effect=[
             "Seed 111 output for regression test.",
             "Seed 222 output for regression test.",
         ]
     )
-    service._validate_hypothetical = AsyncMock(
+    service_any._validate_hypothetical = AsyncMock(
         return_value=ValidationResult(
             adherence_check={"passed": True},
             similarity_check={"passed": True},
@@ -131,7 +135,7 @@ async def test_seeded_requests_do_not_share_cache_across_different_seeds():
             passed=True,
         )
     )
-    service._generate_legal_analysis = AsyncMock(return_value="")
+    service_any._generate_legal_analysis = AsyncMock(return_value="")
     service.database_service.save_generation = AsyncMock(return_value=103)
 
     request_a = GenerationRequest(

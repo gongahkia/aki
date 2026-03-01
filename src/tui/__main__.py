@@ -5,7 +5,7 @@ import argparse
 from .app_runner import run
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Jikai - Legal Hypothetical Generator")
     parser.add_argument(
         "--ui",

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Dict
+from typing import Any, Dict
 
 from textual import on
 from textual.app import App, ComposeResult
@@ -152,7 +152,9 @@ class JikaiTextualApp(App[None]):
         Binding("home", "show_home", "Home"),
     ]
 
-    def __init__(self, *, provider_service=None, corpus_service=None) -> None:
+    def __init__(
+        self, *, provider_service: Any = None, corpus_service: Any = None
+    ) -> None:
         super().__init__()
         if provider_service is None:
             from ..services.llm_service import llm_service
@@ -173,10 +175,10 @@ class JikaiTextualApp(App[None]):
             "help": HelpScreen(),
         }
 
-    def get_provider_service(self):
+    def get_provider_service(self) -> Any:
         return self._provider_service
 
-    def get_corpus_service(self):
+    def get_corpus_service(self) -> Any:
         return self._corpus_service
 
     def compose(self) -> ComposeResult:

@@ -671,7 +671,7 @@ class ValidationService:
                 (singapore_context_score * 0.32)
                 + (procedure_score * 0.23)
                 + (timeline_score * 0.1)
-                + (chronology_score * 0.2),
+                + (chronology_score * 0.2)
                 + (party_role_score * 0.15),
                 3,
             )

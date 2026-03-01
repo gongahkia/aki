@@ -24,7 +24,7 @@ async def test_semantic_search_returns_empty_when_top_similarity_below_threshold
         ],
         "distances": [[10.0, 11.0]],
     }
-    service._embed_text = lambda _: [0.1, 0.2]  # type: ignore[method-assign]
+    service._embed_text = lambda text: [0.1, 0.2]  # type: ignore[method-assign]
 
     results = await service.semantic_search(
         query_topics=["negligence"],
@@ -53,7 +53,7 @@ async def test_semantic_search_filters_results_below_threshold():
         ],
         "distances": [[0.1, 0.4, 3.0]],
     }
-    service._embed_text = lambda _: [0.1, 0.2]  # type: ignore[method-assign]
+    service._embed_text = lambda text: [0.1, 0.2]  # type: ignore[method-assign]
 
     results = await service.semantic_search(
         query_topics=["negligence"],

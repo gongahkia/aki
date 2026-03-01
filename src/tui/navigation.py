@@ -25,4 +25,3 @@ ROUTES: Tuple[Route, ...] = (
 )
 
 ROUTE_MAP: Dict[str, Route] = {route.key: route for route in ROUTES}
-

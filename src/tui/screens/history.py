@@ -18,6 +18,7 @@ from ...services.error_mapper import map_exception
 from ..logging import log_tui_event
 from ..services import latency_metrics
 
+
 class HistoryScreen(Screen):
     """SQLite-backed generation history browser."""
 

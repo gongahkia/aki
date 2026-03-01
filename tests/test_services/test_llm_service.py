@@ -2,6 +2,7 @@
 Tests for LLM Service.
 """
 
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -217,8 +218,9 @@ class TestLLMService:
             service = LLMService()
             service._default_provider = "ollama"
             service._default_model = None
-            service._providers = providers
-            service._registry = mock_reg
+            service_any = cast(Any, service)
+            service_any._providers = providers
+            service_any._registry = mock_reg
             yield service
 
     @pytest.mark.asyncio

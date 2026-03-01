@@ -20,7 +20,7 @@ class ProviderHealthCache:
 
     def get_snapshot(
         self,
-        fetch_snapshot: Callable[[], Tuple[Dict[str, Any], Dict[str, List[str]]]],
+        fetch_snapshot: Callable[[], Tuple[Dict[str, Any], Dict[str, Any]]],
         *,
         force_refresh: bool = False,
     ) -> Tuple[Dict[str, Any], Dict[str, List[str]]]:

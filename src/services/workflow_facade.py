@@ -8,16 +8,11 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from ..domain import canonicalize_topic
-from .corpus_service import CorpusService, corpus_service
-from .database_service import (
-    DatabaseService,
-    GenerationReport,
-    database_service,
-)
+from .corpus_service import corpus_service
+from .database_service import GenerationReport, database_service
 from .hypothetical_service import (
     GenerationRequest,
     GenerationResponse,
-    HypotheticalService,
     hypothetical_service,
 )
 from .topic_guard import canonicalize_and_validate_topics
@@ -57,9 +52,9 @@ class WorkflowFacade:
     def __init__(
         self,
         *,
-        corpus_service: CorpusService = corpus_service,
-        hypothetical_service: HypotheticalService = hypothetical_service,
-        database_service: DatabaseService = database_service,
+        corpus_service: Any = corpus_service,
+        hypothetical_service: Any = hypothetical_service,
+        database_service: Any = database_service,
     ):
         self._corpus_service = corpus_service
         self._hypothetical_service = hypothetical_service

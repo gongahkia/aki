@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Dict, Mapping, Tuple
 
-from .topics import TOPIC_ALIASES, TORT_TOPICS, all_tort_topic_keys, canonicalize_topic, is_tort_topic
+from .topics import (
+    TOPIC_ALIASES,
+    all_tort_topic_keys,
+    canonicalize_topic,
+    is_tort_topic,
+)
 
 
 @dataclass(frozen=True)

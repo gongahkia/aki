@@ -1,6 +1,7 @@
 """Tests for vector indexing guard and keyword fallback behavior."""
 
 import asyncio
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -15,22 +16,27 @@ async def test_keyword_fallback_used_when_index_not_ready(monkeypatch):
     service._index_task = None
     service._vector_service = AsyncMock()
     service._vector_service.semantic_search = AsyncMock(return_value=[])
-    service._ensure_background_indexing = MagicMock()
-    service.load_corpus = AsyncMock(
-        return_value=[
-            HypotheticalEntry(
-                id="1",
-                text="Negligence scenario in Singapore",
-                topics=["negligence", "duty_of_care"],
-            )
-        ]
+    mock_ensure = MagicMock()
+    monkeypatch.setattr(service, "_ensure_background_indexing", mock_ensure)
+    monkeypatch.setattr(
+        service,
+        "load_corpus",
+        AsyncMock(
+            return_value=[
+                HypotheticalEntry(
+                    id="1",
+                    text="Negligence scenario in Singapore",
+                    topics=["negligence", "duty_of_care"],
+                )
+            ]
+        ),
     )
 
     query = CorpusQuery(topics=["negligence"], sample_size=1)
     results = await service.query_relevant_hypotheticals(query)
 
     assert len(results) == 1
-    service._ensure_background_indexing.assert_called_once()
+    mock_ensure.assert_called_once()
     service._vector_service.semantic_search.assert_not_called()
 
 
@@ -43,7 +49,7 @@ def test_background_indexing_guard_avoids_duplicate_tasks(monkeypatch):
             return False
 
     pending_task = _PendingTask()
-    service._index_task = pending_task
+    service._index_task = cast(Any, pending_task)
     create_task = MagicMock()
     monkeypatch.setattr(asyncio, "create_task", create_task)
 
@@ -60,14 +66,18 @@ async def test_keyword_fallback_used_when_semantic_search_fails(monkeypatch):
     service._vector_service.semantic_search = AsyncMock(
         side_effect=RuntimeError("vector init failed")
     )
-    service.load_corpus = AsyncMock(
-        return_value=[
-            HypotheticalEntry(
-                id="1",
-                text="Battery and assault scenario in Singapore",
-                topics=["battery", "assault"],
-            )
-        ]
+    monkeypatch.setattr(
+        service,
+        "load_corpus",
+        AsyncMock(
+            return_value=[
+                HypotheticalEntry(
+                    id="1",
+                    text="Battery and assault scenario in Singapore",
+                    topics=["battery", "assault"],
+                )
+            ]
+        ),
     )
 
     query = CorpusQuery(topics=["battery"], sample_size=1)
@@ -78,19 +88,25 @@ async def test_keyword_fallback_used_when_semantic_search_fails(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_keyword_fallback_used_when_semantic_search_returns_no_matches():
+async def test_keyword_fallback_used_when_semantic_search_returns_no_matches(
+    monkeypatch,
+):
     service = CorpusService()
     service._corpus_indexed = True
     service._vector_service = AsyncMock()
     service._vector_service.semantic_search = AsyncMock(return_value=[])
-    service.load_corpus = AsyncMock(
-        return_value=[
-            HypotheticalEntry(
-                id="1",
-                text="Negligence and breach of duty scenario",
-                topics=["negligence", "duty_of_care"],
-            )
-        ]
+    monkeypatch.setattr(
+        service,
+        "load_corpus",
+        AsyncMock(
+            return_value=[
+                HypotheticalEntry(
+                    id="1",
+                    text="Negligence and breach of duty scenario",
+                    topics=["negligence", "duty_of_care"],
+                )
+            ]
+        ),
     )
 
     query = CorpusQuery(topics=["negligence"], sample_size=1)

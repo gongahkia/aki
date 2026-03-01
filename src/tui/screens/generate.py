@@ -6,7 +6,7 @@ import asyncio
 import re
 import time
 import uuid
-from typing import List
+from typing import Any, List
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -63,7 +63,7 @@ class GenerateFormScreen(Screen):
     _missing_topics: List[str] = []
     _regeneration_feedback: str = ""
 
-    def __init__(self, *, provider_service=None) -> None:
+    def __init__(self, *, provider_service: Any = None) -> None:
         super().__init__()
         if provider_service is None:
             from ...services.llm_service import llm_service
