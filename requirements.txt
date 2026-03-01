@@ -12,6 +12,7 @@ google-generativeai>=0.8
 
 # TUI
 rich>=13.0
+textual>=0.60
 questionary>=2.0.0
 
 # Web Framework & API
