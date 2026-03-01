@@ -116,8 +116,10 @@ class SettingsScreen(Screen):
     async def _clear_local_cache(self) -> None:
         status = self.query_one("#settings-status", Static)
         try:
-            async with self._generation_service._response_cache_lock:
-                self._generation_service._response_cache.clear()
+            clear_cache = getattr(self._generation_service, "clear_response_cache", None)
+            if clear_cache is None:
+                raise AttributeError("Generation service does not expose clear_response_cache")
+            clear_cache()
             status.update("Settings status: local response cache cleared")
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
