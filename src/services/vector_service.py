@@ -65,6 +65,13 @@ class VectorService:
         self._embedding_model = None
         self._initialized = False
 
+    @staticmethod
+    def _collection_metadata(corpus_hash: Optional[str] = None) -> Dict[str, Any]:
+        metadata: Dict[str, Any] = {"description": "Singapore Tort Law Hypotheticals"}
+        if corpus_hash:
+            metadata["corpus_hash"] = corpus_hash
+        return metadata
+
     def _initialize(self):
         """Initialize ChromaDB client and embedding model."""
         try:
@@ -86,7 +93,7 @@ class VectorService:
             # Get or create collection
             self._collection = self._client.get_or_create_collection(
                 name=settings.database.chroma_collection_name,
-                metadata={"description": "Singapore Tort Law Hypotheticals"},
+                metadata=self._collection_metadata(),
             )
             logger.info(
                 "ChromaDB collection ready",
@@ -117,12 +124,28 @@ class VectorService:
         if not self._initialized:
             self._initialize()
 
-    async def index_hypotheticals(self, hypotheticals: List[Dict[str, Any]]) -> int:
+    def get_indexed_corpus_hash(self) -> Optional[str]:
+        """Return corpus hash currently attached to vector collection metadata."""
+        self._ensure_initialized()
+        if not self._initialized or self._collection is None:
+            return None
+        metadata = self._collection.metadata or {}
+        corpus_hash = metadata.get("corpus_hash")
+        if isinstance(corpus_hash, str) and corpus_hash.strip():
+            return corpus_hash.strip()
+        return None
+
+    async def index_hypotheticals(
+        self,
+        hypotheticals: List[Dict[str, Any]],
+        corpus_hash: Optional[str] = None,
+    ) -> int:
         """
         Index hypotheticals in ChromaDB for semantic search.
 
         Args:
             hypotheticals: List of hypothetical entries with 'id', 'text', 'topics', 'metadata'
+            corpus_hash: Optional hash of the source corpus for index freshness checks
 
         Returns:
             Number of entries indexed
@@ -138,7 +161,11 @@ class VectorService:
                 self._client.delete_collection(settings.database.chroma_collection_name)
                 self._collection = self._client.create_collection(
                     name=settings.database.chroma_collection_name,
-                    metadata={"description": "Singapore Tort Law Hypotheticals"},
+                    metadata=self._collection_metadata(corpus_hash),
+                )
+            elif self._collection is not None and corpus_hash:
+                self._collection.modify(
+                    metadata=self._collection_metadata(corpus_hash)
                 )
 
             # Prepare data for indexing
@@ -174,7 +201,11 @@ class VectorService:
                     metadatas=metadatas[i:batch_end],
                 )
 
-            logger.info("Indexed hypotheticals", count=len(ids))
+            logger.info(
+                "Indexed hypotheticals",
+                count=len(ids),
+                corpus_hash=corpus_hash,
+            )
             return len(ids)
 
         except Exception as e:
