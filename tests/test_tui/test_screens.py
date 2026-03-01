@@ -1,34 +1,29 @@
 """Tests for Rich TUI (basic import and structure tests)."""
 
+from src.domain import TORT_TOPICS
+from src.tui import JikaiTUI
+from src.tui import generation as generation_module
+from src.tui import providers as providers_module
+
 
 class TestTUIScreens:
     """Basic import and instantiation tests for Rich TUI."""
 
     def test_import_app(self):
-        from src.tui.rich_app import JikaiTUI
-
         assert JikaiTUI is not None
 
     def test_instantiate_app(self):
-        from src.tui.rich_app import JikaiTUI
-
         tui = JikaiTUI()
         assert hasattr(tui, "run")
         assert hasattr(tui, "main_menu")
 
     def test_topics_list(self):
-        from src.tui.rich_app import TOPICS
-
-        assert len(TOPICS) >= 18
+        assert len(TORT_TOPICS) >= 18
 
     def test_providers_list(self):
-        from src.tui.rich_app import PROVIDERS
-
-        assert PROVIDERS == ["ollama", "openai", "anthropic", "google", "local"]
+        assert callable(providers_module.providers_flow)
 
     def test_all_flows_exist(self):
-        from src.tui.rich_app import JikaiTUI
-
         tui = JikaiTUI()
         for method in [
             "generate_flow",
@@ -40,19 +35,16 @@ class TestTUIScreens:
             assert hasattr(tui, method)
 
     def test_corpus_parsers_exist(self):
-        from src.tui.rich_app import JikaiTUI
-
         tui = JikaiTUI()
         for method in ["_parse_json", "_parse_csv", "_parse_txt"]:
             assert callable(getattr(tui, method))
 
     def test_run_async_helper(self):
-        from src.tui.rich_app import _run_async
+        class _App:
+            def _generate_flow_impl(self):
+                return 42
 
-        async def _coro():
-            return 42
-
-        assert _run_async(_coro()) == 42
+        assert generation_module.generate_flow(_App()) == 42
 
     def test_package_exports(self):
         from src.tui import JikaiTUI

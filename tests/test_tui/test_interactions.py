@@ -4,7 +4,8 @@ import sys
 from types import SimpleNamespace
 
 from src.services.hypothetical_service import GenerationResponse
-from src.tui.rich_app import GenerationConfig, JikaiTUI
+from src.tui import JikaiTUI
+from src.tui.models import GenerationConfig
 from src.tui.state import LastGenerationConfig, TUIState
 
 
