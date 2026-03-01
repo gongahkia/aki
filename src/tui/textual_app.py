@@ -12,7 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Static
 
 from .navigation import ROUTE_MAP
-from .widgets import Breadcrumb
+from .widgets import Breadcrumb, StatusBar
 
 
 class _BaseScreen(Screen):
@@ -26,10 +26,18 @@ class _BaseScreen(Screen):
             yield Breadcrumb(id="breadcrumb")
             yield Label(self.screen_title, id="screen-title")
             yield Static(self.screen_help, id="screen-help")
+            yield StatusBar(id="status-bar")
 
     def on_mount(self) -> None:
         breadcrumb = self.query_one("#breadcrumb", Breadcrumb)
         breadcrumb.set_path(f"Home > {self.screen_title}")
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.set_states(
+            corpus="ok",
+            models="ok",
+            embeddings="warn",
+            provider="unknown",
+        )
 
 
 class HomeScreen(_BaseScreen):
