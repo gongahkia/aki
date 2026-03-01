@@ -8,7 +8,6 @@ import os
 import re
 import time
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -37,7 +36,8 @@ from . import providers as providers_module
 from . import settings as settings_module
 from .history_models import validate_history_records
 from .installer import install_service_dependencies, request_install_confirmation
-from .state import LastGenerationConfig, TUIState
+from .models import GenerationConfig
+from .state import TUIState
 
 console = Console()
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
@@ -428,21 +428,6 @@ def _normalize_complexity_level(value: Any) -> str:
 
 
 HISTORY_PATH = "data/history.json"
-
-
-@dataclass
-class GenerationConfig:
-    """Encapsulates all generation parameters."""
-
-    topic: str
-    provider: str
-    model: Optional[str]
-    complexity: int
-    parties: int
-    method: str
-    temperature: float = 0.7
-    red_herrings: bool = False
-    include_analysis: bool = True
 
 
 class JikaiTUI:
@@ -1997,30 +1982,21 @@ class JikaiTUI:
                 method,
                 include_analysis,
             )
-            self._do_generate(
-                GenerationConfig(
-                    topic=topic,
-                    provider=provider,
-                    model=model_name or None,
-                    complexity=int(complexity),
-                    parties=int(parties),
-                    method=method,
-                    temperature=float(temperature),
-                    red_herrings=red_herrings,
-                    include_analysis=include_analysis,
-                )
-            )
-            # Persist last-used config for quick-generate
-            state = self._load_state()
-            state.last_config = LastGenerationConfig(
+            generation_config = GenerationConfig.from_inputs(
+                topic=topic,
                 provider=provider,
                 model=model_name or None,
-                temperature=float(temperature),
                 complexity=str(complexity),
                 parties=str(parties),
                 method=method,
+                temperature=str(temperature),
+                red_herrings=red_herrings,
                 include_analysis=include_analysis,
             )
+            self._do_generate(generation_config)
+            # Persist last-used config for quick-generate
+            state = self._load_state()
+            state.last_config = generation_config.to_last_config()
             self._save_state(state)
             if not _confirm("Generate another?", default=False):
                 return
