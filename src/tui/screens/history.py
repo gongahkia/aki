@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from typing import Any, Dict, List
 
 from textual.app import ComposeResult
@@ -229,10 +230,14 @@ class HistoryScreen(Screen):
             status.update("Action: selected row has no generation id")
             return
         try:
+            correlation_id = f"tui-regenerate-{uuid.uuid4()}"
             await self._workflow_service.regenerate_generation(
-                generation_id=int(generation_id)
+                generation_id=int(generation_id),
+                correlation_id=correlation_id,
             )
-            status.update(f"Action: regenerated generation_id={generation_id}")
+            status.update(
+                f"Action: regenerated generation_id={generation_id} correlation_id={correlation_id}"
+            )
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: regenerate failed ({mapped.message})")
@@ -247,10 +252,11 @@ class HistoryScreen(Screen):
             response = record.get("response") or {}
             hypothetical = str(response.get("hypothetical", "")).strip()
             generation_id = record.get("id", "unknown")
+            correlation_id = f"tui-export-{uuid.uuid4()}"
             if not hypothetical:
                 status.update("Action: export skipped (empty hypothetical)")
                 return
-            out_path = f"data/export_{generation_id}.txt"
+            out_path = f"data/export_{generation_id}_{correlation_id}.txt"
             with open(out_path, "w", encoding="utf-8") as handle:
                 handle.write(hypothetical)
             status.update(f"Action: exported {out_path}")
@@ -269,12 +275,18 @@ class HistoryScreen(Screen):
             status.update("Action: selected row has no generation id")
             return
         try:
+            correlation_id = f"tui-report-{uuid.uuid4()}"
             await self._workflow_service.save_generation_report(
                 generation_id=int(generation_id),
                 issue_types=["manual_review"],
-                comment="Reported from Textual history screen.",
+                comment=(
+                    "Reported from Textual history screen. "
+                    f"correlation_id={correlation_id}"
+                ),
             )
-            status.update(f"Action: report saved for generation_id={generation_id}")
+            status.update(
+                f"Action: report saved for generation_id={generation_id} correlation_id={correlation_id}"
+            )
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: report failed ({mapped.message})")

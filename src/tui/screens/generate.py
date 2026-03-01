@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import uuid
 from typing import List
 
 import httpx
@@ -243,6 +244,7 @@ class GenerateFormScreen(Screen):
             "sample_size": 3,
             "method": "pure_llm",
             "include_analysis": True,
+            "correlation_id": f"tui-preview-{uuid.uuid4()}",
         }
 
         panel.update("[dim]Loading preview...[/dim]")
@@ -285,6 +287,7 @@ class GenerateFormScreen(Screen):
         state.update("Stream state: streaming")
         chunks: List[str] = []
         saved = False
+        correlation_id = f"tui-stream-{uuid.uuid4()}"
 
         try:
             from ...services.llm_service import LLMRequest
@@ -301,6 +304,7 @@ class GenerateFormScreen(Screen):
                 ),
                 temperature=0.7,
                 stream=True,
+                correlation_id=correlation_id,
             )
             async for chunk in self._provider_service.stream_generate(request):
                 if self._stream_cancelled:
@@ -346,6 +350,7 @@ class GenerateFormScreen(Screen):
                             "cancelled": self._stream_cancelled,
                         },
                         partial_snapshot=self._stream_cancelled,
+                        correlation_id=correlation_id,
                         cancellation_metadata=cancellation_metadata,
                         include_analysis=False,
                     )
