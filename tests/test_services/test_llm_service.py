@@ -316,3 +316,37 @@ class TestLLMService:
         assert llm_service._resolve_request_timeout(low) == 10
         assert llm_service._resolve_request_timeout(high) == 300
         assert llm_service._resolve_request_timeout(default) == 120
+
+    def test_fallback_order_prefers_local_first(self, llm_service):
+        """Fallback provider ordering should prioritize local-first provider lists."""
+        llm_service._registry.list_instances.return_value = [
+            "ollama",
+            "openai",
+            "anthropic",
+        ]
+        llm_service._unhealthy_until = {}
+
+        fallback = llm_service._get_fallback_provider("openai")
+
+        assert fallback == "ollama"
+
+    @pytest.mark.asyncio
+    async def test_generate_uses_local_first_fallback_when_primary_unhealthy(
+        self, llm_service, mock_llm_response
+    ):
+        """Generation should fail over to local provider before cloud alternatives."""
+        llm_service._registry.list_instances.return_value = [
+            "ollama",
+            "openai",
+            "anthropic",
+        ]
+        llm_service._default_provider = "openai"
+        llm_service._providers["ollama"].generate.return_value = mock_llm_response
+        llm_service._unhealthy_until["openai"] = 9999999999.0
+
+        request = LLMRequest(prompt="Test prompt")
+
+        response = await llm_service.generate(request)
+
+        assert response == mock_llm_response
+        llm_service._providers["ollama"].generate.assert_called_once()
