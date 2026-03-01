@@ -210,6 +210,49 @@ class HypotheticalService:
             return None
 
     @staticmethod
+    def _should_retry_for_realism_gate(
+        request: GenerationRequest, validation_results: ValidationResult
+    ) -> bool:
+        if request.retry_attempt > 0:
+            return False
+        if validation_results.passed:
+            return False
+        quality_gate = validation_results.adherence_check.get("quality_gate", {})
+        failed_checks = quality_gate.get("failed_checks", [])
+        return "legal_realism" in failed_checks
+
+    @staticmethod
+    def _build_realism_retry_request(
+        request: GenerationRequest, validation_results: ValidationResult
+    ) -> GenerationRequest:
+        quality_gate = validation_results.adherence_check.get("quality_gate", {})
+        failed_checks = quality_gate.get("failed_checks", [])
+        feedback_reasons = []
+        if "legal_realism" in failed_checks:
+            feedback_reasons.append(
+                "Strengthen Singapore legal realism with concrete venue/procedure details and coherent chronology."
+            )
+        if "quality_score" in failed_checks:
+            feedback_reasons.append(
+                "Increase exam quality by improving topic coverage, party clarity, and factual specificity."
+            )
+        feedback_message = " ".join(feedback_reasons).strip()
+        preferences = dict(request.user_preferences or {})
+        existing_feedback = str(preferences.get("feedback", "")).strip()
+        preferences["feedback"] = (
+            f"{existing_feedback} {feedback_message}".strip()
+            if existing_feedback
+            else feedback_message
+        )
+        return request.model_copy(
+            update={
+                "retry_attempt": max(1, int(request.retry_attempt) + 1),
+                "retry_reason": "realism_gate",
+                "user_preferences": preferences,
+            }
+        )
+
+    @staticmethod
     def _cache_key(request: GenerationRequest) -> str:
         payload = {
             "topics": sorted(request.topics),
@@ -375,6 +418,44 @@ class HypotheticalService:
             validation_time_ms = round(
                 (time.perf_counter() - validation_started) * 1000, 2
             )
+            auto_regeneration_attempted = False
+            auto_regeneration_successful = False
+            if self._should_retry_for_realism_gate(request, validation_results):
+                auto_regeneration_attempted = True
+                retry_request = self._build_realism_retry_request(
+                    request, validation_results
+                )
+                try:
+                    retry_generation_started = time.perf_counter()
+                    retry_hypothetical = await self._generate_hypothetical_text(
+                        retry_request, context_entries
+                    )
+                    if retry_request.method in ("ml_assisted", "hybrid"):
+                        retry_hypothetical = await self._ml_post_process(
+                            retry_request, retry_hypothetical
+                        )
+                    generation_time_ms += round(
+                        (time.perf_counter() - retry_generation_started) * 1000, 2
+                    )
+
+                    retry_validation_started = time.perf_counter()
+                    retry_validation_results = await self._validate_hypothetical(
+                        retry_request, retry_hypothetical, context_entries
+                    )
+                    validation_time_ms += round(
+                        (time.perf_counter() - retry_validation_started) * 1000, 2
+                    )
+
+                    request = retry_request
+                    hypothetical = retry_hypothetical
+                    validation_results = retry_validation_results
+                    auto_regeneration_successful = validation_results.passed
+                except Exception as retry_error:
+                    logger.warning(
+                        "Auto regeneration retry failed",
+                        error=str(retry_error),
+                        correlation_id=request.correlation_id,
+                    )
 
             # Step 4: Generate legal analysis
             analysis_skipped = self._should_skip_analysis(request)
@@ -419,6 +500,8 @@ class HypotheticalService:
                     "analysis_skipped": analysis_skipped,
                     "deterministic_seed": self._resolve_deterministic_seed(request),
                     "cache_hit": False,
+                    "auto_regeneration_attempted": auto_regeneration_attempted,
+                    "auto_regeneration_successful": auto_regeneration_successful,
                     "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
