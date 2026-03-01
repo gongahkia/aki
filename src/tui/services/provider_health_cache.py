@@ -32,7 +32,11 @@ class ProviderHealthCache:
                 if isinstance(health, dict) and isinstance(models, dict):
                     return health, models
 
-        health, models = fetch_snapshot()
+        try:
+            health, models = fetch_snapshot()
+        except Exception:
+            self.invalidate()
+            raise
         normalized_models: Dict[str, List[str]] = {}
         for provider_name, model_list in models.items():
             if not isinstance(model_list, list):
@@ -77,7 +81,11 @@ class ProviderHealthCache:
                     self._provider_model_cache[provider_name] = cached_models
                     return cached_models
 
-        models = fetch_models(provider_name)
+        try:
+            models = fetch_models(provider_name)
+        except Exception:
+            self.invalidate()
+            raise
         unique_models = sorted({m for m in models if isinstance(m, str) and m.strip()})
         self._provider_model_cache[provider_name] = unique_models
         return unique_models
