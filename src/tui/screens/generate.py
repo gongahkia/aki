@@ -8,10 +8,10 @@ from typing import List
 import httpx
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container
+from textual.containers import Container, Horizontal
 from textual.events import Key
 from textual.screen import Screen
-from textual.widgets import Input, Label, Select, Static
+from textual.widgets import Button, Input, Label, Select, Static
 
 from ..services import persist_stream_generation
 
@@ -78,6 +78,12 @@ class GenerateFormScreen(Screen):
             yield Static("Preview not loaded. Press Ctrl+P.", id="preview-panel")
             yield Static("Stream state: idle", id="stream-state")
             yield Static("", id="stream-output")
+            with Horizontal(id="action-dock"):
+                yield Button("Report", id="action-report")
+                yield Button("Regenerate", id="action-regenerate")
+                yield Button("Export", id="action-export")
+                yield Button("Save Preset", id="action-save-preset")
+            yield Static("Action dock: idle", id="action-status")
             yield Static("Press Esc to close", id="screen-help")
 
     def action_close(self) -> None:
@@ -176,6 +182,17 @@ class GenerateFormScreen(Screen):
             self._apply_preset(selected)
         elif event.select.id == "complexity":
             self._validate_complexity()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        status = self.query_one("#action-status", Static)
+        action_map = {
+            "action-report": "Report",
+            "action-regenerate": "Regenerate",
+            "action-export": "Export",
+            "action-save-preset": "Save Preset",
+        }
+        label = action_map.get(event.button.id or "", "Unknown")
+        status.update(f"Action dock: {label} selected")
 
     def _apply_preset(self, preset_key: str) -> None:
         preset = _PRESETS.get(preset_key)
