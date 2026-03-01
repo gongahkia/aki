@@ -1,3 +1,4 @@
 # Generated from pyproject.toml (project.dependencies).
 # Do not edit manually; update [project.dependencies] instead.
+# API/runtime server dependencies were retired with API removal.
 -e .
