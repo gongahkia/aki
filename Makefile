@@ -58,9 +58,6 @@ demo-flow: ## Launch deterministic Textual demo flow for screenshot capture
 	@mkdir -p asset/reference/demo
 	@DEMO_MODE=1 JIKAI_DEMO_SEED=$${JIKAI_DEMO_SEED:-424242} DEFAULT_PROVIDER=ollama DEFAULT_MODEL=llama3 python -m src.tui --tui-only --ui textual
 
-run-prod: ## Run the application in production mode
-	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
-
 # Health checks
 health: ## Check application health
 	curl -f http://localhost:8000/health || echo "Application not running"
