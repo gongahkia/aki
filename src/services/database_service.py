@@ -14,6 +14,9 @@ import structlog
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
+SQLITE_BUSY_TIMEOUT_MS = 5000
+SQLITE_BUSY_RETRY_ATTEMPTS = 3
+SQLITE_BUSY_RETRY_BACKOFF_SECONDS = 0.1
 
 
 class GenerationReport(BaseModel):
@@ -52,11 +55,23 @@ class DatabaseService:
         conn = sqlite3.Connection(str(self._db_path))
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
         return conn
 
     async def _run_in_thread(self, func, *args, **kwargs):
-        """Execute blocking SQLite work off the event loop thread."""
-        return await asyncio.to_thread(func, *args, **kwargs)
+        """Execute blocking SQLite work off the event loop thread with busy retries."""
+        attempt = 0
+        while True:
+            try:
+                return await asyncio.to_thread(func, *args, **kwargs)
+            except sqlite3.OperationalError as exc:
+                message = str(exc).lower()
+                if "database is locked" not in message and "database is busy" not in message:
+                    raise
+                attempt += 1
+                if attempt >= SQLITE_BUSY_RETRY_ATTEMPTS:
+                    raise
+                await asyncio.sleep(SQLITE_BUSY_RETRY_BACKOFF_SECONDS * attempt)
 
     def _initialize_database(self):
         """Initialize database schema."""
