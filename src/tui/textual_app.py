@@ -9,6 +9,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
 from textual.screen import Screen
+from textual.events import Key
 from textual.widgets import Footer, Header, Label, Static
 
 from .navigation import ROUTE_MAP
@@ -67,6 +68,41 @@ class HelpScreen(_BaseScreen):
     )
 
 
+class CommandPaletteScreen(Screen):
+    """Minimal modal command palette for quick route navigation."""
+
+    def compose(self) -> ComposeResult:
+        commands = [
+            "1 Generate",
+            "2 History",
+            "3 Providers",
+            "4 Home",
+            "5 Help",
+            "",
+            "Press 1-5 to navigate, Esc to close.",
+        ]
+        with Container(id="screen-body"):
+            yield Label("Command Palette", id="screen-title")
+            yield Static("\n".join(commands), id="screen-help")
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss()
+            return
+        route_map = {
+            "1": "generate",
+            "2": "history",
+            "3": "providers",
+            "4": "home",
+            "5": "help",
+        }
+        route = route_map.get(event.key)
+        if not route:
+            return
+        self.dismiss()
+        self.app._switch_to(route)
+
+
 class JikaiTextualApp(App[None]):
     """Interactive Textual runtime with primary navigation bindings."""
 
@@ -88,6 +124,7 @@ class JikaiTextualApp(App[None]):
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
+        Binding("ctrl+k", "open_command_palette", "Palette"),
         Binding("question_mark", "show_help", "Help"),
         Binding("g", "show_generate", "Generate"),
         Binding("h", "show_history", "History"),
@@ -135,3 +172,6 @@ class JikaiTextualApp(App[None]):
 
     def action_show_providers(self) -> None:
         self._switch_to("providers")
+
+    def action_open_command_palette(self) -> None:
+        self.push_screen(CommandPaletteScreen())
