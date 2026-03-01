@@ -202,3 +202,57 @@ class TestValidationService:
         assert "topic_inclusion" in result["checks"]
         assert "word_count" not in result["checks"]
         assert "singapore_context" not in result["checks"]
+
+    def test_validate_legal_realism_scores_high_with_singapore_context(
+        self, validation_service
+    ):
+        """Legal realism should score strongly when SG context/procedure cues are present."""
+        text = (
+            "In Singapore, the plaintiff filed a claim in the High Court after a collision "
+            "along Orchard Road. The defendant denied liability, but subsequently admitted "
+            "breach of duty and causation in 2024 after events that began in 2022."
+        )
+
+        result = validation_service.validate_legal_realism(text)
+
+        assert result["passed"] is True
+        assert result["realism_score"] >= 0.6
+        assert result["components"]["singapore_context_score"] > 0.0
+        assert "singapore" in result["evidence"]["singapore_context"]
+
+    def test_validate_legal_realism_flags_missing_singapore_context(
+        self, validation_service
+    ):
+        """Legal realism should fail when scenario lacks Singapore context signals."""
+        text = (
+            "The claimant alleged negligence against the defendant after an accident. "
+            "The parties argued about breach and damages, but no jurisdictional context "
+            "or local venue details were provided."
+        )
+
+        result = validation_service.validate_legal_realism(text)
+
+        assert result["passed"] is False
+        assert result["realism_score"] < 0.6
+        assert result["components"]["singapore_context_score"] == 0.0
+
+    def test_validate_hypothetical_includes_legal_realism_component(
+        self, validation_service
+    ):
+        """Full validation output should expose legal realism checks and scoring."""
+        text = (
+            "In Singapore, the plaintiff sued the defendant over negligence at a Marina Bay "
+            "construction site. The chronology was: incident in 2022, medical treatment in "
+            "2023, and High Court hearing in 2024. The duty of care, breach, and causation "
+            "issues were pleaded."
+        )
+
+        result = validation_service.validate_hypothetical(
+            text=text,
+            required_topics=["negligence", "duty of care", "causation"],
+            expected_parties=2,
+            law_domain="tort",
+        )
+
+        assert "legal_realism" in result["checks"]
+        assert "realism_score" in result["checks"]["legal_realism"]
