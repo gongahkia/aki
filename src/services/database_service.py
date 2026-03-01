@@ -235,6 +235,25 @@ class DatabaseService:
         if "correlation_id" not in columns:
             cursor.execute("ALTER TABLE generation_reports ADD COLUMN correlation_id TEXT")
 
+    def _decode_json_payload(
+        self,
+        value: Any,
+        *,
+        field_name: str,
+        fallback: Any,
+    ) -> Any:
+        """Defensively decode persisted JSON payloads with fallback on corruption."""
+        if isinstance(value, (dict, list)):
+            return value
+        try:
+            return json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            logger.warning(
+                "Failed to decode persisted JSON payload",
+                field_name=field_name,
+            )
+            return fallback
+
     def _legacy_history_record_to_payload(
         self, record: Dict[str, Any]
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
@@ -315,8 +334,16 @@ class DatabaseService:
 
     def _row_to_history_record(self, row: sqlite3.Row) -> Dict[str, Any]:
         """Normalize a generation_history row into legacy-compatible history shape."""
-        request_data = json.loads(row["request_data"])
-        response_data = json.loads(row["response_data"])
+        request_data = self._decode_json_payload(
+            row["request_data"],
+            field_name="request_data",
+            fallback={},
+        )
+        response_data = self._decode_json_payload(
+            row["response_data"],
+            field_name="response_data",
+            fallback={},
+        )
         topics = request_data.get("topics", [])
         topic = topics[0] if topics else ""
 
@@ -566,8 +593,16 @@ class DatabaseService:
                     generations.append(
                         {
                             "timestamp": row["timestamp"],
-                            "request": json.loads(row["request_data"]),
-                            "response": json.loads(row["response_data"]),
+                            "request": self._decode_json_payload(
+                                row["request_data"],
+                                field_name="request_data",
+                                fallback={},
+                            ),
+                            "response": self._decode_json_payload(
+                                row["response_data"],
+                                field_name="response_data",
+                                fallback={},
+                            ),
                         }
                     )
                 return generations
@@ -685,8 +720,16 @@ class DatabaseService:
                 return {
                     "id": row["id"],
                     "timestamp": row["timestamp"],
-                    "request": json.loads(row["request_data"]),
-                    "response": json.loads(row["response_data"]),
+                    "request": self._decode_json_payload(
+                        row["request_data"],
+                        field_name="request_data",
+                        fallback={},
+                    ),
+                    "response": self._decode_json_payload(
+                        row["response_data"],
+                        field_name="response_data",
+                        fallback={},
+                    ),
                     "parent_generation_id": row["parent_generation_id"],
                     "retry_reason": row["retry_reason"],
                     "retry_attempt": row["retry_attempt"] or 0,
@@ -918,9 +961,12 @@ class DatabaseService:
                     key: [] for key in latency_keys
                 }
                 for latency_row in latency_rows:
-                    try:
-                        response_payload = json.loads(latency_row["response_data"])
-                    except Exception:
+                    response_payload = self._decode_json_payload(
+                        latency_row["response_data"],
+                        field_name="response_data",
+                        fallback={},
+                    )
+                    if not isinstance(response_payload, dict):
                         continue
                     metrics = (
                         response_payload.get("metadata", {}).get("latency_metrics", {})
