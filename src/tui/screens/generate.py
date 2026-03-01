@@ -17,6 +17,7 @@ from textual.widgets import Button, Input, Label, Select, Static
 
 from ...services import GenerationRequest
 from ...services.error_mapper import map_exception
+from ...services.preview_estimator import estimate_generation_preview
 from ..logging import log_tui_event
 from ..services import latency_metrics, persist_stream_generation
 
@@ -257,9 +258,7 @@ class GenerateFormScreen(Screen):
 
         panel.update("[dim]Loading preview...[/dim]")
         try:
-            from ...api.main import _estimate_generation_preview
-
-            preview = _estimate_generation_preview(GenerationRequest(**payload))
+            preview = estimate_generation_preview(GenerationRequest(**payload))
             data = preview.model_dump()
             panel.update(
                 " | ".join(
