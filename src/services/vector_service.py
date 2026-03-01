@@ -65,6 +65,8 @@ class VectorService:
         self._collection = None
         self._embedding_model = None
         self._initialized = False
+        self._fallback_mode = False
+        self._fallback_reason: Optional[str] = None
         self._index_lock = asyncio.Lock()
 
     @staticmethod
@@ -81,7 +83,19 @@ class VectorService:
 
             model_name = app_settings.embedding_model
             logger.info("Loading embedding model", model=model_name)
-            self._embedding_model = SentenceTransformer(model_name)
+            try:
+                self._embedding_model = SentenceTransformer(model_name)
+            except Exception as embed_error:
+                self._embedding_model = None
+                self._fallback_mode = True
+                self._fallback_reason = f"embedding model load failed: {embed_error}"
+                self._initialized = True
+                logger.warning(
+                    "Embedding model unavailable; vector service running in fallback mode",
+                    model=model_name,
+                    error=str(embed_error),
+                )
+                return
 
             # Initialize ChromaDB client (local persistent storage)
             persist_directory = Path("./chroma_db")
@@ -103,6 +117,8 @@ class VectorService:
                 count=self._collection.count(),
             )
 
+            self._fallback_mode = False
+            self._fallback_reason = None
             self._initialized = True
             logger.info("Vector service initialized successfully")
 
@@ -129,6 +145,8 @@ class VectorService:
     def get_indexed_corpus_hash(self) -> Optional[str]:
         """Return corpus hash currently attached to vector collection metadata."""
         self._ensure_initialized()
+        if self._fallback_mode:
+            return None
         if not self._initialized or self._collection is None:
             return None
         metadata = self._collection.metadata or {}
@@ -153,6 +171,12 @@ class VectorService:
             Number of entries indexed
         """
         self._ensure_initialized()
+        if self._fallback_mode:
+            logger.warning(
+                "Vector indexing skipped; running in fallback mode",
+                reason=self._fallback_reason,
+            )
+            return 0
         if not self._initialized:
             raise VectorServiceError("Vector service not initialized")
 
@@ -235,6 +259,12 @@ class VectorService:
             List of relevant hypothetical entries with similarity scores
         """
         self._ensure_initialized()
+        if self._fallback_mode:
+            logger.info(
+                "Vector search unavailable; returning no semantic matches",
+                reason=self._fallback_reason,
+            )
+            return []
         if not self._initialized:
             raise VectorServiceError("Vector service not available")
 
@@ -332,6 +362,8 @@ class VectorService:
             "initialized": self._initialized,
             "collection_count": 0,
             "embedding_model_loaded": (self._embedding_model is not None),
+            "fallback_mode": self._fallback_mode,
+            "fallback_reason": self._fallback_reason,
         }
 
         try:
