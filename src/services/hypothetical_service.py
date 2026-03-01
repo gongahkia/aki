@@ -725,8 +725,7 @@ class HypotheticalService:
                 correlation_id=request.correlation_id,
             )
 
-            # Combine results
-            passed = validation_result["passed"] and similarity_result["passed"]
+            # Combine deterministic checks with realism-first quality gates.
             quality_score = validation_result["overall_score"]
             checks = validation_result.get("checks", {})
             legal_realism_score = float(
@@ -735,6 +734,32 @@ class HypotheticalService:
             exam_likeness_score = float(
                 checks.get("exam_likeness", {}).get("exam_likeness_score", 0.0)
             )
+            quality_score_normalized = quality_score / 10.0
+            min_realism_score = float(getattr(settings, "min_realism_score", 0.0))
+            min_quality_score = float(getattr(settings, "min_quality_score", 0.0))
+            realism_gate_passed = legal_realism_score >= min_realism_score
+            quality_gate_passed = quality_score_normalized >= min_quality_score
+            passed = (
+                validation_result["passed"]
+                and similarity_result["passed"]
+                and realism_gate_passed
+                and quality_gate_passed
+            )
+            validation_result["quality_gate"] = {
+                "passed": realism_gate_passed and quality_gate_passed,
+                "min_realism_score": min_realism_score,
+                "actual_realism_score": legal_realism_score,
+                "min_quality_score": min_quality_score,
+                "actual_quality_score": quality_score_normalized,
+                "failed_checks": [
+                    check
+                    for check, failed in (
+                        ("legal_realism", not realism_gate_passed),
+                        ("quality_score", not quality_gate_passed),
+                    )
+                    if failed
+                ],
+            }
 
             result = ValidationResult(
                 adherence_check=validation_result,
