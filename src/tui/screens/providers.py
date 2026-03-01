@@ -32,7 +32,9 @@ class ProvidersScreen(Screen):
             with Horizontal():
                 yield Button("Set Default Provider", id="set-default-provider")
                 yield Button("Set Default Model", id="set-default-model")
+                yield Button("Run Ollama Diagnostics", id="run-ollama-diagnostics")
             yield Static("Provider status: idle", id="provider-status")
+            yield Static("Ollama diagnostics: idle", id="ollama-diagnostics")
             yield Static("Press r to refresh", id="screen-help")
 
     def on_mount(self) -> None:
@@ -112,6 +114,8 @@ class ProvidersScreen(Screen):
             asyncio.create_task(self._set_default_provider())
         elif event.button.id == "set-default-model":
             asyncio.create_task(self._set_default_model())
+        elif event.button.id == "run-ollama-diagnostics":
+            asyncio.create_task(self._run_ollama_diagnostics())
 
     async def _set_default_provider(self) -> None:
         status = self.query_one("#provider-status", Static)
@@ -140,3 +144,50 @@ class ProvidersScreen(Screen):
             status.update(f"Provider status: default model set to {model}")
         except Exception as exc:
             status.update(f"Provider status: failed to set model ({exc})")
+
+    async def _run_ollama_diagnostics(self) -> None:
+        panel = self.query_one("#ollama-diagnostics", Static)
+        panel.update("Ollama diagnostics: running...")
+        host = "http://127.0.0.1:11434"
+        reachable = False
+        model_count = 0
+        model_preview = "-"
+        log_tail = "no startup log found"
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                response = await client.get(f"{host}/api/tags")
+            if response.status_code == 200:
+                reachable = True
+                payload = response.json()
+                models = payload.get("models", []) if isinstance(payload, dict) else []
+                if isinstance(models, list):
+                    names = [m.get("name", "") for m in models if isinstance(m, dict)]
+                    names = [name for name in names if isinstance(name, str) and name]
+                    model_count = len(names)
+                    model_preview = ", ".join(names[:3]) if names else "-"
+        except Exception:
+            reachable = False
+
+        try:
+            from pathlib import Path
+
+            log_path = Path("data/ollama_start.log")
+            if log_path.exists():
+                lines = log_path.read_text(encoding="utf-8").splitlines()
+                log_tail = " | ".join(lines[-3:]) if lines else "empty log"
+        except Exception:
+            log_tail = "log read failed"
+
+        panel.update(
+            " | ".join(
+                [
+                    f"host={host}",
+                    f"reachable={reachable}",
+                    f"models={model_count}",
+                    f"sample={model_preview}",
+                    f"logs={log_tail}",
+                ]
+            )
+        )
