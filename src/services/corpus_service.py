@@ -129,10 +129,11 @@ class CorpusService:
 
             entries = []
             for i, item in enumerate(data):
+                raw_topics = item.get("topics", item.get("topic", []))
                 entry = HypotheticalEntry(
                     id=str(i),
                     text=item.get("text", ""),
-                    topics=item.get("topic", []),
+                    topics=self._normalize_topics(raw_topics),
                     metadata=item.get("metadata", {}),
                     created_at=item.get("created_at"),
                     updated_at=item.get("updated_at"),
@@ -159,10 +160,11 @@ class CorpusService:
 
             entries = []
             for i, item in enumerate(data):
+                raw_topics = item.get("topics", item.get("topic", []))
                 entry = HypotheticalEntry(
                     id=str(i),
                     text=item.get("text", ""),
-                    topics=item.get("topic", []),
+                    topics=self._normalize_topics(raw_topics),
                     metadata=item.get("metadata", {}),
                     created_at=item.get("created_at"),
                     updated_at=item.get("updated_at"),
