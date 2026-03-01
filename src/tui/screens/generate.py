@@ -13,6 +13,8 @@ from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Input, Label, Select, Static
 
+from ..services import persist_stream_generation
+
 _VALID_COMPLEXITY = ["beginner", "basic", "intermediate", "advanced", "expert"]
 _PRESETS = {
     "exam_drill": {
@@ -244,6 +246,7 @@ class GenerateFormScreen(Screen):
 
         state.update("Stream state: streaming")
         chunks: List[str] = []
+        saved = False
 
         try:
             from ...services.llm_service import LLMRequest, llm_service
@@ -271,3 +274,35 @@ class GenerateFormScreen(Screen):
             state.update("Stream state: cancelled")
         except Exception as exc:
             state.update(f"Stream state: failed ({exc})")
+        finally:
+            if chunks and not saved:
+                complexity_score = _VALID_COMPLEXITY.index(complexity) + 1
+                cancellation_metadata = (
+                    {"cancelled": True, "reason": "user_interrupt"}
+                    if self._stream_cancelled
+                    else {}
+                )
+                try:
+                    await persist_stream_generation(
+                        topic=topic,
+                        provider="ollama",
+                        model=None,
+                        complexity=complexity_score,
+                        parties=parties,
+                        method="pure_llm",
+                        temperature=0.7,
+                        red_herrings=False,
+                        hypothetical="".join(chunks),
+                        validation_results={
+                            "passed": False,
+                            "quality_score": 0.0,
+                            "cancelled": self._stream_cancelled,
+                        },
+                        partial_snapshot=self._stream_cancelled,
+                        cancellation_metadata=cancellation_metadata,
+                        include_analysis=False,
+                    )
+                    saved = True
+                except Exception:
+                    # Non-fatal: stream result can still be shown in UI even if persistence fails.
+                    pass

@@ -2386,51 +2386,25 @@ class JikaiTUI:
         cancellation_metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[int]:
         """Persist a stream-generated output so it can be reported/regenerated."""
-        from datetime import datetime
+        from .services import persist_stream_generation
 
-        from ..services.database_service import database_service
-
-        request_data = {
-            "topics": [topic],
-            "law_domain": "tort",
-            "number_parties": parties,
-            "complexity_level": str(complexity),
-            "sample_size": 3,
-            "user_preferences": {
-                "temperature": temperature,
-                "red_herrings": red_herrings,
-            },
-            "method": method,
-            "provider": provider,
-            "model": model,
-            "correlation_id": correlation_id,
-            "include_analysis": include_analysis,
-        }
-        if cancellation_metadata:
-            request_data["user_preferences"]["cancellation_metadata"] = dict(
-                cancellation_metadata
-            )
-        response_data = {
-            "hypothetical": hypothetical,
-            "analysis": "",
-            "metadata": {
-                "topics": [topic],
-                "law_domain": "tort",
-                "number_parties": parties,
-                "complexity_level": str(complexity),
-                "partial_snapshot": partial_snapshot,
-                "cancellation_metadata": dict(cancellation_metadata or {}),
-                "generation_timestamp": datetime.utcnow().isoformat(),
-            },
-            "generation_time": 0.0,
-            "validation_results": validation_results,
-        }
         try:
             generation_id = _run_async(
-                database_service.save_generation(
-                    request_data=request_data,
-                    response_data=response_data,
+                persist_stream_generation(
+                    topic=topic,
+                    provider=provider,
+                    model=model,
+                    complexity=complexity,
+                    parties=parties,
+                    method=method,
+                    temperature=temperature,
+                    red_herrings=red_herrings,
+                    hypothetical=hypothetical,
+                    validation_results=validation_results,
                     correlation_id=correlation_id,
+                    include_analysis=include_analysis,
+                    partial_snapshot=partial_snapshot,
+                    cancellation_metadata=cancellation_metadata,
                 )
             )
             return int(generation_id)
