@@ -49,7 +49,6 @@ from ..services import (
     workflow_facade,
 )
 from ..services.topic_guard import canonicalize_and_validate_topics
-from .web import web_router
 
 # Configure structured logging
 structlog.configure(
@@ -81,8 +80,6 @@ app = FastAPI(
     docs_url="/docs" if settings.api.debug else None,
     redoc_url="/redoc" if settings.api.debug else None,
 )
-
-app.include_router(web_router)
 
 # Add middleware
 app.add_middleware(
