@@ -93,6 +93,7 @@ class DatabaseService:
                     generation_time REAL,
                     validation_passed BOOLEAN,
                     quality_score REAL,
+                    quality_gate_failure_reasons TEXT,
                     request_data TEXT,
                     response_data TEXT,
                     parent_generation_id INTEGER,
@@ -193,6 +194,10 @@ class DatabaseService:
             cursor.execute(
                 "ALTER TABLE generation_history ADD COLUMN retry_attempt INTEGER DEFAULT 0"
             )
+        if "quality_gate_failure_reasons" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN quality_gate_failure_reasons TEXT"
+            )
 
     def _legacy_history_record_to_payload(
         self, record: Dict[str, Any]
@@ -244,6 +249,34 @@ class DatabaseService:
         }
         return request_data, response_data
 
+    @staticmethod
+    def _extract_quality_gate_failure_reasons(response_data: Dict[str, Any]) -> List[str]:
+        """Extract normalized quality-gate failure reason codes from response payload."""
+        validation_results = response_data.get("validation_results") or {}
+        adherence = validation_results.get("adherence_check") or {}
+        quality_gate = adherence.get("quality_gate") or {}
+        failed_checks = quality_gate.get("failed_checks") or []
+
+        reasons: List[str] = []
+        for reason in failed_checks:
+            text = str(reason).strip().lower()
+            if not text:
+                continue
+            reasons.append(text.replace(" ", "_"))
+
+        if (not validation_results.get("passed", True)) and not reasons:
+            reasons.append("validation_failed")
+
+        # Preserve order while deduplicating.
+        deduped: List[str] = []
+        seen = set()
+        for reason in reasons:
+            if reason in seen:
+                continue
+            seen.add(reason)
+            deduped.append(reason)
+        return deduped
+
     def _row_to_history_record(self, row: sqlite3.Row) -> Dict[str, Any]:
         """Normalize a generation_history row into legacy-compatible history shape."""
         request_data = json.loads(row["request_data"])
@@ -273,6 +306,18 @@ class DatabaseService:
         except (TypeError, ValueError):
             quality_score = 0.0
 
+        failure_reason_codes = self._extract_quality_gate_failure_reasons(response_data)
+        if row["quality_gate_failure_reasons"]:
+            try:
+                stored_codes = json.loads(row["quality_gate_failure_reasons"])
+            except (TypeError, json.JSONDecodeError):
+                stored_codes = []
+            if isinstance(stored_codes, list):
+                for code in stored_codes:
+                    normalized = str(code).strip().lower()
+                    if normalized and normalized not in failure_reason_codes:
+                        failure_reason_codes.append(normalized)
+
         return {
             "generation_id": row["id"],
             "timestamp": row["timestamp"],
@@ -289,6 +334,7 @@ class DatabaseService:
             "analysis": response_data.get("analysis", ""),
             "model_answer": response_data.get("model_answer", ""),
             "validation_score": quality_score,
+            "quality_gate_failure_reasons": failure_reason_codes,
             "parent_generation_id": row["parent_generation_id"],
             "retry_reason": row["retry_reason"],
             "retry_attempt": row["retry_attempt"] or 0,
@@ -398,15 +444,18 @@ class DatabaseService:
                     normalized_retry_attempt = max(0, int(retry_attempt))
                 except (TypeError, ValueError):
                     normalized_retry_attempt = 0
+                failure_reason_codes = self._extract_quality_gate_failure_reasons(
+                    response_data
+                )
 
                 cursor.execute(
                     """
                     INSERT INTO generation_history (
                         timestamp, topics, law_domain, number_parties, complexity_level,
                         hypothetical, analysis, generation_time, validation_passed,
-                        quality_score, request_data, response_data,
-                        parent_generation_id, retry_reason, retry_attempt
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        quality_score, quality_gate_failure_reasons, request_data,
+                        response_data, parent_generation_id, retry_reason, retry_attempt
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         response_data.get("metadata", {}).get(
@@ -425,6 +474,7 @@ class DatabaseService:
                         response_data.get("validation_results", {}).get(
                             "quality_score", 0.0
                         ),
+                        json.dumps(failure_reason_codes),
                         json.dumps(request_data),
                         json.dumps(response_data),
                         parent_generation_id,
@@ -513,6 +563,7 @@ class DatabaseService:
                         request_data,
                         response_data,
                         quality_score,
+                        quality_gate_failure_reasons,
                         parent_generation_id,
                         retry_reason,
                         retry_attempt
@@ -563,6 +614,7 @@ class DatabaseService:
                         request_data,
                         response_data,
                         quality_score,
+                        quality_gate_failure_reasons,
                         parent_generation_id,
                         retry_reason,
                         retry_attempt
@@ -592,7 +644,8 @@ class DatabaseService:
                 cursor.execute(
                     """
                     SELECT id, timestamp, request_data, response_data,
-                           parent_generation_id, retry_reason, retry_attempt
+                           parent_generation_id, retry_reason, retry_attempt,
+                           quality_gate_failure_reasons
                     FROM generation_history
                     WHERE id = ?
                     """,
@@ -610,6 +663,9 @@ class DatabaseService:
                     "parent_generation_id": row["parent_generation_id"],
                     "retry_reason": row["retry_reason"],
                     "retry_attempt": row["retry_attempt"] or 0,
+                    "quality_gate_failure_reasons": json.loads(
+                        row["quality_gate_failure_reasons"] or "[]"
+                    ),
                 }
 
             return await self._run_in_thread(_op)
