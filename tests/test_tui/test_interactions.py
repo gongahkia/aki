@@ -3,6 +3,7 @@
 import sys
 from types import SimpleNamespace
 
+from src.services.hypothetical_service import GenerationResponse
 from src.tui.rich_app import GenerationConfig, JikaiTUI
 from src.tui.state import LastGenerationConfig, TUIState
 
@@ -175,3 +176,64 @@ def test_persist_stream_generation_stores_cancellation_snapshot(monkeypatch):
         is True
     )
     assert captured["response_data"]["metadata"]["partial_snapshot"] is True
+
+
+def test_report_regenerate_persists_lineage_metadata(monkeypatch):
+    app = JikaiTUI()
+    saved = {}
+
+    async def fake_save_generation_report(**kwargs):
+        return 11
+
+    async def fake_regenerate_generation(**kwargs):
+        regenerated = GenerationResponse(
+            hypothetical="Regenerated hypothetical",
+            analysis="Regenerated analysis",
+            metadata={"generation_id": 99},
+            generation_time=0.4,
+            validation_results={"passed": True, "quality_score": 8.2},
+        )
+        return SimpleNamespace(
+            regenerated=regenerated,
+            request_data={
+                "topics": ["negligence"],
+                "provider": "ollama",
+                "model": "llama3",
+                "complexity_level": 3,
+                "number_parties": 2,
+                "method": "pure_llm",
+            },
+        )
+
+    monkeypatch.setattr("src.tui.rich_app._checkbox", lambda *args, **kwargs: ["topic_mismatch"])
+    monkeypatch.setattr("src.tui.rich_app._text", lambda *args, **kwargs: "Needs better issue spread")
+    monkeypatch.setattr("src.tui.rich_app._confirm", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        "src.tui.rich_app.workflow_facade",
+        SimpleNamespace(
+            save_generation_report=fake_save_generation_report,
+            regenerate_generation=fake_regenerate_generation,
+            list_generation_reports=lambda generation_id: [],
+        ),
+    )
+    monkeypatch.setattr(app, "_show_validation", lambda *_: None)
+    monkeypatch.setattr(app, "_save_to_history", lambda payload: saved.setdefault("payload", payload))
+
+    result = app._report_and_regenerate(
+        record={"generation_id": 1},
+        cfg=GenerationConfig(
+            topic="negligence",
+            provider="ollama",
+            model="llama3",
+            complexity=3,
+            parties=2,
+            method="pure_llm",
+        ),
+    )
+
+    assert result is not None
+    lineage = saved["payload"]
+    assert lineage["generation_id"] == 99
+    assert lineage["regenerated_from"] == 1
+    assert lineage["report_id"] == 11
+    assert lineage["report_issue_types"] == ["topic_mismatch"]
