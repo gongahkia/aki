@@ -1,5 +1,13 @@
 """Domain-level shared models and registries."""
 
+from .packs import (
+    DOMAIN_PACK_REGISTRY,
+    DomainPack,
+    default_domain_pack,
+    get_domain_pack,
+    list_domain_packs,
+    register_domain_pack,
+)
 from .topics import (
     TOPIC_ALIASES,
     TORT_TOPICS,
@@ -11,6 +19,12 @@ from .topics import (
 )
 
 __all__ = [
+    "DomainPack",
+    "DOMAIN_PACK_REGISTRY",
+    "register_domain_pack",
+    "get_domain_pack",
+    "list_domain_packs",
+    "default_domain_pack",
     "TopicDefinition",
     "TORT_TOPICS",
     "TOPIC_ALIASES",
