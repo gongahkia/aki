@@ -8,7 +8,6 @@ import time
 import uuid
 from typing import List
 
-import httpx
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
@@ -16,6 +15,7 @@ from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Button, Input, Label, Select, Static
 
+from ...services import GenerationRequest
 from ...services.error_mapper import map_exception
 from ..logging import log_tui_event
 from ..services import latency_metrics, persist_stream_generation
@@ -257,13 +257,10 @@ class GenerateFormScreen(Screen):
 
         panel.update("[dim]Loading preview...[/dim]")
         try:
-            async with httpx.AsyncClient(timeout=6.0) as client:
-                response = await client.post(
-                    "http://127.0.0.1:8000/generate/preview",
-                    json=payload,
-                )
-            response.raise_for_status()
-            data = response.json()
+            from ...api.main import _estimate_generation_preview
+
+            preview = _estimate_generation_preview(GenerationRequest(**payload))
+            data = preview.model_dump()
             panel.update(
                 " | ".join(
                     [
