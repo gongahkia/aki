@@ -1,0 +1,2 @@
+[console_scripts]
+jikai = src.tui.__main__:main
