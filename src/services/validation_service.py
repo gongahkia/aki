@@ -508,6 +508,45 @@ class ValidationService:
             logger.error("Fast score calculation failed", error=str(e))
             return 0.0, False
 
+    def validate_chronology_coherence(self, text: str) -> Dict[str, Any]:
+        """Check whether timeline cues and explicit years form a plausible chronology."""
+        try:
+            text_lower = text.lower()
+            issues: List[str] = []
+
+            year_matches = [int(match) for match in re.findall(r"\b(19\d{2}|20\d{2})\b", text)]
+            if len(year_matches) >= 2:
+                if year_matches != sorted(year_matches):
+                    issues.append("non_monotonic_year_order")
+                if (max(year_matches) - min(year_matches)) > 30:
+                    issues.append("excessive_year_span")
+
+            if "before" in text_lower and "after" in text_lower:
+                before_count = text_lower.count("before")
+                after_count = text_lower.count("after")
+                if abs(before_count - after_count) > 4:
+                    issues.append("imbalanced_temporal_connectors")
+
+            if "subsequently" in text_lower and "prior to" in text_lower:
+                issues.append("mixed_temporal_direction_cues")
+
+            coherence_score = max(0.0, 1.0 - (0.25 * len(issues)))
+            passed = coherence_score >= 0.6
+            return {
+                "passed": passed,
+                "coherence_score": round(coherence_score, 3),
+                "issues": issues,
+                "years": year_matches,
+            }
+        except Exception as e:
+            logger.error("Chronology coherence validation failed", error=str(e))
+            return {
+                "passed": False,
+                "coherence_score": 0.0,
+                "issues": ["chronology_validation_error"],
+                "error": str(e),
+            }
+
     def validate_legal_realism(self, text: str) -> Dict[str, Any]:
         """Score legal realism signals: SG venue cues, procedure cues, and timeline coherence."""
         try:
@@ -557,14 +596,17 @@ class ValidationService:
             ]
             found_procedure = [cue for cue in procedure_cues if cue in text_lower]
             found_timeline = [cue for cue in timeline_cues if cue in text_lower]
+            chronology_result = self.validate_chronology_coherence(text)
 
             singapore_context_score = min(1.0, len(found_singapore_context) / 4.0)
             procedure_score = min(1.0, len(found_procedure) / 4.0)
             timeline_score = min(1.0, len(found_timeline) / 3.0)
+            chronology_score = float(chronology_result.get("coherence_score", 0.0))
             realism_score = round(
-                (singapore_context_score * 0.5)
-                + (procedure_score * 0.3)
-                + (timeline_score * 0.2),
+                (singapore_context_score * 0.4)
+                + (procedure_score * 0.25)
+                + (timeline_score * 0.15)
+                + (chronology_score * 0.2),
                 3,
             )
             passed = realism_score >= 0.6
@@ -576,11 +618,13 @@ class ValidationService:
                     "singapore_context_score": round(singapore_context_score, 3),
                     "procedure_score": round(procedure_score, 3),
                     "timeline_score": round(timeline_score, 3),
+                    "chronology_score": round(chronology_score, 3),
                 },
                 "evidence": {
                     "singapore_context": found_singapore_context,
                     "procedure": found_procedure,
                     "timeline": found_timeline,
+                    "chronology": chronology_result,
                 },
             }
         except Exception as e:
