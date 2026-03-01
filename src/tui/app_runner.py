@@ -16,14 +16,5 @@ def run_tui(ui: str = "textual") -> None:
 
 
 def run(mode: str, *, ui: str = "textual") -> None:
-    """Run api-only, tui-only, or both surfaces."""
-    if mode == "api-only":
-        run_tui(ui=ui)
-        return
-    if mode == "tui-only":
-        run_tui(ui=ui)
-        return
-    if mode == "both":
-        run_tui(ui=ui)
-        return
+    """Run the selected TUI surface."""
     run_tui(ui=ui)
