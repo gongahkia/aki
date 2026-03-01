@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Dict
 
 from textual import on
@@ -59,6 +60,44 @@ class HistoryScreen(_BaseScreen):
 class ProvidersScreen(_BaseScreen):
     screen_title = ROUTE_MAP["providers"].label
     screen_help = ROUTE_MAP["providers"].description
+    _health_task: asyncio.Task | None = None
+
+    async def _provider_health_loop(self) -> None:
+        while True:
+            provider_state = "unknown"
+            try:
+                from ..services.llm_service import llm_service
+
+                health = await llm_service.health_check()
+                statuses = [
+                    details.get("status", "unknown")
+                    for details in health.values()
+                    if isinstance(details, dict)
+                ]
+                if statuses and all(status == "healthy" for status in statuses):
+                    provider_state = "ok"
+                elif any(status == "unhealthy" for status in statuses):
+                    provider_state = "error"
+                elif statuses:
+                    provider_state = "warn"
+            except Exception:
+                provider_state = "warn"
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.provider_state = provider_state
+            await asyncio.sleep(10)
+
+    def on_mount(self) -> None:
+        super().on_mount()
+        self._health_task = asyncio.create_task(self._provider_health_loop())
+
+    async def on_unmount(self) -> None:
+        if self._health_task:
+            self._health_task.cancel()
+            try:
+                await self._health_task
+            except asyncio.CancelledError:
+                pass
+            self._health_task = None
 
 
 class HelpScreen(_BaseScreen):
