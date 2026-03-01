@@ -14,6 +14,7 @@ from botocore.exceptions import ClientError
 from pydantic import BaseModel, Field
 
 from ..config import settings
+from ..domain import canonicalize_topic
 from .vector_service import VectorServiceError, vector_service
 
 logger = structlog.get_logger(__name__)
@@ -85,6 +86,24 @@ class CorpusService:
         except Exception as e:
             logger.error("Failed to initialize S3 client", error=str(e))
             self._s3_client = None
+
+    @staticmethod
+    def _normalize_topics(raw_topics: Any) -> List[str]:
+        if raw_topics is None:
+            return []
+        if isinstance(raw_topics, list):
+            values = raw_topics
+        else:
+            values = [raw_topics]
+        normalized: List[str] = []
+        for topic in values:
+            text = str(topic).strip()
+            if not text:
+                continue
+            canonical = canonicalize_topic(text)
+            if canonical not in normalized:
+                normalized.append(canonical)
+        return normalized
 
     async def load_corpus(self, source: str = "local") -> List[HypotheticalEntry]:
         """Load corpus from local file or S3."""
@@ -187,7 +206,7 @@ class CorpusService:
                 data.append(
                     {
                         "text": entry.text,
-                        "topic": entry.topics,
+                        "topic": self._normalize_topics(entry.topics),
                         "metadata": entry.metadata,
                         "created_at": entry.created_at,
                         "updated_at": entry.updated_at,
@@ -213,7 +232,7 @@ class CorpusService:
                 data.append(
                     {
                         "text": entry.text,
-                        "topic": entry.topics,
+                        "topic": self._normalize_topics(entry.topics),
                         "metadata": entry.metadata,
                         "created_at": entry.created_at,
                         "updated_at": entry.updated_at,
@@ -412,6 +431,7 @@ class CorpusService:
             now = datetime.utcnow().isoformat()
             entry.created_at = now
             entry.updated_at = now
+            entry.topics = self._normalize_topics(entry.topics)
 
             corpus.append(entry)
 
@@ -448,6 +468,9 @@ class CorpusService:
             entry = corpus[entry_index]
             for key, value in updates.items():
                 if hasattr(entry, key):
+                    if key in {"topics", "topic"}:
+                        setattr(entry, "topics", self._normalize_topics(value))
+                        continue
                     setattr(entry, key, value)
 
             # Update timestamp
