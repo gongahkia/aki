@@ -55,6 +55,7 @@ class DatabaseService:
         """Get database connection."""
         conn = sqlite3.Connection(str(self._db_path))
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+        conn.execute("PRAGMA journal_mode = WAL")
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
         return conn
