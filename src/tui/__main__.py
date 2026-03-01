@@ -9,7 +9,7 @@ def main():
     parser = argparse.ArgumentParser(description="Jikai - Legal Hypothetical Generator")
     parser.add_argument(
         "--ui",
-        choices=["rich", "textual"],
+        choices=["rich"],
         default="rich",
         help="Select TUI runtime",
     )
