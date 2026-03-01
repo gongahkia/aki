@@ -3,6 +3,7 @@ Vector Service for semantic search using ChromaDB and sentence transformers.
 Provides semantic similarity search for legal hypotheticals.
 """
 
+import asyncio
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -64,6 +65,7 @@ class VectorService:
         self._collection = None
         self._embedding_model = None
         self._initialized = False
+        self._index_lock = asyncio.Lock()
 
     @staticmethod
     def _collection_metadata(corpus_hash: Optional[str] = None) -> Dict[str, Any]:
@@ -155,51 +157,52 @@ class VectorService:
             raise VectorServiceError("Vector service not initialized")
 
         try:
-            # Clear existing collection
-            if self._collection is not None and self._collection.count() > 0:
-                assert self._client is not None
-                self._client.delete_collection(settings.database.chroma_collection_name)
-                self._collection = self._client.create_collection(
-                    name=settings.database.chroma_collection_name,
-                    metadata=self._collection_metadata(corpus_hash),
-                )
-            elif self._collection is not None and corpus_hash:
-                self._collection.modify(
-                    metadata=self._collection_metadata(corpus_hash)
-                )
+            async with self._index_lock:
+                # Clear existing collection
+                if self._collection is not None and self._collection.count() > 0:
+                    assert self._client is not None
+                    self._client.delete_collection(settings.database.chroma_collection_name)
+                    self._collection = self._client.create_collection(
+                        name=settings.database.chroma_collection_name,
+                        metadata=self._collection_metadata(corpus_hash),
+                    )
+                elif self._collection is not None and corpus_hash:
+                    self._collection.modify(
+                        metadata=self._collection_metadata(corpus_hash)
+                    )
 
-            # Prepare data for indexing
-            ids = []
-            documents = []
-            metadatas = []
-            embeddings = []
+                # Prepare data for indexing
+                ids = []
+                documents = []
+                metadatas = []
+                embeddings = []
 
-            for hypo in hypotheticals:
-                embedding = self._embed_text(hypo["text"])
+                for hypo in hypotheticals:
+                    embedding = self._embed_text(hypo["text"])
 
-                ids.append(hypo["id"])
-                documents.append(hypo["text"])
-                embeddings.append(embedding)
-                metadatas.append(
-                    {
-                        "topics": ",".join(hypo.get("topics", [])),
-                        "complexity": hypo.get("metadata", {}).get(
-                            "complexity", "intermediate"
-                        ),
-                    }
-                )
+                    ids.append(hypo["id"])
+                    documents.append(hypo["text"])
+                    embeddings.append(embedding)
+                    metadatas.append(
+                        {
+                            "topics": ",".join(hypo.get("topics", [])),
+                            "complexity": hypo.get("metadata", {}).get(
+                                "complexity", "intermediate"
+                            ),
+                        }
+                    )
 
-            # Add to ChromaDB in batches
-            batch_size = 100
-            for i in range(0, len(ids), batch_size):
-                batch_end = min(i + batch_size, len(ids))
-                assert self._collection is not None
-                self._collection.add(
-                    ids=ids[i:batch_end],
-                    documents=documents[i:batch_end],
-                    embeddings=embeddings[i:batch_end],
-                    metadatas=metadatas[i:batch_end],
-                )
+                # Add to ChromaDB in batches
+                batch_size = 100
+                for i in range(0, len(ids), batch_size):
+                    batch_end = min(i + batch_size, len(ids))
+                    assert self._collection is not None
+                    self._collection.add(
+                        ids=ids[i:batch_end],
+                        documents=documents[i:batch_end],
+                        embeddings=embeddings[i:batch_end],
+                        metadatas=metadatas[i:batch_end],
+                    )
 
             logger.info(
                 "Indexed hypotheticals",
