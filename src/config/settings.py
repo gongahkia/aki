@@ -211,6 +211,8 @@ class Settings(BaseSettings):
         default=128, env="LOCAL_RESPONSE_CACHE_MAX_ENTRIES"
     )
     vector_min_similarity: float = Field(default=0.25, env="VECTOR_MIN_SIMILARITY")
+    min_realism_score: float = Field(default=0.75, env="MIN_REALISM_SCORE")
+    min_quality_score: float = Field(default=0.7, env="MIN_QUALITY_SCORE")
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
 
     # Sub-configurations
@@ -256,12 +258,12 @@ class Settings(BaseSettings):
             raise ValueError("Configured values must be >= 1")
         return int(v)
 
-    @field_validator("vector_min_similarity")
+    @field_validator("vector_min_similarity", "min_realism_score", "min_quality_score")
     @classmethod
-    def validate_vector_min_similarity(cls, value):
+    def validate_score_thresholds(cls, value):
         score = float(value)
         if score < 0.0 or score > 1.0:
-            raise ValueError("vector_min_similarity must be between 0.0 and 1.0")
+            raise ValueError("Score thresholds must be between 0.0 and 1.0")
         return score
 
     @property
