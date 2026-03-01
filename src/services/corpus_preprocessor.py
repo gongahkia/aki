@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ..domain import canonicalize_topic
+
 logger = logging.getLogger(__name__)
 
 RAW_DIR = Path("corpus/raw")
@@ -102,6 +104,24 @@ def infer_topics_from_dir(dir_name: str) -> List[str]:
     """Infer base topics from the directory name."""
     key = dir_name.lower().replace("-", "_").replace(" ", "_")
     return DIR_TOPIC_MAP.get(key, [key.replace("_", " ")])
+
+
+def _normalize_topics(raw_topics: object) -> List[str]:
+    if raw_topics is None:
+        return []
+    if isinstance(raw_topics, list):
+        values = raw_topics
+    else:
+        values = [raw_topics]
+    normalized: List[str] = []
+    for topic in values:
+        text = str(topic).strip()
+        if not text:
+            continue
+        canonical = canonicalize_topic(text)
+        if canonical not in normalized:
+            normalized.append(canonical)
+    return normalized
 
 
 def normalize_text(text: str) -> str:
@@ -228,6 +248,37 @@ def convert_file_to_txt(input_path: Path, output_dir: Optional[Path] = None) -> 
     return out
 
 
+def migrate_legacy_topic_fields(corpus_path: Optional[Path] = None) -> int:
+    """Convert legacy `topic` fields into canonical `topics` arrays."""
+    path = corpus_path or CORPUS_FILE
+    if not path.exists():
+        raise FileNotFoundError(f"Corpus file not found: {path}")
+
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+
+    if not isinstance(payload, list):
+        raise ValueError(f"Corpus file must contain a list of entries: {path}")
+
+    migrated_count = 0
+    normalized_entries: List[Dict] = []
+    for raw_entry in payload:
+        entry = dict(raw_entry) if isinstance(raw_entry, dict) else {}
+        raw_topics = entry.get("topics", entry.get("topic"))
+        canonical_topics = _normalize_topics(raw_topics)
+        if entry.get("topics") != canonical_topics or "topic" in entry:
+            migrated_count += 1
+        entry["topics"] = canonical_topics
+        entry.pop("topic", None)
+        normalized_entries.append(entry)
+
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(normalized_entries, handle, indent=2, ensure_ascii=False)
+
+    logger.info("Migrated topic fields in %s (%d entries updated)", path, migrated_count)
+    return migrated_count
+
+
 if __name__ == "__main__":
     import sys
 
@@ -240,6 +291,10 @@ if __name__ == "__main__":
         p = Path(sys.argv[2])
         out = convert_file_to_txt(p)
         print(f"Converted → {out}")
+    elif len(sys.argv) > 1 and sys.argv[1] == "migrate-topics":
+        path = Path(sys.argv[2]) if len(sys.argv) > 2 else CORPUS_FILE
+        updated = migrate_legacy_topic_fields(path)
+        print(f"Migrated topic fields in {path}: {updated} entries updated")
     else:
         include_non_tort = "--include-non-tort" in sys.argv
         count = build_corpus(include_non_tort=include_non_tort)
