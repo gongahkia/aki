@@ -1,6 +1,6 @@
 # Jikai Makefile - Development and deployment commands
 
-.PHONY: help install dev test lint format clean build run web warmup bench-latency pre-commit pre-commit-update
+.PHONY: help install dev test lint format clean build run web warmup bench-latency demo-flow pre-commit pre-commit-update
 
 # Default target
 help: ## Show this help message
@@ -59,6 +59,10 @@ bench-latency: ## Run latency benchmark and print p50/p95 summary
 	@mkdir -p data
 	@KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=. python3 tests/perf/benchmark_latency.py --iterations $${ITERATIONS:-20} --output data/bench_latency.json
 	@python3 -c "import json; data=json.load(open('data/bench_latency.json', encoding='utf-8')); b=data['baseline']; f=data['fast_mode']; print(f'baseline p50={b[\"p50_ms\"]}ms p95={b[\"p95_ms\"]}ms'); print(f'fast_mode p50={f[\"p50_ms\"]}ms p95={f[\"p95_ms\"]}ms')"
+
+demo-flow: ## Launch deterministic Textual demo flow for screenshot capture
+	@mkdir -p asset/reference/demo
+	@DEMO_MODE=1 JIKAI_DEMO_SEED=$${JIKAI_DEMO_SEED:-424242} DEFAULT_PROVIDER=ollama DEFAULT_MODEL=llama3 python -m src.tui --tui-only --ui textual
 
 run-prod: ## Run the application in production mode
 	uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
