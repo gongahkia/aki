@@ -40,8 +40,12 @@ class ProvidersScreen(Screen):
             yield Label("Providers", id="screen-title")
             yield DataTable(id="providers-table")
             with Horizontal():
-                yield Select(options=[("Select provider", "")], value="", id="provider-select")
-                yield Select(options=[("Select model", "")], value="", id="model-select")
+                yield Select(
+                    options=[("Select provider", "")], value="", id="provider-select"
+                )
+                yield Select(
+                    options=[("Select model", "")], value="", id="model-select"
+                )
             with Horizontal():
                 yield Button("Set Default Provider", id="set-default-provider")
                 yield Button("Set Default Model", id="set-default-model")
@@ -105,8 +109,7 @@ class ProvidersScreen(Screen):
         providers = sorted(self._models_by_provider.keys())
         provider_select = self.query_one("#provider-select", Select)
         provider_select.set_options(
-            [("Select provider", "")]
-            + [(provider, provider) for provider in providers]
+            [("Select provider", "")] + [(provider, provider) for provider in providers]
         )
         provider_select.value = ""
 
@@ -125,8 +128,7 @@ class ProvidersScreen(Screen):
             return
         models = self._models_by_provider.get(provider, [])
         model_select.set_options(
-            [("Select model", "")]
-            + [(model, model) for model in models]
+            [("Select model", "")] + [(model, model) for model in models]
         )
         model_select.value = ""
 

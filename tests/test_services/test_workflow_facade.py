@@ -19,7 +19,9 @@ async def test_generate_generation_validates_topics_and_calls_hypothetical_servi
         generation_time=0.2,
         validation_results={"passed": True, "quality_score": 8.0},
     )
-    hypothetical = SimpleNamespace(generate_hypothetical=AsyncMock(return_value=expected_response))
+    hypothetical = SimpleNamespace(
+        generate_hypothetical=AsyncMock(return_value=expected_response)
+    )
     database = SimpleNamespace()
     facade = WorkflowFacade(
         corpus_service=corpus,
@@ -39,7 +41,9 @@ async def test_generate_generation_validates_topics_and_calls_hypothetical_servi
 @pytest.mark.asyncio
 async def test_save_generation_report_translates_foreign_key_error():
     database = SimpleNamespace(
-        save_generation_report=AsyncMock(side_effect=RuntimeError("FOREIGN KEY constraint failed"))
+        save_generation_report=AsyncMock(
+            side_effect=RuntimeError("FOREIGN KEY constraint failed")
+        )
     )
     facade = WorkflowFacade(
         corpus_service=SimpleNamespace(),
@@ -97,7 +101,9 @@ async def test_regenerate_generation_reuses_feedback_context_and_lineage():
     )
     facade = WorkflowFacade(
         corpus_service=SimpleNamespace(),
-        hypothetical_service=SimpleNamespace(generate_hypothetical=AsyncMock(side_effect=_generate)),
+        hypothetical_service=SimpleNamespace(
+            generate_hypothetical=AsyncMock(side_effect=_generate)
+        ),
         database_service=db,
     )
 
@@ -159,7 +165,9 @@ async def test_regenerate_generation_appends_quality_gate_failures_to_feedback()
     )
     facade = WorkflowFacade(
         corpus_service=SimpleNamespace(),
-        hypothetical_service=SimpleNamespace(generate_hypothetical=AsyncMock(side_effect=_generate)),
+        hypothetical_service=SimpleNamespace(
+            generate_hypothetical=AsyncMock(side_effect=_generate)
+        ),
         database_service=db,
     )
 
@@ -219,7 +227,9 @@ async def test_regenerate_generation_uses_quality_gate_reasons_when_report_conte
     )
     facade = WorkflowFacade(
         corpus_service=SimpleNamespace(),
-        hypothetical_service=SimpleNamespace(generate_hypothetical=AsyncMock(side_effect=_generate)),
+        hypothetical_service=SimpleNamespace(
+            generate_hypothetical=AsyncMock(side_effect=_generate)
+        ),
         database_service=db,
     )
 

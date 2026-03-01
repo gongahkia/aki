@@ -43,7 +43,9 @@ class TestDatabaseService:
         assert health["record_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_database_initialization_creates_query_indexes(self, database_service):
+    async def test_database_initialization_creates_query_indexes(
+        self, database_service
+    ):
         """Expected query indexes should exist for history/report/lineage lookups."""
         conn = database_service._get_connection()
         try:
@@ -481,9 +483,7 @@ class TestDatabaseService:
                     "analysis": "Analysis",
                     "generation_time": 10.0 + idx,
                     "validation_results": {"passed": True, "quality_score": 8.0},
-                    "metadata": {
-                        "generation_timestamp": f"2025-01-01T00:0{idx}:00"
-                    },
+                    "metadata": {"generation_timestamp": f"2025-01-01T00:0{idx}:00"},
                 },
             )
             generation_ids.append(generation_id)
@@ -506,7 +506,9 @@ class TestDatabaseService:
             )
 
     @pytest.mark.asyncio
-    async def test_generation_report_comments_are_locked_on_read(self, database_service):
+    async def test_generation_report_comments_are_locked_on_read(
+        self, database_service
+    ):
         """Stored report comments should remain immutable/locked."""
         generation_id = await database_service.save_generation(
             request_data={

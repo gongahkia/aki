@@ -197,7 +197,9 @@ class WorkflowFacade:
                 if current_database_service is not None and (
                     current_database_service is not self._database_service
                 ):
-                    row = await current_database_service.get_generation_by_id(generation_id)
+                    row = await current_database_service.get_generation_by_id(
+                        generation_id
+                    )
                     if row:
                         self._database_service = current_database_service
                         return await self._database_service.save_generation_report(
@@ -275,7 +277,9 @@ class WorkflowFacade:
             dict(row.get("response") or {})
         )
         if validation_failure_reasons:
-            reason_context = "Validation failures: " + "; ".join(validation_failure_reasons)
+            reason_context = "Validation failures: " + "; ".join(
+                validation_failure_reasons
+            )
             feedback_context = (
                 f"{feedback_context} | {reason_context}".strip(" |")
                 if feedback_context

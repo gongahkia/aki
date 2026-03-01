@@ -197,7 +197,9 @@ class HistoryScreen(Screen):
                 str(score),
             )
 
-        total_pages = max(1, (len(self._filtered_records) + self._page_size - 1) // self._page_size)
+        total_pages = max(
+            1, (len(self._filtered_records) + self._page_size - 1) // self._page_size
+        )
         page_label.update(
             f"Page {self._page + 1}/{total_pages} | records={len(self._filtered_records)}"
         )
@@ -282,7 +284,9 @@ class HistoryScreen(Screen):
             with open(out_path, "w", encoding="utf-8") as handle:
                 handle.write(hypothetical)
             status.update(f"Action: exported {out_path}")
-            log_tui_event("history_exported", generation_id=generation_id, path=out_path)
+            log_tui_event(
+                "history_exported", generation_id=generation_id, path=out_path
+            )
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Action: export failed ({mapped.message})")

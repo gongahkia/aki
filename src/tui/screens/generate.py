@@ -75,10 +75,7 @@ class GenerateFormScreen(Screen):
         with Container(id="screen-body"):
             yield Label("Generate", id="screen-title")
             yield Select(
-                options=[
-                    (preset["label"], key)
-                    for key, preset in _PRESETS.items()
-                ],
+                options=[(preset["label"], key) for key, preset in _PRESETS.items()],
                 value="exam_drill",
                 id="preset",
             )
@@ -407,19 +404,17 @@ class GenerateFormScreen(Screen):
 
         expected_parties = int(self.query_one("#parties", Input).value.strip() or "2")
         topic_tokens = self._topics()
-        party_candidates = set(
-            re.findall(r"\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b", text)
-        )
+        party_candidates = set(re.findall(r"\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b", text))
         actual_parties = len(party_candidates)
         party_pass = actual_parties >= expected_parties
 
         text_lower = text.lower()
         topics_found = [topic for topic in topic_tokens if topic.lower() in text_lower]
-        coverage_ratio = (
-            len(topics_found) / len(topic_tokens) if topic_tokens else 0.0
-        )
+        coverage_ratio = len(topics_found) / len(topic_tokens) if topic_tokens else 0.0
         coverage_pass = coverage_ratio >= 0.7
-        self._missing_topics = [topic for topic in topic_tokens if topic not in topics_found]
+        self._missing_topics = [
+            topic for topic in topic_tokens if topic not in topics_found
+        ]
 
         # Similarity remains placeholder until corpus-backed comparison wiring is added.
         similarity_score = 0.0

@@ -97,7 +97,9 @@ def test_set_default_provider_flow(monkeypatch):
     fake_llm_service = SimpleNamespace(
         select_provider=lambda provider: selected.setdefault("provider", provider)
     )
-    monkeypatch.setattr("src.tui.rich_app._select_quit", lambda *args, **kwargs: "openai")
+    monkeypatch.setattr(
+        "src.tui.rich_app._select_quit", lambda *args, **kwargs: "openai"
+    )
     monkeypatch.setitem(
         sys.modules,
         "src.services.llm_service",
@@ -207,8 +209,12 @@ def test_report_regenerate_persists_lineage_metadata(monkeypatch):
             },
         )
 
-    monkeypatch.setattr("src.tui.rich_app._checkbox", lambda *args, **kwargs: ["topic_mismatch"])
-    monkeypatch.setattr("src.tui.rich_app._text", lambda *args, **kwargs: "Needs better issue spread")
+    monkeypatch.setattr(
+        "src.tui.rich_app._checkbox", lambda *args, **kwargs: ["topic_mismatch"]
+    )
+    monkeypatch.setattr(
+        "src.tui.rich_app._text", lambda *args, **kwargs: "Needs better issue spread"
+    )
     monkeypatch.setattr("src.tui.rich_app._confirm", lambda *args, **kwargs: True)
     monkeypatch.setattr(
         "src.tui.rich_app.workflow_facade",
@@ -219,7 +225,9 @@ def test_report_regenerate_persists_lineage_metadata(monkeypatch):
         ),
     )
     monkeypatch.setattr(app, "_show_validation", lambda *_: None)
-    monkeypatch.setattr(app, "_save_to_history", lambda payload: saved.setdefault("payload", payload))
+    monkeypatch.setattr(
+        app, "_save_to_history", lambda payload: saved.setdefault("payload", payload)
+    )
 
     result = app._report_and_regenerate(
         record={"generation_id": 1},

@@ -9,8 +9,8 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
-from textual.screen import Screen
 from textual.events import Key
+from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Static
 
 from ..config import settings
@@ -80,9 +80,7 @@ class HomeScreen(_BaseScreen):
 
 class HelpScreen(_BaseScreen):
     screen_title = "Help"
-    screen_help = (
-        "Shortcuts: q quit, ? help, g generate, h history, p providers, home home screen."
-    )
+    screen_help = "Shortcuts: q quit, ? help, g generate, h history, p providers, home home screen."
 
 
 class CommandPaletteScreen(Screen):
@@ -161,7 +159,9 @@ class JikaiTextualApp(App[None]):
 
             provider_service = llm_service
         if corpus_service is None:
-            from ..services.corpus_service import corpus_service as default_corpus_service
+            from ..services.corpus_service import (
+                corpus_service as default_corpus_service,
+            )
 
             corpus_service = default_corpus_service
         self._provider_service = provider_service

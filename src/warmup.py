@@ -91,9 +91,7 @@ async def _check_provider_health() -> tuple[Dict[str, Any], float]:
         local_llm_host = getattr(settings, "local_llm_host", "") or ""
         if local_llm_host.strip():
             tasks.append(
-                _probe_endpoint(
-                    client, "local", f"{local_llm_host.rstrip('/')}/health"
-                )
+                _probe_endpoint(client, "local", f"{local_llm_host.rstrip('/')}/health")
             )
         else:
             checks.append(

@@ -1,7 +1,7 @@
 """Textual screen modules for Jikai TUI."""
 
-from .diagnostics import DiagnosticsScreen
 from .demo_flow import DemoFlowScreen
+from .diagnostics import DiagnosticsScreen
 from .generate import GenerateFormScreen
 from .history import HistoryScreen
 from .providers import ProvidersScreen

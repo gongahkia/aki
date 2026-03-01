@@ -185,7 +185,9 @@ class VectorService:
                 # Clear existing collection
                 if self._collection is not None and self._collection.count() > 0:
                     assert self._client is not None
-                    self._client.delete_collection(settings.database.chroma_collection_name)
+                    self._client.delete_collection(
+                        settings.database.chroma_collection_name
+                    )
                     self._collection = self._client.create_collection(
                         name=settings.database.chroma_collection_name,
                         metadata=self._collection_metadata(corpus_hash),

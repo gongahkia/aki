@@ -107,7 +107,9 @@ class EnvStore:
 
         if self.path.exists():
             backup_path = self.path.with_suffix(self.path.suffix + ".bak")
-            backup_path.write_text(self.path.read_text(encoding="utf-8"), encoding="utf-8")
+            backup_path.write_text(
+                self.path.read_text(encoding="utf-8"), encoding="utf-8"
+            )
 
         temp_path = self.path.with_suffix(self.path.suffix + ".tmp")
         fd = os.open(str(temp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)

@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import structlog
+
 from alembic import command
 from alembic.config import Config
 

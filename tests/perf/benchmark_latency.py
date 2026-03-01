@@ -204,11 +204,7 @@ def run_benchmark(iterations: int = 20) -> dict:
                 realism_first_payload, iterations
             )
 
-        if (
-            not baseline_latencies
-            or not fast_latencies
-            or not realism_latencies
-        ):
+        if not baseline_latencies or not fast_latencies or not realism_latencies:
             raise RuntimeError(
                 "Latency benchmark did not record successful responses for all modes. "
                 f"baseline_failures={baseline_failures} fast_failures={fast_failures} "

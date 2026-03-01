@@ -275,7 +275,9 @@ def migrate_legacy_topic_fields(corpus_path: Optional[Path] = None) -> int:
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(normalized_entries, handle, indent=2, ensure_ascii=False)
 
-    logger.info("Migrated topic fields in %s (%d entries updated)", path, migrated_count)
+    logger.info(
+        "Migrated topic fields in %s (%d entries updated)", path, migrated_count
+    )
     return migrated_count
 
 

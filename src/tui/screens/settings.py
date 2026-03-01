@@ -13,6 +13,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Label, Select, Static
 
 from ...services.error_mapper import map_exception
+
 _POLICY_PATH = Path("data/tui_policy.json")
 
 _POLICY_OPTIONS = {
@@ -79,10 +80,14 @@ class SettingsScreen(Screen):
             asyncio.create_task(self._clear_local_cache())
 
     def _render_policy_order(self) -> None:
-        selected = str(self.query_one("#fallback-policy", Select).value or "local_first")
+        selected = str(
+            self.query_one("#fallback-policy", Select).value or "local_first"
+        )
         policy = _POLICY_OPTIONS.get(selected, _POLICY_OPTIONS["local_first"])
         order = " -> ".join(policy["order"])
-        self.query_one("#policy-order", Static).update(f"Current fallback order: {order}")
+        self.query_one("#policy-order", Static).update(
+            f"Current fallback order: {order}"
+        )
 
     def _load_policy(self) -> None:
         if not _POLICY_PATH.exists():
@@ -98,7 +103,9 @@ class SettingsScreen(Screen):
 
     def _save_policy(self) -> None:
         status = self.query_one("#settings-status", Static)
-        selected = str(self.query_one("#fallback-policy", Select).value or "local_first")
+        selected = str(
+            self.query_one("#fallback-policy", Select).value or "local_first"
+        )
         if selected not in _POLICY_OPTIONS:
             status.update("Settings status: invalid policy selection")
             return
@@ -117,9 +124,13 @@ class SettingsScreen(Screen):
     async def _clear_local_cache(self) -> None:
         status = self.query_one("#settings-status", Static)
         try:
-            clear_cache = getattr(self._generation_service, "clear_response_cache", None)
+            clear_cache = getattr(
+                self._generation_service, "clear_response_cache", None
+            )
             if clear_cache is None:
-                raise AttributeError("Generation service does not expose clear_response_cache")
+                raise AttributeError(
+                    "Generation service does not expose clear_response_cache"
+                )
             maybe_result = clear_cache()
             if asyncio.iscoroutine(maybe_result):
                 await maybe_result

@@ -200,7 +200,7 @@ class ValidationService:
 
     @staticmethod
     def _normalize_topic_keywords(
-        topic_keywords: Dict[str, List[str]]
+        topic_keywords: Dict[str, List[str]],
     ) -> Dict[str, List[str]]:
         """Normalize topic keyword map to canonical topic keys."""
         normalized: Dict[str, List[str]] = {}
@@ -334,7 +334,9 @@ class ValidationService:
 
         except Exception as e:
             logger.error("Topic inclusion validation failed", error=str(e))
-            canonical_required_topics = [canonicalize_topic(topic) for topic in required_topics]
+            canonical_required_topics = [
+                canonicalize_topic(topic) for topic in required_topics
+            ]
             return {
                 "passed": False,
                 "topics_found": [],
@@ -514,7 +516,9 @@ class ValidationService:
             text_lower = text.lower()
             issues: List[str] = []
 
-            year_matches = [int(match) for match in re.findall(r"\b(19\d{2}|20\d{2})\b", text)]
+            year_matches = [
+                int(match) for match in re.findall(r"\b(19\d{2}|20\d{2})\b", text)
+            ]
             if len(year_matches) >= 2:
                 if year_matches != sorted(year_matches):
                     issues.append("non_monotonic_year_order")
@@ -574,7 +578,9 @@ class ValidationService:
 
             claimant_hits = [term for term in claimant_terms if term in text_lower]
             defendant_hits = [term for term in defendant_terms if term in text_lower]
-            role_context_hits = [term for term in role_context_terms if term in text_lower]
+            role_context_hits = [
+                term for term in role_context_terms if term in text_lower
+            ]
             named_party_tokens = re.findall(r"\b[A-Z][a-z]{2,}\b", text)
 
             role_pair_present = bool(claimant_hits and defendant_hits)

@@ -1,22 +1,25 @@
-"""
-Corpus Service for managing legal hypothetical corpus data.
-Handles both local file storage and AWS S3 integration.
-"""
-
-import json
 import asyncio
 import hashlib
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import boto3
 import structlog
-from botocore.exceptions import ClientError
 from pydantic import BaseModel, Field
 
 from ..config import settings
 from ..domain import canonicalize_topic
 from .vector_service import VectorServiceError, vector_service
+
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+
+    _HAS_BOTO3 = True
+except ModuleNotFoundError:
+    boto3 = None  # type: ignore[assignment]
+    ClientError = Exception  # type: ignore[misc,assignment]
+    _HAS_BOTO3 = False
 
 logger = structlog.get_logger(__name__)
 
@@ -96,6 +99,10 @@ class CorpusService:
     def _initialize_s3(self):
         """Initialize AWS S3 client if credentials are available."""
         try:
+            if not _HAS_BOTO3:
+                logger.warning("boto3 not installed, using local storage only")
+                self._s3_client = None
+                return
             if settings.aws.access_key_id and settings.aws.secret_access_key:
                 self._s3_client = boto3.client(
                     "s3",
@@ -366,8 +373,9 @@ class CorpusService:
         """Index corpus in vector database for semantic search."""
         try:
             corpus = await self.load_corpus()
-            corpus_hash = self._compute_current_corpus_hash() or self._compute_entries_hash(
-                corpus
+            corpus_hash = (
+                self._compute_current_corpus_hash()
+                or self._compute_entries_hash(corpus)
             )
 
             indexed_hash = self._vector_service.get_indexed_corpus_hash()

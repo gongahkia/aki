@@ -8,10 +8,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-import time
 from typing import Any, Awaitable, Dict, List, Optional, cast
 
 import structlog
@@ -38,7 +38,13 @@ logger = structlog.get_logger(__name__)
 MAX_HISTORY_SIZE = 100
 RESPONSE_CACHE_TTL_SECONDS = 120
 RESPONSE_CACHE_MAX_ENTRIES = 128
-CANONICAL_COMPLEXITY_LEVELS = ["beginner", "basic", "intermediate", "advanced", "expert"]
+CANONICAL_COMPLEXITY_LEVELS = [
+    "beginner",
+    "basic",
+    "intermediate",
+    "advanced",
+    "expert",
+]
 COMPLEXITY_LEVEL_MAP: Dict[str, str] = {
     "1": "beginner",
     "beginner": "beginner",
@@ -326,12 +332,16 @@ class HypotheticalService:
     def _enforce_singapore_scope(request: GenerationRequest) -> None:
         """Reject generation requests that explicitly target non-Singapore jurisdiction."""
         preferences = request.user_preferences or {}
-        requested_scope = str(
-            preferences.get("jurisdiction")
-            or preferences.get("country")
-            or preferences.get("legal_system")
-            or "singapore"
-        ).strip().lower()
+        requested_scope = (
+            str(
+                preferences.get("jurisdiction")
+                or preferences.get("country")
+                or preferences.get("legal_system")
+                or "singapore"
+            )
+            .strip()
+            .lower()
+        )
         allowed_scopes = {"singapore", "sg", "singapore_law", "singapore tort"}
         if requested_scope not in allowed_scopes:
             raise HypotheticalServiceError(

@@ -190,9 +190,7 @@ class Settings(BaseSettings):
     app_name: str = Field(default="Jikai", env="APP_NAME")
     app_version: str = Field(default="2.0.0", env="APP_VERSION")
     environment: str = Field(default="development", env="ENVIRONMENT")
-    allowed_law_domains: List[str] = Field(
-        default=["tort"], env="ALLOWED_LAW_DOMAINS"
-    )
+    allowed_law_domains: List[str] = Field(default=["tort"], env="ALLOWED_LAW_DOMAINS")
     corpus_path: str = Field(default="corpus/clean/tort/corpus.json", env="CORPUS_PATH")
     database_path: str = Field(default="data/jikai.db", env="DATABASE_PATH")
     retention_enabled: bool = Field(default=True, env="RETENTION_ENABLED")
@@ -238,10 +236,14 @@ class Settings(BaseSettings):
     @classmethod
     def validate_allowed_law_domains(cls, v):
         if isinstance(v, str):
-            parsed = [domain.strip().lower() for domain in v.split(",") if domain.strip()]
+            parsed = [
+                domain.strip().lower() for domain in v.split(",") if domain.strip()
+            ]
             return parsed or ["tort"]
         if isinstance(v, list):
-            parsed = [str(domain).strip().lower() for domain in v if str(domain).strip()]
+            parsed = [
+                str(domain).strip().lower() for domain in v if str(domain).strip()
+            ]
             return parsed or ["tort"]
         return ["tort"]
 

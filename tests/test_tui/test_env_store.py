@@ -20,7 +20,10 @@ def test_env_store_save_is_atomic_and_creates_backup(tmp_path: Path):
         managed_keys=["LOG_LEVEL", "DEFAULT_TEMPERATURE"],
     )
 
-    assert env_path.read_text(encoding="utf-8") == "LOG_LEVEL=DEBUG\nDEFAULT_TEMPERATURE=0.7\n"
+    assert (
+        env_path.read_text(encoding="utf-8")
+        == "LOG_LEVEL=DEBUG\nDEFAULT_TEMPERATURE=0.7\n"
+    )
     backup_path = env_path.with_suffix(env_path.suffix + ".bak")
     assert backup_path.exists()
     assert backup_path.read_text(encoding="utf-8") == "LOG_LEVEL=INFO\n"

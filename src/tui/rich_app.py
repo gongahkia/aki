@@ -1980,7 +1980,9 @@ class JikaiTUI:
                 method = preset["method"]
                 include_analysis = preset["include_analysis"]
                 red_herrings = preset["red_herrings"]
-                topic = _select_quit("Topic", choices=_topic_choices(), style=TOPIC_STYLE)
+                topic = _select_quit(
+                    "Topic", choices=_topic_choices(), style=TOPIC_STYLE
+                )
                 if topic is None:
                     return
 
@@ -2547,12 +2549,16 @@ class JikaiTUI:
             return None
         issue_types = [issue for issue in issue_types if issue]
         if not issue_types:
-            console.print("[yellow]Select at least one issue flag to continue.[/yellow]")
+            console.print(
+                "[yellow]Select at least one issue flag to continue.[/yellow]"
+            )
             return None
 
         action_correlation_id = self._new_correlation_id()
         try:
-            reports_result = workflow_facade.list_generation_reports(source_generation_id)
+            reports_result = workflow_facade.list_generation_reports(
+                source_generation_id
+            )
             if asyncio.iscoroutine(reports_result):
                 existing_reports = _run_async(reports_result)
             else:
@@ -2660,7 +2666,9 @@ class JikaiTUI:
 
             validation = regenerated.validation_results
             self._show_validation(validation)
-            score = validation.get("quality_score", validation.get("overall_score", 0.0))
+            score = validation.get(
+                "quality_score", validation.get("overall_score", 0.0)
+            )
             try:
                 score_value = float(score)
             except (TypeError, ValueError):
@@ -3926,9 +3934,7 @@ class JikaiTUI:
                             path.unlink()
                             removed += 1
                     except OSError as e:
-                        self._render_user_exception(
-                            e, context=f"Failed to remove {p}"
-                        )
+                        self._render_user_exception(e, context=f"Failed to remove {p}")
                         skipped += 1
                 else:
                     skipped += 1

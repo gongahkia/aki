@@ -79,7 +79,10 @@ class DatabaseService:
                 return await asyncio.to_thread(func, *args, **kwargs)
             except sqlite3.OperationalError as exc:
                 message = str(exc).lower()
-                if "database is locked" not in message and "database is busy" not in message:
+                if (
+                    "database is locked" not in message
+                    and "database is busy" not in message
+                ):
                     raise
                 attempt += 1
                 if attempt >= SQLITE_BUSY_RETRY_ATTEMPTS:
@@ -93,8 +96,7 @@ class DatabaseService:
                 cursor = conn.cursor()
 
                 # Create generation_history table
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS generation_history (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
@@ -115,36 +117,28 @@ class DatabaseService:
                         retry_attempt INTEGER DEFAULT 0,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
-                """
-                )
+                """)
 
                 # Create index on timestamp for faster queries
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_generation_history_timestamp
                     ON generation_history(timestamp DESC)
-                """
-                )
+                """)
 
                 # Create index on topics for searching
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_topics
                     ON generation_history(topics)
-                """
-                )
+                """)
 
                 self._ensure_generation_history_lineage_columns(cursor)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_generation_history_parent_generation_id
                     ON generation_history(parent_generation_id)
-                    """
-                )
+                    """)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS generation_reports (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         generation_id INTEGER NOT NULL,
@@ -155,20 +149,16 @@ class DatabaseService:
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
                     )
-                """
-                )
+                """)
 
                 self._ensure_generation_reports_columns(cursor)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_generation_reports_generation_id
                     ON generation_reports(generation_id)
-                """
-                )
+                """)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS generation_feedback (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         report_id INTEGER NOT NULL,
@@ -178,25 +168,20 @@ class DatabaseService:
                         FOREIGN KEY (report_id) REFERENCES generation_reports(id) ON DELETE CASCADE,
                         FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
                     )
-                """
-                )
+                """)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_generation_feedback_report_id
                     ON generation_feedback(report_id)
-                """
-                )
+                """)
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS migration_state (
                         key TEXT PRIMARY KEY,
                         value TEXT NOT NULL,
                         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
-                    """
-                )
+                    """)
 
                 conn.commit()
 
@@ -233,7 +218,9 @@ class DatabaseService:
         cursor.execute("PRAGMA table_info(generation_reports)")
         columns = {row["name"] for row in cursor.fetchall()}
         if "correlation_id" not in columns:
-            cursor.execute("ALTER TABLE generation_reports ADD COLUMN correlation_id TEXT")
+            cursor.execute(
+                "ALTER TABLE generation_reports ADD COLUMN correlation_id TEXT"
+            )
 
     def _decode_json_payload(
         self,
@@ -305,7 +292,9 @@ class DatabaseService:
         return request_data, response_data
 
     @staticmethod
-    def _extract_quality_gate_failure_reasons(response_data: Dict[str, Any]) -> List[str]:
+    def _extract_quality_gate_failure_reasons(
+        response_data: Dict[str, Any],
+    ) -> List[str]:
         """Extract normalized quality-gate failure reason codes from response payload."""
         validation_results = response_data.get("validation_results") or {}
         adherence = validation_results.get("adherence_check") or {}
@@ -409,6 +398,7 @@ class DatabaseService:
         """One-time migration from legacy JSON history to SQLite rows."""
         migration_key = "history_json_to_sqlite_v1"
         try:
+
             def _read_migration_state():
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -436,8 +426,8 @@ class DatabaseService:
                     for record in history_records:
                         if not isinstance(record, dict):
                             continue
-                        request_data, response_data = self._legacy_history_record_to_payload(
-                            record
+                        request_data, response_data = (
+                            self._legacy_history_record_to_payload(record)
                         )
                         try:
                             await self.save_generation(
@@ -497,6 +487,7 @@ class DatabaseService:
             The ID of the inserted record
         """
         try:
+
             def _op() -> int:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -574,6 +565,7 @@ class DatabaseService:
             List of generation records
         """
         try:
+
             def _op() -> List[Dict[str, Any]]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -618,6 +610,7 @@ class DatabaseService:
     async def get_history_records(self, limit: int = 500) -> List[Dict[str, Any]]:
         """Return history in legacy-compatible record shape, sourced from SQLite."""
         try:
+
             def _op() -> List[Dict[str, Any]]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -650,6 +643,7 @@ class DatabaseService:
     async def get_generation_count(self) -> int:
         """Count total persisted generations."""
         try:
+
             def _op() -> int:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -667,6 +661,7 @@ class DatabaseService:
     ) -> Optional[Dict[str, Any]]:
         """Fetch a single history record by chronological index (0 = oldest)."""
         try:
+
             def _op() -> Optional[Dict[str, Any]]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -698,9 +693,12 @@ class DatabaseService:
             logger.error("Failed to get history record by index", error=str(e))
             return None
 
-    async def get_generation_by_id(self, generation_id: int) -> Optional[Dict[str, Any]]:
+    async def get_generation_by_id(
+        self, generation_id: int
+    ) -> Optional[Dict[str, Any]]:
         """Fetch a single generation row by primary key."""
         try:
+
             def _op() -> Optional[Dict[str, Any]]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -746,6 +744,7 @@ class DatabaseService:
     async def save_generation_report(self, report: GenerationReport) -> int:
         """Persist a report linked to a generation row."""
         try:
+
             def _op() -> int:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -777,6 +776,7 @@ class DatabaseService:
     async def save_generation_feedback(self, feedback: GenerationFeedback) -> int:
         """Persist follow-up feedback for a report."""
         try:
+
             def _op() -> int:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -803,9 +803,12 @@ class DatabaseService:
             logger.error("Failed to save generation feedback", error=str(e))
             raise
 
-    async def get_generation_reports(self, generation_id: int) -> List[GenerationReport]:
+    async def get_generation_reports(
+        self, generation_id: int
+    ) -> List[GenerationReport]:
         """Fetch reports associated with a generation."""
         try:
+
             def _op() -> List[GenerationReport]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -840,6 +843,7 @@ class DatabaseService:
     async def get_report_feedback(self, report_id: int) -> List[GenerationFeedback]:
         """Fetch feedback rows linked to a specific report."""
         try:
+
             def _op() -> List[GenerationFeedback]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -911,12 +915,12 @@ class DatabaseService:
             Dict with statistics (total, avg_time, success_rate, etc.)
         """
         try:
+
             def _op() -> Dict[str, Any]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
 
-                    cursor.execute(
-                        """
+                    cursor.execute("""
                         SELECT
                             COUNT(*) as total_generations,
                             AVG(generation_time) as avg_generation_time,
@@ -925,29 +929,24 @@ class DatabaseService:
                             MIN(timestamp) as first_generation,
                             MAX(timestamp) as last_generation
                         FROM generation_history
-                    """
-                    )
+                    """)
                     row = cursor.fetchone()
 
-                    cursor.execute(
-                        """
+                    cursor.execute("""
                         SELECT
                             topics, COUNT(*) as count
                         FROM generation_history
                         GROUP BY topics
                         ORDER BY count DESC
                         LIMIT 10
-                    """
-                    )
+                    """)
                     topic_rows = cursor.fetchall()
 
-                    cursor.execute(
-                        """
+                    cursor.execute("""
                         SELECT response_data
                         FROM generation_history
                         WHERE response_data IS NOT NULL
-                        """
-                    )
+                        """)
                     latency_rows = cursor.fetchall()
 
                 latency_keys = [
@@ -968,8 +967,8 @@ class DatabaseService:
                     )
                     if not isinstance(response_payload, dict):
                         continue
-                    metrics = (
-                        response_payload.get("metadata", {}).get("latency_metrics", {})
+                    metrics = response_payload.get("metadata", {}).get(
+                        "latency_metrics", {}
                     )
                     if not isinstance(metrics, dict):
                         continue
@@ -1036,6 +1035,7 @@ class DatabaseService:
             List of matching generations
         """
         try:
+
             def _op() -> List[Dict[str, Any]]:
                 with self._connection() as conn:
                     cursor = conn.cursor()
@@ -1142,6 +1142,7 @@ class DatabaseService:
         }
 
         try:
+
             def _op() -> int:
                 with self._connection() as conn:
                     cursor = conn.cursor()

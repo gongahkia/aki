@@ -11,11 +11,11 @@ import pytest
 from src.services.llm_providers.ollama_provider import OllamaProvider
 from src.services.llm_providers.openai_provider import OpenAIProvider
 from src.services.llm_service import (
+    PROVIDER_CAPABILITIES,
     LLMRequest,
     LLMResponse,
     LLMService,
     LLMServiceError,
-    PROVIDER_CAPABILITIES,
 )
 
 
