@@ -31,12 +31,17 @@ def _load_corpus_topics() -> tuple[list[str], float]:
         for entry in payload:
             if not isinstance(entry, dict):
                 continue
-            raw_topics = entry.get("topics", [])
+            raw_topics = entry.get("topics")
+            if raw_topics is None:
+                raw_topics = entry.get("topic", [])
             if isinstance(raw_topics, list):
-                for topic in raw_topics:
-                    topic_text = str(topic).strip()
-                    if topic_text:
-                        topics.add(topic_text)
+                values = raw_topics
+            else:
+                values = [raw_topics]
+            for topic in values:
+                topic_text = str(topic).strip()
+                if topic_text:
+                    topics.add(topic_text)
     elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
     return sorted(topics), elapsed_ms
 
