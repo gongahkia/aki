@@ -65,6 +65,46 @@ class WorkflowFacade:
         self._hypothetical_service = hypothetical_service
         self._database_service = database_service
 
+    @staticmethod
+    def _extract_validation_failure_reasons(response: Dict[str, Any]) -> List[str]:
+        validation_results = response.get("validation_results") or {}
+        if validation_results.get("passed", True):
+            return []
+
+        reasons: List[str] = []
+        adherence = validation_results.get("adherence_check") or {}
+        quality_gate = adherence.get("quality_gate") or {}
+        failed_checks = quality_gate.get("failed_checks") or []
+        for check_name in failed_checks:
+            if check_name == "legal_realism":
+                reasons.append("legal realism score below threshold")
+            elif check_name == "quality_score":
+                reasons.append("overall quality score below threshold")
+            else:
+                reasons.append(f"{check_name} gate failed")
+
+        similarity_check = validation_results.get("similarity_check") or {}
+        if similarity_check and not similarity_check.get("passed", True):
+            reasons.append("similarity check failed")
+
+        checks = adherence.get("checks") or {}
+        for check_name, check_data in checks.items():
+            if isinstance(check_data, dict) and not check_data.get("passed", True):
+                reasons.append(f"{check_name} validation failed")
+
+        if not reasons:
+            reasons.append("validation failed without explicit reason code")
+
+        # Preserve order while removing duplicates.
+        seen = set()
+        deduped: List[str] = []
+        for reason in reasons:
+            if reason in seen:
+                continue
+            seen.add(reason)
+            deduped.append(reason)
+        return deduped
+
     async def _validate_topics(
         self, topics: List[str]
     ) -> tuple[List[str], float, List[str]]:
@@ -184,6 +224,16 @@ class WorkflowFacade:
                 generation_id
             )
         )
+        validation_failure_reasons = self._extract_validation_failure_reasons(
+            dict(row.get("response") or {})
+        )
+        if validation_failure_reasons:
+            reason_context = "Validation failures: " + "; ".join(validation_failure_reasons)
+            feedback_context = (
+                f"{feedback_context} | {reason_context}".strip(" |")
+                if feedback_context
+                else reason_context
+            )
         reports = await self._database_service.get_generation_reports(generation_id)
         latest_report = reports[-1] if reports else None
 
