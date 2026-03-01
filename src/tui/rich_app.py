@@ -2738,6 +2738,18 @@ class JikaiTUI:
         else:
             vt.add_row("Quality Score", str(score))
 
+        realism_score = vr.get("legal_realism_score")
+        if realism_score is None and isinstance(checks, dict):
+            realism_score = checks.get("legal_realism", {}).get("realism_score")
+        if isinstance(realism_score, (int, float)):
+            vt.add_row("Legal Realism", f"{float(realism_score):.2f} / 1.00")
+
+        exam_score = vr.get("exam_likeness_score")
+        if exam_score is None and isinstance(checks, dict):
+            exam_score = checks.get("exam_likeness", {}).get("exam_likeness_score")
+        if isinstance(exam_score, (int, float)):
+            vt.add_row("Exam Likeness", f"{float(exam_score):.2f} / 1.00")
+
         # Overall
         passed = vr.get("passed", False)
         vt.add_row(

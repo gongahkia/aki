@@ -118,6 +118,8 @@ class ValidationResult(BaseModel):
     adherence_check: Dict[str, Any] = Field(default_factory=dict)
     similarity_check: Dict[str, Any] = Field(default_factory=dict)
     quality_score: float = Field(default=0.0, ge=0.0, le=10.0)
+    legal_realism_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    exam_likeness_score: float = Field(default=0.0, ge=0.0, le=1.0)
     passed: bool = False
 
 
@@ -726,11 +728,20 @@ class HypotheticalService:
             # Combine results
             passed = validation_result["passed"] and similarity_result["passed"]
             quality_score = validation_result["overall_score"]
+            checks = validation_result.get("checks", {})
+            legal_realism_score = float(
+                checks.get("legal_realism", {}).get("realism_score", 0.0)
+            )
+            exam_likeness_score = float(
+                checks.get("exam_likeness", {}).get("exam_likeness_score", 0.0)
+            )
 
             result = ValidationResult(
                 adherence_check=validation_result,
                 similarity_check=similarity_result,
                 quality_score=quality_score,
+                legal_realism_score=legal_realism_score,
+                exam_likeness_score=exam_likeness_score,
                 passed=passed,
             )
 
@@ -755,6 +766,8 @@ class HypotheticalService:
                 adherence_check={"passed": False, "error": str(e)},
                 similarity_check={"passed": False, "error": str(e)},
                 quality_score=0.0,
+                legal_realism_score=0.0,
+                exam_likeness_score=0.0,
                 passed=False,
             )
 
