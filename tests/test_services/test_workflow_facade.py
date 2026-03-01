@@ -112,3 +112,121 @@ async def test_regenerate_generation_reuses_feedback_context_and_lineage():
     assert request.retry_reason.startswith("report_feedback")
     assert "new issues" in request.user_preferences["feedback"]
     assert result.regenerated.metadata["generation_id"] == 55
+
+
+@pytest.mark.asyncio
+async def test_regenerate_generation_appends_quality_gate_failures_to_feedback():
+    captured = {}
+
+    async def _generate(req):
+        captured["request"] = req
+        return GenerationResponse(
+            hypothetical="Regenerated scenario",
+            analysis="Updated analysis",
+            metadata={"generation_id": 88},
+            generation_time=0.2,
+            validation_results={"passed": True, "quality_score": 8.0},
+        )
+
+    db = SimpleNamespace(
+        get_generation_by_id=AsyncMock(
+            return_value={
+                "request": {
+                    "topics": ["negligence"],
+                    "law_domain": "tort",
+                    "number_parties": 3,
+                    "complexity_level": "intermediate",
+                    "sample_size": 3,
+                    "user_preferences": {"feedback": "prior note"},
+                    "method": "pure_llm",
+                    "provider": "ollama",
+                    "model": "llama3",
+                    "include_analysis": True,
+                    "retry_attempt": 0,
+                },
+                "response": {
+                    "validation_results": {
+                        "adherence_check": {
+                            "quality_gate": {"failed_checks": ["legal_realism"]}
+                        }
+                    }
+                },
+                "retry_attempt": 0,
+            }
+        ),
+        build_regeneration_feedback_context=AsyncMock(return_value="report context"),
+        get_generation_reports=AsyncMock(return_value=[]),
+    )
+    facade = WorkflowFacade(
+        corpus_service=SimpleNamespace(),
+        hypothetical_service=SimpleNamespace(generate_hypothetical=AsyncMock(side_effect=_generate)),
+        database_service=db,
+    )
+
+    await facade.regenerate_generation(generation_id=20, correlation_id="regen-corr")
+
+    feedback = captured["request"].user_preferences["feedback"]
+    assert "prior note" in feedback
+    assert "report context" in feedback
+    assert "Validation failures:" in feedback
+    assert "legal realism score below threshold" in feedback
+
+
+@pytest.mark.asyncio
+async def test_regenerate_generation_uses_quality_gate_reasons_when_report_context_empty():
+    captured = {}
+
+    async def _generate(req):
+        captured["request"] = req
+        return GenerationResponse(
+            hypothetical="Regenerated scenario",
+            analysis="Updated analysis",
+            metadata={"generation_id": 99},
+            generation_time=0.2,
+            validation_results={"passed": True, "quality_score": 8.2},
+        )
+
+    db = SimpleNamespace(
+        get_generation_by_id=AsyncMock(
+            return_value={
+                "request": {
+                    "topics": ["negligence"],
+                    "law_domain": "tort",
+                    "number_parties": 2,
+                    "complexity_level": "intermediate",
+                    "sample_size": 3,
+                    "user_preferences": {},
+                    "method": "pure_llm",
+                    "provider": "ollama",
+                    "model": "llama3",
+                    "include_analysis": True,
+                    "retry_attempt": 0,
+                },
+                "response": {
+                    "validation_results": {
+                        "adherence_check": {
+                            "quality_gate": {"failed_checks": ["quality_score"]},
+                            "checks": {"party_count": {"passed": False}},
+                        },
+                        "similarity_check": {"passed": False},
+                    }
+                },
+                "retry_attempt": 0,
+            }
+        ),
+        build_regeneration_feedback_context=AsyncMock(return_value=""),
+        get_generation_reports=AsyncMock(return_value=[]),
+    )
+    facade = WorkflowFacade(
+        corpus_service=SimpleNamespace(),
+        hypothetical_service=SimpleNamespace(generate_hypothetical=AsyncMock(side_effect=_generate)),
+        database_service=db,
+    )
+
+    await facade.regenerate_generation(generation_id=21, correlation_id="regen-corr")
+
+    feedback = captured["request"].user_preferences["feedback"]
+    assert feedback.startswith("Validation failures:")
+    assert "overall quality score below threshold" in feedback
+    assert "similarity check failed" in feedback
+    assert "party_count validation failed" in feedback
