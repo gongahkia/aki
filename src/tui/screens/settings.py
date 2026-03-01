@@ -37,6 +37,14 @@ class SettingsScreen(Screen):
         Binding("escape", "close", "Close"),
     ]
 
+    def __init__(self, *, generation_service=None) -> None:
+        super().__init__()
+        if generation_service is None:
+            from ...services.hypothetical_service import hypothetical_service
+
+            generation_service = hypothetical_service
+        self._generation_service = generation_service
+
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
             yield Label("Settings", id="screen-title")
@@ -47,6 +55,7 @@ class SettingsScreen(Screen):
             )
             yield Static("Current fallback order: -", id="policy-order")
             yield Button("Save Policy", id="save-policy")
+            yield Button("Clear Local Cache", id="clear-local-cache")
             yield Static("Settings status: idle", id="settings-status")
 
     def on_mount(self) -> None:
@@ -63,6 +72,10 @@ class SettingsScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save-policy":
             self._save_policy()
+        elif event.button.id == "clear-local-cache":
+            import asyncio
+
+            asyncio.create_task(self._clear_local_cache())
 
     def _render_policy_order(self) -> None:
         selected = str(self.query_one("#fallback-policy", Select).value or "local_first")
@@ -99,3 +112,13 @@ class SettingsScreen(Screen):
         except Exception as exc:
             mapped = map_exception(exc, default_status=500)
             status.update(f"Settings status: save failed ({mapped.message})")
+
+    async def _clear_local_cache(self) -> None:
+        status = self.query_one("#settings-status", Static)
+        try:
+            async with self._generation_service._response_cache_lock:
+                self._generation_service._response_cache.clear()
+            status.update("Settings status: local response cache cleared")
+        except Exception as exc:
+            mapped = map_exception(exc, default_status=500)
+            status.update(f"Settings status: cache clear failed ({mapped.message})")
