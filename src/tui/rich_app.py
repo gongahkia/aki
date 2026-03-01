@@ -37,7 +37,7 @@ from . import settings as settings_module
 from .history_models import validate_history_records
 from .installer import install_service_dependencies, request_install_confirmation
 from .models import GenerationConfig
-from .services import ProviderHealthCache
+from .services import EnvStore, ProviderHealthCache
 from .state import TUIState
 
 console = Console()
@@ -446,6 +446,7 @@ class JikaiTUI:
         self._provider_health_cache = ProviderHealthCache(
             ttl_seconds=PROVIDER_HEALTH_CACHE_TTL_SECONDS
         )
+        self._env_store = EnvStore(".env")
 
     def _new_correlation_id(self) -> str:
         return f"tui-{uuid.uuid4()}"
@@ -3895,7 +3896,6 @@ class JikaiTUI:
             console.print(st)
 
         def _save_env(env):
-            """Write current env dict to .env, preserving all keys."""
             managed_keys = [
                 "ANTHROPIC_API_KEY",
                 "OPENAI_API_KEY",
@@ -3909,14 +3909,7 @@ class JikaiTUI:
                 "LOG_LEVEL",
                 "EMBEDDING_MODEL",
             ]
-            lines = [f"{k}={env[k]}" for k in managed_keys if k in env]
-            # Preserve any extra keys the user may have added manually
-            for k, v in env.items():
-                if k not in managed_keys:
-                    lines.append(f"{k}={v}")
-            fd = os.open(".env", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with os.fdopen(fd, "w") as f:
-                f.write("\n".join(lines) + "\n")
+            self._env_store.save(env, managed_keys)
             console.print("[green]✓ Settings saved to .env[/green]")
             tlog.info("SETTINGS  saved")
 
@@ -4122,17 +4115,7 @@ class JikaiTUI:
                 )
 
     def _load_env(self):
-        vals: Dict[str, str] = {}
-        try:
-            with open(".env") as f:
-                for line in f:
-                    line = line.strip()
-                    if "=" in line and not line.startswith("#"):
-                        k, v = line.split("=", 1)
-                        vals[k.strip()] = v.strip()
-        except FileNotFoundError:
-            pass
-        return vals
+        return self._env_store.load()
 
     # ── providers ───────────────────────────────────────────────
     def _providers_flow_impl(self):
