@@ -2531,6 +2531,7 @@ class JikaiTUI:
             console.print("[yellow]Select at least one issue flag to continue.[/yellow]")
             return None
 
+        action_correlation_id = self._new_correlation_id()
         try:
             from ..services.workflow_facade import workflow_facade
 
@@ -2568,6 +2569,7 @@ class JikaiTUI:
                     generation_id=source_generation_id,
                     issue_types=issue_types,
                     comment=comment,
+                    correlation_id=action_correlation_id,
                     is_locked=True,
                 )
             )
@@ -2577,7 +2579,7 @@ class JikaiTUI:
                 regeneration = _run_async(
                     workflow_facade.regenerate_generation(
                         generation_id=source_generation_id,
-                        correlation_id=self._new_correlation_id(),
+                        correlation_id=action_correlation_id,
                         fallback_request={
                             "topics": [cfg.topic],
                             "law_domain": "tort",

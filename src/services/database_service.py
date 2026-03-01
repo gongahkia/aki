@@ -26,6 +26,7 @@ class GenerationReport(BaseModel):
     generation_id: int
     issue_types: List[str] = Field(default_factory=list)
     comment: Optional[str] = None
+    correlation_id: Optional[str] = None
     is_locked: bool = True
     created_at: Optional[str] = None
 
@@ -130,11 +131,14 @@ class DatabaseService:
                     generation_id INTEGER NOT NULL,
                     issue_types TEXT NOT NULL,
                     comment TEXT,
+                    correlation_id TEXT,
                     is_locked BOOLEAN NOT NULL DEFAULT 1,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
                 )
             """)
+
+            self._ensure_generation_reports_columns(cursor)
 
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_generation_reports_generation_id
@@ -198,6 +202,13 @@ class DatabaseService:
             cursor.execute(
                 "ALTER TABLE generation_history ADD COLUMN quality_gate_failure_reasons TEXT"
             )
+
+    def _ensure_generation_reports_columns(self, cursor: sqlite3.Cursor):
+        """Backfill report columns for existing databases."""
+        cursor.execute("PRAGMA table_info(generation_reports)")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "correlation_id" not in columns:
+            cursor.execute("ALTER TABLE generation_reports ADD COLUMN correlation_id TEXT")
 
     def _legacy_history_record_to_payload(
         self, record: Dict[str, Any]
@@ -682,13 +693,14 @@ class DatabaseService:
                 cursor.execute(
                     """
                     INSERT INTO generation_reports (
-                        generation_id, issue_types, comment, is_locked
-                    ) VALUES (?, ?, ?, ?)
+                        generation_id, issue_types, comment, correlation_id, is_locked
+                    ) VALUES (?, ?, ?, ?, ?)
                     """,
                     (
                         report.generation_id,
                         json.dumps(report.issue_types),
                         report.comment,
+                        report.correlation_id,
                         bool(report.is_locked),
                     ),
                 )
@@ -738,7 +750,7 @@ class DatabaseService:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    SELECT id, generation_id, issue_types, comment, is_locked, created_at
+                    SELECT id, generation_id, issue_types, comment, correlation_id, is_locked, created_at
                     FROM generation_reports
                     WHERE generation_id = ?
                     ORDER BY created_at ASC
@@ -753,6 +765,7 @@ class DatabaseService:
                         generation_id=row["generation_id"],
                         issue_types=json.loads(row["issue_types"]),
                         comment=row["comment"],
+                        correlation_id=row["correlation_id"],
                         is_locked=bool(row["is_locked"]),
                         created_at=row["created_at"],
                     )

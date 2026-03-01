@@ -160,6 +160,7 @@ class WorkflowFacade:
         generation_id: int,
         issue_types: List[str],
         comment: Optional[str],
+        correlation_id: Optional[str] = None,
         is_locked: bool = True,
     ) -> int:
         """Persist an immutable report row for a generation."""
@@ -170,6 +171,7 @@ class WorkflowFacade:
             generation_id=generation_id,
             issue_types=issue_types,
             comment=comment,
+            correlation_id=correlation_id,
             is_locked=is_locked,
         )
         try:
