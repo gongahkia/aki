@@ -13,7 +13,7 @@ def main():
     parser.add_argument(
         "--ui",
         choices=["rich", "textual"],
-        default="textual",
+        default="rich",
         help="Select TUI runtime",
     )
     args = parser.parse_args()
