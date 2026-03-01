@@ -17,7 +17,7 @@ _PRESETS = {
         "label": "Exam Drill",
         "complexity": "advanced",
         "parties": "3",
-        "topics": "negligence, causation",
+        "topics": "duty_of_care, causation, remoteness",
     },
     "revision_sprint": {
         "label": "Revision Sprint",
@@ -49,7 +49,7 @@ class GenerateFormScreen(Screen):
                     (preset["label"], key)
                     for key, preset in _PRESETS.items()
                 ],
-                value="revision_sprint",
+                value="exam_drill",
                 id="preset",
             )
             yield Input(placeholder="Topics (comma-separated)", id="topics")
@@ -69,7 +69,7 @@ class GenerateFormScreen(Screen):
         self.dismiss()
 
     def on_mount(self) -> None:
-        self._apply_preset("revision_sprint")
+        self._apply_preset("exam_drill")
 
     def on_key(self, event: Key) -> None:
         if event.key == "enter":
