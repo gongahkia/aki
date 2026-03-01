@@ -24,6 +24,7 @@ class _BaseScreen(Screen):
 
     screen_title: str = ""
     screen_help: str = ""
+    _status_task: asyncio.Task | None = None
 
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
@@ -35,13 +36,37 @@ class _BaseScreen(Screen):
     def on_mount(self) -> None:
         breadcrumb = self.query_one("#breadcrumb", Breadcrumb)
         breadcrumb.set_path(f"Home > {self.screen_title}")
-        status_bar = self.query_one("#status-bar", StatusBar)
-        status_bar.set_states(
-            corpus="ok",
-            models="ok",
-            embeddings="warn",
-            provider="unknown",
-        )
+        self._status_task = asyncio.create_task(self._status_refresh_loop())
+
+    async def on_unmount(self) -> None:
+        if self._status_task:
+            self._status_task.cancel()
+            try:
+                await self._status_task
+            except asyncio.CancelledError:
+                pass
+            self._status_task = None
+
+    async def _status_refresh_loop(self) -> None:
+        while True:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            corpus_service = self.app.get_corpus_service()
+            corpus_indexed = bool(getattr(corpus_service, "_corpus_indexed", False))
+            index_task = getattr(corpus_service, "_index_task", None)
+            indexing = bool(index_task and not index_task.done())
+            corpus_state = "ok" if corpus_indexed else "warn"
+            models_state = "ok"
+            embeddings_state = "ok" if corpus_indexed else "warn"
+            provider_state = "unknown"
+            if indexing:
+                corpus_state = "warn"
+            status_bar.set_states(
+                corpus=corpus_state,
+                models=models_state,
+                embeddings=embeddings_state,
+                provider=provider_state,
+            )
+            await asyncio.sleep(2.0)
 
 
 class HomeScreen(_BaseScreen):
@@ -173,13 +198,18 @@ class JikaiTextualApp(App[None]):
         Binding("home", "show_home", "Home"),
     ]
 
-    def __init__(self, *, provider_service=None) -> None:
+    def __init__(self, *, provider_service=None, corpus_service=None) -> None:
         super().__init__()
         if provider_service is None:
             from ..services.llm_service import llm_service
 
             provider_service = llm_service
+        if corpus_service is None:
+            from ..services.corpus_service import corpus_service as default_corpus_service
+
+            corpus_service = default_corpus_service
         self._provider_service = provider_service
+        self._corpus_service = corpus_service
         self._screens: Dict[str, Screen] = {
             "home": HomeScreen(),
             "generate": GenerateScreen(),
@@ -190,6 +220,9 @@ class JikaiTextualApp(App[None]):
 
     def get_provider_service(self):
         return self._provider_service
+
+    def get_corpus_service(self):
+        return self._corpus_service
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
