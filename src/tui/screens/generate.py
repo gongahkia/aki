@@ -21,6 +21,8 @@ from ..logging import log_tui_event
 from ..services import latency_metrics, persist_stream_generation
 
 _VALID_COMPLEXITY = ["beginner", "basic", "intermediate", "advanced", "expert"]
+_STREAM_RENDER_INTERVAL_SECONDS = 0.05
+_MAX_STREAM_RENDER_CHARS = 12000
 _PRESETS = {
     "exam_drill": {
         "label": "Exam Drill",
@@ -307,6 +309,7 @@ class GenerateFormScreen(Screen):
         chunks: List[str] = []
         saved = False
         correlation_id = f"tui-stream-{uuid.uuid4()}"
+        last_render_at = time.perf_counter()
 
         try:
             from ...services.llm_service import LLMRequest
@@ -331,7 +334,17 @@ class GenerateFormScreen(Screen):
                 while self._stream_paused and not self._stream_cancelled:
                     await asyncio.sleep(0.1)
                 chunks.append(chunk)
-                output.update("".join(chunks))
+                now = time.perf_counter()
+                if (now - last_render_at) >= _STREAM_RENDER_INTERVAL_SECONDS:
+                    rendered = "".join(chunks)
+                    if len(rendered) > _MAX_STREAM_RENDER_CHARS:
+                        rendered = rendered[-_MAX_STREAM_RENDER_CHARS:]
+                    output.update(rendered)
+                    last_render_at = now
+            rendered = "".join(chunks)
+            if len(rendered) > _MAX_STREAM_RENDER_CHARS:
+                rendered = rendered[-_MAX_STREAM_RENDER_CHARS:]
+            output.update(rendered)
             if self._stream_cancelled:
                 state.update("Stream state: cancelled")
             else:
