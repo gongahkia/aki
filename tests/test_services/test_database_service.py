@@ -2,6 +2,7 @@
 Tests for DatabaseService.
 """
 
+import asyncio
 import json
 import tempfile
 from pathlib import Path
@@ -114,6 +115,33 @@ class TestDatabaseService:
         assert "timestamp" in recent[0]
         assert "request" in recent[0]
         assert "response" in recent[0]
+
+    @pytest.mark.asyncio
+    async def test_save_generation_concurrently(self, database_service):
+        """Concurrent save_generation calls should all persist without collisions."""
+
+        async def _save(index: int) -> int:
+            request_data = {
+                "topics": [f"topic_{index % 3}"],
+                "law_domain": "tort",
+                "number_parties": 2 + (index % 3),
+                "complexity_level": "intermediate",
+            }
+            response_data = {
+                "hypothetical": f"Hypothetical {index}",
+                "analysis": f"Analysis {index}",
+                "generation_time": 5.0 + index,
+                "validation_results": {"passed": True, "quality_score": 7.5},
+                "metadata": {"generation_timestamp": f"2025-01-01T00:{index:02d}:00"},
+            }
+            return await database_service.save_generation(request_data, response_data)
+
+        ids = await asyncio.gather(*(_save(i) for i in range(20)))
+
+        assert len(ids) == 20
+        assert len(set(ids)) == 20
+        assert all(record_id > 0 for record_id in ids)
+        assert await database_service.get_generation_count() == 20
 
     @pytest.mark.asyncio
     async def test_get_statistics(self, database_service):
