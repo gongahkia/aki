@@ -6,6 +6,7 @@ Lightweight, local-only storage perfect for internal tools.
 import asyncio
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -61,6 +62,15 @@ class DatabaseService:
         conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
         return conn
 
+    @contextmanager
+    def _connection(self):
+        """Yield a SQLite connection and always close it."""
+        conn = self._get_connection()
+        try:
+            yield conn
+        finally:
+            conn.close()
+
     async def _run_in_thread(self, func, *args, **kwargs):
         """Execute blocking SQLite work off the event loop thread with busy retries."""
         attempt = 0
@@ -79,103 +89,116 @@ class DatabaseService:
     def _initialize_database(self):
         """Initialize database schema."""
         try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
+            with self._connection() as conn:
+                cursor = conn.cursor()
 
-            # Create generation_history table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS generation_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    topics TEXT NOT NULL,
-                    law_domain TEXT,
-                    number_parties INTEGER,
-                    complexity_level TEXT,
-                    hypothetical TEXT,
-                    analysis TEXT,
-                    generation_time REAL,
-                    validation_passed BOOLEAN,
-                    quality_score REAL,
-                    quality_gate_failure_reasons TEXT,
-                    request_data TEXT,
-                    response_data TEXT,
-                    parent_generation_id INTEGER,
-                    retry_reason TEXT,
-                    retry_attempt INTEGER DEFAULT 0,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Create index on timestamp for faster queries
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_generation_history_timestamp
-                ON generation_history(timestamp DESC)
-            """)
-
-            # Create index on topics for searching
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_topics
-                ON generation_history(topics)
-            """)
-
-            self._ensure_generation_history_lineage_columns(cursor)
-
-            cursor.execute(
+                # Create generation_history table
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS generation_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        topics TEXT NOT NULL,
+                        law_domain TEXT,
+                        number_parties INTEGER,
+                        complexity_level TEXT,
+                        hypothetical TEXT,
+                        analysis TEXT,
+                        generation_time REAL,
+                        validation_passed BOOLEAN,
+                        quality_score REAL,
+                        quality_gate_failure_reasons TEXT,
+                        request_data TEXT,
+                        response_data TEXT,
+                        parent_generation_id INTEGER,
+                        retry_reason TEXT,
+                        retry_attempt INTEGER DEFAULT 0,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
                 """
-                CREATE INDEX IF NOT EXISTS idx_generation_history_parent_generation_id
-                ON generation_history(parent_generation_id)
-                """
-            )
-
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS generation_reports (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    generation_id INTEGER NOT NULL,
-                    issue_types TEXT NOT NULL,
-                    comment TEXT,
-                    correlation_id TEXT,
-                    is_locked BOOLEAN NOT NULL DEFAULT 1,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
                 )
-            """)
 
-            self._ensure_generation_reports_columns(cursor)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_generation_reports_generation_id
-                ON generation_reports(generation_id)
-            """)
-
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS generation_feedback (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    report_id INTEGER NOT NULL,
-                    generation_id INTEGER NOT NULL,
-                    feedback_text TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (report_id) REFERENCES generation_reports(id) ON DELETE CASCADE,
-                    FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
-                )
-            """)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_generation_feedback_report_id
-                ON generation_feedback(report_id)
-            """)
-
-            cursor.execute(
+                # Create index on timestamp for faster queries
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_generation_history_timestamp
+                    ON generation_history(timestamp DESC)
                 """
-                CREATE TABLE IF NOT EXISTS migration_state (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
-                """
-            )
 
-            conn.commit()
-            conn.close()
+                # Create index on topics for searching
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_topics
+                    ON generation_history(topics)
+                """
+                )
+
+                self._ensure_generation_history_lineage_columns(cursor)
+
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_generation_history_parent_generation_id
+                    ON generation_history(parent_generation_id)
+                    """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS generation_reports (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        generation_id INTEGER NOT NULL,
+                        issue_types TEXT NOT NULL,
+                        comment TEXT,
+                        correlation_id TEXT,
+                        is_locked BOOLEAN NOT NULL DEFAULT 1,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
+                    )
+                """
+                )
+
+                self._ensure_generation_reports_columns(cursor)
+
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_generation_reports_generation_id
+                    ON generation_reports(generation_id)
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS generation_feedback (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        report_id INTEGER NOT NULL,
+                        generation_id INTEGER NOT NULL,
+                        feedback_text TEXT NOT NULL,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (report_id) REFERENCES generation_reports(id) ON DELETE CASCADE,
+                        FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
+                    )
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_generation_feedback_report_id
+                    ON generation_feedback(report_id)
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS migration_state (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL,
+                        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+
+                conn.commit()
 
             logger.info("Database initialized", db_path=str(self._db_path))
 
@@ -360,15 +383,13 @@ class DatabaseService:
         migration_key = "history_json_to_sqlite_v1"
         try:
             def _read_migration_state():
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT value FROM migration_state WHERE key = ?",
-                    (migration_key,),
-                )
-                row = cursor.fetchone()
-                conn.close()
-                return row
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT value FROM migration_state WHERE key = ?",
+                        (migration_key,),
+                    )
+                    return cursor.fetchone()
 
             migrated_row = await self._run_in_thread(_read_migration_state)
             if migrated_row and migrated_row["value"] == "1":
@@ -407,20 +428,19 @@ class DatabaseService:
                             )
 
             def _write_migration_state():
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    INSERT INTO migration_state (key, value, updated_at)
-                    VALUES (?, '1', CURRENT_TIMESTAMP)
-                    ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    (migration_key,),
-                )
-                conn.commit()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO migration_state (key, value, updated_at)
+                        VALUES (?, '1', CURRENT_TIMESTAMP)
+                        ON CONFLICT(key) DO UPDATE SET
+                            value = excluded.value,
+                            updated_at = CURRENT_TIMESTAMP
+                        """,
+                        (migration_key,),
+                    )
+                    conn.commit()
 
             await self._run_in_thread(_write_migration_state)
 
@@ -451,54 +471,53 @@ class DatabaseService:
         """
         try:
             def _op() -> int:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                try:
-                    normalized_retry_attempt = max(0, int(retry_attempt))
-                except (TypeError, ValueError):
-                    normalized_retry_attempt = 0
-                failure_reason_codes = self._extract_quality_gate_failure_reasons(
-                    response_data
-                )
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    try:
+                        normalized_retry_attempt = max(0, int(retry_attempt))
+                    except (TypeError, ValueError):
+                        normalized_retry_attempt = 0
+                    failure_reason_codes = self._extract_quality_gate_failure_reasons(
+                        response_data
+                    )
 
-                cursor.execute(
-                    """
-                    INSERT INTO generation_history (
-                        timestamp, topics, law_domain, number_parties, complexity_level,
-                        hypothetical, analysis, generation_time, validation_passed,
-                        quality_score, quality_gate_failure_reasons, request_data,
-                        response_data, parent_generation_id, retry_reason, retry_attempt
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                    (
-                        response_data.get("metadata", {}).get(
-                            "generation_timestamp", datetime.utcnow().isoformat()
+                    cursor.execute(
+                        """
+                        INSERT INTO generation_history (
+                            timestamp, topics, law_domain, number_parties, complexity_level,
+                            hypothetical, analysis, generation_time, validation_passed,
+                            quality_score, quality_gate_failure_reasons, request_data,
+                            response_data, parent_generation_id, retry_reason, retry_attempt
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            response_data.get("metadata", {}).get(
+                                "generation_timestamp", datetime.utcnow().isoformat()
+                            ),
+                            json.dumps(request_data.get("topics", [])),
+                            request_data.get("law_domain"),
+                            request_data.get("number_parties"),
+                            request_data.get("complexity_level"),
+                            response_data.get("hypothetical", ""),
+                            response_data.get("analysis", ""),
+                            response_data.get("generation_time", 0.0),
+                            response_data.get("validation_results", {}).get(
+                                "passed", False
+                            ),
+                            response_data.get("validation_results", {}).get(
+                                "quality_score", 0.0
+                            ),
+                            json.dumps(failure_reason_codes),
+                            json.dumps(request_data),
+                            json.dumps(response_data),
+                            parent_generation_id,
+                            retry_reason,
+                            normalized_retry_attempt,
                         ),
-                        json.dumps(request_data.get("topics", [])),
-                        request_data.get("law_domain"),
-                        request_data.get("number_parties"),
-                        request_data.get("complexity_level"),
-                        response_data.get("hypothetical", ""),
-                        response_data.get("analysis", ""),
-                        response_data.get("generation_time", 0.0),
-                        response_data.get("validation_results", {}).get(
-                            "passed", False
-                        ),
-                        response_data.get("validation_results", {}).get(
-                            "quality_score", 0.0
-                        ),
-                        json.dumps(failure_reason_codes),
-                        json.dumps(request_data),
-                        json.dumps(response_data),
-                        parent_generation_id,
-                        retry_reason,
-                        normalized_retry_attempt,
-                    ),
-                )
-                record_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
-                return int(record_id)
+                    )
+                    record_id = cursor.lastrowid
+                    conn.commit()
+                    return int(record_id)
 
             record_id = await self._run_in_thread(_op)
 
@@ -529,20 +548,19 @@ class DatabaseService:
         """
         try:
             def _op() -> List[Dict[str, Any]]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT
-                        timestamp, request_data, response_data
-                    FROM generation_history
-                    ORDER BY timestamp DESC
-                    LIMIT ?
-                """,
-                    (limit,),
-                )
-                rows = cursor.fetchall()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT
+                            timestamp, request_data, response_data
+                        FROM generation_history
+                        ORDER BY timestamp DESC
+                        LIMIT ?
+                    """,
+                        (limit,),
+                    )
+                    rows = cursor.fetchall()
                 generations = []
                 for row in rows:
                     generations.append(
@@ -566,28 +584,27 @@ class DatabaseService:
         """Return history in legacy-compatible record shape, sourced from SQLite."""
         try:
             def _op() -> List[Dict[str, Any]]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT
-                        id,
-                        timestamp,
-                        request_data,
-                        response_data,
-                        quality_score,
-                        quality_gate_failure_reasons,
-                        parent_generation_id,
-                        retry_reason,
-                        retry_attempt
-                    FROM generation_history
-                    ORDER BY timestamp DESC
-                    LIMIT ?
-                    """,
-                    (limit,),
-                )
-                rows = cursor.fetchall()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT
+                            id,
+                            timestamp,
+                            request_data,
+                            response_data,
+                            quality_score,
+                            quality_gate_failure_reasons,
+                            parent_generation_id,
+                            retry_reason,
+                            retry_attempt
+                        FROM generation_history
+                        ORDER BY timestamp DESC
+                        LIMIT ?
+                        """,
+                        (limit,),
+                    )
+                    rows = cursor.fetchall()
                 return [self._row_to_history_record(row) for row in reversed(rows)]
 
             return await self._run_in_thread(_op)
@@ -599,12 +616,11 @@ class DatabaseService:
         """Count total persisted generations."""
         try:
             def _op() -> int:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) AS count FROM generation_history")
-                row = cursor.fetchone()
-                conn.close()
-                return int(row["count"] if row else 0)
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) AS count FROM generation_history")
+                    row = cursor.fetchone()
+                    return int(row["count"] if row else 0)
 
             return await self._run_in_thread(_op)
         except Exception as e:
@@ -617,28 +633,27 @@ class DatabaseService:
         """Fetch a single history record by chronological index (0 = oldest)."""
         try:
             def _op() -> Optional[Dict[str, Any]]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT
-                        id,
-                        timestamp,
-                        request_data,
-                        response_data,
-                        quality_score,
-                        quality_gate_failure_reasons,
-                        parent_generation_id,
-                        retry_reason,
-                        retry_attempt
-                    FROM generation_history
-                    ORDER BY timestamp ASC
-                    LIMIT 1 OFFSET ?
-                    """,
-                    (history_index,),
-                )
-                row = cursor.fetchone()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT
+                            id,
+                            timestamp,
+                            request_data,
+                            response_data,
+                            quality_score,
+                            quality_gate_failure_reasons,
+                            parent_generation_id,
+                            retry_reason,
+                            retry_attempt
+                        FROM generation_history
+                        ORDER BY timestamp ASC
+                        LIMIT 1 OFFSET ?
+                        """,
+                        (history_index,),
+                    )
+                    row = cursor.fetchone()
                 if not row:
                     return None
                 return self._row_to_history_record(row)
@@ -652,20 +667,19 @@ class DatabaseService:
         """Fetch a single generation row by primary key."""
         try:
             def _op() -> Optional[Dict[str, Any]]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT id, timestamp, request_data, response_data,
-                           parent_generation_id, retry_reason, retry_attempt,
-                           quality_gate_failure_reasons
-                    FROM generation_history
-                    WHERE id = ?
-                    """,
-                    (generation_id,),
-                )
-                row = cursor.fetchone()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT id, timestamp, request_data, response_data,
+                               parent_generation_id, retry_reason, retry_attempt,
+                               quality_gate_failure_reasons
+                        FROM generation_history
+                        WHERE id = ?
+                        """,
+                        (generation_id,),
+                    )
+                    row = cursor.fetchone()
                 if not row:
                     return None
                 return {
@@ -690,26 +704,25 @@ class DatabaseService:
         """Persist a report linked to a generation row."""
         try:
             def _op() -> int:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    INSERT INTO generation_reports (
-                        generation_id, issue_types, comment, correlation_id, is_locked
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        report.generation_id,
-                        json.dumps(report.issue_types),
-                        report.comment,
-                        report.correlation_id,
-                        bool(report.is_locked),
-                    ),
-                )
-                report_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
-                return int(report_id)
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO generation_reports (
+                            generation_id, issue_types, comment, correlation_id, is_locked
+                        ) VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            report.generation_id,
+                            json.dumps(report.issue_types),
+                            report.comment,
+                            report.correlation_id,
+                            bool(report.is_locked),
+                        ),
+                    )
+                    report_id = cursor.lastrowid
+                    conn.commit()
+                    return int(report_id)
 
             report_id = await self._run_in_thread(_op)
             logger.info("Generation report saved", report_id=report_id)
@@ -722,20 +735,23 @@ class DatabaseService:
         """Persist follow-up feedback for a report."""
         try:
             def _op() -> int:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    INSERT INTO generation_feedback (
-                        report_id, generation_id, feedback_text
-                    ) VALUES (?, ?, ?)
-                    """,
-                    (feedback.report_id, feedback.generation_id, feedback.feedback_text),
-                )
-                feedback_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
-                return int(feedback_id)
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO generation_feedback (
+                            report_id, generation_id, feedback_text
+                        ) VALUES (?, ?, ?)
+                        """,
+                        (
+                            feedback.report_id,
+                            feedback.generation_id,
+                            feedback.feedback_text,
+                        ),
+                    )
+                    feedback_id = cursor.lastrowid
+                    conn.commit()
+                    return int(feedback_id)
 
             feedback_id = await self._run_in_thread(_op)
             logger.info("Generation feedback saved", feedback_id=feedback_id)
@@ -748,19 +764,18 @@ class DatabaseService:
         """Fetch reports associated with a generation."""
         try:
             def _op() -> List[GenerationReport]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT id, generation_id, issue_types, comment, correlation_id, is_locked, created_at
-                    FROM generation_reports
-                    WHERE generation_id = ?
-                    ORDER BY created_at ASC
-                    """,
-                    (generation_id,),
-                )
-                rows = cursor.fetchall()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT id, generation_id, issue_types, comment, correlation_id, is_locked, created_at
+                        FROM generation_reports
+                        WHERE generation_id = ?
+                        ORDER BY created_at ASC
+                        """,
+                        (generation_id,),
+                    )
+                    rows = cursor.fetchall()
                 return [
                     GenerationReport(
                         id=row["id"],
@@ -783,19 +798,18 @@ class DatabaseService:
         """Fetch feedback rows linked to a specific report."""
         try:
             def _op() -> List[GenerationFeedback]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT id, report_id, generation_id, feedback_text, created_at
-                    FROM generation_feedback
-                    WHERE report_id = ?
-                    ORDER BY created_at ASC
-                    """,
-                    (report_id,),
-                )
-                rows = cursor.fetchall()
-                conn.close()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT id, report_id, generation_id, feedback_text, created_at
+                        FROM generation_feedback
+                        WHERE report_id = ?
+                        ORDER BY created_at ASC
+                        """,
+                        (report_id,),
+                    )
+                    rows = cursor.fetchall()
                 return [
                     GenerationFeedback(
                         id=row["id"],
@@ -855,44 +869,43 @@ class DatabaseService:
         """
         try:
             def _op() -> Dict[str, Any]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
 
-                cursor.execute(
+                    cursor.execute(
+                        """
+                        SELECT
+                            COUNT(*) as total_generations,
+                            AVG(generation_time) as avg_generation_time,
+                            AVG(CASE WHEN validation_passed THEN 1.0 ELSE 0.0 END) as success_rate,
+                            AVG(quality_score) as avg_quality_score,
+                            MIN(timestamp) as first_generation,
+                            MAX(timestamp) as last_generation
+                        FROM generation_history
                     """
-                    SELECT
-                        COUNT(*) as total_generations,
-                        AVG(generation_time) as avg_generation_time,
-                        AVG(CASE WHEN validation_passed THEN 1.0 ELSE 0.0 END) as success_rate,
-                        AVG(quality_score) as avg_quality_score,
-                        MIN(timestamp) as first_generation,
-                        MAX(timestamp) as last_generation
-                    FROM generation_history
-                """
-                )
-                row = cursor.fetchone()
+                    )
+                    row = cursor.fetchone()
 
-                cursor.execute(
+                    cursor.execute(
+                        """
+                        SELECT
+                            topics, COUNT(*) as count
+                        FROM generation_history
+                        GROUP BY topics
+                        ORDER BY count DESC
+                        LIMIT 10
                     """
-                    SELECT
-                        topics, COUNT(*) as count
-                    FROM generation_history
-                    GROUP BY topics
-                    ORDER BY count DESC
-                    LIMIT 10
-                """
-                )
-                topic_rows = cursor.fetchall()
+                    )
+                    topic_rows = cursor.fetchall()
 
-                cursor.execute(
-                    """
-                    SELECT response_data
-                    FROM generation_history
-                    WHERE response_data IS NOT NULL
-                    """
-                )
-                latency_rows = cursor.fetchall()
-                conn.close()
+                    cursor.execute(
+                        """
+                        SELECT response_data
+                        FROM generation_history
+                        WHERE response_data IS NOT NULL
+                        """
+                    )
+                    latency_rows = cursor.fetchall()
 
                 latency_keys = [
                     "topic_extraction_time_ms",
@@ -978,22 +991,21 @@ class DatabaseService:
         """
         try:
             def _op() -> List[Dict[str, Any]]:
-                conn = self._get_connection()
-                cursor = conn.cursor()
+                with self._connection() as conn:
+                    cursor = conn.cursor()
 
-                conditions = " OR ".join(["topics LIKE ?" for _ in topics])
-                search_params: List[Any] = [f"%{topic}%" for topic in topics]
-                search_params.append(limit)
-                query = (
-                    "SELECT timestamp, topics, hypothetical, quality_score "
-                    "FROM generation_history "
-                    "WHERE " + conditions + " "
-                    "ORDER BY timestamp DESC "
-                    "LIMIT ?"
-                )
-                cursor.execute(query, search_params)
-                rows = cursor.fetchall()
-                conn.close()
+                    conditions = " OR ".join(["topics LIKE ?" for _ in topics])
+                    search_params: List[Any] = [f"%{topic}%" for topic in topics]
+                    search_params.append(limit)
+                    query = (
+                        "SELECT timestamp, topics, hypothetical, quality_score "
+                        "FROM generation_history "
+                        "WHERE " + conditions + " "
+                        "ORDER BY timestamp DESC "
+                        "LIMIT ?"
+                    )
+                    cursor.execute(query, search_params)
+                    rows = cursor.fetchall()
 
                 results = []
                 for row in rows:
@@ -1027,45 +1039,44 @@ class DatabaseService:
             raise ValueError("Retention limits must be positive integers")
 
         def _op() -> Dict[str, int]:
-            conn = self._get_connection()
-            cursor = conn.cursor()
+            with self._connection() as conn:
+                cursor = conn.cursor()
 
-            cursor.execute(
-                """
-                SELECT id
-                FROM generation_history
-                ORDER BY timestamp DESC
-                LIMIT -1 OFFSET ?
-                """,
-                (normalized_generations,),
-            )
-            generation_rows = cursor.fetchall()
-            generation_ids = [int(row["id"]) for row in generation_rows]
-            if generation_ids:
-                cursor.executemany(
-                    "DELETE FROM generation_history WHERE id = ?",
-                    [(generation_id,) for generation_id in generation_ids],
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM generation_history
+                    ORDER BY timestamp DESC
+                    LIMIT -1 OFFSET ?
+                    """,
+                    (normalized_generations,),
                 )
+                generation_rows = cursor.fetchall()
+                generation_ids = [int(row["id"]) for row in generation_rows]
+                if generation_ids:
+                    cursor.executemany(
+                        "DELETE FROM generation_history WHERE id = ?",
+                        [(generation_id,) for generation_id in generation_ids],
+                    )
 
-            cursor.execute(
-                """
-                SELECT id
-                FROM generation_reports
-                ORDER BY created_at DESC
-                LIMIT -1 OFFSET ?
-                """,
-                (normalized_reports,),
-            )
-            report_rows = cursor.fetchall()
-            report_ids = [int(row["id"]) for row in report_rows]
-            if report_ids:
-                cursor.executemany(
-                    "DELETE FROM generation_reports WHERE id = ?",
-                    [(report_id,) for report_id in report_ids],
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM generation_reports
+                    ORDER BY created_at DESC
+                    LIMIT -1 OFFSET ?
+                    """,
+                    (normalized_reports,),
                 )
+                report_rows = cursor.fetchall()
+                report_ids = [int(row["id"]) for row in report_rows]
+                if report_ids:
+                    cursor.executemany(
+                        "DELETE FROM generation_reports WHERE id = ?",
+                        [(report_id,) for report_id in report_ids],
+                    )
 
-            conn.commit()
-            conn.close()
+                conn.commit()
             return {
                 "deleted_generations": len(generation_ids),
                 "deleted_reports": len(report_ids),
@@ -1086,12 +1097,11 @@ class DatabaseService:
 
         try:
             def _op() -> int:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM generation_history")
-                count = cursor.fetchone()[0]
-                conn.close()
-                return int(count)
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM generation_history")
+                    count = cursor.fetchone()[0]
+                    return int(count)
 
             health_status["record_count"] = await self._run_in_thread(_op)
             health_status["connection_ok"] = True
