@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 
 import structlog
 
-from ..domain import canonicalize_topic
+from ..domain import all_tort_topic_keys, canonicalize_topic
 
 logger = structlog.get_logger(__name__)
 
@@ -191,7 +191,12 @@ class ValidationService:
                 "willing participant",
             ],
         }
-        self._topic_keywords = self._normalize_topic_keywords(raw_topic_keywords)
+        normalized_keywords = self._normalize_topic_keywords(raw_topic_keywords)
+        canonical_keys = all_tort_topic_keys()
+        self._topic_keywords = {
+            key: normalized_keywords.get(key, [key.replace("_", " ")])
+            for key in canonical_keys
+        }
 
     @staticmethod
     def _normalize_topic_keywords(
