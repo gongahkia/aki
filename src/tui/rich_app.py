@@ -37,6 +37,7 @@ from . import settings as settings_module
 from .history_models import validate_history_records
 from .installer import install_service_dependencies, request_install_confirmation
 from .models import GenerationConfig
+from .services import ProviderHealthCache
 from .state import TUIState
 
 console = Console()
@@ -442,8 +443,9 @@ class JikaiTUI:
         self._last_history_load_time: float = 0.0
         self._cached_last_score: str = "—"
         self._history_migrated: bool = False
-        self._provider_model_cache: Dict[str, List[str]] = {}
-        self._provider_health_cache: Dict[str, Dict[str, Any]] = {}
+        self._provider_health_cache = ProviderHealthCache(
+            ttl_seconds=PROVIDER_HEALTH_CACHE_TTL_SECONDS
+        )
 
     def _new_correlation_id(self) -> str:
         return f"tui-{uuid.uuid4()}"
@@ -4177,47 +4179,22 @@ class JikaiTUI:
                 self._set_default_provider()
 
     def _invalidate_provider_health_cache(self):
-        self._provider_health_cache.clear()
+        self._provider_health_cache.invalidate()
 
     def _get_provider_health_snapshot(
         self, *, force_refresh: bool = False
     ) -> tuple[Dict[str, Any], Dict[str, List[str]]]:
-        cache_key = "snapshot"
-        now = time.monotonic()
-        if not force_refresh:
-            cached = self._provider_health_cache.get(cache_key)
-            if cached and float(cached.get("expires_at", 0.0)) > now:
-                return cached["health"], cached["models"]
-
         from ..services.llm_service import llm_service
 
-        async def _health():
+        async def _fetch_snapshot():
             h = await llm_service.health_check()
             m = await llm_service.list_models()
             return h, m
 
-        health, models = _run_async(_health())
-        normalized_models: Dict[str, List[str]] = {}
-        for provider_name, model_list in models.items():
-            if not isinstance(model_list, list):
-                normalized_models[provider_name] = []
-                continue
-            cleaned = sorted(
-                {
-                    model.strip()
-                    for model in model_list
-                    if isinstance(model, str) and model.strip()
-                }
-            )
-            normalized_models[provider_name] = cleaned
-            self._provider_model_cache[provider_name] = cleaned
-
-        self._provider_health_cache[cache_key] = {
-            "expires_at": now + PROVIDER_HEALTH_CACHE_TTL_SECONDS,
-            "health": health,
-            "models": normalized_models,
-        }
-        return health, normalized_models
+        return self._provider_health_cache.get_snapshot(
+            lambda: _run_async(_fetch_snapshot()),
+            force_refresh=force_refresh,
+        )
 
     def _check_health(self, force_refresh: bool = False):
         try:
@@ -4257,39 +4234,30 @@ class JikaiTUI:
     def _get_provider_models(
         self, provider: str, force_refresh: bool = False
     ) -> List[str]:
-        provider_name = (provider or "").strip().lower()
-        if not provider_name:
-            return []
-        if not force_refresh and provider_name in self._provider_model_cache:
-            return self._provider_model_cache[provider_name]
+        def _fetch_models(provider_name: str) -> List[str]:
+            models: List[str] = []
+            try:
+                from ..services.llm_service import llm_service
 
-        if not force_refresh:
-            cached = self._provider_health_cache.get("snapshot")
-            now = time.monotonic()
-            if cached and float(cached.get("expires_at", 0.0)) > now:
-                cached_models = cached.get("models", {}).get(provider_name)
-                if isinstance(cached_models, list):
-                    self._provider_model_cache[provider_name] = cached_models
-                    return cached_models
+                async def _models():
+                    available = await llm_service.list_models(provider=provider_name)
+                    return available.get(provider_name, [])
 
-        models: List[str] = []
-        try:
-            from ..services.llm_service import llm_service
+                fetched = _run_async(_models())
+                models = [m for m in fetched if isinstance(m, str) and m.strip()]
+            except Exception as e:
+                tlog.warning(
+                    "MODEL_LIST_FETCH_FAILED  provider=%s error=%s",
+                    provider_name,
+                    str(e),
+                )
+            return models
 
-            async def _models():
-                available = await llm_service.list_models(provider=provider_name)
-                return available.get(provider_name, [])
-
-            fetched = _run_async(_models())
-            models = [m for m in fetched if isinstance(m, str) and m.strip()]
-        except Exception as e:
-            tlog.warning(
-                "MODEL_LIST_FETCH_FAILED  provider=%s error=%s", provider_name, str(e)
-            )
-
-        unique_models = sorted(set(models))
-        self._provider_model_cache[provider_name] = unique_models
-        return unique_models
+        return self._provider_health_cache.get_provider_models(
+            provider=provider,
+            fetch_models=_fetch_models,
+            force_refresh=force_refresh,
+        )
 
     def _select_model_for_provider(self, provider: str) -> Optional[str]:
         models = self._get_provider_models(provider)
