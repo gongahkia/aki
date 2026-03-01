@@ -66,9 +66,8 @@ class ProvidersScreen(_BaseScreen):
         while True:
             provider_state = "unknown"
             try:
-                from ..services.llm_service import llm_service
-
-                health = await llm_service.health_check()
+                provider_service = self.app.get_provider_service()
+                health = await provider_service.health_check()
                 statuses = [
                     details.get("status", "unknown")
                     for details in health.values()
@@ -171,8 +170,13 @@ class JikaiTextualApp(App[None]):
         Binding("home", "show_home", "Home"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, *, provider_service=None) -> None:
         super().__init__()
+        if provider_service is None:
+            from ..services.llm_service import llm_service
+
+            provider_service = llm_service
+        self._provider_service = provider_service
         self._screens: Dict[str, Screen] = {
             "home": HomeScreen(),
             "generate": GenerateScreen(),
@@ -180,6 +184,9 @@ class JikaiTextualApp(App[None]):
             "providers": ProvidersScreen(),
             "help": HelpScreen(),
         }
+
+    def get_provider_service(self):
+        return self._provider_service
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

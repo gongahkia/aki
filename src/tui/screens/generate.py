@@ -56,6 +56,14 @@ class GenerateFormScreen(Screen):
     _missing_topics: List[str] = []
     _regeneration_feedback: str = ""
 
+    def __init__(self, *, provider_service=None) -> None:
+        super().__init__()
+        if provider_service is None:
+            from ...services.llm_service import llm_service
+
+            provider_service = llm_service
+        self._provider_service = provider_service
+
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
             yield Label("Generate", id="screen-title")
@@ -277,7 +285,7 @@ class GenerateFormScreen(Screen):
         saved = False
 
         try:
-            from ...services.llm_service import LLMRequest, llm_service
+            from ...services.llm_service import LLMRequest
 
             request = LLMRequest(
                 prompt=(
@@ -292,7 +300,7 @@ class GenerateFormScreen(Screen):
                 temperature=0.7,
                 stream=True,
             )
-            async for chunk in llm_service.stream_generate(request):
+            async for chunk in self._provider_service.stream_generate(request):
                 if self._stream_cancelled:
                     break
                 while self._stream_paused and not self._stream_cancelled:

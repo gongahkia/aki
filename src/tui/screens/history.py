@@ -29,6 +29,19 @@ class HistoryScreen(Screen):
     _page_size = 20
     _page = 0
 
+    def __init__(self, *, history_service=None, workflow_service=None) -> None:
+        super().__init__()
+        if history_service is None:
+            from ...services.database_service import database_service
+
+            history_service = database_service
+        if workflow_service is None:
+            from ...services.workflow_facade import workflow_facade
+
+            workflow_service = workflow_facade
+        self._history_service = history_service
+        self._workflow_service = workflow_service
+
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
             yield Label("History", id="screen-title")
@@ -61,9 +74,7 @@ class HistoryScreen(Screen):
         page = self.query_one("#history-page", Static)
         page.update("Loading history...")
         try:
-            from ...services.database_service import database_service
-
-            records = await database_service.get_history_records(limit=500)
+            records = await self._history_service.get_history_records(limit=500)
             if isinstance(records, list):
                 self._all_records = records
             else:
@@ -216,9 +227,9 @@ class HistoryScreen(Screen):
             status.update("Action: selected row has no generation id")
             return
         try:
-            from ...services.workflow_facade import workflow_facade
-
-            await workflow_facade.regenerate_generation(generation_id=int(generation_id))
+            await self._workflow_service.regenerate_generation(
+                generation_id=int(generation_id)
+            )
             status.update(f"Action: regenerated generation_id={generation_id}")
         except Exception as exc:
             status.update(f"Action: regenerate failed ({exc})")
@@ -254,9 +265,7 @@ class HistoryScreen(Screen):
             status.update("Action: selected row has no generation id")
             return
         try:
-            from ...services.workflow_facade import workflow_facade
-
-            await workflow_facade.save_generation_report(
+            await self._workflow_service.save_generation_report(
                 generation_id=int(generation_id),
                 issue_types=["manual_review"],
                 comment="Reported from Textual history screen.",

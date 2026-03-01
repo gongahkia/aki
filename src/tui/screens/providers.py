@@ -22,6 +22,14 @@ class ProvidersScreen(Screen):
 
     _models_by_provider: Dict[str, List[str]] = {}
 
+    def __init__(self, *, provider_service=None) -> None:
+        super().__init__()
+        if provider_service is None:
+            from ...services.llm_service import llm_service
+
+            provider_service = llm_service
+        self._provider_service = provider_service
+
     def compose(self) -> ComposeResult:
         with Container(id="screen-body"):
             yield Label("Providers", id="screen-title")
@@ -52,10 +60,8 @@ class ProvidersScreen(Screen):
         status = self.query_one("#provider-status", Static)
         status.update("Provider status: loading...")
         try:
-            from ...services.llm_service import llm_service
-
-            health = await llm_service.health_check()
-            models = await llm_service.list_models()
+            health = await self._provider_service.health_check()
+            models = await self._provider_service.list_models()
             self._models_by_provider = {
                 provider: [m for m in model_list if isinstance(m, str)]
                 for provider, model_list in models.items()
@@ -124,9 +130,7 @@ class ProvidersScreen(Screen):
             status.update("Provider status: choose a provider first")
             return
         try:
-            from ...services.llm_service import llm_service
-
-            llm_service.select_provider(provider)
+            self._provider_service.select_provider(provider)
             status.update(f"Provider status: default provider set to {provider}")
         except Exception as exc:
             status.update(f"Provider status: failed to set provider ({exc})")
@@ -138,9 +142,7 @@ class ProvidersScreen(Screen):
             status.update("Provider status: choose a model first")
             return
         try:
-            from ...services.llm_service import llm_service
-
-            llm_service.select_model(model)
+            self._provider_service.select_model(model)
             status.update(f"Provider status: default model set to {model}")
         except Exception as exc:
             status.update(f"Provider status: failed to set model ({exc})")
