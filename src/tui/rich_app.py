@@ -429,9 +429,11 @@ def _validated_text(message, default="", validate=None):
         return None
 
 
+_loop = asyncio.new_event_loop()
+
 def _run_async(coro):
     """Run async coroutine from synchronous context."""
-    return asyncio.run(coro)
+    return _loop.run_until_complete(coro)
 
 
 def _normalize_complexity_level(value: Any) -> str:
