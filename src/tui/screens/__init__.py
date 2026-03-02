@@ -1,6 +1,5 @@
 """Textual screen modules for Jikai TUI."""
 
-from .demo_flow import DemoFlowScreen
 from .diagnostics import DiagnosticsScreen
 from .generate import GenerateFormScreen
 from .history import HistoryScreen
@@ -9,7 +8,6 @@ from .settings import SettingsScreen
 from .setup_wizard import SetupWizardScreen
 
 __all__ = [
-    "DemoFlowScreen",
     "DiagnosticsScreen",
     "GenerateFormScreen",
     "HistoryScreen",
