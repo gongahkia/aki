@@ -2077,7 +2077,7 @@ class JikaiTUI:
                 return
 
     def _do_generate(self, cfg: "GenerationConfig"):
-        topics, provider, model = cfg.topics[0]s, cfg.provider, cfg.model
+        topics, provider, model = cfg.topics, cfg.provider, cfg.model
         topic = ", ".join(topics)
         complexity, parties, method = cfg.complexity, cfg.parties, cfg.method
         complexity_level = _normalize_complexity_level(complexity)
