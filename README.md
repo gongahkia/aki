@@ -66,9 +66,9 @@ $ make preprocess # preprocess raw corpus files
 $ make train # train on processed corpus
 ```
 
-## Screenshots
+## Screenshot
 
-
+![](./asset/reference/14.png)
 
 ## API
 
