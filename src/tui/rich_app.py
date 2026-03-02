@@ -1966,10 +1966,10 @@ class JikaiTUI:
                     console.print("[dim]Switching to custom mode...[/dim]")
                     mode = "custom"
                 else:
-                    topic = _select_quit(
-                        "Topic", choices=_topic_choices(), style=TOPIC_STYLE
-                    )
-                    if topic is None:
+                    topics = _checkbox("Topics (spacebar to select)", choices=_topic_choices())
+                    topics = [t for t in (topics or []) if t is not None]
+                    if not topics:
+                        console.print("[yellow]No topics selected.[/yellow]")
                         return
 
             if mode == "exam_practice":
@@ -1982,17 +1982,17 @@ class JikaiTUI:
                 method = preset["method"]
                 include_analysis = preset["include_analysis"]
                 red_herrings = preset["red_herrings"]
-                topic = _select_quit(
-                    "Topic", choices=_topic_choices(), style=TOPIC_STYLE
-                )
-                if topic is None:
+                topics = _checkbox("Topics (spacebar to select)", choices=_topic_choices())
+                topics = [t for t in (topics or []) if t is not None]
+                if not topics:
+                    console.print("[yellow]No topics selected.[/yellow]")
                     return
 
             if mode == "custom":
-                topic = _select_quit(
-                    "Topic", choices=_topic_choices(), style=TOPIC_STYLE
-                )
-                if topic is None:
+                topics = _checkbox("Topics (spacebar to select)", choices=_topic_choices())
+                topics = [t for t in (topics or []) if t is not None]
+                if not topics:
+                    console.print("[yellow]No topics selected.[/yellow]")
                     return
                 provider = _select_quit("Provider", choices=PROVIDER_CHOICES)
                 if provider is None:
@@ -2033,7 +2033,7 @@ class JikaiTUI:
             cfg = Table(box=box.SIMPLE, title="Generation Config")
             cfg.add_column("Parameter", style="cyan")
             cfg.add_column("Value", style="yellow")
-            cfg.add_row("Topic", topic)
+            cfg.add_row("Topics", ", ".join(topics))
             cfg.add_row("Provider", provider)
             cfg.add_row("Model", str(model_name) or "(default)")
             cfg.add_row("Temperature", f"{float(temperature):.1f}")
@@ -2046,9 +2046,9 @@ class JikaiTUI:
             if not _confirm("Proceed with generation?", default=True):
                 return
             tlog.info(
-                "GENERATE  topic=%s provider=%s model=%s temp=%.1f "
+                "GENERATE  topics=%s provider=%s model=%s temp=%.1f "
                 "complexity=%s parties=%s method=%s include_analysis=%s",
-                topic,
+                topics,
                 provider,
                 model_name,
                 temperature,
@@ -2058,7 +2058,7 @@ class JikaiTUI:
                 include_analysis,
             )
             generation_config = GenerationConfig.from_inputs(
-                topic=topic,
+                topics=topics,
                 provider=provider,
                 model=model_name or None,
                 complexity=str(complexity),
@@ -2077,7 +2077,8 @@ class JikaiTUI:
                 return
 
     def _do_generate(self, cfg: "GenerationConfig"):
-        topic, provider, model = cfg.topic, cfg.provider, cfg.model
+        topics, provider, model = cfg.topics[0]s, cfg.provider, cfg.model
+        topic = ", ".join(topics)
         complexity, parties, method = cfg.complexity, cfg.parties, cfg.method
         complexity_level = _normalize_complexity_level(complexity)
         include_analysis = cfg.include_analysis
@@ -2127,7 +2128,7 @@ class JikaiTUI:
                     if result:
                         vr = validation_service.validate_hypothetical(
                             text=result,
-                            required_topics=[topic],
+                            required_topics=topics,
                             expected_parties=parties,
                             fast_mode=False,
                         )
@@ -2212,7 +2213,7 @@ class JikaiTUI:
                     if extra_feedback:
                         prefs["feedback"] = extra_feedback
                     req = GenerationRequest(
-                        topics=[topic],
+                        topics=topics,
                         number_parties=max(2, min(5, parties)),
                         complexity_level=str(complexity),
                         method=method,
@@ -2522,7 +2523,7 @@ class JikaiTUI:
             if action == "model_answer":
                 self._offer_model_answer(
                     current.get("hypothetical", ""),
-                    cfg.topic,
+                    cfg.topics[0],
                     cfg.provider,
                     cfg.model,
                     cfg.temperature,
@@ -2608,7 +2609,7 @@ class JikaiTUI:
                         generation_id=source_generation_id,
                         correlation_id=action_correlation_id,
                         fallback_request={
-                            "topics": [cfg.topic],
+                            "topics": cfg.topics,
                             "law_domain": "tort",
                             "number_parties": cfg.parties,
                             "complexity_level": str(cfg.complexity),
@@ -2626,7 +2627,7 @@ class JikaiTUI:
                 )
             regenerated = regeneration.regenerated
             request_data = regeneration.request_data
-            requested_topics = request_data.get("topics") or [cfg.topic]
+            requested_topics = request_data.get("topics") or cfg.topics
             primary_topic = requested_topics[0]
             raw_complexity = request_data.get("complexity_level", str(cfg.complexity))
             try:
