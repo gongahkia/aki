@@ -66,9 +66,17 @@ $ make preprocess # preprocess raw corpus files
 $ make train # train on processed corpus
 ```
 
-## Screenshot
+## Screenshots
 
-![](./asset/reference/14.png)
+<div align="center">
+    <img src="./asset/reference/1.png" width="45%">
+    <img src="./asset/reference/2.png" width="45%">
+</div>
+
+<div align="center">
+    <img src="./asset/reference/3.png" width="45%">
+    <img src="./asset/reference/4.png" width="45%">
+</div>
 
 ## API
 
