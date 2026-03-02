@@ -36,7 +36,7 @@ impl Screen for PreprocessScreen {
                 if let Some(yes) = confirm.handle_key(key) {
                     if yes {
                         let api = ctx.api_url.clone();
-                        let handle = tokio::spawn(async move {
+                        let _handle = tokio::spawn(async move {
                             let client = crate::api::client::ApiClient::new(&api);
                             client.start_preprocess(None, None).await
                         });

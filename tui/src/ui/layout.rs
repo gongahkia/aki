@@ -1,4 +1,3 @@
-use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 /// split frame into [breadcrumb(1) | body(fill) | status(1)]

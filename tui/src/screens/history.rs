@@ -1,8 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::layout::Rect;
+use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::ui::theme;

@@ -1,13 +1,12 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::screens::generate::topics;
 use crate::ui::theme;
-use crate::ui::widgets::checkbox::{CheckboxItem, CheckboxState};
+use crate::ui::widgets::checkbox::CheckboxState;
 use crate::ui::widgets::panel::Panel;
 
 enum Phase {

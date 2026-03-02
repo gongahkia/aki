@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use anyhow::Result;
 use reqwest::Client;
 use crate::api::types::*;

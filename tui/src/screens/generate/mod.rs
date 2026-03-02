@@ -1,23 +1,22 @@
-mod topics;
+pub(crate) mod topics;
 
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::text::{Line, Span};
+use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use crate::api::streaming::{SseReader, StreamEvent};
+use crate::api::streaming::SseReader;
 use crate::api::types::*;
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::state::generation::TuiState;
 use crate::ui::theme;
-use crate::ui::widgets::checkbox::{CheckboxItem, CheckboxState};
+use crate::ui::widgets::checkbox::CheckboxState;
 use crate::ui::widgets::confirm::Confirm;
 use crate::ui::widgets::menu::{MenuItem, MenuState};
 use crate::ui::widgets::panel::Panel;
 use crate::ui::widgets::progress::Spinner;
 use crate::ui::widgets::stream_view::StreamView;
-use crate::ui::widgets::text_input::TextInput;
 
 enum Phase {
     ModeSelect(MenuState),
@@ -328,7 +327,7 @@ impl Screen for GenerateScreen {
         }
     }
 
-    fn tick(&mut self, ctx: &mut AppContext) {
+    fn tick(&mut self, _ctx: &mut AppContext) {
         // check if async generation completed
         if let Some(handle) = &self.pending_response {
             if handle.is_finished() {

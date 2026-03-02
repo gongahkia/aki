@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::text::{Line, Span};
+use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::ui::theme;
 
