@@ -1,0 +1,4 @@
+port tui to rust
+test everything works if it should be working
+take screenshots
+update entire readme
