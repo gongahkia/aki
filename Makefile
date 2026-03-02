@@ -25,14 +25,19 @@ tui-build: ## Build Rust TUI (release)
 	cd tui && cargo build --release
 
 tui: tui-build ## Run Rust TUI (connects to API on :8000)
+	@curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1 || { echo "ERROR: API server not running. Start it first with 'make api' or use 'make run' for both."; exit 1; }
 	./tui/target/release/jikai-tui
 
-run: ## Start API + TUI together
+run: tui-build ## Start API + TUI together
 	@echo "Starting API server in background..."
 	@uvicorn src.api.main:app --host 127.0.0.1 --port 8000 &
-	@sleep 2
-	@echo "Starting TUI..."
-	@cd tui && cargo run --release
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
+	@curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1 || { echo "ERROR: API server failed to start."; kill %1 2>/dev/null; exit 1; }
+	@echo "API ready. Starting TUI..."
+	@./tui/target/release/jikai-tui
 	@kill %1 2>/dev/null || true
 
 # -- quality --
