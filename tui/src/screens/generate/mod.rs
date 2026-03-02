@@ -26,7 +26,7 @@ enum Phase {
     Generating(Spinner),
     Result(ResultView),
     PostGen(MenuState),
-    Error(String),
+    Error(String, MenuState), // msg + action menu
 }
 
 struct GenerateConfig {
@@ -61,8 +61,6 @@ impl Default for GenerateConfig {
 struct ResultView {
     hypothetical: Panel,
     analysis: Option<Panel>,
-    validation: Option<String>,
-    generation_id: Option<i64>,
     focus: usize, // 0 = hypo, 1 = analysis
 }
 
@@ -71,8 +69,16 @@ pub struct GenerateScreen {
     config: GenerateConfig,
     mode: String, // quick, exam, custom
     pending_response: Option<tokio::task::JoinHandle<Result<GenerationResponse, anyhow::Error>>>,
-    pending_stream: Option<tokio::task::JoinHandle<Result<reqwest::Response, anyhow::Error>>>,
     sse_reader: SseReader,
+}
+
+fn error_menu(msg: &str) -> MenuState {
+    let short = if msg.len() > 60 { format!("{}...", &msg[..60]) } else { msg.to_string() };
+    MenuState::new(&format!("Error: {}", short), vec![
+        MenuItem::new("Retry", "try generation again"),
+        MenuItem::new("Change Settings", "go back to topic selection"),
+        MenuItem::new("Go Back", "return to main menu"),
+    ])
 }
 
 impl GenerateScreen {
@@ -87,7 +93,6 @@ impl GenerateScreen {
             config: GenerateConfig::default(),
             mode: String::new(),
             pending_response: None,
-            pending_stream: None,
             sse_reader: SseReader::new(),
         }
     }
@@ -128,7 +133,6 @@ impl GenerateScreen {
             include_analysis: self.config.include_analysis,
             correlation_id: None,
         };
-        // try full generation via workflow
         self.phase = Phase::Generating(Spinner::new("Generating hypothetical..."));
         let api = ctx.api_url.clone();
         let handle = tokio::spawn(async move {
@@ -139,17 +143,12 @@ impl GenerateScreen {
     }
 
     fn show_result(&mut self, resp: GenerationResponse) {
-        let gen_id = resp.metadata.get("generation_id").and_then(|v| v.as_i64());
-        let validation = serde_json::to_string_pretty(&resp.validation_results).ok();
         let analysis = if resp.analysis.is_empty() { None } else { Some(Panel::new("Legal Analysis", &resp.analysis)) };
         self.phase = Phase::Result(ResultView {
             hypothetical: Panel::new("Generated Hypothetical", &resp.hypothetical),
             analysis,
-            validation,
-            generation_id: gen_id,
             focus: 0,
         });
-        // save last config
         let mut state = TuiState::load();
         state.last_config.provider = self.config.provider.clone();
         state.last_config.model = self.config.model.clone();
@@ -169,6 +168,14 @@ impl GenerateScreen {
             MenuItem::new("Export", "save to DOCX/PDF"),
         ])
     }
+
+    fn mode_select_menu() -> MenuState {
+        MenuState::new("Generation Mode", vec![
+            MenuItem::new("Quick Generate", "topic only, use saved defaults"),
+            MenuItem::new("Exam Practice", "realism-first preset"),
+            MenuItem::new("Custom", "full configuration"),
+        ])
+    }
 }
 
 impl Screen for GenerateScreen {
@@ -179,13 +186,13 @@ impl Screen for GenerateScreen {
             KeyCode::Esc => {
                 match &self.phase {
                     Phase::ModeSelect(_) => return ScreenAction::Pop,
-                    Phase::PostGen(_) | Phase::Error(_) => return ScreenAction::Pop,
+                    Phase::PostGen(_) => return ScreenAction::Pop,
+                    Phase::Error(_, _) => {
+                        self.phase = Phase::ModeSelect(Self::mode_select_menu());
+                        return ScreenAction::None;
+                    }
                     _ => {
-                        self.phase = Phase::ModeSelect(MenuState::new("Generation Mode", vec![
-                            MenuItem::new("Quick Generate", "topic only, use saved defaults"),
-                            MenuItem::new("Exam Practice", "realism-first preset"),
-                            MenuItem::new("Custom", "full configuration"),
-                        ]));
+                        self.phase = Phase::ModeSelect(Self::mode_select_menu());
                         return ScreenAction::None;
                     }
                 }
@@ -208,9 +215,7 @@ impl Screen for GenerateScreen {
             Phase::TopicSelect(cb) => {
                 if cb.handle_key(key) {
                     let selected = cb.selected_values();
-                    if selected.is_empty() {
-                        // don't proceed without topics
-                    } else {
+                    if !selected.is_empty() {
                         self.config.topics = selected;
                         self.phase = Phase::ConfigConfirm(self.show_config_confirm());
                     }
@@ -228,7 +233,7 @@ impl Screen for GenerateScreen {
             Phase::Streaming(sv) => {
                 match key.code {
                     KeyCode::Char(' ') => sv.toggle_pause(),
-                    KeyCode::Char('c') | KeyCode::Esc => {
+                    KeyCode::Char('c') => {
                         sv.done = true;
                         self.phase = Phase::PostGen(self.post_gen_menu());
                     }
@@ -237,7 +242,7 @@ impl Screen for GenerateScreen {
                     _ => {}
                 }
             }
-            Phase::Generating(_) => {} // wait
+            Phase::Generating(_) => {} // wait for tick
             Phase::Result(rv) => {
                 match key.code {
                     KeyCode::Up | KeyCode::Char('k') => {
@@ -264,19 +269,21 @@ impl Screen for GenerateScreen {
             Phase::PostGen(menu) => {
                 if let Some(idx) = menu.handle_key(key) {
                     match idx {
-                        0 => return ScreenAction::Pop, // done
-                        1 => { // generate another
-                            self.phase = Phase::TopicSelect(self.build_topic_checkbox());
-                        }
+                        0 => return ScreenAction::Pop,
+                        1 => { self.phase = Phase::TopicSelect(self.build_topic_checkbox()); }
                         2 => {} // report -- TODO
                         3 => return ScreenAction::Push(Box::new(super::export::ExportScreen::new())),
                         _ => {}
                     }
                 }
             }
-            Phase::Error(_) => {
-                if key.code == KeyCode::Enter || key.code == KeyCode::Esc {
-                    return ScreenAction::Pop;
+            Phase::Error(_, menu) => {
+                if let Some(idx) = menu.handle_key(key) {
+                    match idx {
+                        0 => self.start_generation(ctx), // retry
+                        1 => { self.phase = Phase::TopicSelect(self.build_topic_checkbox()); }
+                        _ => return ScreenAction::Pop,
+                    }
                 }
             }
         }
@@ -290,7 +297,6 @@ impl Screen for GenerateScreen {
             Phase::ConfigConfirm(confirm) => {
                 let layout = Layout::default().direction(Direction::Vertical)
                     .constraints([Constraint::Min(3), Constraint::Length(3)]).split(area);
-                // show config summary above confirm
                 let summary = format!(
                     "Topics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nMethod: {}\nAnalysis: {}",
                     self.config.topics.join(", "), self.config.provider,
@@ -304,9 +310,7 @@ impl Screen for GenerateScreen {
                 confirm.render(f, layout[1]);
             }
             Phase::Streaming(sv) => sv.render(f, area),
-            Phase::Generating(spinner) => {
-                spinner.render(f, area);
-            }
+            Phase::Generating(spinner) => spinner.render(f, area),
             Phase::Result(rv) => {
                 if rv.analysis.is_some() {
                     let layout = Layout::default().direction(Direction::Vertical)
@@ -318,27 +322,20 @@ impl Screen for GenerateScreen {
                 }
             }
             Phase::PostGen(menu) => menu.render(f, area),
-            Phase::Error(msg) => {
-                let block = Block::default().title(Span::styled(" Error ", theme::error()))
-                    .borders(Borders::ALL).border_style(theme::error());
-                let p = Paragraph::new(msg.as_str()).wrap(Wrap { trim: false }).block(block);
-                f.render_widget(p, area);
-            }
+            Phase::Error(_, menu) => menu.render(f, area),
         }
     }
 
     fn tick(&mut self, _ctx: &mut AppContext) {
-        // check if async generation completed
+        if let Phase::Generating(s) = &mut self.phase { s.tick(); }
         if let Some(handle) = &self.pending_response {
             if handle.is_finished() {
                 let handle = self.pending_response.take().unwrap();
                 match tokio::runtime::Handle::current().block_on(handle) {
                     Ok(Ok(resp)) => self.show_result(resp),
-                    Ok(Err(e)) => self.phase = Phase::Error(format!("{}", e)),
-                    Err(e) => self.phase = Phase::Error(format!("Task failed: {}", e)),
+                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                    Err(e) => { let msg = format!("Task failed: {}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
                 }
-            } else {
-                if let Phase::Generating(s) = &mut self.phase { s.tick(); }
             }
         }
     }
