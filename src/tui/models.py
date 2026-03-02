@@ -1,7 +1,7 @@
 """Shared TUI data models."""
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 from .state import LastGenerationConfig
 
@@ -10,7 +10,7 @@ from .state import LastGenerationConfig
 class GenerationConfig:
     """Encapsulates all generation parameters."""
 
-    topic: str
+    topics: List[str]
     provider: str
     model: Optional[str]
     complexity: int
@@ -24,7 +24,7 @@ class GenerationConfig:
     def from_inputs(
         cls,
         *,
-        topic: str,
+        topics: List[str],
         provider: str,
         model: Optional[str],
         complexity: str,
@@ -36,7 +36,7 @@ class GenerationConfig:
     ) -> "GenerationConfig":
         """Build config from UI string values with strict type coercion."""
         return cls(
-            topic=topic,
+            topics=topics,
             provider=provider,
             model=model or None,
             complexity=int(complexity),
