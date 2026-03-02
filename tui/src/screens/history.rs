@@ -5,14 +5,16 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::ui::theme;
+use crate::ui::widgets::menu::{MenuItem, MenuState};
+use crate::ui::widgets::progress::Spinner;
 use crate::ui::widgets::table::DataTable;
 use crate::ui::widgets::panel::Panel;
 
 enum Phase {
-    Loading,
+    Loading(Spinner),
     List(DataTable),
     Detail(Panel),
-    Error(String),
+    Error(String, MenuState),
 }
 
 pub struct HistoryScreen {
@@ -21,9 +23,20 @@ pub struct HistoryScreen {
     pending: Option<tokio::task::JoinHandle<Result<Vec<crate::api::types::HistoryRecord>, anyhow::Error>>>,
 }
 
+fn error_menu(msg: &str) -> MenuState {
+    MenuState::new(&format!("Error: {}", truncate(msg, 60)), vec![
+        MenuItem::new("Retry", "try loading again"),
+        MenuItem::new("Go Back", "return to previous screen"),
+    ])
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.len() <= max { s.to_string() } else { format!("{}...", &s[..max]) }
+}
+
 impl HistoryScreen {
     pub fn new() -> Self {
-        Self { phase: Phase::Loading, records: Vec::new(), pending: None }
+        Self { phase: Phase::Loading(Spinner::new("Loading history...")), records: Vec::new(), pending: None }
     }
 }
 
@@ -31,6 +44,7 @@ impl Screen for HistoryScreen {
     fn name(&self) -> &str { "History" }
 
     fn on_enter(&mut self, ctx: &mut AppContext) {
+        self.phase = Phase::Loading(Spinner::new("Loading history..."));
         let api = ctx.api_url.clone();
         self.pending = Some(tokio::spawn(async move {
             let client = crate::api::client::ApiClient::new(&api);
@@ -38,13 +52,13 @@ impl Screen for HistoryScreen {
         }));
     }
 
-    fn handle_key(&mut self, key: KeyEvent, _ctx: &mut AppContext) -> ScreenAction {
-        match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => return ScreenAction::Pop,
-            _ => {}
-        }
+    fn handle_key(&mut self, key: KeyEvent, ctx: &mut AppContext) -> ScreenAction {
         match &mut self.phase {
+            Phase::Loading(_) => {
+                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+            }
             Phase::List(table) => {
+                if key.code == KeyCode::Esc || key.code == KeyCode::Char('q') { return ScreenAction::Pop; }
                 if let Some(idx) = table.handle_key(key) {
                     if let Some(record) = self.records.get(idx) {
                         let hypo = record["hypothetical"].as_str().unwrap_or("--");
@@ -63,7 +77,6 @@ impl Screen for HistoryScreen {
                     KeyCode::Up | KeyCode::Char('k') => panel.scroll_up(),
                     KeyCode::Down | KeyCode::Char('j') => panel.scroll_down(),
                     KeyCode::Esc | KeyCode::Backspace => {
-                        // rebuild list
                         let mut table = DataTable::new("History", vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()], vec![6, 30, 8, 20]);
                         let rows: Vec<Vec<String>> = self.records.iter().map(|r| vec![
                             r["id"].to_string(),
@@ -77,27 +90,30 @@ impl Screen for HistoryScreen {
                     _ => {}
                 }
             }
-            _ => {}
+            Phase::Error(_, menu) => {
+                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if let Some(idx) = menu.handle_key(key) {
+                    match idx {
+                        0 => self.on_enter(ctx), // retry
+                        _ => return ScreenAction::Pop,
+                    }
+                }
+            }
         }
         ScreenAction::None
     }
 
     fn render(&mut self, f: &mut Frame, area: Rect, _ctx: &AppContext) {
         match &mut self.phase {
-            Phase::Loading => {
-                let p = Paragraph::new("Loading history...").style(theme::dim());
-                f.render_widget(p, area);
-            }
+            Phase::Loading(spinner) => spinner.render(f, area),
             Phase::List(table) => table.render(f, area),
             Phase::Detail(panel) => panel.render(f, area),
-            Phase::Error(msg) => {
-                let block = Block::default().title(" Error ").borders(Borders::ALL).border_style(theme::error());
-                f.render_widget(Paragraph::new(msg.as_str()).block(block), area);
-            }
+            Phase::Error(_, menu) => menu.render(f, area),
         }
     }
 
     fn tick(&mut self, _ctx: &mut AppContext) {
+        if let Phase::Loading(s) = &mut self.phase { s.tick(); }
         if let Some(handle) = &self.pending {
             if handle.is_finished() {
                 let handle = self.pending.take().unwrap();
@@ -114,8 +130,8 @@ impl Screen for HistoryScreen {
                         table.set_rows(rows);
                         self.phase = Phase::List(table);
                     }
-                    Ok(Err(e)) => self.phase = Phase::Error(format!("{}", e)),
-                    Err(e) => self.phase = Phase::Error(format!("{}", e)),
+                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                    Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
                 }
             }
         }
