@@ -19,6 +19,7 @@ class ValidateRequest(BaseModel):
 @router.post("/validate")
 async def validate(req: ValidateRequest):
     from ...services import validation_service
+
     result = validation_service.validate_hypothetical(
         text=req.text,
         required_topics=req.required_topics,

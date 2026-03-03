@@ -9,6 +9,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     import uvicorn
+
     uvicorn.run("src.api.main:app", host=args.host, port=args.port, reload=False)
 
 

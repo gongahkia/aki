@@ -124,9 +124,11 @@ class WorkflowFacade:
         correlation_id: Optional[str] = None,
     ) -> GenerationExecutionResult:
         """Validate and execute a generation request."""
-        canonical_topics, extraction_time_ms, available_topics = (
-            await self._validate_topics(request.topics)
-        )
+        (
+            canonical_topics,
+            extraction_time_ms,
+            available_topics,
+        ) = await self._validate_topics(request.topics)
         invalid_topics = [
             topic for topic in canonical_topics if topic not in available_topics
         ]
@@ -211,6 +213,7 @@ class WorkflowFacade:
                     from ..tui.services.stream_persistence import (
                         resolve_stream_persist_database_service,
                     )
+
                     stream_database_service = resolve_stream_persist_database_service(
                         generation_id
                     )

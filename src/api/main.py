@@ -23,6 +23,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     from .routes import corpus, database, health, jobs, llm, validation, workflow
+
     app.include_router(health.router)
     app.include_router(llm.router, prefix="/llm", tags=["llm"])
     app.include_router(corpus.router, prefix="/corpus", tags=["corpus"])

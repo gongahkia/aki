@@ -10,6 +10,7 @@ router = APIRouter()
 @router.get("/health")
 async def health():
     from ...services import corpus_service, database_service, llm_service
+
     db_ok = True
     try:
         await database_service.get_generation_count()

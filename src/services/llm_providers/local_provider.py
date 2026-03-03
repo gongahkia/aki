@@ -41,9 +41,9 @@ class LocalLLMProvider(LLMProvider):
             "stream": False,
         }
         if request.system_prompt:
-            payload["prompt"] = (
-                f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
-            )
+            payload[
+                "prompt"
+            ] = f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
         try:
             resp = await self.client.post(f"{self.base_url}/completion", json=payload)
             resp.raise_for_status()
@@ -92,9 +92,9 @@ class LocalLLMProvider(LLMProvider):
             "stream": True,
         }
         if request.system_prompt:
-            payload["prompt"] = (
-                f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
-            )
+            payload[
+                "prompt"
+            ] = f"### System:\n{request.system_prompt}\n\n### User:\n{request.prompt}\n\n### Assistant:\n"
         import json
 
         async with self.client.stream(

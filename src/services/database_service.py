@@ -96,7 +96,8 @@ class DatabaseService:
                 cursor = conn.cursor()
 
                 # Create generation_history table
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS generation_history (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
@@ -117,28 +118,36 @@ class DatabaseService:
                         retry_attempt INTEGER DEFAULT 0,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # Create index on timestamp for faster queries
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_generation_history_timestamp
                     ON generation_history(timestamp DESC)
-                """)
+                """
+                )
 
                 # Create index on topics for searching
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_topics
                     ON generation_history(topics)
-                """)
+                """
+                )
 
                 self._ensure_generation_history_lineage_columns(cursor)
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_generation_history_parent_generation_id
                     ON generation_history(parent_generation_id)
-                    """)
+                    """
+                )
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS generation_reports (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         generation_id INTEGER NOT NULL,
@@ -149,16 +158,20 @@ class DatabaseService:
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
                     )
-                """)
+                """
+                )
 
                 self._ensure_generation_reports_columns(cursor)
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_generation_reports_generation_id
                     ON generation_reports(generation_id)
-                """)
+                """
+                )
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS generation_feedback (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         report_id INTEGER NOT NULL,
@@ -168,20 +181,25 @@ class DatabaseService:
                         FOREIGN KEY (report_id) REFERENCES generation_reports(id) ON DELETE CASCADE,
                         FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE CASCADE
                     )
-                """)
+                """
+                )
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_generation_feedback_report_id
                     ON generation_feedback(report_id)
-                """)
+                """
+                )
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS migration_state (
                         key TEXT PRIMARY KEY,
                         value TEXT NOT NULL,
                         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
-                    """)
+                    """
+                )
 
                 conn.commit()
 
@@ -426,9 +444,10 @@ class DatabaseService:
                     for record in history_records:
                         if not isinstance(record, dict):
                             continue
-                        request_data, response_data = (
-                            self._legacy_history_record_to_payload(record)
-                        )
+                        (
+                            request_data,
+                            response_data,
+                        ) = self._legacy_history_record_to_payload(record)
                         try:
                             await self.save_generation(
                                 request_data=request_data,
@@ -920,7 +939,8 @@ class DatabaseService:
                 with self._connection() as conn:
                     cursor = conn.cursor()
 
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT
                             COUNT(*) as total_generations,
                             AVG(generation_time) as avg_generation_time,
@@ -929,24 +949,29 @@ class DatabaseService:
                             MIN(timestamp) as first_generation,
                             MAX(timestamp) as last_generation
                         FROM generation_history
-                    """)
+                    """
+                    )
                     row = cursor.fetchone()
 
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT
                             topics, COUNT(*) as count
                         FROM generation_history
                         GROUP BY topics
                         ORDER BY count DESC
                         LIMIT 10
-                    """)
+                    """
+                    )
                     topic_rows = cursor.fetchall()
 
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT response_data
                         FROM generation_history
                         WHERE response_data IS NOT NULL
-                        """)
+                        """
+                    )
                     latency_rows = cursor.fetchall()
 
                 latency_keys = [

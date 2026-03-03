@@ -78,7 +78,13 @@ class LabelRequest(BaseModel):
 
 def _create_job(job_type: str) -> str:
     job_id = str(uuid.uuid4())[:8]
-    _jobs[job_id] = {"type": job_type, "status": "running", "progress": 0, "result": None, "error": None}
+    _jobs[job_id] = {
+        "type": job_type,
+        "status": "running",
+        "progress": 0,
+        "result": None,
+        "error": None,
+    }
     return job_id
 
 
@@ -89,6 +95,7 @@ async def preprocess(req: PreprocessRequest):
     async def run():
         try:
             from ...services.corpus_preprocessor import build_corpus
+
             count = build_corpus(
                 raw_dir=Path(req.raw_dir) if req.raw_dir else None,
                 output_path=Path(req.output_path) if req.output_path else None,
@@ -112,6 +119,7 @@ async def scrape(req: ScrapeRequest):
     async def run():
         try:
             from ...services.scraper_service import run_scraper
+
             entries = await run_scraper(
                 source=req.source,
                 courts=req.courts,
@@ -136,8 +144,11 @@ async def train(req: TrainRequest):
     async def run():
         try:
             from ...ml.pipeline import MLPipeline
+
             pipeline = MLPipeline()
-            metrics = pipeline.train_all(data_path=req.data_path, n_clusters=req.n_clusters)
+            metrics = pipeline.train_all(
+                data_path=req.data_path, n_clusters=req.n_clusters
+            )
             _jobs[job_id]["status"] = "completed"
             _jobs[job_id]["result"] = {"metrics": metrics}
         except Exception as e:
@@ -155,10 +166,20 @@ async def embed(req: EmbedRequest):
     async def run():
         try:
             import json
+
             from ...services import vector_service
+
             with open(req.corpus_path, encoding="utf-8") as f:
                 corpus = json.load(f)
-            entries = [{"id": f"entry_{i}", "text": e.get("text", ""), "topics": e.get("topics", e.get("topic", [])), "metadata": e.get("metadata", {})} for i, e in enumerate(corpus)]
+            entries = [
+                {
+                    "id": f"entry_{i}",
+                    "text": e.get("text", ""),
+                    "topics": e.get("topics", e.get("topic", [])),
+                    "metadata": e.get("metadata", {}),
+                }
+                for i, e in enumerate(corpus)
+            ]
             count = await vector_service.index_hypotheticals(entries)
             _jobs[job_id]["status"] = "completed"
             _jobs[job_id]["result"] = {"indexed_count": count}
@@ -179,6 +200,7 @@ async def export(req: ExportRequest):
             output = req.output_path or f"data/export_{job_id}.{req.format}"
             if req.generation_id:
                 from ...services import database_service
+
                 gen = await database_service.get_generation_by_id(req.generation_id)
                 if gen:
                     hypo = gen.get("hypothetical", req.hypothetical or "")
@@ -191,6 +213,7 @@ async def export(req: ExportRequest):
                 analysis = req.analysis or ""
             try:
                 from docx import Document
+
                 doc = Document()
                 doc.add_heading("Jikai -- Generated Hypothetical", 0)
                 if hypo:
@@ -220,6 +243,7 @@ async def export(req: ExportRequest):
 @router.post("/cleanup")
 async def cleanup(req: CleanupRequest):
     import shutil
+
     removed = []
     target_map = {
         "config": [".env", ".jikai_state.json"],
@@ -245,15 +269,25 @@ async def cleanup(req: CleanupRequest):
 @router.post("/label")
 async def label(req: LabelRequest):
     import csv
+
     output = Path(req.output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     write_header = not output.exists()
     with open(output, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if write_header:
-            writer.writerow(["text", "topic_labels", "quality_score", "difficulty_level"])
+            writer.writerow(
+                ["text", "topic_labels", "quality_score", "difficulty_level"]
+            )
         for entry in req.entries:
-            writer.writerow([entry.text, "|".join(entry.topics), entry.quality_score, entry.difficulty_level])
+            writer.writerow(
+                [
+                    entry.text,
+                    "|".join(entry.topics),
+                    entry.quality_score,
+                    entry.difficulty_level,
+                ]
+            )
     return {"labelled_count": len(req.entries), "output_path": str(output)}
 
 

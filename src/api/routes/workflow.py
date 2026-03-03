@@ -40,6 +40,7 @@ class ReportRequest(BaseModel):
 async def generate(req: GenerateRequest):
     from ...services import workflow_facade
     from ...services.hypothetical_service import GenerationRequest
+
     gen_req = GenerationRequest(
         topics=req.topics,
         law_domain=req.law_domain,
@@ -54,7 +55,9 @@ async def generate(req: GenerateRequest):
         correlation_id=req.correlation_id,
     )
     try:
-        result = await workflow_facade.generate_generation(gen_req, correlation_id=req.correlation_id)
+        result = await workflow_facade.generate_generation(
+            gen_req, correlation_id=req.correlation_id
+        )
         return {
             "hypothetical": result.response.hypothetical,
             "analysis": result.response.analysis,
@@ -64,15 +67,23 @@ async def generate(req: GenerateRequest):
         }
     except Exception as e:
         from ...services.error_mapper import map_exception
+
         err = map_exception(e)
-        raise HTTPException(status_code=err.http_status, detail={
-            "code": err.code, "message": err.message, "hint": err.hint, "retryable": err.retryable,
-        })
+        raise HTTPException(
+            status_code=err.http_status,
+            detail={
+                "code": err.code,
+                "message": err.message,
+                "hint": err.hint,
+                "retryable": err.retryable,
+            },
+        )
 
 
 @router.post("/regenerate")
 async def regenerate(req: RegenerateRequest):
     from ...services import workflow_facade
+
     try:
         result = await workflow_facade.regenerate_generation(
             generation_id=req.generation_id,
@@ -93,15 +104,23 @@ async def regenerate(req: RegenerateRequest):
         }
     except Exception as e:
         from ...services.error_mapper import map_exception
+
         err = map_exception(e)
-        raise HTTPException(status_code=err.http_status, detail={
-            "code": err.code, "message": err.message, "hint": err.hint, "retryable": err.retryable,
-        })
+        raise HTTPException(
+            status_code=err.http_status,
+            detail={
+                "code": err.code,
+                "message": err.message,
+                "hint": err.hint,
+                "retryable": err.retryable,
+            },
+        )
 
 
 @router.post("/report")
 async def save_report(req: ReportRequest):
     from ...services import workflow_facade
+
     report_id = await workflow_facade.save_generation_report(
         generation_id=req.generation_id,
         issue_types=req.issue_types,
@@ -115,5 +134,10 @@ async def save_report(req: ReportRequest):
 @router.get("/reports/{generation_id}")
 async def list_reports(generation_id: int):
     from ...services import workflow_facade
+
     reports = await workflow_facade.list_generation_reports(generation_id)
-    return {"reports": [r.model_dump() if hasattr(r, 'model_dump') else r.__dict__ for r in reports]}
+    return {
+        "reports": [
+            r.model_dump() if hasattr(r, "model_dump") else r.__dict__ for r in reports
+        ]
+    }
