@@ -1,10 +1,11 @@
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use crate::screens::{Screen, ScreenAction};
 use crate::screens::main_menu::MainMenuScreen;
 use crate::state::navigation::NavStack;
 use crate::ui::layout::main_layout;
 use crate::ui::widgets::breadcrumb::render_breadcrumb;
+use crate::ui::widgets::menu::{MenuItem, MenuState};
 use crate::ui::widgets::status_bar::StatusBar;
 
 pub struct AppContext {
@@ -18,6 +19,7 @@ pub struct App {
     pub ctx: AppContext,
     pub running: bool,
     tick_counter: u64,
+    quit_menu: Option<MenuState>,
 }
 
 impl App {
@@ -30,12 +32,38 @@ impl App {
             ctx: AppContext { api_url },
             running: true,
             tick_counter: 0,
+            quit_menu: None,
         }
     }
 
+    fn quit_menu_items() -> MenuState {
+        MenuState::new("Exit Jikai?", vec![
+            MenuItem::new("Clean & Exit", "remove generated files, then quit"),
+            MenuItem::new("Exit", "quit without cleaning"),
+            MenuItem::new("Cancel", "return"),
+        ])
+    }
+
     pub fn handle_key(&mut self, key: KeyEvent) {
-        if crate::event::is_quit(&key) {
-            self.running = false;
+        // intercept quit menu
+        if let Some(menu) = &mut self.quit_menu {
+            if key.code == KeyCode::Esc { self.quit_menu = None; return; }
+            if let Some(idx) = menu.handle_key(key) {
+                match idx {
+                    0 => { // clean & exit: push cleanup screen
+                        self.quit_menu = None;
+                        let action = ScreenAction::Push(Box::new(crate::screens::cleanup::CleanupScreen::new()));
+                        self.process_action(action);
+                    }
+                    1 => self.running = false, // exit
+                    _ => self.quit_menu = None, // cancel
+                }
+            }
+            return;
+        }
+        // ctrl+c triggers quit menu
+        if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.quit_menu = Some(Self::quit_menu_items());
             return;
         }
         let action = if let Some(screen) = self.screen_stack.last_mut() {
@@ -51,7 +79,6 @@ impl App {
         if let Some(screen) = self.screen_stack.last_mut() {
             screen.tick(&mut self.ctx);
         }
-        // refresh status bar every ~50 ticks (~5s at 100ms tick)
         if self.tick_counter % 50 == 0 {
             self.refresh_status();
         }
@@ -60,6 +87,12 @@ impl App {
     pub fn draw(&mut self, f: &mut Frame) {
         let (breadcrumb_area, body_area, status_area) = main_layout(f.area());
         render_breadcrumb(f, breadcrumb_area, &self.nav.breadcrumb());
+        // overlay quit menu if active
+        if let Some(menu) = &mut self.quit_menu {
+            menu.render(f, body_area);
+            self.status_bar.render(f, status_area);
+            return;
+        }
         if let Some(screen) = self.screen_stack.last_mut() {
             screen.render(f, body_area, &self.ctx);
         }
@@ -79,7 +112,8 @@ impl App {
                     self.screen_stack.pop();
                     self.nav.pop();
                 } else {
-                    self.running = false;
+                    // at root -- show quit menu with cleanup option
+                    self.quit_menu = Some(Self::quit_menu_items());
                 }
             }
             ScreenAction::Replace(mut screen) => {
@@ -97,8 +131,6 @@ impl App {
     }
 
     fn refresh_status(&mut self) {
-        // async health check would be ideal; for now just mark api_ok based on last known
-        // real implementation would spawn a task
-        self.status_bar.api_ok = true; // optimistic
+        self.status_bar.api_ok = true; // optimistic; real impl would ping /health
     }
 }

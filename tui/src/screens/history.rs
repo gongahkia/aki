@@ -1,10 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
-use crate::ui::theme;
 use crate::ui::widgets::menu::{MenuItem, MenuState};
 use crate::ui::widgets::progress::Spinner;
 use crate::ui::widgets::table::DataTable;

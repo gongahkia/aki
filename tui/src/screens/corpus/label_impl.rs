@@ -1,19 +1,19 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::screens::generate::topics;
-use crate::ui::theme;
 use crate::ui::widgets::checkbox::CheckboxState;
+use crate::ui::widgets::menu::{MenuItem, MenuState};
 use crate::ui::widgets::panel::Panel;
+use crate::ui::widgets::progress::Spinner;
 
 enum Phase {
-    Loading,
+    Loading(Spinner),
     Labelling { entry_idx: usize, panel: Panel, topics_cb: CheckboxState },
-    Done(String),
-    Error(String),
+    Done(MenuState),
+    Error(String, MenuState),
 }
 
 pub struct LabelScreen {
@@ -23,9 +23,24 @@ pub struct LabelScreen {
     pending: Option<tokio::task::JoinHandle<Result<Vec<crate::api::types::CorpusEntry>, anyhow::Error>>>,
 }
 
+fn done_menu(count: usize) -> MenuState {
+    MenuState::new(&format!("Labelled {} entries", count), vec![
+        MenuItem::new("Done", "return to previous screen"),
+        MenuItem::new("Label More", "reload and continue"),
+    ])
+}
+
+fn error_menu(msg: &str) -> MenuState {
+    let short = if msg.len() > 60 { format!("{}...", &msg[..60]) } else { msg.to_string() };
+    MenuState::new(&format!("Error: {}", short), vec![
+        MenuItem::new("Retry", "try loading again"),
+        MenuItem::new("Go Back", "return to previous screen"),
+    ])
+}
+
 impl LabelScreen {
     pub fn new() -> Self {
-        Self { phase: Phase::Loading, entries: Vec::new(), labels: Vec::new(), pending: None }
+        Self { phase: Phase::Loading(Spinner::new("Loading corpus...")), entries: Vec::new(), labels: Vec::new(), pending: None }
     }
 
     fn show_entry(&mut self, idx: usize) {
@@ -34,7 +49,7 @@ impl LabelScreen {
             let cb = CheckboxState::new("Label topics (Space=toggle, Enter=confirm)", topics::topic_items());
             self.phase = Phase::Labelling { entry_idx: idx, panel, topics_cb: cb };
         } else {
-            self.phase = Phase::Done(format!("Labelled {} entries.", self.labels.len()));
+            self.phase = Phase::Done(done_menu(self.labels.len()));
         }
     }
 }
@@ -43,6 +58,7 @@ impl Screen for LabelScreen {
     fn name(&self) -> &str { "Label Corpus" }
 
     fn on_enter(&mut self, ctx: &mut AppContext) {
+        self.phase = Phase::Loading(Spinner::new("Loading corpus..."));
         let api = ctx.api_url.clone();
         self.pending = Some(tokio::spawn(async move {
             let client = crate::api::client::ApiClient::new(&api);
@@ -50,13 +66,16 @@ impl Screen for LabelScreen {
         }));
     }
 
-    fn handle_key(&mut self, key: KeyEvent, _ctx: &mut AppContext) -> ScreenAction {
-        match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => return ScreenAction::Pop,
-            _ => {}
-        }
+    fn handle_key(&mut self, key: KeyEvent, ctx: &mut AppContext) -> ScreenAction {
         match &mut self.phase {
+            Phase::Loading(_) => {
+                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+            }
             Phase::Labelling { entry_idx, panel, topics_cb } => {
+                if key.code == KeyCode::Esc {
+                    self.phase = Phase::Done(done_menu(self.labels.len()));
+                    return ScreenAction::None;
+                }
                 if topics_cb.handle_key(key) {
                     let selected = topics_cb.selected_values();
                     if !selected.is_empty() {
@@ -78,41 +97,52 @@ impl Screen for LabelScreen {
                     }
                 }
             }
-            Phase::Done(_) | Phase::Error(_) => {
-                if key.code == KeyCode::Enter { return ScreenAction::Pop; }
+            Phase::Done(menu) => {
+                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if let Some(idx) = menu.handle_key(key) {
+                    match idx {
+                        0 => return ScreenAction::Pop,
+                        1 => self.on_enter(ctx),
+                        _ => return ScreenAction::Pop,
+                    }
+                }
             }
-            _ => {}
+            Phase::Error(_, menu) => {
+                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if let Some(idx) = menu.handle_key(key) {
+                    match idx {
+                        0 => self.on_enter(ctx),
+                        _ => return ScreenAction::Pop,
+                    }
+                }
+            }
         }
         ScreenAction::None
     }
 
     fn render(&mut self, f: &mut Frame, area: Rect, _ctx: &AppContext) {
         match &mut self.phase {
-            Phase::Loading => { f.render_widget(Paragraph::new("Loading corpus...").style(theme::dim()), area); }
+            Phase::Loading(spinner) => spinner.render(f, area),
             Phase::Labelling { panel, topics_cb, .. } => {
                 let layout = Layout::default().direction(Direction::Vertical)
                     .constraints([Constraint::Percentage(40), Constraint::Percentage(60)]).split(area);
                 panel.render(f, layout[0]);
                 topics_cb.render(f, layout[1]);
             }
-            Phase::Done(msg) => {
-                let block = Block::default().title(" Done ").borders(Borders::ALL).border_style(theme::success());
-                f.render_widget(Paragraph::new(msg.as_str()).block(block), area);
-            }
-            Phase::Error(msg) => {
-                f.render_widget(Paragraph::new(msg.as_str()).style(theme::error()), area);
-            }
+            Phase::Done(menu) => menu.render(f, area),
+            Phase::Error(_, menu) => menu.render(f, area),
         }
     }
 
     fn tick(&mut self, _ctx: &mut AppContext) {
+        if let Phase::Loading(s) = &mut self.phase { s.tick(); }
         if let Some(handle) = &self.pending {
             if handle.is_finished() {
                 let handle = self.pending.take().unwrap();
                 match tokio::runtime::Handle::current().block_on(handle) {
                     Ok(Ok(entries)) => { self.entries = entries; self.show_entry(0); }
-                    Ok(Err(e)) => self.phase = Phase::Error(format!("{}", e)),
-                    Err(e) => self.phase = Phase::Error(format!("{}", e)),
+                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                    Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
                 }
             }
         }

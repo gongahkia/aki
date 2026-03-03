@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{self, Event, KeyEvent};
 use std::time::Duration;
 
 pub enum AppEvent {
@@ -17,9 +17,4 @@ pub fn poll_event(tick_rate: Duration) -> Option<AppEvent> {
     } else {
         Some(AppEvent::Tick)
     }
-}
-
-/// check for ctrl+c or q for quit
-pub fn is_quit(key: &KeyEvent) -> bool {
-    matches!(key.code, KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL))
 }
