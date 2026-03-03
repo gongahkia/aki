@@ -1,4 +1,4 @@
-"""Render the repository architecture diagram with a white background.
+"""Render the repository architecture diagram with a white background and icon nodes.
 
 Usage:
     .venv/bin/python asset/reference/architecture_diagram.py
@@ -7,13 +7,24 @@ Output:
     asset/reference/architecture.png
 """
 
-from diagrams import Cluster, Diagram, Edge, Node
+from diagrams import Cluster, Diagram, Edge
+from diagrams.aws.storage import S3
+from diagrams.onprem.client import User
+from diagrams.onprem.compute import Server
+from diagrams.onprem.database import Postgresql, Qdrant
+from diagrams.onprem.monitoring import Prometheus
+from diagrams.onprem.network import Nginx
+from diagrams.onprem.storage import Ceph
+from diagrams.onprem.vcs import Github
+from diagrams.onprem.workflow import Airflow
+from diagrams.programming.framework import Fastapi
+from diagrams.programming.language import Python, Rust
 
 GRAPH_ATTR = {
     "bgcolor": "#ffffff",
     "pad": "0.35",
-    "nodesep": "0.55",
-    "ranksep": "0.85",
+    "nodesep": "0.6",
+    "ranksep": "0.95",
     "splines": "ortho",
     "fontname": "Helvetica",
     "fontsize": "18",
@@ -22,12 +33,9 @@ GRAPH_ATTR = {
 }
 
 NODE_ATTR = {
-    "shape": "box",
-    "style": "rounded,filled",
-    "fillcolor": "#ffffff",
-    "color": "#94a3b8",
     "fontname": "Helvetica",
-    "fontsize": "11",
+    "fontsize": "10",
+    "fontcolor": "#0f172a",
 }
 
 EDGE_ATTR = {
@@ -59,86 +67,103 @@ def main() -> None:
         edge_attr=EDGE_ATTR,
     ):
         with Cluster("Entry Points and Operators", graph_attr=CLUSTER_ATTR):
-            dev = Node("Developer / Operator")
-            makefile = Node("Makefile\nrun/api/tui/preprocess/train/warmup")
-            py_cli = Node("Python CLI\nsrc/tui/__main__.py\n(jikai-api)")
-            rust_monitor = Node("Rust API Monitor\ntui/src/bin/api_monitor.rs")
-            rust_tui_bin = Node("Rust TUI Binary\njikai-tui")
+            dev = User("Developer / Operator")
+            makefile = Server("Makefile\nrun/api/tui/preprocess/train/warmup")
+            py_cli = Python("Python CLI\nsrc/tui/__main__.py\n(jikai-api)")
+            rust_monitor = Rust("Rust API Monitor\ntui/src/bin/api_monitor.rs")
+            rust_tui_bin = Rust("Rust TUI Binary\njikai-tui")
 
         with Cluster("Rust TUI Application (tui/)", graph_attr=CLUSTER_ATTR):
-            tui_loop = Node("main.rs + app.rs\nterminal loop + screen stack")
-            tui_screens = Node(
+            tui_loop = Rust("main.rs + app.rs\nterminal loop + screen stack")
+            tui_screens = Rust(
                 "screens/*\nGenerate, History, Providers,\nCorpus, Jobs, Export, Cleanup"
             )
-            tui_api_client = Node("api/client.rs\nREST calls + job polling")
-            tui_stream = Node("api/streaming.rs\nSSE parsing utilities")
-            tui_ui_state = Node("ui/widgets/* + state/*\nrendering + local TUI state")
+            tui_api_client = Nginx("api/client.rs\nREST calls + job polling")
+            tui_stream = Nginx("api/streaming.rs\nSSE parsing utilities")
+            tui_ui_state = Rust("ui/widgets/* + state/*\nrendering + local TUI state")
 
         with Cluster("FastAPI Surface (src/api)", graph_attr=CLUSTER_ATTR):
-            api_app = Node("api/main.py\ncreate_app()")
-            route_workflow = Node("routes/workflow.py\n/generate /regenerate /report")
-            route_llm = Node("routes/llm.py\n/generate /stream /models /health")
-            route_corpus = Node("routes/corpus.py\n/topics /entries /query /add")
-            route_db = Node("routes/database.py\n/history /generation /statistics")
-            route_jobs = Node("routes/jobs.py\npreprocess/scrape/train/embed/export")
-            route_validation = Node("routes/validation.py\n/validate")
-            route_health = Node("routes/health.py\n/health /version")
+            api_app = Fastapi("api/main.py\ncreate_app()")
+            route_workflow = Fastapi("routes/workflow.py\n/generate /regenerate /report")
+            route_llm = Fastapi("routes/llm.py\n/generate /stream /models /health")
+            route_corpus = Fastapi("routes/corpus.py\n/topics /entries /query /add")
+            route_db = Fastapi("routes/database.py\n/history /generation /statistics")
+            route_jobs = Fastapi("routes/jobs.py\npreprocess/scrape/train/embed/export")
+            route_validation = Fastapi("routes/validation.py\n/validate")
+            route_health = Fastapi("routes/health.py\n/health /version")
 
-        with Cluster("Core Services and Domain (src/services, src/domain, src/config)", graph_attr=CLUSTER_ATTR):
-            settings = Node("config/settings.py\n.env-driven typed settings")
-            topic_domain = Node("domain/topics.py + packs.py\ncanonical tort topic registry")
-            workflow_facade = Node("workflow_facade.py\nrequest validation + regenerate lineage")
-            hypothetical_service = Node("hypothetical_service.py\nmain generation orchestrator")
-            prompt_templates = Node("prompt_engineering/templates.py\ngeneration + analysis prompts")
-            validation_service = Node("validation_service.py\ndeterministic quality checks")
-            topic_guard = Node("topic_guard.py\ncanonicalize + enforce tort topics")
-            llm_service = Node("llm_service.py\nprovider routing + fallback + cost")
-            corpus_service = Node("corpus_service.py\ncorpus load/query/index")
-            vector_service = Node("vector_service.py\nembeddings + semantic search")
-            database_service = Node("database_service.py\nSQLite history/reports/retention")
-            error_mapper = Node("error_mapper.py\nstable API error payloads")
+        with Cluster(
+            "Core Services and Domain (src/services, src/domain, src/config)",
+            graph_attr=CLUSTER_ATTR,
+        ):
+            settings = Python("config/settings.py\n.env-driven typed settings")
+            topic_domain = Python("domain/topics.py + packs.py\ncanonical tort topic registry")
+            workflow_facade = Python(
+                "workflow_facade.py\nrequest validation + regenerate lineage"
+            )
+            hypothetical_service = Python(
+                "hypothetical_service.py\nmain generation orchestrator"
+            )
+            prompt_templates = Python(
+                "prompt_engineering/templates.py\ngeneration + analysis prompts"
+            )
+            validation_service = Python(
+                "validation_service.py\ndeterministic quality checks"
+            )
+            topic_guard = Python("topic_guard.py\ncanonicalize + enforce tort topics")
+            llm_service = Python("llm_service.py\nprovider routing + fallback + cost")
+            corpus_service = Python("corpus_service.py\ncorpus load/query/index")
+            vector_service = Python("vector_service.py\nembeddings + semantic search")
+            database_service = Python(
+                "database_service.py\nSQLite history/reports/retention"
+            )
+            error_mapper = Python("error_mapper.py\nstable API error payloads")
 
         with Cluster("LLM Provider Layer (src/services/llm_providers)", graph_attr=CLUSTER_ATTR):
-            provider_registry = Node("ProviderRegistry + LLMRequest/Response")
-            provider_ollama = Node("ollama_provider.py")
-            provider_openai = Node("openai_provider.py")
-            provider_anthropic = Node("anthropic_provider.py")
-            provider_google = Node("google_provider.py")
-            provider_local = Node("local_provider.py")
+            provider_registry = Python("ProviderRegistry + LLMRequest/Response")
+            provider_ollama = Server("ollama_provider.py")
+            provider_openai = Server("openai_provider.py")
+            provider_anthropic = Server("anthropic_provider.py")
+            provider_google = Server("google_provider.py")
+            provider_local = Server("local_provider.py")
 
         with Cluster("Data, Artifacts, and Runtime Stores", graph_attr=CLUSTER_ATTR):
-            corpus_raw = Node("corpus/raw/*\nsource files (.txt/.pdf/.docx/.img)")
-            corpus_clean = Node("corpus/clean/tort/corpus.json\ncanonical corpus")
-            sqlite_db = Node("data/jikai.db\ngeneration_history + reports")
-            chroma_db = Node("chroma_db/\nvector index store")
-            models_dir = Node("models/\nclassifier/regressor/clusterer + vectorizer")
-            logs = Node("logs/ + src/generated_log/")
+            corpus_raw = Ceph("corpus/raw/*\nsource files (.txt/.pdf/.docx/.img)")
+            corpus_clean = Ceph("corpus/clean/tort/corpus.json\ncanonical corpus")
+            sqlite_db = Postgresql("data/jikai.db\ngeneration_history + reports")
+            chroma_db = Qdrant("chroma_db/\nvector index store")
+            models_dir = Ceph("models/\nclassifier/regressor/clusterer + vectorizer")
+            logs = Ceph("logs/ + src/generated_log/")
 
         with Cluster("Pipelines and Background Tasks", graph_attr=CLUSTER_ATTR):
-            preprocessor = Node("corpus_preprocessor.py\nscan/extract/normalize/build corpus")
-            scraper = Node("scraper_service.py\nCommonLII/Judiciary/SICC/Gazette")
-            ml_pipeline = Node("ml/pipeline.py + classifier/regressor/clustering")
-            warmup = Node("warmup.py\nprovider probes + optional embeddings init")
-            migrations = Node("alembic/* + services/migrations.py\nDB schema evolution")
+            preprocessor = Python(
+                "corpus_preprocessor.py\nscan/extract/normalize/build corpus"
+            )
+            scraper = Python("scraper_service.py\nCommonLII/Judiciary/SICC/Gazette")
+            ml_pipeline = Python("ml/pipeline.py + classifier/regressor/clustering")
+            warmup = Prometheus("warmup.py\nprovider probes + embeddings init")
+            migrations = Airflow("alembic/* + services/migrations.py\nDB schema evolution")
 
         with Cluster("External Systems (Optional/Config-Dependent)", graph_attr=CLUSTER_ATTR):
-            ollama_host = Node("Ollama daemon\nhttp://localhost:11434")
-            openai_api = Node("OpenAI API")
-            anthropic_api = Node("Anthropic API")
-            google_api = Node("Google Gemini API")
-            local_llm = Node("Local llama.cpp server")
-            aws_s3 = Node("AWS S3 bucket\noptional corpus storage")
+            ollama_host = Server("Ollama daemon\nhttp://localhost:11434")
+            openai_api = Server("OpenAI API")
+            anthropic_api = Server("Anthropic API")
+            google_api = Server("Google Gemini API")
+            local_llm = Server("Local llama.cpp server")
+            aws_s3 = S3("AWS S3 bucket\noptional corpus storage")
 
         with Cluster("Tests and CI", graph_attr=CLUSTER_ATTR):
-            service_tests = Node("tests/test_services/*\norchestration, providers, DB, validation")
-            ml_tests = Node("tests/test_ml/*\ntraining + prediction")
-            domain_tests = Node("tests/test_domain/*\ntopic canonicalization")
-            perf_bench = Node("tests/perf/benchmark_latency.py")
-            ci = Node(".github/workflows/ci.yml\nlint + mypy + pytest + bandit")
+            service_tests = Python(
+                "tests/test_services/*\norchestration, providers, DB, validation"
+            )
+            ml_tests = Python("tests/test_ml/*\ntraining + prediction")
+            domain_tests = Python("tests/test_domain/*\ntopic canonicalization")
+            perf_bench = Python("tests/perf/benchmark_latency.py")
+            ci = Github(".github/workflows/ci.yml\nlint + mypy + pytest + bandit")
 
         with Cluster("Legacy/Compatibility", graph_attr=CLUSTER_ATTR):
-            py_tui_stub = Node("src/tui/* (Python)\nAPI launcher + legacy artifacts")
-            archive = Node("archive/jikai_v0 + v1\nolder implementations")
+            py_tui_stub = Python("src/tui/* (Python)\nAPI launcher + legacy artifacts")
+            archive = Server("archive/jikai_v0 + v1\nolder implementations")
 
         # Entry wiring
         dev >> makefile
