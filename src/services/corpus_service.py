@@ -17,8 +17,8 @@ try:
 
     _HAS_BOTO3 = True
 except ModuleNotFoundError:
-    boto3 = None  # type: ignore[assignment]
-    ClientError = Exception  # type: ignore[misc,assignment]
+    boto3 = None
+    ClientError = Exception
     _HAS_BOTO3 = False
 
 logger = structlog.get_logger(__name__)

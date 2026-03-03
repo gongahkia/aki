@@ -207,13 +207,15 @@ class WorkflowFacade:
                         )
 
                 # Recover when stream persistence used a different live DB singleton.
-                from ..tui.services.stream_persistence import (
-                    resolve_stream_persist_database_service,
-                )
-
-                stream_database_service = resolve_stream_persist_database_service(
-                    generation_id
-                )
+                try:
+                    from ..tui.services.stream_persistence import (
+                        resolve_stream_persist_database_service,
+                    )
+                    stream_database_service = resolve_stream_persist_database_service(
+                        generation_id
+                    )
+                except ImportError:
+                    stream_database_service = None
                 if stream_database_service is not None and (
                     stream_database_service is not self._database_service
                 ):

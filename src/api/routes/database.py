@@ -1,7 +1,5 @@
 """Database and history endpoints."""
 
-from typing import Optional
-
 from fastapi import APIRouter
 
 router = APIRouter()

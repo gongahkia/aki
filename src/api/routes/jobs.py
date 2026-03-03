@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 router = APIRouter()
 
-_jobs: Dict[str, Dict[str, Any]] = {} # in-memory job store
+_jobs: Dict[str, Dict[str, Any]] = {}  # in-memory job store
 
 
 class JobType(str, Enum):
@@ -32,7 +32,7 @@ class PreprocessRequest(BaseModel):
 
 
 class ScrapeRequest(BaseModel):
-    source: str # commonlii, judiciary, sicc, gazette
+    source: str  # commonlii, judiciary, sicc, gazette
     courts: Optional[List[str]] = None
     years: Optional[List[int]] = None
     max_cases: int = Field(default=50, ge=1, le=500)
@@ -55,12 +55,12 @@ class ExportRequest(BaseModel):
     hypothetical: Optional[str] = None
     analysis: Optional[str] = None
     model_answer: Optional[str] = None
-    format: str = "docx" # docx or pdf
+    format: str = "docx"  # docx or pdf
     output_path: Optional[str] = None
 
 
 class CleanupRequest(BaseModel):
-    targets: List[str] # config, models, history, embeddings, logs, labelled, database
+    targets: List[str]  # config, models, history, embeddings, logs, labelled, database
 
 
 class LabelEntry(BaseModel):
@@ -135,8 +135,9 @@ async def train(req: TrainRequest):
 
     async def run():
         try:
-            from ...ml.pipeline import train_all
-            metrics = train_all(data_path=req.data_path, n_clusters=req.n_clusters)
+            from ...ml.pipeline import MLPipeline
+            pipeline = MLPipeline()
+            metrics = pipeline.train_all(data_path=req.data_path, n_clusters=req.n_clusters)
             _jobs[job_id]["status"] = "completed"
             _jobs[job_id]["result"] = {"metrics": metrics}
         except Exception as e:

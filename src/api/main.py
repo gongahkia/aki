@@ -32,4 +32,5 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
     return app
 
+
 app = create_app()
