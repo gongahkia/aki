@@ -32,16 +32,73 @@ tui: tui-build ## Run Rust TUI (connects to API on :8000)
 	./tui/target/release/jikai-tui
 
 run: tui-build ## Start API + TUI together
-	@echo "Starting API server in background..."
-	@uvicorn src.api.main:app --host 127.0.0.1 --port 8000 &
-	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1 && break; \
+	@set -e; \
+	pids="$$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true)"; \
+	if [ -n "$$pids" ]; then \
+		echo "Port :8000 is in use. Attempting to stop existing Jikai API..."; \
+		for pid in $$pids; do \
+			cmd="$$(ps -p $$pid -o command= 2>/dev/null || true)"; \
+			case "$$cmd" in \
+				*"uvicorn src.api.main:app"*|*"api_monitor"*) \
+					kill "$$pid" 2>/dev/null || true; \
+					;; \
+				*) \
+					echo "ERROR: Port :8000 is used by non-Jikai process (pid=$$pid): $$cmd"; \
+					exit 1; \
+					;; \
+			esac; \
+		done; \
+		for i in 1 2 3 4 5; do \
+			sleep 1; \
+			if ! lsof -tiTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then \
+				break; \
+			fi; \
+		done; \
+		if lsof -tiTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then \
+			echo "Port :8000 still busy. Forcing stop of Jikai API listeners..."; \
+			for pid in $$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true); do \
+				cmd="$$(ps -p $$pid -o command= 2>/dev/null || true)"; \
+				case "$$cmd" in \
+					*"uvicorn src.api.main:app"*|*"api_monitor"*) \
+						kill -9 "$$pid" 2>/dev/null || true; \
+						;; \
+					*) \
+						echo "ERROR: Port :8000 remains occupied by non-Jikai process (pid=$$pid): $$cmd"; \
+						exit 1; \
+						;; \
+				esac; \
+			done; \
+		fi; \
+		if lsof -tiTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then \
+			echo "ERROR: Could not free port :8000."; \
+			exit 1; \
+		fi; \
+		echo "Stopped existing Jikai API on :8000."; \
+	fi; \
+	log_file="/tmp/jikai-api-$$.log"; \
+	echo "Starting API server in background..."; \
+	uvicorn src.api.main:app --host 127.0.0.1 --port 8000 >"$$log_file" 2>&1 & \
+	api_pid=$$!; \
+	cleanup() { kill "$$api_pid" 2>/dev/null || true; }; \
+	trap cleanup EXIT INT TERM; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; then \
+			break; \
+		fi; \
+		if ! kill -0 "$$api_pid" 2>/dev/null; then \
+			echo "ERROR: API server exited before startup. Last logs:"; \
+			tail -n 20 "$$log_file" || true; \
+			exit 1; \
+		fi; \
 		sleep 1; \
-	done
-	@curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1 || { echo "ERROR: API server failed to start."; kill %1 2>/dev/null; exit 1; }
-	@echo "API ready. Starting TUI..."
-	@./tui/target/release/jikai-tui
-	@kill %1 2>/dev/null || true
+	done; \
+	if ! curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; then \
+		echo "ERROR: API server failed to start within 10s. Last logs:"; \
+		tail -n 20 "$$log_file" || true; \
+		exit 1; \
+	fi; \
+	echo "API ready. Starting TUI..."; \
+	./tui/target/release/jikai-tui
 
 # -- quality --
 
