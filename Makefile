@@ -1,6 +1,6 @@
 # Jikai Makefile
 
-.PHONY: help install dev test lint format clean run api tui tui-build warmup train preprocess health health-llm env-setup dev-setup
+.PHONY: help install dev test lint format clean run api api-build tui tui-build warmup train preprocess health health-llm env-setup dev-setup
 
 help: ## Show this help message
 	@echo "Jikai - AI-Powered Legal Hypothetical Generator"
@@ -18,8 +18,11 @@ dev: ## Install dev dependencies
 
 # -- run --
 
-api: ## Start FastAPI backend on :8000
-	uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+api-build: ## Build API monitor TUI binary (release)
+	cd tui && cargo build --release --bin api_monitor
+
+api: api-build ## Start FastAPI backend on :8000 with TUI monitor
+	./tui/target/release/api_monitor
 
 tui-build: ## Build Rust TUI (release)
 	cd tui && cargo build --release
