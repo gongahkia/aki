@@ -77,7 +77,7 @@ run: tui-build ## Start API + TUI together
 	fi; \
 	log_file="/tmp/jikai-api-$$.log"; \
 	echo "Starting API server in background..."; \
-	uvicorn src.api.main:app --host 127.0.0.1 --port 8000 >"$$log_file" 2>&1 & \
+	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" uvicorn src.api.main:app --host 127.0.0.1 --port 8000 >"$$log_file" 2>&1 & \
 	api_pid=$$!; \
 	cleanup() { kill "$$api_pid" 2>/dev/null || true; }; \
 	trap cleanup EXIT INT TERM; \
