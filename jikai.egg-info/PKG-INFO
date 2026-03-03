@@ -39,8 +39,9 @@ Requires-Dist: python-dotenv>=1.0.0
 Requires-Dist: beautifulsoup4>=4.12.0
 Requires-Dist: lxml>=5.0.0
 Requires-Dist: pandas>=2.2.0
-Requires-Dist: questionary>=2.0.1
-Requires-Dist: textual>=0.60
+Requires-Dist: fastapi>=0.109.0
+Requires-Dist: uvicorn[standard]>=0.25.0
+Requires-Dist: sse-starlette>=1.8.0
 Provides-Extra: cloud
 Requires-Dist: boto3>=1.34.0; extra == "cloud"
 Provides-Extra: dev
@@ -51,7 +52,6 @@ Requires-Dist: black>=23.11.0; extra == "dev"
 Requires-Dist: isort>=5.12.0; extra == "dev"
 Requires-Dist: flake8>=6.1.0; extra == "dev"
 Requires-Dist: mypy>=1.7.0; extra == "dev"
-Requires-Dist: textual>=0.60; extra == "dev"
 
 [![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
 [![](https://img.shields.io/badge/jikai_2.0.0-passing-dark_green)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
@@ -78,27 +78,27 @@ A [quick google search](https://www.reddit.com/r/LawSchool/comments/16istgs/wher
 
 With these considerations in mind, I created `Jikai`.
 
-`Jikai` generates legal hypotheticals for Singapore Tort Law with a [multi-provider LLM backend](#architecture), [semantic corpus retrieval](#architecture), and an [ML-assisted validation pipeline](#architecture), served through a [TUI](#stack) or [FastAPI Rest API](#stack).
+`Jikai` generates legal hypotheticals for Singapore Tort Law with a [multi-provider LLM backend](#architecture), [semantic corpus retrieval](#architecture), and an [ML-assisted validation pipeline](#architecture), served through a [Rust TUI](#stack) or [FastAPI REST API](#stack).
 
 ## Stack
 
 * *Backend*: [Python](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), [Pydantic](https://docs.pydantic.dev/)
-* *TUI*: [Rich](https://rich.readthedocs.io/), [questionary](https://questionary.readthedocs.io/), [prompt_toolkit](https://python-prompt-toolkit.readthedocs.io/)
-* *LLM Providers*: [Ollama](https://ollama.ai/), [Anthropic](https://www.anthropic.com/), [Google Gemini](https://ai.google.dev/), [OpenAI](https://openai.com/)
+* *TUI*: [Rust](https://www.rust-lang.org/), [ratatui](https://ratatui.rs/), [crossterm](https://docs.rs/crossterm/), [tokio](https://tokio.rs/)
+* *LLM Providers*: [Ollama](https://ollama.ai/), [Anthropic](https://www.anthropic.com/), [Google Gemini](https://ai.google.dev/), [OpenAI](https://openai.com/), [Local LLM](https://github.com/ggerganov/llama.cpp) via llama.cpp
 * *AI/ML*: [scikit-learn](https://scikit-learn.org/), [PyTorch](https://pytorch.org/), [Transformers](https://huggingface.co/docs/transformers/)
 * *Embeddings*: [Sentence Transformers](https://www.sbert.net/), [ChromaDB](https://www.trychroma.com/)
 * *Storage*: [SQLite](https://www.sqlite.org/), [ChromaDB](https://www.trychroma.com/), [AWS S3](https://aws.amazon.com/s3/) via [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 * *OCR & Preprocessing*: [PyMuPDF](https://pymupdf.readthedocs.io/), [python-docx](https://python-docx.readthedocs.io/), [Pillow](https://pillow.readthedocs.io/), [pytesseract](https://pypi.org/project/pytesseract/)
 * *Scraping*: [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/), [lxml](https://lxml.de/), [httpx](https://www.python-httpx.org/)
-* *Monitoring*: [structlog](https://www.structlog.org/), [Prometheus](https://prometheus.io/), [Sentry](https://sentry.io/)
+* *Monitoring*: [structlog](https://www.structlog.org/), [Prometheus](https://prometheus.io/)
 * *Testing*: [pytest](https://pytest.org/), [pytest-asyncio](https://pytest-asyncio.readthedocs.io/), [pytest-cov](https://pytest-cov.readthedocs.io/)
 
 ## Usage
 
-The below instructions are for locally running `Jikai`.
+The below instructions are for locally running `Jikai`. Requires [Python 3.12+](https://www.python.org/), [Rust/Cargo](https://www.rust-lang.org/tools/install), and [Ollama](https://ollama.ai/).
 
 1. Create `.env` off of `env.example` and fill your API keys and configuration.
-q
+
 ```console
 $ make env-setup
 ```
@@ -106,71 +106,61 @@ $ make env-setup
 2. Next, run the below commands to install all dependencies and kickstart local services.
 
 ```console
-$ make install
+$ make dev-setup
 $ ollama serve
-$ ollama pull llama3
+$ ollama pull llama2:7b
 ```
 
 3. Then run the below commands to interact with `Jikai`.
 
 ```console
-$ make run # runs the API server and TUI
-$ make tui # runs only the TUI
-$ make api # runs only the API
-$ make preprocess # preprocess raw corpus files
-$ make train # train on processed corpus
+$ make run        # starts API + Rust TUI together
+$ make api        # starts only the FastAPI backend
+$ make tui        # starts only the Rust TUI (requires API running)
+$ make preprocess # build corpus from raw files
+$ make train      # train ML models
+$ make warmup     # preload corpus and check provider health
 ```
-
-## Screenshots
-
-<div align="center">
-    <img src="./asset/reference/1.png" width="30%">
-    <img src="./asset/reference/2.png" width="30%">
-    <img src="./asset/reference/3.png" width="30%">
-</div>
-
-<div align="center">
-    <img src="./asset/reference/4.png" width="30%">
-    <img src="./asset/reference/5.png" width="30%">
-    <img src="./asset/reference/6.png" width="30%">
-</div>
-
-<div align="center">
-    <img src="./asset/reference/7.png" width="30%">
-    <img src="./asset/reference/8.png" width="30%">
-    <img src="./asset/reference/9.png" width="30%">
-</div>
-
-<div align="center">
-    <img src="./asset/reference/10.png" width="30%">
-    <img src="./asset/reference/11.png" width="30%">
-    <img src="./asset/reference/12.png" width="30%">
-</div>
 
 ## API
 
-> [!NOTE]
-All endpoints except `/`, `/health`, `/docs`, `/redoc`, and `/openapi.json` require the `X-API-Key` header when `JIKAI_API_KEY` is set. Requests are rate-limited to 100 per 60 seconds per client IP.
-
-`Jikai`'s REST API is served at `http://localhost:8000`. Alternatively, find the interactive docs at `/docs` when `API_DEBUG=true`.
+`Jikai`'s REST API is served at `http://localhost:8000`. Find the interactive docs at `/docs` when `API_DEBUG=true`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/` | Service info |
 | `GET` | `/health` | Health check across all services |
-| `POST` | `/generate` | Generate a single legal hypothetical |
-| `POST` | `/generate/batch` | Generate up to 10 hypotheticals in one request |
-| `GET` | `/topics` | List all available tort law topics from the corpus |
+| `GET` | `/version` | Service version info |
+| `POST` | `/workflow/generate` | Generate a legal hypothetical |
+| `POST` | `/workflow/regenerate` | Regenerate from a previous generation |
+| `POST` | `/workflow/report` | Submit a quality report for a generation |
+| `GET` | `/workflow/reports/{generation_id}` | List reports for a generation |
+| `GET` | `/corpus/topics` | List all available tort law topics |
 | `GET` | `/corpus/entries` | Fetch corpus entries with optional topic filtering |
-| `POST` | `/corpus/entries` | Add a new entry to the corpus |
-| `GET` | `/llm/models` | List available models per provider |
+| `POST` | `/corpus/query` | Query corpus by topics with semantic search |
+| `POST` | `/corpus/add` | Add a new entry to the corpus |
+| `GET` | `/corpus/health` | Corpus service health check |
 | `GET` | `/llm/health` | Check LLM provider health |
-| `GET` | `/providers` | List all providers and their model availability |
-| `PUT` | `/providers/default` | Set the default LLM provider and model |
-| `GET` | `/stats` | Generation statistics from the SQLite database |
-| `POST` | `/ml/train` | Trigger ML pipeline training |
-| `GET` | `/ml/status` | Get trained model status and metrics |
-| `GET` | `/export/{history_id}` | Export a past generation as DOCX or PDF |
+| `GET` | `/llm/models` | List available models per provider |
+| `POST` | `/llm/generate` | Direct LLM generation |
+| `POST` | `/llm/stream` | Streaming LLM generation (SSE) |
+| `POST` | `/llm/select-provider` | Switch the active LLM provider |
+| `POST` | `/llm/select-model` | Switch the active model |
+| `GET` | `/llm/session-cost` | Get session token usage and cost |
+| `GET` | `/db/history` | Fetch generation history |
+| `GET` | `/db/generation/{generation_id}` | Get a specific generation |
+| `GET` | `/db/count` | Get total generation count |
+| `GET` | `/db/statistics` | Generation statistics from the SQLite database |
+| `GET` | `/db/reports/{generation_id}` | Get reports for a generation |
+| `POST` | `/validation/validate` | Validate a hypothetical against required topics |
+| `POST` | `/jobs/preprocess` | Preprocess raw corpus files (async job) |
+| `POST` | `/jobs/scrape` | Scrape cases from legal databases (async job) |
+| `POST` | `/jobs/train` | Train ML pipeline models (async job) |
+| `POST` | `/jobs/embed` | Embed corpus into vector store (async job) |
+| `POST` | `/jobs/export` | Export a generation as DOCX (async job) |
+| `POST` | `/jobs/cleanup` | Clean up data targets (async job) |
+| `POST` | `/jobs/label` | Add labelled entries to training corpus |
+| `GET` | `/jobs/{job_id}/status` | Poll async job status |
+| `POST` | `/jobs/{job_id}/cancel` | Cancel a running job |
 
 ## Architecture
 
@@ -199,7 +189,7 @@ The name `Jikai` is in reference to the sorcery of [Ikuto Hagiwara](https://kagu
 
 ## Research
 
-`Jikai` would not be where it was today without existing academia.
+`Jikai` would not be where it is today without existing academia.
 
 * [*Focused and Fun: A How-to Guide for Creating Hypotheticals for Law Students*](https://scribes.org/wp-content/uploads/2022/10/Simon-8.23.21.pdf) by Diana J. Simon
 * [*Reactive Hypotheticals in Legal Education: Leveraging AI to Create Interactive Fact Patterns*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4763738) by Sean Steward
