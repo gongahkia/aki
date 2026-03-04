@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
@@ -24,6 +24,46 @@ enum Entry {
     Out(String),  // uvicorn stdout (white)
     Err(String),  // uvicorn stderr (yellow — most uvicorn output goes here)
     Sys(String),  // monitor messages (dark gray italic)
+}
+
+struct TerminalGuard {
+    raw_mode_enabled: bool,
+    alt_screen_enabled: bool,
+}
+
+impl TerminalGuard {
+    fn new() -> Self {
+        Self { raw_mode_enabled: false, alt_screen_enabled: false }
+    }
+
+    fn enable_raw_mode(&mut self) -> io::Result<()> {
+        enable_raw_mode()?;
+        self.raw_mode_enabled = true;
+        Ok(())
+    }
+
+    fn enter_alt_screen<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        execute!(writer, EnterAlternateScreen)?;
+        self.alt_screen_enabled = true;
+        Ok(())
+    }
+
+    fn restore(&mut self) {
+        if self.raw_mode_enabled {
+            let _ = disable_raw_mode();
+            self.raw_mode_enabled = false;
+        }
+        if self.alt_screen_enabled {
+            let _ = execute!(io::stdout(), LeaveAlternateScreen);
+            self.alt_screen_enabled = false;
+        }
+    }
+}
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        self.restore();
+    }
 }
 
 fn main() -> Result<()> {
@@ -57,9 +97,11 @@ fn main() -> Result<()> {
         });
     }
 
-    enable_raw_mode()?;
-    execute!(io::stdout(), EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal_guard = TerminalGuard::new();
+    terminal_guard.enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    terminal_guard.enter_alt_screen(&mut stdout)?;
+    let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     let mut logs: Vec<Entry> = vec![
@@ -139,8 +181,7 @@ fn main() -> Result<()> {
         }
     }
 
-    disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
     Ok(())
 }
 
