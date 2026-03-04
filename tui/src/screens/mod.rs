@@ -1,24 +1,25 @@
-pub mod main_menu;
-pub mod more;
-pub mod generate;
-pub mod history;
-pub mod providers;
-pub mod settings;
+pub mod batch;
+pub mod chat;
+pub mod cleanup;
 pub mod corpus;
-pub mod stats;
-pub mod preprocess;
-pub mod scrape;
-pub mod train;
 pub mod embed;
 pub mod export;
-pub mod batch;
+pub mod generate;
 pub mod guided;
-pub mod cleanup;
+pub mod history;
+pub mod main_menu;
+pub mod more;
+pub mod preprocess;
+pub mod providers;
+pub mod scrape;
+pub mod settings;
+pub mod stats;
+pub mod train;
 
-use crossterm::event::KeyEvent;
-use ratatui::Frame;
-use ratatui::layout::Rect;
 use crate::app::AppContext;
+use crossterm::event::KeyEvent;
+use ratatui::layout::Rect;
+use ratatui::Frame;
 
 /// unified screen trait
 pub trait Screen {

@@ -67,6 +67,9 @@ $ make train      # train ML models
 $ make warmup     # preload corpus and check provider health
 ```
 
+Inside the TUI, `Chat` is now a top-level screen (hotkey: `c`) with a CLI-style transcript/input layout.
+Supported slash commands: `/help`, `/clear`, `/provider`, `/model`, `/temp`, `/tokens`, `/hypo`, `/system`, `/save`, `/load`, `/quit`.
+
 ## API
 
 `Jikai`'s REST API is served at `http://localhost:8000`. Find the interactive docs at `/docs` when `API_DEBUG=true`.

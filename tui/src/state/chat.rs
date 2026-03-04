@@ -211,8 +211,8 @@ pub fn save_session(
         messages: messages.to_vec(),
     };
 
-    let serialized =
-        serde_json::to_string_pretty(&payload).map_err(|e| format!("Failed to serialize session: {e}"))?;
+    let serialized = serde_json::to_string_pretty(&payload)
+        .map_err(|e| format!("Failed to serialize session: {e}"))?;
     std::fs::write(&target, serialized).map_err(|e| format!("Failed to save session: {e}"))?;
     Ok(target)
 }
@@ -249,7 +249,10 @@ mod tests {
         assert_eq!(parse_chat_command("/help"), ChatCommand::Help);
         assert_eq!(parse_chat_command("/clear"), ChatCommand::Clear);
         assert_eq!(parse_chat_command("/quit"), ChatCommand::Quit);
-        assert_eq!(parse_chat_command("hello"), ChatCommand::PlainPrompt("hello".into()));
+        assert_eq!(
+            parse_chat_command("hello"),
+            ChatCommand::PlainPrompt("hello".into())
+        );
     }
 
     #[test]
@@ -264,7 +267,10 @@ mod tests {
         );
         assert_eq!(parse_chat_command("/model"), ChatCommand::Model(None));
         assert_eq!(parse_chat_command("/save"), ChatCommand::Save(None));
-        assert_eq!(parse_chat_command("/load foo.json"), ChatCommand::Load(Some("foo.json".into())));
+        assert_eq!(
+            parse_chat_command("/load foo.json"),
+            ChatCommand::Load(Some("foo.json".into()))
+        );
     }
 
     #[test]
@@ -276,7 +282,10 @@ mod tests {
     #[test]
     fn parse_hypo_topics_normalizes() {
         let parsed = parse_hypo_topics("Duty Of Care, causation").unwrap();
-        assert_eq!(parsed, vec!["duty_of_care".to_string(), "causation".to_string()]);
+        assert_eq!(
+            parsed,
+            vec!["duty_of_care".to_string(), "causation".to_string()]
+        );
     }
 
     #[test]
@@ -303,16 +312,14 @@ mod tests {
     #[test]
     fn save_load_round_trip() {
         let mut path = std::env::temp_dir();
-        path.push(format!(
-            "jikai-chat-test-{}.json",
-            current_unix_timestamp()
-        ));
+        path.push(format!("jikai-chat-test-{}.json", current_unix_timestamp()));
         let config = ChatConfig::default();
         let messages = vec![
             ChatMessage::new(ChatRole::User, "hello"),
             ChatMessage::new(ChatRole::Assistant, "hi"),
         ];
-        let saved = save_session(&config, &messages, Some(path.to_string_lossy().as_ref())).unwrap();
+        let saved =
+            save_session(&config, &messages, Some(path.to_string_lossy().as_ref())).unwrap();
         let loaded = load_session(saved).unwrap();
         assert_eq!(loaded.version, CHAT_SESSION_VERSION);
         assert_eq!(loaded.messages, messages);
