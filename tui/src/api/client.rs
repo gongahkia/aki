@@ -209,11 +209,12 @@ impl ApiClient {
         n_clusters: u32,
         models: Option<&[String]>,
     ) -> Result<String> {
-        let body = serde_json::json!({
-            "data_path": data_path,
-            "n_clusters": n_clusters,
-            "models": models,
-        });
+        let mut body = serde_json::Map::new();
+        body.insert("data_path".into(), serde_json::Value::String(data_path.to_string()));
+        body.insert("n_clusters".into(), serde_json::Value::from(n_clusters));
+        if let Some(models) = models {
+            body.insert("models".into(), serde_json::to_value(models).unwrap_or_default());
+        }
         let resp: serde_json::Value = self.client.post(self.url("/jobs/train")).json(&body).send().await?.json().await?;
         Ok(resp["job_id"].as_str().unwrap_or("").to_string())
     }

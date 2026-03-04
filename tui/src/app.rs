@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use crate::screens::{Screen, ScreenAction};
-use crate::screens::main_menu::MainMenuScreen;
+use crate::screens::chat::ChatScreen;
 use crate::state::navigation::NavStack;
 use crate::ui::layout::main_layout;
 use crate::ui::widgets::breadcrumb::render_breadcrumb;
@@ -24,10 +24,10 @@ pub struct App {
 
 impl App {
     pub fn new(api_url: String) -> Self {
-        let main = MainMenuScreen::new();
+        let main = ChatScreen::new();
         Self {
             screen_stack: vec![Box::new(main)],
-            nav: NavStack::new(),
+            nav: NavStack::with_root("Chat"),
             status_bar: StatusBar::default(),
             ctx: AppContext { api_url },
             running: true,

@@ -450,7 +450,10 @@ pub fn command_meta(command: &ChatCommand) -> Option<CommandMeta> {
             help_text: "Cleanup data targets",
         },
         ChatCommand::Job(args) => {
-            let read_only = args.first().unwrap_or("status").eq_ignore_ascii_case("status");
+            let read_only = !args
+                .first()
+                .map(|v| v.eq_ignore_ascii_case("cancel"))
+                .unwrap_or(false);
             CommandMeta {
                 name: "job",
                 read_only,

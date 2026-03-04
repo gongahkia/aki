@@ -67,8 +67,9 @@ $ make train      # train ML models
 $ make warmup     # preload corpus and check provider health
 ```
 
-Inside the TUI, `Chat` is now a top-level screen (hotkey: `c`) with a CLI-style transcript/input layout.
-Supported slash commands: `/help`, `/clear`, `/provider`, `/model`, `/temp`, `/tokens`, `/hypo`, `/system`, `/save`, `/load`, `/quit`.
+Inside the TUI, `Chat` is now the default landing screen with a CLI-style transcript/input layout.
+Use `/menu` anytime to open the legacy multi-screen navigation as fallback.
+Chat command families now cover generation, reporting/regeneration, corpus/query/validation, jobs (`preprocess`, `scrape`, `train`, `embed`, `export`, `cleanup`), history/stats/providers/settings, and guided/label flows.
 
 ## API
 

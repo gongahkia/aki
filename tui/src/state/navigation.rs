@@ -4,7 +4,9 @@ pub struct NavStack {
 }
 
 impl NavStack {
-    pub fn new() -> Self { Self { stack: vec!["Main".into()] } }
+    pub fn new() -> Self { Self::with_root("Main") }
+
+    pub fn with_root(label: &str) -> Self { Self { stack: vec![label.to_string()] } }
 
     pub fn push(&mut self, label: &str) {
         self.stack.push(label.to_string());
