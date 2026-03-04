@@ -18,6 +18,8 @@ pub struct CleanupScreen {
     phase: Phase,
     start_pending: Option<tokio::task::JoinHandle<Result<serde_json::Value, anyhow::Error>>>,
     exit_after_done: bool,
+    last_run_selected_all: bool,
+    pending_action: Option<ScreenAction>,
 }
 
 fn cleanup_items() -> Vec<CheckboxItem> {
@@ -36,16 +38,17 @@ fn cleanup_items() -> Vec<CheckboxItem> {
     ]
 }
 
-fn done_menu(exit_after_done: bool) -> MenuState {
+fn done_menu(exit_after_done: bool, allow_clean_more: bool) -> MenuState {
     let primary = if exit_after_done {
         MenuItem::new("Exit", "cleanup complete, exit Jikai")
     } else {
         MenuItem::new("Done", "return to previous screen")
     };
-    MenuState::new(
-        "Cleanup complete",
-        vec![primary, MenuItem::new("Clean More", "select more items")],
-    )
+    let mut items = vec![primary];
+    if allow_clean_more {
+        items.push(MenuItem::new("Clean More", "select more items"));
+    }
+    MenuState::new("Cleanup complete", items)
 }
 
 fn error_menu(msg: &str) -> MenuState {
@@ -80,11 +83,14 @@ impl CleanupScreen {
             )),
             start_pending: None,
             exit_after_done,
+            last_run_selected_all: false,
+            pending_action: None,
         }
     }
 
     fn start_cleanup(&mut self, targets: &[String], ctx: &mut AppContext) {
         let count = targets.len();
+        self.last_run_selected_all = count >= cleanup_items().len();
         self.phase = Phase::Running(ProgressBar::new(&format!("Cleaning {} items", count)));
         let api = ctx.api_url.clone();
         let t = targets.to_vec();
@@ -136,7 +142,8 @@ impl Screen for CleanupScreen {
                             self.phase = Phase::Select(CheckboxState::new(
                                 "Select items to remove",
                                 cleanup_items(),
-                            ))
+                            ));
+                            self.last_run_selected_all = false;
                         }
                         _ => return ScreenAction::Pop,
                     }
@@ -152,7 +159,8 @@ impl Screen for CleanupScreen {
                             self.phase = Phase::Select(CheckboxState::new(
                                 "Select items to remove",
                                 cleanup_items(),
-                            ))
+                            ));
+                            self.last_run_selected_all = false;
                         }
                         _ => return ScreenAction::Pop,
                     }
@@ -178,8 +186,15 @@ impl Screen for CleanupScreen {
         {
             match result {
                 Ok(Ok(_)) => {
-                    // set bar to 100% briefly, then done
-                    self.phase = Phase::Done(done_menu(self.exit_after_done));
+                    if self.exit_after_done && self.last_run_selected_all {
+                        // when all targets were cleaned during clean&exit flow, exit immediately
+                        self.pending_action = Some(ScreenAction::Quit);
+                    } else {
+                        self.phase = Phase::Done(done_menu(
+                            self.exit_after_done,
+                            !self.last_run_selected_all,
+                        ));
+                    }
                 }
                 Ok(Err(e)) => {
                     let msg = format!("{}", e);
@@ -191,5 +206,9 @@ impl Screen for CleanupScreen {
                 }
             }
         }
+    }
+
+    fn take_pending_action(&mut self) -> ScreenAction {
+        self.pending_action.take().unwrap_or(ScreenAction::None)
     }
 }

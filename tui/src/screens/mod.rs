@@ -28,6 +28,9 @@ pub trait Screen {
     fn render(&mut self, f: &mut Frame, area: Rect, ctx: &AppContext);
     fn on_enter(&mut self, _ctx: &mut AppContext) {} // called when screen is pushed
     fn tick(&mut self, _ctx: &mut AppContext) {} // called on timer
+    fn take_pending_action(&mut self) -> ScreenAction {
+        ScreenAction::None
+    }
 }
 
 pub enum ScreenAction {

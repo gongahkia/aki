@@ -260,6 +260,12 @@ impl App {
         if let Some(screen) = self.screen_stack.last_mut() {
             screen.tick(&mut self.ctx);
         }
+        let pending_action = if let Some(screen) = self.screen_stack.last_mut() {
+            screen.take_pending_action()
+        } else {
+            ScreenAction::None
+        };
+        self.process_action(pending_action);
         if self.tick_counter % 50 == 0 {
             self.refresh_status();
         }
