@@ -22,7 +22,7 @@ use crate::state::chat::{
     normalize_topic, parse_chat_command, parse_csv, parse_hypo_topics, save_session, ChatCommand,
     ChatConfig, ChatIntent, ChatMessage, ChatRole, CommandArgs,
 };
-use crate::state::generation::TuiState;
+use crate::state::generation::{TuiState, UiMode};
 use crate::ui::theme;
 
 const INPUT_HINT_IDLE: &str =
@@ -369,6 +369,26 @@ impl ChatScreen {
             }
             ChatCommand::Menu => {
                 ScreenAction::Push(Box::new(super::main_menu::MainMenuScreen::new()))
+            }
+            ChatCommand::ToggleUi => {
+                let mut state = TuiState::load();
+                state.ui_mode = state.ui_mode.toggled();
+                let mode = state.ui_mode.clone();
+                state.save();
+
+                self.add_meta(format!("UI mode set to {}.", mode.label()));
+                if mode == UiMode::Traditional {
+                    self.add_meta(
+                        "Opening traditional step-by-step flow. Chat remains available via the menu.",
+                    );
+                    ScreenAction::Replace(Box::new(super::main_menu::MainMenuScreen::new()))
+                } else {
+                    self.add_meta(
+                        "Chat-first flow enabled. Chat is now the default landing experience.",
+                    );
+                    self.emit_suggestions("default");
+                    ScreenAction::None
+                }
             }
             ChatCommand::Provider(provider) => {
                 match provider {
@@ -1990,6 +2010,7 @@ impl ChatScreen {
             "help",
             "clear",
             "menu",
+            "toggle-ui",
             "provider",
             "model",
             "temp",
@@ -2088,6 +2109,7 @@ impl ChatScreen {
             "help",
             "clear",
             "menu",
+            "toggle-ui",
             "yes",
             "no",
             "provider",
@@ -2128,6 +2150,7 @@ impl ChatScreen {
         match command {
             "help" => Some("/help"),
             "menu" => Some("/menu"),
+            "toggle-ui" => Some("/toggle-ui"),
             "provider" => Some("/provider [ollama|openai|anthropic|google|local]"),
             "model" => Some("/model [name]"),
             "temp" => Some("/temp <0.0-2.0>"),
@@ -2361,6 +2384,7 @@ impl ChatScreen {
 /help
 /clear
 /menu
+/toggle-ui
 /yes | /no
 /save [path]
 /load <path>

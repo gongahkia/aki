@@ -109,6 +109,7 @@ pub enum ChatCommand {
     Help,
     Clear,
     Menu,
+    ToggleUi,
     Yes,
     No,
     Provider(Option<String>),
@@ -185,6 +186,7 @@ pub fn parse_chat_command(input: &str) -> ChatCommand {
         "help" => ChatCommand::Help,
         "clear" => ChatCommand::Clear,
         "menu" => ChatCommand::Menu,
+        "toggle-ui" | "toggle_ui" | "toggleui" => ChatCommand::ToggleUi,
         "yes" => ChatCommand::Yes,
         "no" => ChatCommand::No,
         "provider" => ChatCommand::Provider(args_opt),
@@ -315,6 +317,13 @@ pub fn command_meta(command: &ChatCommand) -> Option<CommandMeta> {
             requires_confirmation: false,
             supports_suggestions: false,
             help_text: "Open legacy menu",
+        },
+        ChatCommand::ToggleUi => CommandMeta {
+            name: "toggle-ui",
+            read_only: false,
+            requires_confirmation: false,
+            supports_suggestions: true,
+            help_text: "Toggle default UI mode (chat-first/traditional)",
         },
         ChatCommand::Provider(_) => CommandMeta {
             name: "provider",
@@ -774,6 +783,7 @@ mod tests {
     #[test]
     fn parse_extended_commands() {
         assert_eq!(parse_chat_command("/menu"), ChatCommand::Menu);
+        assert_eq!(parse_chat_command("/toggle-ui"), ChatCommand::ToggleUi);
         assert_eq!(parse_chat_command("/yes"), ChatCommand::Yes);
         assert_eq!(parse_chat_command("/no"), ChatCommand::No);
         assert_eq!(parse_chat_command("/topics"), ChatCommand::Topics);

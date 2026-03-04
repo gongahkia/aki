@@ -2,6 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use crate::screens::{Screen, ScreenAction};
 use crate::screens::chat::ChatScreen;
+use crate::screens::main_menu::MainMenuScreen;
+use crate::state::generation::{TuiState, UiMode};
 use crate::state::navigation::NavStack;
 use crate::ui::layout::main_layout;
 use crate::ui::widgets::breadcrumb::render_breadcrumb;
@@ -24,10 +26,14 @@ pub struct App {
 
 impl App {
     pub fn new(api_url: String) -> Self {
-        let main = ChatScreen::new();
+        let state = TuiState::load();
+        let (main, root_label): (Box<dyn Screen + Send>, &'static str) = match state.ui_mode {
+            UiMode::Traditional => (Box::new(MainMenuScreen::new()), "Main"),
+            UiMode::Chat => (Box::new(ChatScreen::new()), "Chat"),
+        };
         Self {
-            screen_stack: vec![Box::new(main)],
-            nav: NavStack::with_root("Chat"),
+            screen_stack: vec![main],
+            nav: NavStack::with_root(root_label),
             status_bar: StatusBar::default(),
             ctx: AppContext { api_url },
             running: true,

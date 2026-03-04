@@ -38,9 +38,38 @@ impl Default for LastConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UiMode {
+    Chat,
+    Traditional,
+}
+
+impl Default for UiMode {
+    fn default() -> Self { Self::Chat }
+}
+
+impl UiMode {
+    pub fn toggled(&self) -> Self {
+        match self {
+            Self::Chat => Self::Traditional,
+            Self::Traditional => Self::Chat,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Chat => "chat-first",
+            Self::Traditional => "traditional",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TuiState {
     pub last_config: LastConfig,
+    #[serde(default)]
+    pub ui_mode: UiMode,
 }
 
 impl TuiState {
