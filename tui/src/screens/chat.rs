@@ -144,6 +144,8 @@ pub struct ChatScreen {
     input: String,
     cursor: usize,
     scroll: u16,
+    follow_stream: bool,
+    last_transcript_height: u16,
     pending: Option<PendingOp>,
     pending_confirmation: Option<PendingConfirmation>,
     runtime_ctx: ChatRuntimeContext,
@@ -174,6 +176,8 @@ impl ChatScreen {
             input: String::new(),
             cursor: 0,
             scroll: 0,
+            follow_stream: true,
+            last_transcript_height: 0,
             pending: None,
             pending_confirmation: None,
             runtime_ctx: ChatRuntimeContext::default(),
@@ -199,6 +203,7 @@ impl ChatScreen {
     fn scroll_to_bottom(&mut self) {
         let lines = self.transcript_line_count();
         self.scroll = lines.saturating_sub(1) as u16;
+        self.follow_stream = true;
     }
 
     fn update_input_from_key(&mut self, key: KeyEvent) -> bool {
@@ -320,6 +325,7 @@ impl ChatScreen {
         let raw = self.input.trim().to_string();
         self.input.clear();
         self.cursor = 0;
+        self.follow_stream = true;
 
         let command = parse_chat_command(&raw);
         if !matches!(command, ChatCommand::Empty) {
@@ -384,6 +390,12 @@ impl ChatScreen {
 
         match infer_chat_intent(&user_text) {
             ChatIntent::Command(command) => {
+                let tool_name = self.intent_tool_name(&command);
+                self.add_meta(format!(
+                    "using /{} tool for {}",
+                    tool_name,
+                    Self::clip_text(&user_text, 120)
+                ));
                 let summary = self.command_summary(&command);
                 self.add_meta(format!("Interpreted intent as {}", summary));
                 self.execute_command(ctx, command, false)
@@ -1785,7 +1797,7 @@ impl ChatScreen {
             }
         }
 
-        if appended_token {
+        if appended_token && self.follow_stream {
             self.scroll_to_bottom();
         }
 
@@ -2306,6 +2318,13 @@ impl ChatScreen {
             .unwrap_or_else(|| "command".into())
     }
 
+    fn intent_tool_name(&self, command: &ChatCommand) -> String {
+        match command {
+            ChatCommand::Hypo(_) => "generate".into(),
+            _ => self.command_name(command),
+        }
+    }
+
     fn command_summary(&self, command: &ChatCommand) -> String {
         match command {
             ChatCommand::Hypo(args) => format!("/hypo {}", Self::command_args_summary(args)),
@@ -2786,21 +2805,27 @@ impl Screen for ChatScreen {
             KeyCode::Up => {
                 if !self.move_autocomplete_selection(true) {
                     self.scroll = self.scroll.saturating_sub(1);
+                    self.follow_stream = false;
                 }
                 return ScreenAction::None;
             }
             KeyCode::Down => {
                 if !self.move_autocomplete_selection(false) {
-                    self.scroll = self.scroll.saturating_add(1);
+                    let max_scroll = self.max_scroll(self.last_transcript_height);
+                    self.scroll = self.scroll.saturating_add(1).min(max_scroll);
+                    self.follow_stream = self.scroll >= max_scroll;
                 }
                 return ScreenAction::None;
             }
             KeyCode::PageUp => {
                 self.scroll = self.scroll.saturating_sub(8);
+                self.follow_stream = false;
                 return ScreenAction::None;
             }
             KeyCode::PageDown => {
-                self.scroll = self.scroll.saturating_add(8);
+                let max_scroll = self.max_scroll(self.last_transcript_height);
+                self.scroll = self.scroll.saturating_add(8).min(max_scroll);
+                self.follow_stream = self.scroll >= max_scroll;
                 return ScreenAction::None;
             }
             _ => {}
@@ -2842,6 +2867,7 @@ impl Screen for ChatScreen {
             } else {
                 theme::border()
             });
+        self.last_transcript_height = chunks[0].height;
         self.scroll = self.scroll.min(self.max_scroll(chunks[0].height));
         let transcript_lines = self.transcript_lines();
         let transcript = Paragraph::new(transcript_lines)

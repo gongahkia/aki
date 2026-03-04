@@ -422,6 +422,10 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
             "generation stats",
             "usage stats",
             "statistics",
+            "corpus size",
+            "corpus count",
+            "size of corpus",
+            "how many corpus",
         ],
     ) {
         return ChatIntent::Command(ChatCommand::Stats);
@@ -454,7 +458,8 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
             "find cases",
             "query cases",
         ],
-    );
+    ) || (contains_any_word(&words, &["query", "search", "find"])
+        && contains_any_word(&words, &["corpus", "cases", "topic", "topics"]));
     if query_like {
         let topics =
             extract_topics_from_text(&lower, &["topics=", "topics ", "topic ", "about ", "on "]);
@@ -478,30 +483,31 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
         return ChatIntent::Command(ChatCommand::Query(args));
     }
 
-    let hypo_like = contains_any_phrase(
-        &lower,
-        &[
-            "generate hypo",
-            "generate hypothetical",
-            "create hypo",
-            "create hypothetical",
-            "make hypo",
-            "make hypothetical",
-            "draft hypothetical",
-            "write hypothetical",
-        ],
-    );
+    let hypo_like =
+        contains_any_phrase(
+            &lower,
+            &[
+                "generate hypo",
+                "generate hypothetical",
+                "create hypo",
+                "create hypothetical",
+                "make hypo",
+                "make hypothetical",
+                "draft hypothetical",
+                "write hypothetical",
+            ],
+        ) || (contains_any_word(&words, &["generate", "create", "make", "draft", "write"])
+            && contains_any_word(&words, &["hypo", "hypothetical", "scenario"]));
     if hypo_like {
         let topics = extract_topics_from_text(
             &lower,
             &["topics=", "topics ", "topic ", "about ", "for ", "on "],
         );
         if topics.is_empty() {
-            return ChatIntent::Ambiguous(vec![
-                "/hypo negligence,causation".into(),
-                "/topics".into(),
-                "/query topics=negligence sample=3".into(),
-            ]);
+            let mut args = CommandArgs::default();
+            args.named
+                .insert("topics".into(), "negligence,causation".into());
+            return ChatIntent::Command(ChatCommand::Hypo(args));
         }
         let mut args = CommandArgs::default();
         args.named.insert("topics".into(), topics.join(","));
@@ -740,7 +746,7 @@ fn extract_topics_from_text(lower: &str, markers: &[&str]) -> Vec<String> {
         raw_tail,
         &[
             " sample", " overlap", " limit", " with ", " using ", " please", " now", " from ",
-            " in ", " for ",
+            " in ", " for ", " \"", " '", " “", " ‘",
         ],
     );
     split_topics(clipped)
@@ -771,10 +777,18 @@ fn split_topics(raw: &str) -> Vec<String> {
                 )
             })
         })
+        .map(|topic| {
+            topic
+                .chars()
+                .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | ' ' | '-'))
+                .collect::<String>()
+        })
+        .map(|topic| topic.trim().to_string())
+        .map(|topic| topic.trim_matches('-').trim().to_string())
         .filter(|topic| !topic.is_empty())
         .filter(|topic| {
             !matches!(
-                *topic,
+                topic.as_str(),
                 "case"
                     | "cases"
                     | "topic"
@@ -786,9 +800,17 @@ fn split_topics(raw: &str) -> Vec<String> {
                     | "a"
                     | "an"
                     | "please"
+                    | "me"
+                    | "us"
+                    | "you"
+                    | "it"
+                    | "this"
+                    | "that"
+                    | "something"
+                    | "anything"
             )
         })
-        .map(normalize_topic)
+        .map(|topic| normalize_topic(&topic))
         .collect();
     topics.sort();
     topics.dedup();
@@ -1488,6 +1510,24 @@ mod tests {
             }
             other => panic!("expected cleanup command, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn infer_chat_intent_maps_hypo_without_topics_to_default_tool_args() {
+        match infer_chat_intent("generate a hypo for me") {
+            ChatIntent::Command(ChatCommand::Hypo(args)) => {
+                assert_eq!(args.get("topics"), Some("negligence,causation"));
+            }
+            other => panic!("expected hypo command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn infer_chat_intent_maps_corpus_size_to_stats() {
+        assert_eq!(
+            infer_chat_intent("what's the corpus size"),
+            ChatIntent::Command(ChatCommand::Stats)
+        );
     }
 
     #[test]
