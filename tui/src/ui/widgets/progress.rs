@@ -1,9 +1,9 @@
-use ratatui::Frame;
+use crate::ui::theme;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Gauge};
-use crate::ui::theme;
+use ratatui::Frame;
 
 pub struct ProgressBar {
     pub label: String,
@@ -13,7 +13,11 @@ pub struct ProgressBar {
 
 impl ProgressBar {
     pub fn new(label: &str) -> Self {
-        Self { label: label.into(), progress: 0.0, message: String::new() }
+        Self {
+            label: label.into(),
+            progress: 0.0,
+            message: String::new(),
+        }
     }
 
     pub fn set(&mut self, progress: f64, message: &str) {
@@ -31,7 +35,10 @@ impl ProgressBar {
             .block(block)
             .gauge_style(theme::success())
             .percent(pct)
-            .label(Span::styled(format!("{}% {}", pct, self.message), theme::normal()));
+            .label(Span::styled(
+                format!("{}% {}", pct, self.message),
+                theme::normal(),
+            ));
         f.render_widget(gauge, area);
     }
 }
@@ -44,8 +51,15 @@ pub struct Spinner {
 impl Spinner {
     const FRAMES: &'static [&'static str] = &["|", "/", "-", "\\"];
 
-    pub fn new(label: &str) -> Self { Self { label: label.into(), frame: 0 } }
-    pub fn tick(&mut self) { self.frame = (self.frame + 1) % Self::FRAMES.len(); }
+    pub fn new(label: &str) -> Self {
+        Self {
+            label: label.into(),
+            frame: 0,
+        }
+    }
+    pub fn tick(&mut self) {
+        self.frame = (self.frame + 1) % Self::FRAMES.len();
+    }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
         let accent = Style::default().fg(theme::ACCENT);

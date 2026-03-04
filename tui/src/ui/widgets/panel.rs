@@ -1,8 +1,8 @@
-use ratatui::Frame;
+use crate::ui::theme;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use crate::ui::theme;
+use ratatui::Frame;
 
 pub struct Panel {
     pub title: String,
@@ -12,11 +12,19 @@ pub struct Panel {
 
 impl Panel {
     pub fn new(title: &str, content: &str) -> Self {
-        Self { title: title.into(), content: content.into(), scroll: 0 }
+        Self {
+            title: title.into(),
+            content: content.into(),
+            scroll: 0,
+        }
     }
 
-    pub fn scroll_up(&mut self) { self.scroll = self.scroll.saturating_sub(1); }
-    pub fn scroll_down(&mut self) { self.scroll += 1; }
+    pub fn scroll_up(&mut self) {
+        self.scroll = self.scroll.saturating_sub(1);
+    }
+    pub fn scroll_down(&mut self) {
+        self.scroll += 1;
+    }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
         let block = Block::default()

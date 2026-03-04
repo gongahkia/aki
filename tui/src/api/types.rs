@@ -24,8 +24,12 @@ pub struct LlmRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout_seconds: Option<u32>,
 }
-fn default_temperature() -> f64 { 0.7 }
-fn default_max_tokens() -> u32 { 2048 }
+fn default_temperature() -> f64 {
+    0.7
+}
+fn default_max_tokens() -> u32 {
+    2048
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmResponse {
@@ -40,7 +44,9 @@ pub struct LlmResponse {
     #[serde(default)]
     pub metadata: HashMap<String, serde_json::Value>,
 }
-fn default_finish_reason() -> String { "stop".into() }
+fn default_finish_reason() -> String {
+    "stop".into()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerationRequest {
@@ -66,12 +72,24 @@ pub struct GenerationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<String>,
 }
-fn default_law_domain() -> String { "tort".into() }
-fn default_parties() -> u32 { 3 }
-fn default_complexity() -> String { "intermediate".into() }
-fn default_sample_size() -> u32 { 3 }
-fn default_method() -> String { "pure_llm".into() }
-fn default_true() -> bool { true }
+fn default_law_domain() -> String {
+    "tort".into()
+}
+fn default_parties() -> u32 {
+    3
+}
+fn default_complexity() -> String {
+    "intermediate".into()
+}
+fn default_sample_size() -> u32 {
+    3
+}
+fn default_method() -> String {
+    "pure_llm".into()
+}
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerationResponse {
@@ -171,7 +189,9 @@ pub struct CorpusQueryRequest {
     #[serde(default = "default_min_topic_overlap")]
     pub min_topic_overlap: u32,
 }
-fn default_min_topic_overlap() -> u32 { 1 }
+fn default_min_topic_overlap() -> u32 {
+    1
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorpusQueryResponse {
@@ -213,7 +233,9 @@ pub struct ValidateRequest {
     #[serde(default)]
     pub fast_mode: bool,
 }
-fn default_expected_parties() -> u32 { 2 }
+fn default_expected_parties() -> u32 {
+    2
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScrapeRequest {
@@ -227,7 +249,9 @@ pub struct ScrapeRequest {
     #[serde(default = "default_true")]
     pub tort_only: bool,
 }
-fn default_max_cases() -> u32 { 50 }
+fn default_max_cases() -> u32 {
+    50
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportRequest {
@@ -244,4 +268,6 @@ pub struct ExportRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_path: Option<String>,
 }
-fn default_format() -> String { "docx".into() }
+fn default_format() -> String {
+    "docx".into()
+}

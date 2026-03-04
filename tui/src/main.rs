@@ -1,15 +1,13 @@
 mod api;
-mod async_join;
 mod app;
+mod async_join;
 mod config;
 mod event;
 mod screens;
 mod state;
 mod ui;
 
-use std::io;
-use std::io::Write;
-use std::time::Duration;
+use crate::config::Config;
 use anyhow::Result;
 use clap::Parser;
 use crossterm::{
@@ -18,7 +16,9 @@ use crossterm::{
 };
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
-use crate::config::Config;
+use std::io;
+use std::io::Write;
+use std::time::Duration;
 
 struct TerminalGuard {
     raw_mode_enabled: bool,
@@ -27,7 +27,10 @@ struct TerminalGuard {
 
 impl TerminalGuard {
     fn new() -> Self {
-        Self { raw_mode_enabled: false, alt_screen_enabled: false }
+        Self {
+            raw_mode_enabled: false,
+            alt_screen_enabled: false,
+        }
     }
 
     fn enable_raw_mode(&mut self) -> io::Result<()> {

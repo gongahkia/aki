@@ -4,23 +4,35 @@ pub struct NavStack {
 }
 
 impl NavStack {
-    pub fn new() -> Self { Self::with_root("Main") }
+    pub fn new() -> Self {
+        Self::with_root("Main")
+    }
 
-    pub fn with_root(label: &str) -> Self { Self { stack: vec![label.to_string()] } }
+    pub fn with_root(label: &str) -> Self {
+        Self {
+            stack: vec![label.to_string()],
+        }
+    }
 
     pub fn push(&mut self, label: &str) {
         self.stack.push(label.to_string());
     }
 
     pub fn pop(&mut self) -> Option<String> {
-        if self.stack.len() > 1 { self.stack.pop() } else { None }
+        if self.stack.len() > 1 {
+            self.stack.pop()
+        } else {
+            None
+        }
     }
 
     pub fn breadcrumb(&self) -> String {
         self.stack.join(" > ")
     }
 
-    pub fn depth(&self) -> usize { self.stack.len() }
+    pub fn depth(&self) -> usize {
+        self.stack.len()
+    }
 
     pub fn reset(&mut self) {
         self.stack.truncate(1);

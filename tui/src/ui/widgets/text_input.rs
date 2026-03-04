@@ -1,9 +1,9 @@
+use crate::ui::theme;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::ui::theme;
+use ratatui::Frame;
 
 pub struct TextInput {
     pub label: String,
@@ -14,7 +14,11 @@ pub struct TextInput {
 impl TextInput {
     pub fn new(label: &str, default: &str) -> Self {
         let len = default.len();
-        Self { label: label.into(), value: default.into(), cursor: len }
+        Self {
+            label: label.into(),
+            value: default.into(),
+            cursor: len,
+        }
     }
 
     /// returns true if Enter was pressed
@@ -38,10 +42,26 @@ impl TextInput {
                 }
                 false
             }
-            KeyCode::Left => { if self.cursor > 0 { self.cursor -= 1; } false }
-            KeyCode::Right => { if self.cursor < self.value.len() { self.cursor += 1; } false }
-            KeyCode::Home => { self.cursor = 0; false }
-            KeyCode::End => { self.cursor = self.value.len(); false }
+            KeyCode::Left => {
+                if self.cursor > 0 {
+                    self.cursor -= 1;
+                }
+                false
+            }
+            KeyCode::Right => {
+                if self.cursor < self.value.len() {
+                    self.cursor += 1;
+                }
+                false
+            }
+            KeyCode::Home => {
+                self.cursor = 0;
+                false
+            }
+            KeyCode::End => {
+                self.cursor = self.value.len();
+                false
+            }
             KeyCode::Enter => true,
             _ => false,
         }

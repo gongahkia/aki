@@ -1,9 +1,9 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
-use ratatui::layout::Rect;
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::ui::widgets::menu::{MenuItem, MenuState};
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Rect;
+use ratatui::Frame;
 
 pub struct MoreScreen {
     menu: MenuState,
@@ -20,12 +20,16 @@ impl MoreScreen {
             MenuItem::new("Guided Mode", "step-by-step walkthrough"),
             MenuItem::new("Cleanup", "remove logs, models, cache"),
         ];
-        Self { menu: MenuState::new("More", items) }
+        Self {
+            menu: MenuState::new("More", items),
+        }
     }
 }
 
 impl Screen for MoreScreen {
-    fn name(&self) -> &str { "More" }
+    fn name(&self) -> &str {
+        "More"
+    }
 
     fn handle_key(&mut self, key: KeyEvent, _ctx: &mut AppContext) -> ScreenAction {
         match key.code {

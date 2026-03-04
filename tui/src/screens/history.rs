@@ -1,12 +1,12 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
-use ratatui::layout::Rect;
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::ui::widgets::menu::{MenuItem, MenuState};
+use crate::ui::widgets::panel::Panel;
 use crate::ui::widgets::progress::Spinner;
 use crate::ui::widgets::table::DataTable;
-use crate::ui::widgets::panel::Panel;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Rect;
+use ratatui::Frame;
 
 enum Phase {
     Loading(Spinner),
@@ -18,28 +18,43 @@ enum Phase {
 pub struct HistoryScreen {
     phase: Phase,
     records: Vec<serde_json::Value>,
-    pending: Option<tokio::task::JoinHandle<Result<Vec<crate::api::types::HistoryRecord>, anyhow::Error>>>,
+    pending: Option<
+        tokio::task::JoinHandle<Result<Vec<crate::api::types::HistoryRecord>, anyhow::Error>>,
+    >,
 }
 
 fn error_menu(msg: &str) -> MenuState {
-    MenuState::new(&format!("Error: {}", truncate(msg, 60)), vec![
-        MenuItem::new("Retry", "try loading again"),
-        MenuItem::new("Go Back", "return to previous screen"),
-    ])
+    MenuState::new(
+        &format!("Error: {}", truncate(msg, 60)),
+        vec![
+            MenuItem::new("Retry", "try loading again"),
+            MenuItem::new("Go Back", "return to previous screen"),
+        ],
+    )
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_string() } else { format!("{}...", &s[..max]) }
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max])
+    }
 }
 
 impl HistoryScreen {
     pub fn new() -> Self {
-        Self { phase: Phase::Loading(Spinner::new("Loading history...")), records: Vec::new(), pending: None }
+        Self {
+            phase: Phase::Loading(Spinner::new("Loading history...")),
+            records: Vec::new(),
+            pending: None,
+        }
     }
 }
 
 impl Screen for HistoryScreen {
-    fn name(&self) -> &str { "History" }
+    fn name(&self) -> &str {
+        "History"
+    }
 
     fn on_enter(&mut self, ctx: &mut AppContext) {
         self.phase = Phase::Loading(Spinner::new("Loading history..."));
@@ -53,10 +68,14 @@ impl Screen for HistoryScreen {
     fn handle_key(&mut self, key: KeyEvent, ctx: &mut AppContext) -> ScreenAction {
         match &mut self.phase {
             Phase::Loading(_) => {
-                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if key.code == KeyCode::Esc {
+                    return ScreenAction::Pop;
+                }
             }
             Phase::List(table) => {
-                if key.code == KeyCode::Esc || key.code == KeyCode::Char('q') { return ScreenAction::Pop; }
+                if key.code == KeyCode::Esc || key.code == KeyCode::Char('q') {
+                    return ScreenAction::Pop;
+                }
                 if let Some(idx) = table.handle_key(key) {
                     if let Some(record) = self.records.get(idx) {
                         let hypo = record["hypothetical"].as_str().unwrap_or("--");
@@ -70,26 +89,36 @@ impl Screen for HistoryScreen {
                     }
                 }
             }
-            Phase::Detail(panel) => {
-                match key.code {
-                    KeyCode::Up | KeyCode::Char('k') => panel.scroll_up(),
-                    KeyCode::Down | KeyCode::Char('j') => panel.scroll_down(),
-                    KeyCode::Esc | KeyCode::Backspace => {
-                        let mut table = DataTable::new("History", vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()], vec![6, 30, 8, 20]);
-                        let rows: Vec<Vec<String>> = self.records.iter().map(|r| vec![
-                            r["id"].to_string(),
-                            r["topics"].as_str().unwrap_or("--").to_string(),
-                            format!("{:.1}", r["quality_score"].as_f64().unwrap_or(0.0)),
-                            r["timestamp"].as_str().unwrap_or("--").to_string(),
-                        ]).collect();
-                        table.set_rows(rows);
-                        self.phase = Phase::List(table);
-                    }
-                    _ => {}
+            Phase::Detail(panel) => match key.code {
+                KeyCode::Up | KeyCode::Char('k') => panel.scroll_up(),
+                KeyCode::Down | KeyCode::Char('j') => panel.scroll_down(),
+                KeyCode::Esc | KeyCode::Backspace => {
+                    let mut table = DataTable::new(
+                        "History",
+                        vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()],
+                        vec![6, 30, 8, 20],
+                    );
+                    let rows: Vec<Vec<String>> = self
+                        .records
+                        .iter()
+                        .map(|r| {
+                            vec![
+                                r["id"].to_string(),
+                                r["topics"].as_str().unwrap_or("--").to_string(),
+                                format!("{:.1}", r["quality_score"].as_f64().unwrap_or(0.0)),
+                                r["timestamp"].as_str().unwrap_or("--").to_string(),
+                            ]
+                        })
+                        .collect();
+                    table.set_rows(rows);
+                    self.phase = Phase::List(table);
                 }
-            }
+                _ => {}
+            },
             Phase::Error(_, menu) => {
-                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if key.code == KeyCode::Esc {
+                    return ScreenAction::Pop;
+                }
                 if let Some(idx) = menu.handle_key(key) {
                     match idx {
                         0 => self.on_enter(ctx), // retry
@@ -111,23 +140,43 @@ impl Screen for HistoryScreen {
     }
 
     fn tick(&mut self, _ctx: &mut AppContext) {
-        if let Phase::Loading(s) = &mut self.phase { s.tick(); }
+        if let Phase::Loading(s) = &mut self.phase {
+            s.tick();
+        }
         if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.pending) {
             match result {
                 Ok(Ok(records)) => {
-                    self.records = records.iter().map(|r| serde_json::to_value(r).unwrap_or_default()).collect();
-                    let mut table = DataTable::new("History", vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()], vec![6, 30, 8, 20]);
-                    let rows: Vec<Vec<String>> = records.iter().map(|r| vec![
-                        r.id.to_string(),
-                        r.topics.clone(),
-                        format!("{:.1}", r.quality_score),
-                        r.timestamp.clone(),
-                    ]).collect();
+                    self.records = records
+                        .iter()
+                        .map(|r| serde_json::to_value(r).unwrap_or_default())
+                        .collect();
+                    let mut table = DataTable::new(
+                        "History",
+                        vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()],
+                        vec![6, 30, 8, 20],
+                    );
+                    let rows: Vec<Vec<String>> = records
+                        .iter()
+                        .map(|r| {
+                            vec![
+                                r.id.to_string(),
+                                r.topics.clone(),
+                                format!("{:.1}", r.quality_score),
+                                r.timestamp.clone(),
+                            ]
+                        })
+                        .collect();
                     table.set_rows(rows);
                     self.phase = Phase::List(table);
                 }
-                Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
-                Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                Ok(Err(e)) => {
+                    let msg = format!("{}", e);
+                    self.phase = Phase::Error(msg.clone(), error_menu(&msg));
+                }
+                Err(e) => {
+                    let msg = format!("{}", e);
+                    self.phase = Phase::Error(msg.clone(), error_menu(&msg));
+                }
             }
         }
     }

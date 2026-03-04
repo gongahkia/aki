@@ -6,7 +6,7 @@ pub fn main_layout(area: Rect) -> (Rect, Rect, Rect) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // breadcrumb
-            Constraint::Min(3),   // body
+            Constraint::Min(3),    // body
             Constraint::Length(1), // status bar
         ])
         .split(area);

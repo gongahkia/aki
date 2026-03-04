@@ -165,7 +165,7 @@ impl ChatScreen {
         };
         let messages = vec![ChatMessage::new(
             ChatRole::Assistant,
-            "Welcome to Jikai Chat. Educational use only; this is not legal advice. Type /help for commands.",
+            "Welcome to Jikai Chat. Educational use only; this is not legal advice. Type /help for commands, or ask in plain language.",
         )];
 
         Self {
@@ -255,7 +255,12 @@ impl ChatScreen {
 
         let raw = &trimmed[1..];
         if raw.is_empty() {
-            return vec!["/help".into(), "/hypo".into(), "/topics".into(), "/history".into()];
+            return vec![
+                "/help".into(),
+                "/hypo".into(),
+                "/topics".into(),
+                "/history".into(),
+            ];
         }
 
         let mut split = raw.splitn(2, char::is_whitespace);
@@ -379,10 +384,8 @@ impl ChatScreen {
 
         match infer_chat_intent(&user_text) {
             ChatIntent::Command(command) => {
-                self.add_meta(format!(
-                    "Interpreted intent as /{}",
-                    self.command_name(&command)
-                ));
+                let summary = self.command_summary(&command);
+                self.add_meta(format!("Interpreted intent as {}", summary));
                 self.execute_command(ctx, command, false)
             }
             ChatIntent::Ambiguous(suggestions) => {
@@ -1794,8 +1797,10 @@ impl ChatScreen {
 
     fn maybe_resolve_pending_task(&mut self) {
         let Some((kind, result)) = (match self.pending.as_mut() {
-            Some(PendingOp::Task(task)) => crate::async_join::poll_join_if_finished(&mut task.handle)
-                .map(|result| (task.kind.clone(), result)),
+            Some(PendingOp::Task(task)) => {
+                crate::async_join::poll_join_if_finished(&mut task.handle)
+                    .map(|result| (task.kind.clone(), result))
+            }
             _ => None,
         }) else {
             return;
@@ -2303,24 +2308,54 @@ impl ChatScreen {
 
     fn command_summary(&self, command: &ChatCommand) -> String {
         match command {
-            ChatCommand::Hypo(args) => format!("/hypo {}", args.positionals.join(" ")),
+            ChatCommand::Hypo(args) => format!("/hypo {}", Self::command_args_summary(args)),
             ChatCommand::Regenerate(args) => {
-                format!("/regenerate {}", args.first().unwrap_or("last"))
+                if args.positionals.is_empty() && args.named.is_empty() {
+                    "/regenerate last".into()
+                } else {
+                    format!("/regenerate {}", Self::command_args_summary(args))
+                }
             }
             ChatCommand::Report(args) => {
-                format!("/report {}", args.positionals.join(" "))
+                format!("/report {}", Self::command_args_summary(args))
             }
             ChatCommand::Preprocess(_) => "/preprocess".into(),
-            ChatCommand::Scrape(args) => format!("/scrape {}", args.positional_joined()),
-            ChatCommand::Train(args) => format!("/train {}", args.positional_joined()),
-            ChatCommand::Embed(args) => format!("/embed {}", args.positional_joined()),
-            ChatCommand::Export(args) => format!("/export {}", args.positional_joined()),
-            ChatCommand::Cleanup(args) => format!("/cleanup {}", args.positional_joined()),
-            ChatCommand::Job(args) => format!("/job {}", args.positional_joined()),
-            ChatCommand::Settings(args) => format!("/settings {}", args.positional_joined()),
-            ChatCommand::Label(args) => format!("/label {}", args.positional_joined()),
-            ChatCommand::Ollama(args) => format!("/ollama {}", args.positional_joined()),
+            ChatCommand::Scrape(args) => format!("/scrape {}", Self::command_args_summary(args)),
+            ChatCommand::Train(args) => format!("/train {}", Self::command_args_summary(args)),
+            ChatCommand::Embed(args) => format!("/embed {}", Self::command_args_summary(args)),
+            ChatCommand::Export(args) => format!("/export {}", Self::command_args_summary(args)),
+            ChatCommand::Cleanup(args) => format!("/cleanup {}", Self::command_args_summary(args)),
+            ChatCommand::Job(args) => format!("/job {}", Self::command_args_summary(args)),
+            ChatCommand::Settings(args) => {
+                if args.positionals.is_empty() && args.named.is_empty() {
+                    "/settings view".into()
+                } else {
+                    format!("/settings {}", Self::command_args_summary(args))
+                }
+            }
+            ChatCommand::Label(args) => format!("/label {}", Self::command_args_summary(args)),
+            ChatCommand::Ollama(args) => {
+                if args.positionals.is_empty() && args.named.is_empty() {
+                    "/ollama status".into()
+                } else {
+                    format!("/ollama {}", Self::command_args_summary(args))
+                }
+            }
             other => format!("/{}", self.command_name(other)),
+        }
+    }
+
+    fn command_args_summary(args: &CommandArgs) -> String {
+        let mut parts: Vec<String> = args.positionals.clone();
+        let mut named: Vec<(&String, &String)> = args.named.iter().collect();
+        named.sort_by(|a, b| a.0.cmp(b.0));
+        for (key, value) in named {
+            parts.push(format!("{key}={value}"));
+        }
+        if parts.is_empty() {
+            "(default)".into()
+        } else {
+            parts.join(" ")
         }
     }
 

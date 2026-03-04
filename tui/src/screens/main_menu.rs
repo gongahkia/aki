@@ -102,7 +102,9 @@ impl Screen for MainMenuScreen {
                         0 => {
                             // clean & exit
                             self.phase = Phase::Menu(MenuState::new("Jikai", main_items()));
-                            return ScreenAction::Push(Box::new(super::cleanup::CleanupScreen::new_for_exit()));
+                            return ScreenAction::Push(Box::new(
+                                super::cleanup::CleanupScreen::new_for_exit(),
+                            ));
                         }
                         1 => return ScreenAction::Quit, // exit
                         _ => self.phase = Phase::Menu(MenuState::new("Jikai", main_items())), // cancel

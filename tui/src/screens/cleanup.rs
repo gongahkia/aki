@@ -1,11 +1,11 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
-use ratatui::layout::Rect;
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::ui::widgets::checkbox::{CheckboxItem, CheckboxState};
 use crate::ui::widgets::menu::{MenuItem, MenuState};
 use crate::ui::widgets::progress::ProgressBar;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Rect;
+use ratatui::Frame;
 
 enum Phase {
     Select(CheckboxState),
@@ -26,7 +26,11 @@ fn cleanup_items() -> Vec<CheckboxItem> {
         CheckboxItem::option("Models", "models", "models/*.joblib"),
         CheckboxItem::option("Embeddings", "embeddings", "chroma_db/"),
         CheckboxItem::option("History JSON", "history", "data/history.json"),
-        CheckboxItem::option("TUI State", "tui_state", "data/tui_state.json, data/tui.json"),
+        CheckboxItem::option(
+            "TUI State",
+            "tui_state",
+            "data/tui_state.json, data/tui.json",
+        ),
         CheckboxItem::option("Labelled Data", "labelled", "corpus/labelled/"),
         CheckboxItem::option("Database", "database", "data/jikai.db"),
     ]
@@ -38,18 +42,25 @@ fn done_menu(exit_after_done: bool) -> MenuState {
     } else {
         MenuItem::new("Done", "return to previous screen")
     };
-    MenuState::new("Cleanup complete", vec![
-        primary,
-        MenuItem::new("Clean More", "select more items"),
-    ])
+    MenuState::new(
+        "Cleanup complete",
+        vec![primary, MenuItem::new("Clean More", "select more items")],
+    )
 }
 
 fn error_menu(msg: &str) -> MenuState {
-    let short = if msg.len() > 60 { format!("{}...", &msg[..60]) } else { msg.to_string() };
-    MenuState::new(&format!("Error: {}", short), vec![
-        MenuItem::new("Retry", "try again"),
-        MenuItem::new("Go Back", "return to previous screen"),
-    ])
+    let short = if msg.len() > 60 {
+        format!("{}...", &msg[..60])
+    } else {
+        msg.to_string()
+    };
+    MenuState::new(
+        &format!("Error: {}", short),
+        vec![
+            MenuItem::new("Retry", "try again"),
+            MenuItem::new("Go Back", "return to previous screen"),
+        ],
+    )
 }
 
 impl CleanupScreen {
@@ -63,7 +74,10 @@ impl CleanupScreen {
 
     fn with_exit_after_done(exit_after_done: bool) -> Self {
         Self {
-            phase: Phase::Select(CheckboxState::new("Select items to remove", cleanup_items())),
+            phase: Phase::Select(CheckboxState::new(
+                "Select items to remove",
+                cleanup_items(),
+            )),
             start_pending: None,
             exit_after_done,
         }
@@ -82,15 +96,21 @@ impl CleanupScreen {
 }
 
 impl Screen for CleanupScreen {
-    fn name(&self) -> &str { "Cleanup" }
+    fn name(&self) -> &str {
+        "Cleanup"
+    }
 
     fn handle_key(&mut self, key: KeyEvent, ctx: &mut AppContext) -> ScreenAction {
         match &mut self.phase {
             Phase::Select(cb) => {
-                if key.code == KeyCode::Esc || key.code == KeyCode::Char('q') { return ScreenAction::Pop; }
+                if key.code == KeyCode::Esc || key.code == KeyCode::Char('q') {
+                    return ScreenAction::Pop;
+                }
                 if cb.handle_key(key) {
                     let targets = cb.selected_values();
-                    if targets.is_empty() { return ScreenAction::Pop; }
+                    if targets.is_empty() {
+                        return ScreenAction::Pop;
+                    }
                     self.start_cleanup(&targets, ctx);
                 }
             }
@@ -112,16 +132,28 @@ impl Screen for CleanupScreen {
                                 ScreenAction::Pop
                             };
                         }
-                        1 => self.phase = Phase::Select(CheckboxState::new("Select items to remove", cleanup_items())),
+                        1 => {
+                            self.phase = Phase::Select(CheckboxState::new(
+                                "Select items to remove",
+                                cleanup_items(),
+                            ))
+                        }
                         _ => return ScreenAction::Pop,
                     }
                 }
             }
             Phase::Error(_, menu) => {
-                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if key.code == KeyCode::Esc {
+                    return ScreenAction::Pop;
+                }
                 if let Some(idx) = menu.handle_key(key) {
                     match idx {
-                        0 => self.phase = Phase::Select(CheckboxState::new("Select items to remove", cleanup_items())),
+                        0 => {
+                            self.phase = Phase::Select(CheckboxState::new(
+                                "Select items to remove",
+                                cleanup_items(),
+                            ))
+                        }
                         _ => return ScreenAction::Pop,
                     }
                 }
@@ -141,14 +173,22 @@ impl Screen for CleanupScreen {
 
     fn tick(&mut self, _ctx: &mut AppContext) {
         // cleanup returns immediately (not a polled job), so check start_pending
-        if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.start_pending) {
+        if let Some(result) =
+            crate::async_join::take_join_result_if_finished(&mut self.start_pending)
+        {
             match result {
                 Ok(Ok(_)) => {
                     // set bar to 100% briefly, then done
                     self.phase = Phase::Done(done_menu(self.exit_after_done));
                 }
-                Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
-                Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                Ok(Err(e)) => {
+                    let msg = format!("{}", e);
+                    self.phase = Phase::Error(msg.clone(), error_menu(&msg));
+                }
+                Err(e) => {
+                    let msg = format!("{}", e);
+                    self.phase = Phase::Error(msg.clone(), error_menu(&msg));
+                }
             }
         }
     }

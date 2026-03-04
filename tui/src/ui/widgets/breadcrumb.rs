@@ -1,8 +1,8 @@
-use ratatui::Frame;
+use crate::ui::theme;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
-use crate::ui::theme;
+use ratatui::Frame;
 
 pub fn render_breadcrumb(f: &mut Frame, area: Rect, path: &str) {
     let line = Line::from(vec![

@@ -233,42 +233,349 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
     }
 
     let lower = trimmed.to_lowercase();
+    let words = tokenize_for_intent(&lower);
 
-    if lower.contains("help") {
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show commands",
+            "list commands",
+            "what commands",
+            "what can you do",
+            "help",
+        ],
+    ) {
         return ChatIntent::Command(ChatCommand::Help);
     }
-    if lower.contains("list topics") || lower.contains("show topics") {
-        return ChatIntent::Command(ChatCommand::Topics);
+    if contains_any_phrase(
+        &lower,
+        &["open menu", "main menu", "show menu", "back to menu"],
+    ) {
+        return ChatIntent::Command(ChatCommand::Menu);
     }
-    if lower.contains("show history") || lower.contains("list history") {
-        return ChatIntent::Command(ChatCommand::History(CommandArgs::default()));
+    if contains_any_phrase(
+        &lower,
+        &[
+            "toggle ui",
+            "switch ui",
+            "chat first ui",
+            "traditional ui",
+            "chat-first ui",
+        ],
+    ) {
+        return ChatIntent::Command(ChatCommand::ToggleUi);
     }
-    if lower.contains("show stats") || lower.contains("statistics") {
-        return ChatIntent::Command(ChatCommand::Stats);
+    if contains_any_phrase(
+        &lower,
+        &["quit chat", "exit chat", "leave chat", "close chat"],
+    ) {
+        return ChatIntent::Command(ChatCommand::Quit);
     }
-    if lower.contains("providers") || lower.contains("provider health") {
+
+    if lower.contains("ollama") {
+        let mut args = CommandArgs::default();
+        if contains_any_phrase(
+            &lower,
+            &[
+                "ollama serve",
+                "start ollama",
+                "launch ollama",
+                "run ollama",
+            ],
+        ) {
+            args.positionals.push("serve".into());
+            return ChatIntent::Command(ChatCommand::Ollama(args));
+        }
+        if contains_any_phrase(&lower, &["stop ollama", "kill ollama", "shutdown ollama"]) {
+            args.positionals.push("stop".into());
+            return ChatIntent::Command(ChatCommand::Ollama(args));
+        }
+        if contains_any_phrase(
+            &lower,
+            &[
+                "ollama status",
+                "is ollama running",
+                "check ollama",
+                "ollama health",
+            ],
+        ) {
+            args.positionals.push("status".into());
+            return ChatIntent::Command(ChatCommand::Ollama(args));
+        }
+    }
+
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show providers",
+            "list providers",
+            "provider health",
+            "providers status",
+            "check providers",
+        ],
+    ) {
         return ChatIntent::Command(ChatCommand::Providers);
     }
-    if lower.contains("ollama serve") || lower.contains("start ollama") {
-        let mut args = CommandArgs::default();
-        args.positionals.push("serve".into());
-        return ChatIntent::Command(ChatCommand::Ollama(args));
+    if contains_any_phrase(
+        &lower,
+        &["current provider", "which provider", "what provider"],
+    ) {
+        return ChatIntent::Command(ChatCommand::Provider(None));
     }
-    if lower.contains("preprocess") {
+    if let Some(provider) = extract_provider(&words) {
+        if (lower.contains("provider")
+            && contains_any_word(&words, &["set", "switch", "change", "use", "select"]))
+            || (contains_any_word(&words, &["set", "switch", "change", "select"])
+                && !lower.contains("providers"))
+        {
+            return ChatIntent::Command(ChatCommand::Provider(Some(provider.into())));
+        }
+    }
+
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show models",
+            "list models",
+            "available models",
+            "which models",
+            "what models",
+        ],
+    ) {
+        let mut args = CommandArgs::default();
+        if let Some(provider) = extract_provider(&words) {
+            args.named.insert("provider".into(), provider.into());
+        }
+        return ChatIntent::Command(ChatCommand::Models(args));
+    }
+    if contains_any_phrase(&lower, &["current model", "which model", "what model"]) {
+        return ChatIntent::Command(ChatCommand::Model(None));
+    }
+    if let Some(model_name) = infer_model_name(&words) {
+        return ChatIntent::Command(ChatCommand::Model(Some(model_name)));
+    }
+
+    if contains_any_phrase(
+        &lower,
+        &[
+            "token usage",
+            "token count",
+            "session cost",
+            "cost so far",
+            "token spend",
+        ],
+    ) {
+        return ChatIntent::Command(ChatCommand::Tokens);
+    }
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show temperature",
+            "current temperature",
+            "what temperature",
+        ],
+    ) {
+        return ChatIntent::Command(ChatCommand::Temp(None));
+    }
+    if contains_any_word(&words, &["temperature", "temp"])
+        && contains_any_word(&words, &["set", "change", "adjust"])
+    {
+        if let Some(value) = extract_f64_after_keywords(&words, &["temperature", "temp"]) {
+            return ChatIntent::Command(ChatCommand::Temp(Some(value.to_string())));
+        }
+        return ChatIntent::Command(ChatCommand::Temp(None));
+    }
+
+    if contains_any_phrase(
+        &lower,
+        &[
+            "list topics",
+            "show topics",
+            "available topics",
+            "what topics",
+        ],
+    ) {
+        return ChatIntent::Command(ChatCommand::Topics);
+    }
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show history",
+            "list history",
+            "recent history",
+            "generation history",
+        ],
+    ) || (contains_any_word(&words, &["history"])
+        && contains_any_word(&words, &["show", "list", "recent", "last", "get"]))
+    {
+        let mut args = CommandArgs::default();
+        if let Some(limit) = extract_u32_after_keywords(&words, &["limit", "last", "recent"]) {
+            args.named.insert("limit".into(), limit.to_string());
+        }
+        return ChatIntent::Command(ChatCommand::History(args));
+    }
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show stats",
+            "show statistics",
+            "generation stats",
+            "usage stats",
+            "statistics",
+        ],
+    ) {
+        return ChatIntent::Command(ChatCommand::Stats);
+    }
+
+    if contains_any_phrase(
+        &lower,
+        &[
+            "show corpus",
+            "browse corpus",
+            "list corpus",
+            "list entries",
+            "show entries",
+        ],
+    ) {
+        let mut args = CommandArgs::default();
+        if let Some(limit) = extract_u32_after_keywords(&words, &["limit", "first", "top"]) {
+            args.named.insert("limit".into(), limit.to_string());
+        }
+        return ChatIntent::Command(ChatCommand::Corpus(args));
+    }
+
+    let query_like = contains_any_phrase(
+        &lower,
+        &[
+            "query corpus",
+            "query topics",
+            "search corpus",
+            "search cases",
+            "find cases",
+            "query cases",
+        ],
+    );
+    if query_like {
+        let topics =
+            extract_topics_from_text(&lower, &["topics=", "topics ", "topic ", "about ", "on "]);
+        if topics.is_empty() {
+            return ChatIntent::Ambiguous(vec![
+                "/query topics=negligence sample=3".into(),
+                "/topics".into(),
+                "/hypo negligence,causation".into(),
+            ]);
+        }
+        let mut args = CommandArgs::default();
+        args.named.insert("topics".into(), topics.join(","));
+        if let Some(sample) =
+            extract_u32_after_keywords(&words, &["sample", "samples", "limit", "top", "results"])
+        {
+            args.named.insert("sample".into(), sample.to_string());
+        }
+        if let Some(overlap) = extract_u32_after_keywords(&words, &["overlap"]) {
+            args.named.insert("overlap".into(), overlap.to_string());
+        }
+        return ChatIntent::Command(ChatCommand::Query(args));
+    }
+
+    let hypo_like = contains_any_phrase(
+        &lower,
+        &[
+            "generate hypo",
+            "generate hypothetical",
+            "create hypo",
+            "create hypothetical",
+            "make hypo",
+            "make hypothetical",
+            "draft hypothetical",
+            "write hypothetical",
+        ],
+    );
+    if hypo_like {
+        let topics = extract_topics_from_text(
+            &lower,
+            &["topics=", "topics ", "topic ", "about ", "for ", "on "],
+        );
+        if topics.is_empty() {
+            return ChatIntent::Ambiguous(vec![
+                "/hypo negligence,causation".into(),
+                "/topics".into(),
+                "/query topics=negligence sample=3".into(),
+            ]);
+        }
+        let mut args = CommandArgs::default();
+        args.named.insert("topics".into(), topics.join(","));
+        if let Some(complexity) = extract_u32_after_keywords(&words, &["complexity", "level"]) {
+            args.named
+                .insert("complexity".into(), complexity.to_string());
+        }
+        if let Some(parties) = extract_u32_after_keywords(&words, &["parties", "party"]) {
+            args.named.insert("parties".into(), parties.to_string());
+        }
+        if lower.contains("pure llm") || lower.contains("pure_llm") {
+            args.named.insert("method".into(), "pure_llm".into());
+        } else if lower.contains("hybrid") {
+            args.named.insert("method".into(), "hybrid".into());
+        }
+        if lower.contains("without analysis") || lower.contains("no analysis") {
+            args.named.insert("analysis".into(), "false".into());
+        } else if lower.contains("with analysis") || lower.contains("include analysis") {
+            args.named.insert("analysis".into(), "true".into());
+        }
+        return ChatIntent::Command(ChatCommand::Hypo(args));
+    }
+
+    if contains_any_phrase(
+        &lower,
+        &[
+            "regenerate last",
+            "regenerate generation",
+            "retry generation",
+            "rerun generation",
+        ],
+    ) {
+        let mut args = CommandArgs::default();
+        if lower.contains("last") {
+            args.positionals.push("last".into());
+        } else if let Some(id) = extract_u32_after_keywords(&words, &["generation", "id"]) {
+            args.positionals.push(id.to_string());
+        } else {
+            args.positionals.push("last".into());
+        }
+        return ChatIntent::Command(ChatCommand::Regenerate(args));
+    }
+
+    if contains_any_phrase(&lower, &["preprocess", "import corpus", "prepare corpus"]) {
         return ChatIntent::Command(ChatCommand::Preprocess(CommandArgs::default()));
     }
-    if lower.contains("train") && lower.contains("model") {
+    if (contains_any_word(&words, &["train", "retrain"])
+        && contains_any_word(&words, &["model", "models", "classifier", "regressor"]))
+        || contains_any_phrase(&lower, &["train models"])
+    {
         return ChatIntent::Command(ChatCommand::Train(CommandArgs::default()));
     }
-    if lower.contains("embed") || lower.contains("index corpus") {
+    if contains_any_phrase(
+        &lower,
+        &[
+            "embed corpus",
+            "index corpus",
+            "build embeddings",
+            "generate embeddings",
+        ],
+    ) {
         return ChatIntent::Command(ChatCommand::Embed(CommandArgs::default()));
     }
-    if lower.contains("export") {
+    if contains_any_word(&words, &["export", "download"]) {
         let mut args = CommandArgs::default();
         if lower.contains("pdf") {
             args.named.insert("format".into(), "pdf".into());
         } else if lower.contains("docx") || lower.contains("word") {
             args.named.insert("format".into(), "docx".into());
+        }
+        if lower.contains("last") {
+            args.named.insert("generation_id".into(), "last".into());
+        } else if let Some(id) = extract_u32_after_keywords(&words, &["generation", "id"]) {
+            args.named.insert("generation_id".into(), id.to_string());
         }
         return ChatIntent::Command(ChatCommand::Export(args));
     }
@@ -286,20 +593,285 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
             "/scrape source=sicc".into(),
         ]);
     }
-    if lower.contains("generate") && lower.contains("hypo") {
-        if let Some((_, rhs)) = lower.split_once("about") {
-            let mut args = CommandArgs::default();
-            args.positionals.push(rhs.trim().to_string());
-            return ChatIntent::Command(ChatCommand::Hypo(args));
+
+    if lower.contains("cleanup") || lower.contains("clean up") || lower.contains("clean-up") {
+        let targets = infer_cleanup_targets(&lower, &words);
+        if targets.is_empty() {
+            return ChatIntent::Ambiguous(vec![
+                "/cleanup targets=logs,history,tui_state".into(),
+                "/cleanup targets=models,embeddings".into(),
+                "/cleanup targets=all".into(),
+            ]);
         }
-        return ChatIntent::Ambiguous(vec![
-            "/hypo negligence,causation".into(),
-            "/topics".into(),
-            "/query topics=negligence sample=3".into(),
-        ]);
+        let mut args = CommandArgs::default();
+        args.named.insert("targets".into(), targets.join(","));
+        return ChatIntent::Command(ChatCommand::Cleanup(args));
+    }
+
+    if contains_any_phrase(&lower, &["job status", "status job", "check job"]) {
+        let mut args = CommandArgs::default();
+        args.positionals.push("status".into());
+        if lower.contains("last") {
+            args.positionals.push("last".into());
+        }
+        return ChatIntent::Command(ChatCommand::Job(args));
+    }
+    if contains_any_phrase(&lower, &["cancel job", "stop job", "abort job", "kill job"]) {
+        let mut args = CommandArgs::default();
+        args.positionals.push("cancel".into());
+        if lower.contains("last") {
+            args.positionals.push("last".into());
+        }
+        return ChatIntent::Command(ChatCommand::Job(args));
+    }
+
+    if contains_any_phrase(&lower, &["reset settings", "restore settings defaults"]) {
+        let mut args = CommandArgs::default();
+        args.positionals.push("reset".into());
+        return ChatIntent::Command(ChatCommand::Settings(args));
+    }
+    if contains_any_phrase(
+        &lower,
+        &["show settings", "view settings", "current settings"],
+    ) {
+        return ChatIntent::Command(ChatCommand::Settings(CommandArgs::default()));
     }
 
     ChatIntent::None
+}
+
+fn contains_any_phrase(input: &str, phrases: &[&str]) -> bool {
+    phrases.iter().any(|phrase| input.contains(phrase))
+}
+
+fn tokenize_for_intent(input: &str) -> Vec<String> {
+    input
+        .split(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.')))
+        .filter(|token| !token.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn contains_any_word(words: &[String], candidates: &[&str]) -> bool {
+    words
+        .iter()
+        .any(|word| candidates.iter().any(|candidate| word == candidate))
+}
+
+fn extract_provider(words: &[String]) -> Option<&'static str> {
+    ["ollama", "openai", "anthropic", "google", "local"]
+        .into_iter()
+        .find(|provider| words.iter().any(|word| word == provider))
+}
+
+fn infer_model_name(words: &[String]) -> Option<String> {
+    let model_idx = words.iter().position(|word| word == "model")?;
+    let action = contains_any_word(words, &["set", "switch", "change", "use", "select"]);
+    if !action {
+        return None;
+    }
+    for candidate in words.iter().skip(model_idx + 1) {
+        if matches!(
+            candidate.as_str(),
+            "to" | "as" | "the" | "a" | "an" | "please" | "now" | "provider"
+        ) {
+            continue;
+        }
+        if extract_provider(std::slice::from_ref(candidate)).is_some() {
+            continue;
+        }
+        return Some(candidate.to_string());
+    }
+    None
+}
+
+fn extract_u32_after_keywords(words: &[String], keywords: &[&str]) -> Option<u32> {
+    for (idx, word) in words.iter().enumerate() {
+        if !keywords.iter().any(|keyword| word == keyword) {
+            continue;
+        }
+        for candidate in words.iter().skip(idx + 1).take(3) {
+            if let Ok(value) = candidate.parse::<u32>() {
+                return Some(value);
+            }
+            if matches!(
+                candidate.as_str(),
+                "to" | "of" | "the" | "a" | "an" | "up" | "around" | "about"
+            ) {
+                continue;
+            }
+            break;
+        }
+    }
+    None
+}
+
+fn extract_f64_after_keywords(words: &[String], keywords: &[&str]) -> Option<f64> {
+    for (idx, word) in words.iter().enumerate() {
+        if !keywords.iter().any(|keyword| word == keyword) {
+            continue;
+        }
+        for candidate in words.iter().skip(idx + 1).take(3) {
+            if let Ok(value) = candidate.parse::<f64>() {
+                return Some(value);
+            }
+            if matches!(candidate.as_str(), "to" | "of" | "the" | "a" | "an") {
+                continue;
+            }
+            break;
+        }
+    }
+    None
+}
+
+fn extract_topics_from_text(lower: &str, markers: &[&str]) -> Vec<String> {
+    let mut tail: Option<&str> = None;
+    for marker in markers {
+        if let Some((_, rhs)) = lower.split_once(marker) {
+            tail = Some(rhs);
+            break;
+        }
+    }
+    let Some(raw_tail) = tail else {
+        return Vec::new();
+    };
+
+    let clipped = clip_at_stop_markers(
+        raw_tail,
+        &[
+            " sample", " overlap", " limit", " with ", " using ", " please", " now", " from ",
+            " in ", " for ",
+        ],
+    );
+    split_topics(clipped)
+}
+
+fn clip_at_stop_markers<'a>(input: &'a str, stops: &[&str]) -> &'a str {
+    let mut end = input.len();
+    for stop in stops {
+        if let Some(idx) = input.find(stop) {
+            if idx < end {
+                end = idx;
+            }
+        }
+    }
+    input[..end].trim()
+}
+
+fn split_topics(raw: &str) -> Vec<String> {
+    let normalized = raw.replace(" and ", ",").replace('&', ",");
+    let mut topics: Vec<String> = normalized
+        .split(|c| matches!(c, ',' | ';' | '|'))
+        .map(str::trim)
+        .map(|topic| {
+            topic.trim_matches(|ch: char| {
+                matches!(
+                    ch,
+                    '.' | ':' | '!' | '?' | '"' | '\'' | '`' | '(' | ')' | '[' | ']'
+                )
+            })
+        })
+        .filter(|topic| !topic.is_empty())
+        .filter(|topic| {
+            !matches!(
+                *topic,
+                "case"
+                    | "cases"
+                    | "topic"
+                    | "topics"
+                    | "about"
+                    | "on"
+                    | "for"
+                    | "the"
+                    | "a"
+                    | "an"
+                    | "please"
+            )
+        })
+        .map(normalize_topic)
+        .collect();
+    topics.sort();
+    topics.dedup();
+    topics
+}
+
+fn infer_cleanup_targets(lower: &str, words: &[String]) -> Vec<String> {
+    let all_targets = [
+        "config",
+        "models",
+        "history",
+        "embeddings",
+        "logs",
+        "labelled",
+        "database",
+        "tui_state",
+    ];
+    if contains_any_word(words, &["all", "everything"])
+        || contains_any_phrase(lower, &["clean everything", "cleanup everything"])
+    {
+        return all_targets
+            .iter()
+            .map(|target| target.to_string())
+            .collect();
+    }
+
+    let mut targets: Vec<String> = Vec::new();
+    push_unique_target(
+        &mut targets,
+        "logs",
+        contains_any_word(words, &["log", "logs"]),
+    );
+    push_unique_target(
+        &mut targets,
+        "models",
+        contains_any_word(words, &["model", "models"]),
+    );
+    push_unique_target(
+        &mut targets,
+        "embeddings",
+        contains_any_word(words, &["embedding", "embeddings", "vector", "chroma"]),
+    );
+    push_unique_target(
+        &mut targets,
+        "history",
+        contains_any_word(words, &["history"]),
+    );
+    push_unique_target(
+        &mut targets,
+        "labelled",
+        contains_any_word(words, &["label", "labels", "labelled"]),
+    );
+    push_unique_target(
+        &mut targets,
+        "database",
+        contains_any_word(words, &["database", "db", "sqlite"]),
+    );
+    push_unique_target(
+        &mut targets,
+        "tui_state",
+        contains_any_phrase(
+            lower,
+            &[
+                "tui state",
+                "ui state",
+                "chat state",
+                "tui_state",
+                "tui.json",
+            ],
+        ),
+    );
+    push_unique_target(
+        &mut targets,
+        "config",
+        contains_any_word(words, &["config", "configuration"]),
+    );
+    targets
+}
+
+fn push_unique_target(targets: &mut Vec<String>, name: &str, enabled: bool) {
+    if enabled && !targets.iter().any(|target| target == name) {
+        targets.push(name.to_string());
+    }
 }
 
 pub fn command_meta(command: &ChatCommand) -> Option<CommandMeta> {
@@ -830,9 +1402,9 @@ mod tests {
             ChatCommand::Load(Some("foo.json".into()))
         );
 
-        if let ChatCommand::Report(args) =
-            parse_chat_command("/report last issue=topic_mismatch comment=\"Needs better causation\"")
-        {
+        if let ChatCommand::Report(args) = parse_chat_command(
+            "/report last issue=topic_mismatch comment=\"Needs better causation\"",
+        ) {
             assert_eq!(args.first(), Some("last"));
             assert_eq!(args.get("issue"), Some("topic_mismatch"));
             assert_eq!(args.get("comment"), Some("Needs better causation"));
@@ -843,7 +1415,8 @@ mod tests {
 
     #[test]
     fn parse_command_args_supports_quotes_and_key_values() {
-        let args = parse_command_args("last issue=topic_mismatch comment=\"Need more detail\" format=pdf");
+        let args =
+            parse_command_args("last issue=topic_mismatch comment=\"Need more detail\" format=pdf");
         assert_eq!(args.first(), Some("last"));
         assert_eq!(args.get("issue"), Some("topic_mismatch"));
         assert_eq!(args.get("comment"), Some("Need more detail"));
@@ -870,6 +1443,50 @@ mod tests {
         match infer_chat_intent("scrape singapore cases") {
             ChatIntent::Ambiguous(s) => assert!(!s.is_empty()),
             other => panic!("expected ambiguous intent, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn infer_chat_intent_maps_provider_and_ollama_requests() {
+        assert_eq!(
+            infer_chat_intent("switch provider to openai"),
+            ChatIntent::Command(ChatCommand::Provider(Some("openai".into())))
+        );
+
+        match infer_chat_intent("start ollama server") {
+            ChatIntent::Command(ChatCommand::Ollama(args)) => {
+                assert_eq!(args.first(), Some("serve"));
+            }
+            other => panic!("expected ollama serve command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn infer_chat_intent_maps_query_with_parameters() {
+        match infer_chat_intent("query corpus topics negligence and causation sample 3 overlap 1") {
+            ChatIntent::Command(ChatCommand::Query(args)) => {
+                assert_eq!(args.get("topics"), Some("causation,negligence"));
+                assert_eq!(args.get("sample"), Some("3"));
+                assert_eq!(args.get("overlap"), Some("1"));
+            }
+            other => panic!("expected query command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn infer_chat_intent_maps_history_and_cleanup() {
+        match infer_chat_intent("show history limit 15") {
+            ChatIntent::Command(ChatCommand::History(args)) => {
+                assert_eq!(args.get("limit"), Some("15"));
+            }
+            other => panic!("expected history command, got {other:?}"),
+        }
+
+        match infer_chat_intent("cleanup logs and history") {
+            ChatIntent::Command(ChatCommand::Cleanup(args)) => {
+                assert_eq!(args.get("targets"), Some("logs,history"));
+            }
+            other => panic!("expected cleanup command, got {other:?}"),
         }
     }
 

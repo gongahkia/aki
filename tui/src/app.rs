@@ -1,3 +1,12 @@
+use crate::screens::chat::ChatScreen;
+use crate::screens::main_menu::MainMenuScreen;
+use crate::screens::{Screen, ScreenAction};
+use crate::state::generation::{TuiState, UiMode};
+use crate::state::navigation::NavStack;
+use crate::ui::layout::main_layout;
+use crate::ui::widgets::breadcrumb::render_breadcrumb;
+use crate::ui::widgets::menu::{MenuItem, MenuState};
+use crate::ui::widgets::status_bar::StatusBar;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use std::fs::OpenOptions;
@@ -6,15 +15,6 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
-use crate::screens::{Screen, ScreenAction};
-use crate::screens::chat::ChatScreen;
-use crate::screens::main_menu::MainMenuScreen;
-use crate::state::generation::{TuiState, UiMode};
-use crate::state::navigation::NavStack;
-use crate::ui::layout::main_layout;
-use crate::ui::widgets::breadcrumb::render_breadcrumb;
-use crate::ui::widgets::menu::{MenuItem, MenuState};
-use crate::ui::widgets::status_bar::StatusBar;
 
 struct ManagedProcess {
     child: Child,
@@ -208,25 +208,34 @@ impl App {
     }
 
     fn quit_menu_items() -> MenuState {
-        MenuState::new("Exit Jikai?", vec![
-            MenuItem::new("Clean & Exit", "remove generated files, then quit"),
-            MenuItem::new("Exit", "quit without cleaning"),
-            MenuItem::new("Cancel", "return"),
-        ])
+        MenuState::new(
+            "Exit Jikai?",
+            vec![
+                MenuItem::new("Clean & Exit", "remove generated files, then quit"),
+                MenuItem::new("Exit", "quit without cleaning"),
+                MenuItem::new("Cancel", "return"),
+            ],
+        )
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) {
         // intercept quit menu
         if let Some(menu) = &mut self.quit_menu {
-            if key.code == KeyCode::Esc { self.quit_menu = None; return; }
+            if key.code == KeyCode::Esc {
+                self.quit_menu = None;
+                return;
+            }
             if let Some(idx) = menu.handle_key(key) {
                 match idx {
-                    0 => { // clean & exit: push cleanup screen
+                    0 => {
+                        // clean & exit: push cleanup screen
                         self.quit_menu = None;
-                        let action = ScreenAction::Push(Box::new(crate::screens::cleanup::CleanupScreen::new_for_exit()));
+                        let action = ScreenAction::Push(Box::new(
+                            crate::screens::cleanup::CleanupScreen::new_for_exit(),
+                        ));
                         self.process_action(action);
                     }
-                    1 => self.running = false, // exit
+                    1 => self.running = false,  // exit
                     _ => self.quit_menu = None, // cancel
                 }
             }

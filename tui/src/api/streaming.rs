@@ -38,7 +38,11 @@ pub struct SseReader {
 }
 
 impl SseReader {
-    pub fn new() -> Self { Self { buffer: String::new() } }
+    pub fn new() -> Self {
+        Self {
+            buffer: String::new(),
+        }
+    }
 
     pub fn feed(&mut self, data: &[u8]) -> Vec<StreamEvent> {
         self.buffer.push_str(&String::from_utf8_lossy(data));
@@ -64,11 +68,15 @@ fn parse_sse_block(block: &str) -> Option<StreamEvent> {
             data = rest.trim().to_string();
         }
     }
-    if data.is_empty() { return None; }
+    if data.is_empty() {
+        return None;
+    }
     match event_type.as_str() {
         "token" => {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&data) {
-                Some(StreamEvent::Token(v["text"].as_str().unwrap_or("").to_string()))
+                Some(StreamEvent::Token(
+                    v["text"].as_str().unwrap_or("").to_string(),
+                ))
             } else {
                 Some(StreamEvent::Token(data))
             }
@@ -78,7 +86,9 @@ fn parse_sse_block(block: &str) -> Option<StreamEvent> {
                 .ok()
                 .and_then(|v| v["finish_reason"].as_str().map(String::from))
                 .unwrap_or_else(|| "stop".into());
-            Some(StreamEvent::Done { finish_reason: reason })
+            Some(StreamEvent::Done {
+                finish_reason: reason,
+            })
         }
         "error" => {
             let v = serde_json::from_str::<serde_json::Value>(&data).unwrap_or_default();

@@ -1,8 +1,8 @@
-use ratatui::Frame;
+use crate::ui::theme;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
-use crate::ui::theme;
+use ratatui::Frame;
 
 pub struct StatusBar {
     pub provider: String,
@@ -28,11 +28,25 @@ impl Default for StatusBar {
 
 impl StatusBar {
     pub fn render(&self, f: &mut Frame, area: Rect) {
-        let api_status = if self.api_ok { theme::STATUS_OK } else { theme::STATUS_ERROR };
-        let search = if self.search_indexed { "indexed" } else { "off" };
-        let score = self.last_score.map(|s| format!("{:.1}", s)).unwrap_or_else(|| "--".into());
+        let api_status = if self.api_ok {
+            theme::STATUS_OK
+        } else {
+            theme::STATUS_ERROR
+        };
+        let search = if self.search_indexed {
+            "indexed"
+        } else {
+            "off"
+        };
+        let score = self
+            .last_score
+            .map(|s| format!("{:.1}", s))
+            .unwrap_or_else(|| "--".into());
         let line = Line::from(vec![
-            Span::styled(format!(" {}/{}", self.provider, self.model), theme::normal()),
+            Span::styled(
+                format!(" {}/{}", self.provider, self.model),
+                theme::normal(),
+            ),
             Span::styled(" | ", theme::dim()),
             Span::styled(format!("Corpus: {}", self.corpus_count), theme::normal()),
             Span::styled(" | ", theme::dim()),
@@ -40,7 +54,14 @@ impl StatusBar {
             Span::styled(" | ", theme::dim()),
             Span::styled(format!("Score: {}", score), theme::normal()),
             Span::styled(" | ", theme::dim()),
-            Span::styled(format!("API: {} ", api_status), if self.api_ok { theme::success() } else { theme::error() }),
+            Span::styled(
+                format!("API: {} ", api_status),
+                if self.api_ok {
+                    theme::success()
+                } else {
+                    theme::error()
+                },
+            ),
         ]);
         f.render_widget(Paragraph::new(line).style(theme::dim()), area);
     }

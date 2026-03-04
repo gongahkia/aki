@@ -1,10 +1,10 @@
-pub mod status_bar;
 pub mod breadcrumb;
-pub mod menu;
 pub mod checkbox;
-pub mod text_input;
 pub mod confirm;
-pub mod table;
+pub mod menu;
 pub mod panel;
 pub mod progress;
+pub mod status_bar;
 pub mod stream_view;
+pub mod table;
+pub mod text_input;

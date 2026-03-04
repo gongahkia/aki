@@ -1,19 +1,21 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
-use ratatui::layout::Rect;
-use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app::AppContext;
 use crate::screens::{Screen, ScreenAction};
 use crate::ui::theme;
 use crate::ui::widgets::menu::{MenuItem, MenuState};
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Rect;
+use ratatui::text::Span;
+use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::Frame;
 
 enum Phase {
     StepSelect(MenuState, usize),
     Done,
 }
 
-pub struct GuidedScreen { phase: Phase }
+pub struct GuidedScreen {
+    phase: Phase,
+}
 
 impl GuidedScreen {
     pub fn new() -> Self {
@@ -23,12 +25,16 @@ impl GuidedScreen {
             MenuItem::new("Step 3: Generate Hypothetical", "create a scenario"),
             MenuItem::new("Step 4: Export", "save to DOCX/PDF"),
         ];
-        Self { phase: Phase::StepSelect(MenuState::new("Guided Walkthrough", items), 0) }
+        Self {
+            phase: Phase::StepSelect(MenuState::new("Guided Walkthrough", items), 0),
+        }
     }
 }
 
 impl Screen for GuidedScreen {
-    fn name(&self) -> &str { "Guided Mode" }
+    fn name(&self) -> &str {
+        "Guided Mode"
+    }
 
     fn handle_key(&mut self, key: KeyEvent, _ctx: &mut AppContext) -> ScreenAction {
         match key.code {
@@ -39,15 +45,31 @@ impl Screen for GuidedScreen {
             Phase::StepSelect(menu, _step) => {
                 if let Some(idx) = menu.handle_key(key) {
                     match idx {
-                        0 => return ScreenAction::Push(Box::new(super::corpus::BrowseScreen::new())),
-                        1 => return ScreenAction::Push(Box::new(super::preprocess::PreprocessScreen::new())),
-                        2 => return ScreenAction::Push(Box::new(super::generate::GenerateScreen::new())),
-                        3 => return ScreenAction::Push(Box::new(super::export::ExportScreen::new())),
+                        0 => {
+                            return ScreenAction::Push(Box::new(super::corpus::BrowseScreen::new()))
+                        }
+                        1 => {
+                            return ScreenAction::Push(Box::new(
+                                super::preprocess::PreprocessScreen::new(),
+                            ))
+                        }
+                        2 => {
+                            return ScreenAction::Push(Box::new(
+                                super::generate::GenerateScreen::new(),
+                            ))
+                        }
+                        3 => {
+                            return ScreenAction::Push(Box::new(super::export::ExportScreen::new()))
+                        }
                         _ => {}
                     }
                 }
             }
-            Phase::Done => { if key.code == KeyCode::Enter { return ScreenAction::Pop; } }
+            Phase::Done => {
+                if key.code == KeyCode::Enter {
+                    return ScreenAction::Pop;
+                }
+            }
         }
         ScreenAction::None
     }
@@ -56,9 +78,13 @@ impl Screen for GuidedScreen {
         match &mut self.phase {
             Phase::StepSelect(menu, _) => menu.render(f, area),
             Phase::Done => {
-                let block = Block::default().title(Span::styled(" Complete ", theme::success()))
+                let block = Block::default()
+                    .title(Span::styled(" Complete ", theme::success()))
                     .borders(Borders::ALL);
-                f.render_widget(Paragraph::new("Guided walkthrough complete.").block(block), area);
+                f.render_widget(
+                    Paragraph::new("Guided walkthrough complete.").block(block),
+                    area,
+                );
             }
         }
     }

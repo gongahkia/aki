@@ -1,8 +1,8 @@
-use ratatui::Frame;
+use crate::ui::theme;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use crate::ui::theme;
+use ratatui::Frame;
 
 /// live-updating text area for streaming LLM tokens
 pub struct StreamView {
@@ -34,10 +34,16 @@ impl StreamView {
         self.scroll = lines.saturating_sub(1);
     }
 
-    pub fn toggle_pause(&mut self) { self.paused = !self.paused; }
+    pub fn toggle_pause(&mut self) {
+        self.paused = !self.paused;
+    }
 
-    pub fn scroll_up(&mut self) { self.scroll = self.scroll.saturating_sub(1); }
-    pub fn scroll_down(&mut self) { self.scroll += 1; }
+    pub fn scroll_up(&mut self) {
+        self.scroll = self.scroll.saturating_sub(1);
+    }
+    pub fn scroll_down(&mut self) {
+        self.scroll += 1;
+    }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
         let status = if self.done {
@@ -51,8 +57,16 @@ impl StreamView {
             .title(Span::styled(format!(" {} ", self.title), theme::title()))
             .title_bottom(Span::styled(format!(" {} ", status), theme::dim()))
             .borders(Borders::ALL)
-            .border_style(if self.done { theme::success() } else { theme::border() });
-        let content = if self.buffer.is_empty() { "waiting for response..." } else { &self.buffer };
+            .border_style(if self.done {
+                theme::success()
+            } else {
+                theme::border()
+            });
+        let content = if self.buffer.is_empty() {
+            "waiting for response..."
+        } else {
+            &self.buffer
+        };
         let p = Paragraph::new(content)
             .wrap(Wrap { trim: false })
             .scroll((self.scroll, 0))

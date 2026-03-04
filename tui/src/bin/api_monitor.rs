@@ -21,9 +21,9 @@ use ratatui::{
 
 #[derive(Clone)]
 enum Entry {
-    Out(String),  // uvicorn stdout (white)
-    Err(String),  // uvicorn stderr (yellow — most uvicorn output goes here)
-    Sys(String),  // monitor messages (dark gray italic)
+    Out(String), // uvicorn stdout (white)
+    Err(String), // uvicorn stderr (yellow — most uvicorn output goes here)
+    Sys(String), // monitor messages (dark gray italic)
 }
 
 struct TerminalGuard {
@@ -33,7 +33,10 @@ struct TerminalGuard {
 
 impl TerminalGuard {
     fn new() -> Self {
-        Self { raw_mode_enabled: false, alt_screen_enabled: false }
+        Self {
+            raw_mode_enabled: false,
+            alt_screen_enabled: false,
+        }
     }
 
     fn enable_raw_mode(&mut self) -> io::Result<()> {
@@ -80,20 +83,18 @@ fn main() -> Result<()> {
         let tx = tx.clone();
         let pipe = child.stdout.take().unwrap();
         thread::spawn(move || {
-            BufReader::new(pipe)
-                .lines()
-                .flatten()
-                .for_each(|l| { let _ = tx.send(Entry::Out(l)); });
+            BufReader::new(pipe).lines().flatten().for_each(|l| {
+                let _ = tx.send(Entry::Out(l));
+            });
         });
     }
     {
         let tx = tx.clone();
         let pipe = child.stderr.take().unwrap();
         thread::spawn(move || {
-            BufReader::new(pipe)
-                .lines()
-                .flatten()
-                .for_each(|l| { let _ = tx.send(Entry::Err(l)); });
+            BufReader::new(pipe).lines().flatten().for_each(|l| {
+                let _ = tx.send(Entry::Err(l));
+            });
         });
     }
 
@@ -105,8 +106,13 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut logs: Vec<Entry> = vec![
-        Entry::Sys("jikai api monitor  •  uvicorn src.api.main:app --host 127.0.0.1 --port 8000".into()),
-        Entry::Sys("q / ctrl+c: stop & exit  |  ↑↓ / pgup/pgdn: scroll  |  home: top  |  end: auto-scroll".into()),
+        Entry::Sys(
+            "jikai api monitor  •  uvicorn src.api.main:app --host 127.0.0.1 --port 8000".into(),
+        ),
+        Entry::Sys(
+            "q / ctrl+c: stop & exit  |  ↑↓ / pgup/pgdn: scroll  |  home: top  |  end: auto-scroll"
+                .into(),
+        ),
         Entry::Sys("─".repeat(80)),
     ];
     let mut scroll: usize = 0;
@@ -148,11 +154,15 @@ fn main() -> Result<()> {
                 let visible = h.saturating_sub(6);
                 match k.code {
                     KeyCode::Char('q') => {
-                        if api_running { let _ = child.kill(); }
+                        if api_running {
+                            let _ = child.kill();
+                        }
                         break;
                     }
                     KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if api_running { let _ = child.kill(); }
+                        if api_running {
+                            let _ = child.kill();
+                        }
                         break;
                     }
                     KeyCode::Up => {
@@ -162,10 +172,18 @@ fn main() -> Result<()> {
                     KeyCode::Down => {
                         scroll += 1;
                         let max = logs.len().saturating_sub(visible);
-                        if scroll >= max { scroll = max; auto_scroll = true; }
+                        if scroll >= max {
+                            scroll = max;
+                            auto_scroll = true;
+                        }
                     }
-                    KeyCode::Home => { auto_scroll = false; scroll = 0; }
-                    KeyCode::End => { auto_scroll = true; }
+                    KeyCode::Home => {
+                        auto_scroll = false;
+                        scroll = 0;
+                    }
+                    KeyCode::End => {
+                        auto_scroll = true;
+                    }
                     KeyCode::PageUp => {
                         auto_scroll = false;
                         scroll = scroll.saturating_sub(visible);
@@ -173,7 +191,9 @@ fn main() -> Result<()> {
                     KeyCode::PageDown => {
                         let max = logs.len().saturating_sub(visible);
                         scroll = (scroll + visible).min(max);
-                        if scroll >= max { auto_scroll = true; }
+                        if scroll >= max {
+                            auto_scroll = true;
+                        }
                     }
                     _ => {}
                 }
@@ -204,9 +224,17 @@ fn draw(
 
     // header
     let status = if api_running {
-        Span::styled("● RUNNING", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+        Span::styled(
+            "● RUNNING",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )
     } else {
-        Span::styled("■ STOPPED", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        Span::styled(
+            "■ STOPPED",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )
     };
     let scroll_tag = if !auto_scroll {
         Span::styled("  [scroll]", Style::default().fg(Color::Yellow))
@@ -214,7 +242,12 @@ fn draw(
         Span::raw("")
     };
     let header = Paragraph::new(Line::from(vec![
-        Span::styled("Jikai API", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Jikai API",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw("  127.0.0.1:8000  "),
         status,
         scroll_tag,
@@ -224,25 +257,40 @@ fn draw(
 
     // log list
     let inner_h = chunks[1].height.saturating_sub(2) as usize;
-    let items: Vec<ListItem> = logs.iter().skip(scroll).take(inner_h).map(|e| {
-        match e {
+    let items: Vec<ListItem> = logs
+        .iter()
+        .skip(scroll)
+        .take(inner_h)
+        .map(|e| match e {
             Entry::Out(s) => ListItem::new(Line::from(Span::raw(s.as_str()))),
-            Entry::Err(s) => ListItem::new(Line::from(
-                Span::styled(s.as_str(), Style::default().fg(Color::Yellow))
-            )),
-            Entry::Sys(s) => ListItem::new(Line::from(
-                Span::styled(s.as_str(), Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))
-            )),
-        }
-    }).collect();
-    let log_title = format!(" logs  {}/{} ", scroll + inner_h.min(total.saturating_sub(scroll)), total);
-    let log_list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(log_title.as_str()));
+            Entry::Err(s) => ListItem::new(Line::from(Span::styled(
+                s.as_str(),
+                Style::default().fg(Color::Yellow),
+            ))),
+            Entry::Sys(s) => ListItem::new(Line::from(Span::styled(
+                s.as_str(),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            ))),
+        })
+        .collect();
+    let log_title = format!(
+        " logs  {}/{} ",
+        scroll + inner_h.min(total.saturating_sub(scroll)),
+        total
+    );
+    let log_list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(log_title.as_str()),
+    );
     f.render_widget(log_list, chunks[1]);
 
     // footer
     let footer = Paragraph::new(
-        "q/ctrl+c stop  |  ↑↓ scroll  |  pgup/pgdn page  |  home top  |  end auto-scroll"
-    ).style(Style::default().fg(Color::DarkGray));
+        "q/ctrl+c stop  |  ↑↓ scroll  |  pgup/pgdn page  |  home top  |  end auto-scroll",
+    )
+    .style(Style::default().fg(Color::DarkGray));
     f.render_widget(footer, chunks[2]);
 }

@@ -17,12 +17,24 @@ pub struct LastConfig {
     #[serde(default = "default_true")]
     pub include_analysis: bool,
 }
-fn default_provider() -> String { "ollama".into() }
-fn default_temp() -> f64 { 0.7 }
-fn default_complexity() -> String { "3".into() }
-fn default_parties() -> String { "2".into() }
-fn default_method() -> String { "pure_llm".into() }
-fn default_true() -> bool { true }
+fn default_provider() -> String {
+    "ollama".into()
+}
+fn default_temp() -> f64 {
+    0.7
+}
+fn default_complexity() -> String {
+    "3".into()
+}
+fn default_parties() -> String {
+    "2".into()
+}
+fn default_method() -> String {
+    "pure_llm".into()
+}
+fn default_true() -> bool {
+    true
+}
 
 impl Default for LastConfig {
     fn default() -> Self {
@@ -46,7 +58,9 @@ pub enum UiMode {
 }
 
 impl Default for UiMode {
-    fn default() -> Self { Self::Chat }
+    fn default() -> Self {
+        Self::Chat
+    }
 }
 
 impl UiMode {
@@ -86,7 +100,10 @@ impl TuiState {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let _ = std::fs::write(&path, serde_json::to_string_pretty(self).unwrap_or_default());
+        let _ = std::fs::write(
+            &path,
+            serde_json::to_string_pretty(self).unwrap_or_default(),
+        );
     }
 
     fn state_path() -> PathBuf {
