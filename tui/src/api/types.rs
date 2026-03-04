@@ -162,6 +162,26 @@ pub struct CorpusEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CorpusQueryRequest {
+    pub topics: Vec<String>,
+    #[serde(default = "default_sample_size")]
+    pub sample_size: u32,
+    #[serde(default)]
+    pub exclude_ids: Vec<String>,
+    #[serde(default = "default_min_topic_overlap")]
+    pub min_topic_overlap: u32,
+}
+fn default_min_topic_overlap() -> u32 { 1 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CorpusQueryResponse {
+    #[serde(default)]
+    pub entries: Vec<CorpusEntry>,
+    #[serde(default)]
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobStatus {
     #[serde(rename = "type")]
     pub job_type: String,
