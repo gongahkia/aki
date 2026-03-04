@@ -94,6 +94,15 @@ impl ApiClient {
         Ok(entries)
     }
 
+    pub async fn query_corpus(&self, req: &CorpusQueryRequest) -> Result<CorpusQueryResponse> {
+        let resp = self.client.post(self.url("/corpus/query")).json(req).send().await?;
+        if !resp.status().is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Corpus query failed: {}", text);
+        }
+        Ok(resp.json().await?)
+    }
+
     pub async fn corpus_health(&self) -> Result<serde_json::Value> {
         Ok(self.client.get(self.url("/corpus/health")).send().await?.json().await?)
     }
@@ -165,7 +174,22 @@ impl ApiClient {
     // -- jobs --
 
     pub async fn start_preprocess(&self, raw_dir: Option<&str>, output_path: Option<&str>) -> Result<String> {
-        let body = serde_json::json!({"raw_dir": raw_dir, "output_path": output_path, "merge_existing": true});
+        self.start_preprocess_with_options(raw_dir, output_path, true, false).await
+    }
+
+    pub async fn start_preprocess_with_options(
+        &self,
+        raw_dir: Option<&str>,
+        output_path: Option<&str>,
+        merge_existing: bool,
+        include_non_tort: bool,
+    ) -> Result<String> {
+        let body = serde_json::json!({
+            "raw_dir": raw_dir,
+            "output_path": output_path,
+            "merge_existing": merge_existing,
+            "include_non_tort": include_non_tort,
+        });
         let resp: serde_json::Value = self.client.post(self.url("/jobs/preprocess")).json(&body).send().await?.json().await?;
         Ok(resp["job_id"].as_str().unwrap_or("").to_string())
     }
@@ -176,13 +200,30 @@ impl ApiClient {
     }
 
     pub async fn start_train(&self, data_path: &str, n_clusters: u32) -> Result<String> {
-        let body = serde_json::json!({"data_path": data_path, "n_clusters": n_clusters});
+        self.start_train_with_options(data_path, n_clusters, None).await
+    }
+
+    pub async fn start_train_with_options(
+        &self,
+        data_path: &str,
+        n_clusters: u32,
+        models: Option<&[String]>,
+    ) -> Result<String> {
+        let body = serde_json::json!({
+            "data_path": data_path,
+            "n_clusters": n_clusters,
+            "models": models,
+        });
         let resp: serde_json::Value = self.client.post(self.url("/jobs/train")).json(&body).send().await?.json().await?;
         Ok(resp["job_id"].as_str().unwrap_or("").to_string())
     }
 
     pub async fn start_embed(&self, corpus_path: &str) -> Result<String> {
-        let body = serde_json::json!({"corpus_path": corpus_path});
+        self.start_embed_with_options(corpus_path, 20).await
+    }
+
+    pub async fn start_embed_with_options(&self, corpus_path: &str, batch_size: u32) -> Result<String> {
+        let body = serde_json::json!({"corpus_path": corpus_path, "batch_size": batch_size});
         let resp: serde_json::Value = self.client.post(self.url("/jobs/embed")).json(&body).send().await?.json().await?;
         Ok(resp["job_id"].as_str().unwrap_or("").to_string())
     }
