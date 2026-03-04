@@ -1297,6 +1297,9 @@ pub fn build_prompt(messages: &[ChatMessage], latest_user: &str, turn_limit: usi
     let max_messages = limit.saturating_mul(2);
     let start = visible.len().saturating_sub(max_messages);
     let mut prompt = String::from("You are continuing an existing conversation.\n");
+    prompt.push_str(
+        "Output rules: reply as Assistant only, with one direct answer. Do not write role labels (like User: or Assistant:) and do not fabricate extra dialogue turns.\n",
+    );
     prompt.push_str("Conversation so far:\n");
 
     for msg in &visible[start..] {

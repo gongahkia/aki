@@ -333,7 +333,13 @@ impl ChatScreen {
         }
 
         if self.pending_confirmation.is_some() {
-            match command {
+            let effective_command = match &command {
+                ChatCommand::PlainPrompt(text) => {
+                    Self::confirmation_command_from_text(text).unwrap_or(command.clone())
+                }
+                _ => command.clone(),
+            };
+            match effective_command {
                 ChatCommand::Yes => return self.confirm_pending(ctx),
                 ChatCommand::No => {
                     self.pending_confirmation = None;
@@ -1765,6 +1771,8 @@ impl ChatScreen {
     fn handle_stream_events(&mut self) {
         let mut clear_pending = false;
         let mut appended_token = false;
+        let mut abort_stream = false;
+        let mut role_leak_detected = false;
 
         if let Some(PendingOp::Streaming(stream)) = &mut self.pending {
             loop {
@@ -1773,6 +1781,13 @@ impl ChatScreen {
                         if let Some(msg) = self.messages.get_mut(stream.assistant_index) {
                             msg.content.push_str(&text);
                             appended_token = true;
+                            if let Some(idx) = Self::stream_role_leak_index(&msg.content) {
+                                msg.content.truncate(idx);
+                                role_leak_detected = true;
+                                abort_stream = true;
+                                clear_pending = true;
+                                break;
+                            }
                         }
                     }
                     Ok(StreamEvent::Done { finish_reason }) => {
@@ -1801,8 +1816,22 @@ impl ChatScreen {
             self.scroll_to_bottom();
         }
 
+        if role_leak_detected {
+            self.add_meta(
+                "Stream truncated: model started emitting both sides of the conversation.",
+            );
+        }
+
         if clear_pending {
-            self.pending = None;
+            if abort_stream {
+                if let Some(PendingOp::Streaming(stream)) = self.pending.take() {
+                    stream.handle.abort();
+                } else {
+                    self.pending = None;
+                }
+            } else {
+                self.pending = None;
+            }
             self.emit_suggestions("chat_response");
         }
     }
@@ -2700,6 +2729,29 @@ impl ChatScreen {
             TaskPayload::JobId(_) => "job_id",
             TaskPayload::JobStatus(_) => "job_status",
             TaskPayload::Message(_) => "message",
+        }
+    }
+
+    fn stream_role_leak_index(content: &str) -> Option<usize> {
+        let markers = ["\nUser:", "\nAssistant:", "\nJikai:", "\nyou>", "\njikai>"];
+        if content.starts_with("User:")
+            || content.starts_with("Assistant:")
+            || content.starts_with("Jikai:")
+        {
+            return Some(0);
+        }
+        markers
+            .iter()
+            .filter_map(|marker| content.find(marker))
+            .min()
+    }
+
+    fn confirmation_command_from_text(text: &str) -> Option<ChatCommand> {
+        let normalized = text.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "yes" | "y" | "ok" | "okay" | "confirm" | "proceed" => Some(ChatCommand::Yes),
+            "no" | "n" | "cancel" | "stop" => Some(ChatCommand::No),
+            _ => None,
         }
     }
 
