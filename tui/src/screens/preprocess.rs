@@ -109,16 +109,13 @@ impl Screen for PreprocessScreen {
 
     fn tick(&mut self, ctx: &mut AppContext) {
         // resolve start_pending -> get job_id
-        if let Some(handle) = &self.start_pending {
-            if handle.is_finished() {
-                let handle = self.start_pending.take().unwrap();
-                match tokio::runtime::Handle::current().block_on(handle) {
-                    Ok(Ok(job_id)) => {
-                        if let Phase::Running(_, ref mut jid) = self.phase { *jid = job_id; }
-                    }
-                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
-                    Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+        if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.start_pending) {
+            match result {
+                Ok(Ok(job_id)) => {
+                    if let Phase::Running(_, ref mut jid) = self.phase { *jid = job_id; }
                 }
+                Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
             }
         }
         // poll job status
@@ -127,27 +124,24 @@ impl Screen for PreprocessScreen {
                 self.poll_job(ctx, &job_id.clone());
             }
         }
-        if let Some(handle) = &self.poll_pending {
-            if handle.is_finished() {
-                let handle = self.poll_pending.take().unwrap();
-                match tokio::runtime::Handle::current().block_on(handle) {
-                    Ok(Ok(status)) => {
-                        match status.status.as_str() {
-                            "completed" => { self.phase = Phase::Done(done_menu("Preprocessing complete")); }
-                            "failed" => {
-                                let msg = status.error.unwrap_or_else(|| "Unknown error".into());
-                                self.phase = Phase::Error(msg.clone(), error_menu(&msg));
-                            }
-                            "cancelled" => { self.phase = Phase::Done(done_menu("Cancelled")); }
-                            _ => {
-                                if let Phase::Running(bar, _) = &mut self.phase {
-                                    bar.set(status.progress as f64 / 100.0, &format!("{}%", status.progress));
-                                }
+        if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.poll_pending) {
+            match result {
+                Ok(Ok(status)) => {
+                    match status.status.as_str() {
+                        "completed" => { self.phase = Phase::Done(done_menu("Preprocessing complete")); }
+                        "failed" => {
+                            let msg = status.error.unwrap_or_else(|| "Unknown error".into());
+                            self.phase = Phase::Error(msg.clone(), error_menu(&msg));
+                        }
+                        "cancelled" => { self.phase = Phase::Done(done_menu("Cancelled")); }
+                        _ => {
+                            if let Phase::Running(bar, _) = &mut self.phase {
+                                bar.set(status.progress as f64 / 100.0, &format!("{}%", status.progress));
                             }
                         }
                     }
-                    _ => {} // poll failed, will retry next tick
                 }
+                _ => {} // poll failed, will retry next tick
             }
         }
     }

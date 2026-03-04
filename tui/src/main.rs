@@ -1,4 +1,5 @@
 mod api;
+mod async_join;
 mod app;
 mod config;
 mod event;

@@ -116,18 +116,15 @@ impl Screen for ProvidersScreen {
 
     fn tick(&mut self, _ctx: &mut AppContext) {
         if let Phase::Loading(s) = &mut self.phase { s.tick(); }
-        if let Some(handle) = &self.pending {
-            if handle.is_finished() {
-                let handle = self.pending.take().unwrap();
-                match tokio::runtime::Handle::current().block_on(handle) {
-                    Ok(Ok((health, models))) => {
-                        self.health_data = Some(health);
-                        self.models_data = Some(models);
-                        self.rebuild_list();
-                    }
-                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
-                    Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+        if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.pending) {
+            match result {
+                Ok(Ok((health, models))) => {
+                    self.health_data = Some(health);
+                    self.models_data = Some(models);
+                    self.rebuild_list();
                 }
+                Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
             }
         }
     }

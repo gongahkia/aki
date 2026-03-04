@@ -112,25 +112,22 @@ impl Screen for HistoryScreen {
 
     fn tick(&mut self, _ctx: &mut AppContext) {
         if let Phase::Loading(s) = &mut self.phase { s.tick(); }
-        if let Some(handle) = &self.pending {
-            if handle.is_finished() {
-                let handle = self.pending.take().unwrap();
-                match tokio::runtime::Handle::current().block_on(handle) {
-                    Ok(Ok(records)) => {
-                        self.records = records.iter().map(|r| serde_json::to_value(r).unwrap_or_default()).collect();
-                        let mut table = DataTable::new("History", vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()], vec![6, 30, 8, 20]);
-                        let rows: Vec<Vec<String>> = records.iter().map(|r| vec![
-                            r.id.to_string(),
-                            r.topics.clone(),
-                            format!("{:.1}", r.quality_score),
-                            r.timestamp.clone(),
-                        ]).collect();
-                        table.set_rows(rows);
-                        self.phase = Phase::List(table);
-                    }
-                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
-                    Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+        if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.pending) {
+            match result {
+                Ok(Ok(records)) => {
+                    self.records = records.iter().map(|r| serde_json::to_value(r).unwrap_or_default()).collect();
+                    let mut table = DataTable::new("History", vec!["ID".into(), "Topics".into(), "Score".into(), "Time".into()], vec![6, 30, 8, 20]);
+                    let rows: Vec<Vec<String>> = records.iter().map(|r| vec![
+                        r.id.to_string(),
+                        r.topics.clone(),
+                        format!("{:.1}", r.quality_score),
+                        r.timestamp.clone(),
+                    ]).collect();
+                    table.set_rows(rows);
+                    self.phase = Phase::List(table);
                 }
+                Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
             }
         }
     }

@@ -110,17 +110,14 @@ impl Screen for CleanupScreen {
 
     fn tick(&mut self, _ctx: &mut AppContext) {
         // cleanup returns immediately (not a polled job), so check start_pending
-        if let Some(handle) = &self.start_pending {
-            if handle.is_finished() {
-                let handle = self.start_pending.take().unwrap();
-                match tokio::runtime::Handle::current().block_on(handle) {
-                    Ok(Ok(_)) => {
-                        // set bar to 100% briefly, then done
-                        self.phase = Phase::Done(done_menu());
-                    }
-                    Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
-                    Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+        if let Some(result) = crate::async_join::take_join_result_if_finished(&mut self.start_pending) {
+            match result {
+                Ok(Ok(_)) => {
+                    // set bar to 100% briefly, then done
+                    self.phase = Phase::Done(done_menu());
                 }
+                Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
+                Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
             }
         }
     }

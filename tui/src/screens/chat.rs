@@ -1693,20 +1693,16 @@ impl ChatScreen {
     }
 
     fn maybe_resolve_pending_task(&mut self) {
-        let finished = matches!(
-            self.pending.as_ref(),
-            Some(PendingOp::Task(task)) if task.handle.is_finished()
-        );
-        if !finished {
-            return;
-        }
-
-        let Some(PendingOp::Task(task)) = self.pending.take() else {
+        let Some((kind, result)) = (match self.pending.as_mut() {
+            Some(PendingOp::Task(task)) => crate::async_join::poll_join_if_finished(&mut task.handle)
+                .map(|result| (task.kind.clone(), result)),
+            _ => None,
+        }) else {
             return;
         };
+        self.pending = None;
 
-        let kind = task.kind;
-        match tokio::runtime::Handle::current().block_on(task.handle) {
+        match result {
             Ok(Ok(payload)) => self.resolve_task_success(kind, payload),
             Ok(Err(e)) => {
                 self.add_meta(format!("Command failed: {}", Self::format_anyhow(&e)));
