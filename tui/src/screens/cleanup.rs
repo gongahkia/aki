@@ -17,6 +17,7 @@ enum Phase {
 pub struct CleanupScreen {
     phase: Phase,
     start_pending: Option<tokio::task::JoinHandle<Result<serde_json::Value, anyhow::Error>>>,
+    exit_after_done: bool,
 }
 
 fn cleanup_items() -> Vec<CheckboxItem> {
@@ -31,9 +32,14 @@ fn cleanup_items() -> Vec<CheckboxItem> {
     ]
 }
 
-fn done_menu() -> MenuState {
+fn done_menu(exit_after_done: bool) -> MenuState {
+    let primary = if exit_after_done {
+        MenuItem::new("Exit", "cleanup complete, exit Jikai")
+    } else {
+        MenuItem::new("Done", "return to previous screen")
+    };
     MenuState::new("Cleanup complete", vec![
-        MenuItem::new("Done", "return to previous screen"),
+        primary,
         MenuItem::new("Clean More", "select more items"),
     ])
 }
@@ -48,7 +54,19 @@ fn error_menu(msg: &str) -> MenuState {
 
 impl CleanupScreen {
     pub fn new() -> Self {
-        Self { phase: Phase::Select(CheckboxState::new("Select items to remove", cleanup_items())), start_pending: None }
+        Self::with_exit_after_done(false)
+    }
+
+    pub fn new_for_exit() -> Self {
+        Self::with_exit_after_done(true)
+    }
+
+    fn with_exit_after_done(exit_after_done: bool) -> Self {
+        Self {
+            phase: Phase::Select(CheckboxState::new("Select items to remove", cleanup_items())),
+            start_pending: None,
+            exit_after_done,
+        }
     }
 
     fn start_cleanup(&mut self, targets: &[String], ctx: &mut AppContext) {
@@ -78,10 +96,22 @@ impl Screen for CleanupScreen {
             }
             Phase::Running(_) => {}
             Phase::Done(menu) => {
-                if key.code == KeyCode::Esc { return ScreenAction::Pop; }
+                if key.code == KeyCode::Esc {
+                    return if self.exit_after_done {
+                        ScreenAction::Quit
+                    } else {
+                        ScreenAction::Pop
+                    };
+                }
                 if let Some(idx) = menu.handle_key(key) {
                     match idx {
-                        0 => return ScreenAction::Pop,
+                        0 => {
+                            return if self.exit_after_done {
+                                ScreenAction::Quit
+                            } else {
+                                ScreenAction::Pop
+                            };
+                        }
                         1 => self.phase = Phase::Select(CheckboxState::new("Select items to remove", cleanup_items())),
                         _ => return ScreenAction::Pop,
                     }
@@ -115,7 +145,7 @@ impl Screen for CleanupScreen {
             match result {
                 Ok(Ok(_)) => {
                     // set bar to 100% briefly, then done
-                    self.phase = Phase::Done(done_menu());
+                    self.phase = Phase::Done(done_menu(self.exit_after_done));
                 }
                 Ok(Err(e)) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }
                 Err(e) => { let msg = format!("{}", e); self.phase = Phase::Error(msg.clone(), error_menu(&msg)); }

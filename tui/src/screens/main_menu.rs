@@ -12,7 +12,6 @@ enum Phase {
 
 pub struct MainMenuScreen {
     phase: Phase,
-    quit_after_clean: bool,
 }
 
 fn main_items() -> Vec<MenuItem> {
@@ -45,7 +44,6 @@ impl MainMenuScreen {
     pub fn new() -> Self {
         Self {
             phase: Phase::Menu(MenuState::new("Jikai", main_items())),
-            quit_after_clean: false,
         }
     }
 }
@@ -56,11 +54,6 @@ impl Screen for MainMenuScreen {
     }
 
     fn handle_key(&mut self, key: KeyEvent, _ctx: &mut AppContext) -> ScreenAction {
-        // auto-quit after cleanup screen pops back
-        if self.quit_after_clean {
-            self.quit_after_clean = false;
-            return ScreenAction::Quit;
-        }
         match &mut self.phase {
             Phase::Menu(menu) => {
                 match key.code {
@@ -108,11 +101,8 @@ impl Screen for MainMenuScreen {
                     match idx {
                         0 => {
                             // clean & exit
-                            self.quit_after_clean = true;
                             self.phase = Phase::Menu(MenuState::new("Jikai", main_items()));
-                            return ScreenAction::Push(Box::new(
-                                super::cleanup::CleanupScreen::new(),
-                            ));
+                            return ScreenAction::Push(Box::new(super::cleanup::CleanupScreen::new_for_exit()));
                         }
                         1 => return ScreenAction::Quit, // exit
                         _ => self.phase = Phase::Menu(MenuState::new("Jikai", main_items())), // cancel

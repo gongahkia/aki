@@ -223,7 +223,7 @@ impl App {
                 match idx {
                     0 => { // clean & exit: push cleanup screen
                         self.quit_menu = None;
-                        let action = ScreenAction::Push(Box::new(crate::screens::cleanup::CleanupScreen::new()));
+                        let action = ScreenAction::Push(Box::new(crate::screens::cleanup::CleanupScreen::new_for_exit()));
                         self.process_action(action);
                     }
                     1 => self.running = false, // exit
