@@ -1591,36 +1591,58 @@ impl ChatScreen {
     }
 
     fn handle_guided_action(&mut self, action: &str) {
-        const STEPS: [&str; 4] = [
-            "Step 1: Check corpus readiness with /corpus limit=20 or /topics.",
-            "Step 2: If corpus is stale, run /preprocess (and optionally /scrape).",
-            "Step 3: Generate with /hypo negligence,causation (adjust complexity/parties as needed).",
-            "Step 4: Export with /export generation_id=last format=docx (or pdf).",
+        const STEPS: [(&str, &str, &str, Option<&str>); 4] = [
+            (
+                "Check corpus readiness",
+                "Confirm topics and corpus entries are available.",
+                "/corpus limit=20",
+                Some("/topics"),
+            ),
+            (
+                "Refresh corpus (if needed)",
+                "Prepare clean corpus data before generation.",
+                "/preprocess",
+                Some("/scrape source=commonlii"),
+            ),
+            (
+                "Generate a hypothetical",
+                "Create a draft with key tort topics.",
+                "/hypo negligence,causation",
+                Some("/hypo negligence,causation complexity=3 parties=2"),
+            ),
+            (
+                "Export output",
+                "Save the latest generation for downstream use.",
+                "/export generation_id=last format=docx",
+                Some("/export generation_id=last format=pdf"),
+            ),
         ];
 
         match action {
             "start" => {
                 self.guided_step = Some(0);
-                self.add_meta(STEPS[0]);
+                self.add_meta(Self::format_guided_step(0, STEPS.len(), STEPS[0]));
                 self.emit_suggestions("guided");
             }
             "next" => {
                 let next = self.guided_step.unwrap_or(0) + 1;
                 if next >= STEPS.len() {
                     self.guided_step = Some(STEPS.len() - 1);
-                    self.add_meta("Guided flow complete. Use /guided stop to exit guidance.");
+                    self.add_meta(
+                        "Guided workflow complete.\n- Continue: /hypo negligence,causation\n- Export: /export generation_id=last format=docx\n- Exit: /guided stop",
+                    );
                     self.emit_suggestions("guided_complete");
                 } else {
                     self.guided_step = Some(next);
-                    self.add_meta(STEPS[next]);
+                    self.add_meta(Self::format_guided_step(next, STEPS.len(), STEPS[next]));
                     self.emit_suggestions("guided");
                 }
             }
             "stop" => {
                 self.guided_step = None;
-                self.add_meta("Guided flow stopped.");
+                self.add_meta("Guided workflow stopped.\n- Restart any time with /guided start");
             }
-            _ => self.add_meta("Usage: /guided start | /guided next | /guided stop"),
+            _ => self.add_meta(Self::guided_usage_text()),
         }
     }
 
@@ -2276,6 +2298,27 @@ impl ChatScreen {
         lines.join("\n")
     }
 
+    fn format_guided_step(
+        index: usize,
+        total: usize,
+        step: (&str, &str, &str, Option<&str>),
+    ) -> String {
+        let mut lines = Vec::with_capacity(6);
+        lines.push(format!("Guided workflow [{}/{}]", index + 1, total));
+        lines.push(format!("Step {}: {}", index + 1, step.0));
+        lines.push(format!("Goal: {}", step.1));
+        lines.push(format!("Run: {}", step.2));
+        if let Some(optional) = step.3 {
+            lines.push(format!("Optional: {}", optional));
+        }
+        lines.push("Controls: /guided next | /guided stop".to_string());
+        lines.join("\n")
+    }
+
+    fn guided_usage_text() -> &'static str {
+        "Guided commands:\n- /guided start\n- /guided next\n- /guided stop"
+    }
+
     fn format_stream_error(code: &str, message: &str) -> String {
         let lower = message.to_lowercase();
         if lower.contains("all connection attempts failed")
@@ -2429,9 +2472,9 @@ impl ChatScreen {
 /settings reset
 
 /guided
-/guided start
-/guided next
-/guided stop
+/guided start      begin step-by-step guidance
+/guided next       move to the next guided step
+/guided stop       end guided mode
 
 /label
 /label start [limit=<n>] [output_path=<path>]
