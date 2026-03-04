@@ -2262,6 +2262,7 @@ impl ChatScreen {
             "toggle-ui" => Some("/toggle-ui"),
             "provider" => Some("/provider [ollama|openai|anthropic|google|local]"),
             "model" => Some("/model [name]"),
+            "ollama" => Some("/ollama serve | /ollama status | /ollama stop"),
             "temp" => Some("/temp <0.0-2.0>"),
             "hypo" => Some("/hypo <topic1,topic2,...> [complexity=] [parties=] [method=]"),
             "regenerate" => Some("/regenerate <generation_id|last>"),
@@ -2318,6 +2319,7 @@ impl ChatScreen {
             ChatCommand::Job(args) => format!("/job {}", args.positional_joined()),
             ChatCommand::Settings(args) => format!("/settings {}", args.positional_joined()),
             ChatCommand::Label(args) => format!("/label {}", args.positional_joined()),
+            ChatCommand::Ollama(args) => format!("/ollama {}", args.positional_joined()),
             other => format!("/{}", self.command_name(other)),
         }
     }
@@ -2342,6 +2344,7 @@ impl ChatScreen {
             "label_done_pending" => vec!["/label done", "/label start", "/topics"],
             "label_saved" => vec!["/train", "/embed", "/history limit=20"],
             "providers" => vec!["/models", "/provider ollama", "/hypo negligence,causation"],
+            "ollama" => vec!["/ollama status", "/provider ollama", "/providers"],
             "corpus" => vec![
                 "/query topics=negligence sample=3",
                 "/topics",
@@ -2369,7 +2372,14 @@ impl ChatScreen {
                 "/model llama2:7b",
                 "/hypo negligence,causation",
             ],
-            "error" | "default" | _ => vec!["/help", "/topics", "/history limit=20"],
+            "error" => {
+                if self.config.provider == "ollama" {
+                    vec!["/ollama serve", "/provider openai", "/help"]
+                } else {
+                    vec!["/help", "/topics", "/history limit=20"]
+                }
+            }
+            "default" | _ => vec!["/help", "/topics", "/history limit=20"],
         };
         if !suggestions.is_empty() {
             self.add_meta(Self::format_next_actions(&suggestions));
@@ -2412,7 +2422,7 @@ impl ChatScreen {
             || (lower.contains("ollama") && lower.contains("connection"))
         {
             return format!(
-                "Stream error [{}]: cannot reach Ollama. Start `ollama serve`, then retry or switch provider with /provider.",
+                "Stream error [{}]: cannot reach Ollama. Use /ollama serve, then retry or switch provider with /provider.",
                 code
             );
         }
@@ -2661,6 +2671,7 @@ impl ChatScreen {
 /llm
 /provider [name]
 /model [name]
+/ollama serve | /ollama status | /ollama stop
 /temp [value 0.0-2.0]
 /tokens
 /system [text]
