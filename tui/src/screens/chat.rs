@@ -935,7 +935,7 @@ impl ChatScreen {
                 let targets = parse_csv(args.get("targets").or_else(|| args.first()).unwrap_or(""));
                 if targets.is_empty() {
                     self.add_meta(
-                        "Usage: /cleanup targets=config,models,history,embeddings,logs,labelled,database",
+                        "Usage: /cleanup targets=config,models,history,embeddings,logs,labelled,database,tui_state",
                     );
                     return ScreenAction::None;
                 }

@@ -60,7 +60,7 @@ class ExportRequest(BaseModel):
 
 
 class CleanupRequest(BaseModel):
-    targets: List[str]  # config, models, history, embeddings, logs, labelled, database
+    targets: List[str]  # config, models, history, embeddings, logs, labelled, database, tui_state
 
 
 class LabelEntry(BaseModel):
@@ -253,6 +253,7 @@ async def cleanup(req: CleanupRequest):
         "logs": ["logs/"],
         "labelled": ["corpus/labelled/"],
         "database": ["data/jikai.db"],
+        "tui_state": ["data/tui_state.json", "data/tui.json"],
     }
     for target in req.targets:
         for path_str in target_map.get(target, []):

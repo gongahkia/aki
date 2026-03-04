@@ -25,6 +25,7 @@ fn cleanup_items() -> Vec<CheckboxItem> {
         CheckboxItem::option("Models", "models", "models/*.joblib"),
         CheckboxItem::option("Embeddings", "embeddings", "chroma_db/"),
         CheckboxItem::option("History JSON", "history", "data/history.json"),
+        CheckboxItem::option("TUI State", "tui_state", "data/tui_state.json, data/tui.json"),
         CheckboxItem::option("Labelled Data", "labelled", "corpus/labelled/"),
         CheckboxItem::option("Database", "database", "data/jikai.db"),
     ]
