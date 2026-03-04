@@ -246,7 +246,7 @@ async def cleanup(req: CleanupRequest):
 
     removed = []
     target_map = {
-        "config": [".env", ".jikai_state.json"],
+        "config": [".env", ".jikai_state.json", "data/tui_state.json", "data/tui.json"],
         "models": ["models/"],
         "history": ["data/history.json"],
         "embeddings": ["chroma_db/"],
