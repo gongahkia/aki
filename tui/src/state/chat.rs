@@ -114,6 +114,7 @@ pub enum ChatCommand {
     No,
     Provider(Option<String>),
     Model(Option<String>),
+    Ollama(CommandArgs),
     Temp(Option<String>),
     Tokens,
     Hypo(CommandArgs),
@@ -191,6 +192,7 @@ pub fn parse_chat_command(input: &str) -> ChatCommand {
         "no" => ChatCommand::No,
         "provider" => ChatCommand::Provider(args_opt),
         "model" => ChatCommand::Model(args_opt),
+        "ollama" => ChatCommand::Ollama(parsed_args),
         "temp" => ChatCommand::Temp(args_opt),
         "tokens" => ChatCommand::Tokens,
         "hypo" => ChatCommand::Hypo(parsed_args),
@@ -246,6 +248,11 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
     }
     if lower.contains("providers") || lower.contains("provider health") {
         return ChatIntent::Command(ChatCommand::Providers);
+    }
+    if lower.contains("ollama serve") || lower.contains("start ollama") {
+        let mut args = CommandArgs::default();
+        args.positionals.push("serve".into());
+        return ChatIntent::Command(ChatCommand::Ollama(args));
     }
     if lower.contains("preprocess") {
         return ChatIntent::Command(ChatCommand::Preprocess(CommandArgs::default()));
@@ -339,6 +346,17 @@ pub fn command_meta(command: &ChatCommand) -> Option<CommandMeta> {
             supports_suggestions: false,
             help_text: "Show or set model",
         },
+        ChatCommand::Ollama(args) => {
+            let action = args.first().unwrap_or("status").to_ascii_lowercase();
+            let read_only = !matches!(action.as_str(), "serve" | "start" | "stop");
+            CommandMeta {
+                name: "ollama",
+                read_only,
+                requires_confirmation: false,
+                supports_suggestions: true,
+                help_text: "Manage local Ollama server",
+            }
+        }
         ChatCommand::Temp(_) => CommandMeta {
             name: "temp",
             read_only: false,
@@ -789,6 +807,10 @@ mod tests {
         assert_eq!(parse_chat_command("/topics"), ChatCommand::Topics);
         assert_eq!(parse_chat_command("/stats"), ChatCommand::Stats);
         assert_eq!(parse_chat_command("/providers"), ChatCommand::Providers);
+        assert_eq!(
+            parse_chat_command("/ollama serve"),
+            ChatCommand::Ollama(parse_command_args("serve"))
+        );
     }
 
     #[test]

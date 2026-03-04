@@ -27,7 +27,7 @@ use crate::state::generation::{TuiState, UiMode};
 use crate::ui::theme;
 
 const INPUT_HINT_IDLE: &str =
-    "Enter=send  Esc=back  PgUp/PgDn=scroll  /help=commands  /menu=legacy menu";
+    "Enter=send/select  Tab=select  Up/Down=options  PgUp/PgDn=scroll  Esc=back";
 const INPUT_HINT_BUSY: &str = "request in progress... wait or /quit";
 const STREAM_ASSISTANT_TITLE: &str = "Chat";
 const DEFAULT_LABEL_OUTPUT_PATH: &str = "corpus/labelled/sample.csv";
@@ -149,6 +149,7 @@ pub struct ChatScreen {
     runtime_ctx: ChatRuntimeContext,
     guided_step: Option<usize>,
     label_session: Option<LabelSession>,
+    autocomplete_index: usize,
 }
 
 impl ChatScreen {
@@ -178,6 +179,7 @@ impl ChatScreen {
             runtime_ctx: ChatRuntimeContext::default(),
             guided_step: None,
             label_session: None,
+            autocomplete_index: 0,
         }
     }
 
@@ -204,6 +206,7 @@ impl ChatScreen {
             KeyCode::Char(c) => {
                 self.input.insert(self.cursor, c);
                 self.cursor += 1;
+                self.autocomplete_index = 0;
                 false
             }
             KeyCode::Backspace => {
@@ -211,12 +214,14 @@ impl ChatScreen {
                     self.cursor -= 1;
                     self.input.remove(self.cursor);
                 }
+                self.autocomplete_index = 0;
                 false
             }
             KeyCode::Delete => {
                 if self.cursor < self.input.len() {
                     self.input.remove(self.cursor);
                 }
+                self.autocomplete_index = 0;
                 false
             }
             KeyCode::Left => {
@@ -240,6 +245,70 @@ impl ChatScreen {
             KeyCode::Enter => true,
             _ => false,
         }
+    }
+
+    fn autocomplete_options(&self) -> Vec<String> {
+        let trimmed = self.input.trim_start();
+        if !trimmed.starts_with('/') {
+            return Vec::new();
+        }
+
+        let raw = &trimmed[1..];
+        if raw.is_empty() {
+            return vec!["/help".into(), "/hypo".into(), "/topics".into(), "/history".into()];
+        }
+
+        let mut split = raw.splitn(2, char::is_whitespace);
+        let cmd = split.next().unwrap_or_default().to_lowercase();
+        let has_args = split.next().is_some();
+        if has_args {
+            return Vec::new();
+        }
+
+        let matches: Vec<String> = Self::command_catalog()
+            .iter()
+            .copied()
+            .filter(|candidate| candidate.starts_with(&cmd))
+            .take(4)
+            .map(|candidate| format!("/{}", candidate))
+            .collect();
+        if matches.is_empty() {
+            return vec!["/help".into(), "/topics".into(), "/hypo".into()];
+        }
+        matches
+    }
+
+    fn move_autocomplete_selection(&mut self, up: bool) -> bool {
+        let options = self.autocomplete_options();
+        if options.is_empty() {
+            return false;
+        }
+
+        let len = options.len();
+        let current = self.autocomplete_index.min(len - 1);
+        self.autocomplete_index = if up {
+            (current + len - 1) % len
+        } else {
+            (current + 1) % len
+        };
+        true
+    }
+
+    fn apply_autocomplete_selection(&mut self, force: bool) -> bool {
+        let options = self.autocomplete_options();
+        if options.is_empty() {
+            return false;
+        }
+
+        let idx = self.autocomplete_index.min(options.len() - 1);
+        let selected = &options[idx];
+        if !force && self.input.trim() == selected {
+            return false;
+        }
+
+        self.input = selected.clone();
+        self.cursor = self.input.len();
+        true
     }
 
     fn submit_input(&mut self, ctx: &mut AppContext) -> ScreenAction {
@@ -405,6 +474,37 @@ impl ChatScreen {
                             self.add_meta(format!("Provider set to {}", name));
                         }
                     }
+                }
+                ScreenAction::None
+            }
+            ChatCommand::Ollama(args) => {
+                let action = args.first().unwrap_or("status").to_ascii_lowercase();
+                match action.as_str() {
+                    "serve" | "start" => match ctx.start_ollama_serve() {
+                        Ok(msg) => {
+                            self.add_meta(msg);
+                            self.emit_suggestions("ollama");
+                        }
+                        Err(msg) => {
+                            self.add_meta(msg);
+                            self.emit_suggestions("error");
+                        }
+                    },
+                    "stop" => match ctx.stop_ollama_serve() {
+                        Ok(msg) => {
+                            self.add_meta(msg);
+                            self.emit_suggestions("ollama");
+                        }
+                        Err(msg) => {
+                            self.add_meta(msg);
+                            self.emit_suggestions("error");
+                        }
+                    },
+                    "status" => {
+                        self.add_meta(ctx.ollama_status());
+                        self.emit_suggestions("ollama");
+                    }
+                    _ => self.add_meta("Usage: /ollama serve | /ollama status | /ollama stop"),
                 }
                 ScreenAction::None
             }
@@ -2032,6 +2132,7 @@ impl ChatScreen {
             "toggle-ui",
             "provider",
             "model",
+            "ollama",
             "temp",
             "tokens",
             "hypo",
@@ -2077,50 +2178,38 @@ impl ChatScreen {
         matches
     }
 
-    fn autocomplete_hint(&self) -> Option<String> {
+    fn autocomplete_hint(&mut self) -> Option<String> {
         let trimmed = self.input.trim_start();
         if !trimmed.starts_with('/') {
             return None;
         }
 
-        let raw = &trimmed[1..];
-        if raw.is_empty() {
-            return Some("Autocomplete: /help  /hypo  /topics  /history".into());
+        let options = self.autocomplete_options();
+        if !options.is_empty() {
+            self.autocomplete_index = self.autocomplete_index.min(options.len() - 1);
+            let line = options
+                .iter()
+                .enumerate()
+                .map(|(idx, option)| {
+                    if idx == self.autocomplete_index {
+                        format!("[{}]", option)
+                    } else {
+                        option.to_string()
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("  ");
+            return Some(format!("Autocomplete: {}", line));
         }
 
+        let raw = &trimmed[1..];
         let mut split = raw.splitn(2, char::is_whitespace);
         let cmd = split.next().unwrap_or_default().to_lowercase();
         let has_args = split.next().is_some();
-
         if has_args {
             return Self::command_usage_hint(&cmd).map(|usage| format!("Usage: {}", usage));
         }
-
-        let matches: Vec<&str> = Self::command_catalog()
-            .iter()
-            .copied()
-            .filter(|candidate| candidate.starts_with(&cmd))
-            .take(4)
-            .collect();
-
-        if matches.is_empty() {
-            return Some("Autocomplete: /help  /topics  /hypo".into());
-        }
-
-        if matches.len() == 1 && matches[0] == cmd {
-            if let Some(usage) = Self::command_usage_hint(&cmd) {
-                return Some(format!("Usage: {}", usage));
-            }
-        }
-
-        Some(format!(
-            "Autocomplete: {}",
-            matches
-                .iter()
-                .map(|name| format!("/{}", name))
-                .collect::<Vec<String>>()
-                .join("  ")
-        ))
+        None
     }
 
     fn command_catalog() -> &'static [&'static str] {
@@ -2133,6 +2222,7 @@ impl ChatScreen {
             "no",
             "provider",
             "model",
+            "ollama",
             "temp",
             "tokens",
             "hypo",
@@ -2638,17 +2728,25 @@ impl Screen for ChatScreen {
     }
 
     fn handle_key(&mut self, key: KeyEvent, ctx: &mut AppContext) -> ScreenAction {
+        if matches!(key.code, KeyCode::Tab) && self.apply_autocomplete_selection(true) {
+            return ScreenAction::None;
+        }
+
         match key.code {
             KeyCode::Esc => {
                 self.cancel_pending();
                 return ScreenAction::Pop;
             }
             KeyCode::Up => {
-                self.scroll = self.scroll.saturating_sub(1);
+                if !self.move_autocomplete_selection(true) {
+                    self.scroll = self.scroll.saturating_sub(1);
+                }
                 return ScreenAction::None;
             }
             KeyCode::Down => {
-                self.scroll = self.scroll.saturating_add(1);
+                if !self.move_autocomplete_selection(false) {
+                    self.scroll = self.scroll.saturating_add(1);
+                }
                 return ScreenAction::None;
             }
             KeyCode::PageUp => {
@@ -2660,6 +2758,10 @@ impl Screen for ChatScreen {
                 return ScreenAction::None;
             }
             _ => {}
+        }
+
+        if matches!(key.code, KeyCode::Enter) && self.apply_autocomplete_selection(false) {
+            return ScreenAction::None;
         }
 
         if self.update_input_from_key(key) {
