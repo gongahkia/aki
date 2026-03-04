@@ -1,7 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use futures::StreamExt;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::text::Span;
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 use std::collections::HashMap;
@@ -194,7 +195,7 @@ impl ChatScreen {
     }
 
     fn scroll_to_bottom(&mut self) {
-        let lines = self.transcript_text().lines().count();
+        let lines = self.transcript_line_count();
         self.scroll = lines.saturating_sub(1) as u16;
     }
 
@@ -2330,50 +2331,188 @@ impl ChatScreen {
             );
         }
         if message.chars().count() > 220 {
-            return format!(
-                "Stream error [{}]: {}",
-                code,
-                Self::clip_text(message, 220)
-            );
+            return format!("Stream error [{}]: {}", code, Self::clip_text(message, 220));
         }
         format!("Stream error [{}]: {}", code, message)
     }
 
-    fn transcript_text(&self) -> String {
-        let mut out = String::new();
-        for message in &self.messages {
-            let prefix = message.role.prefix();
-            if message.content.is_empty() {
-                out.push_str(prefix);
-                out.push('\n');
-                continue;
-            }
-            let mut line_count = 0usize;
-            for line in message.content.lines() {
-                if line_count == 0 {
-                    out.push_str(prefix);
-                    out.push(' ');
-                    out.push_str(line);
-                } else {
-                    out.push_str("      ");
-                    out.push_str(line);
-                }
-                out.push('\n');
-                line_count += 1;
-            }
-            if line_count == 0 {
-                out.push_str(prefix);
-                out.push('\n');
+    fn transcript_line_count(&self) -> usize {
+        let mut total = 0usize;
+        for (idx, message) in self.messages.iter().enumerate() {
+            let count = if message.content.is_empty() {
+                1
+            } else {
+                message.content.lines().count().max(1)
+            };
+            total += count;
+            if idx + 1 < self.messages.len() {
+                total += 1;
             }
         }
-        out
+        total.max(1)
     }
 
-    fn render_input_line(&self) -> String {
-        let mut display = self.input.clone();
-        let cursor = self.cursor.min(display.len());
-        display.insert(cursor, '_');
-        display
+    fn max_scroll(&self, transcript_height: u16) -> u16 {
+        let viewport_lines = transcript_height.saturating_sub(2) as usize;
+        if viewport_lines == 0 {
+            return 0;
+        }
+        self.transcript_line_count()
+            .saturating_sub(viewport_lines)
+            .min(u16::MAX as usize) as u16
+    }
+
+    fn transcript_status_text(&self) -> String {
+        let model = self.config.model.as_deref().unwrap_or("default");
+        let status = if self.is_busy() { "busy" } else { "ready" };
+        format!(
+            " {} | provider={} | model={} | temp={:.1} ",
+            status, self.config.provider, model, self.config.temperature
+        )
+    }
+
+    fn role_prefix_style(role: &ChatRole) -> Style {
+        match role {
+            ChatRole::User => theme::header(),
+            ChatRole::Assistant => theme::success().add_modifier(Modifier::BOLD),
+            ChatRole::Meta => theme::dim().add_modifier(Modifier::BOLD),
+        }
+    }
+
+    fn base_content_style(role: &ChatRole, line: &str) -> Style {
+        match role {
+            ChatRole::User | ChatRole::Assistant => theme::normal(),
+            ChatRole::Meta => Self::meta_line_style(line),
+        }
+    }
+
+    fn meta_line_style(line: &str) -> Style {
+        let lower = line.to_lowercase();
+        if lower.starts_with("stream error")
+            || lower.starts_with("command failed")
+            || lower.starts_with("command task failed")
+            || lower.contains(" failed")
+            || lower.contains("error=")
+        {
+            return theme::error();
+        }
+        if lower.starts_with("usage:")
+            || lower.starts_with("unknown command")
+            || lower.starts_with("ambiguous request")
+            || lower.starts_with("busy:")
+        {
+            return theme::warn();
+        }
+        if lower.starts_with("next actions:")
+            || lower.starts_with("guided workflow")
+            || lower.starts_with("guided commands:")
+        {
+            return theme::title();
+        }
+        if lower.starts_with("- ") {
+            return theme::dim();
+        }
+        theme::normal()
+    }
+
+    fn is_slash_command_token(token: &str) -> bool {
+        let trimmed = token.trim_matches(|c: char| {
+            matches!(
+                c,
+                ',' | '.' | ':' | ';' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\'' | '`'
+            )
+        });
+        trimmed.starts_with('/')
+    }
+
+    fn stylize_inline_tokens(input: &str, base_style: Style) -> Vec<Span<'static>> {
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut token = String::new();
+
+        let flush_token = |spans: &mut Vec<Span<'static>>, token: &mut String| {
+            if token.is_empty() {
+                return;
+            }
+            let style = if Self::is_slash_command_token(token) {
+                theme::header()
+            } else {
+                base_style
+            };
+            spans.push(Span::styled(std::mem::take(token), style));
+        };
+
+        for ch in input.chars() {
+            if ch.is_whitespace() {
+                flush_token(&mut spans, &mut token);
+                spans.push(Span::styled(ch.to_string(), base_style));
+            } else {
+                token.push(ch);
+            }
+        }
+        flush_token(&mut spans, &mut token);
+
+        if spans.is_empty() {
+            spans.push(Span::styled(String::new(), base_style));
+        }
+        spans
+    }
+
+    fn transcript_lines(&self) -> Vec<Line<'static>> {
+        let mut lines: Vec<Line<'static>> = Vec::new();
+
+        for (message_idx, message) in self.messages.iter().enumerate() {
+            let prefix = message.role.prefix();
+            let prefix_style = Self::role_prefix_style(&message.role);
+
+            if message.content.is_empty() {
+                lines.push(Line::from(vec![Span::styled(
+                    prefix.to_string(),
+                    prefix_style,
+                )]));
+            } else {
+                for (line_idx, raw_line) in message.content.lines().enumerate() {
+                    let mut spans: Vec<Span<'static>> = Vec::new();
+                    if line_idx == 0 {
+                        spans.push(Span::styled(prefix.to_string(), prefix_style));
+                        spans.push(Span::styled(" ", theme::dim()));
+                    } else {
+                        spans.push(Span::styled("      ", theme::dim()));
+                    }
+
+                    let content_style = Self::base_content_style(&message.role, raw_line);
+                    spans.extend(Self::stylize_inline_tokens(raw_line, content_style));
+                    lines.push(Line::from(spans));
+                }
+            }
+
+            if message_idx + 1 < self.messages.len() {
+                lines.push(Line::from(String::new()));
+            }
+        }
+
+        if lines.is_empty() {
+            lines.push(Line::from(String::new()));
+        }
+        lines
+    }
+
+    fn input_height(&self, area_width: u16) -> u16 {
+        let inner_width = area_width.saturating_sub(2).max(1) as usize;
+        let chars = self.input.chars().count().saturating_add(1);
+        let wrapped = chars.div_ceil(inner_width).max(1);
+        (wrapped as u16 + 2).clamp(3, 6)
+    }
+
+    fn render_input_line(&self) -> Line<'static> {
+        let cursor = self.cursor.min(self.input.len());
+        let left = &self.input[..cursor];
+        let right = &self.input[cursor..];
+
+        let mut spans = Self::stylize_inline_tokens(left, theme::normal());
+        spans.push(Span::styled("_", theme::header()));
+        spans.extend(Self::stylize_inline_tokens(right, theme::normal()));
+
+        Line::from(spans)
     }
 
     fn clip_text(input: &str, max: usize) -> String {
@@ -2534,37 +2673,58 @@ impl Screen for ChatScreen {
     }
 
     fn render(&mut self, f: &mut Frame, area: Rect, _ctx: &AppContext) {
+        let input_height = self.input_height(area.width);
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(3), Constraint::Length(3)])
+            .constraints([Constraint::Min(3), Constraint::Length(input_height)])
             .split(area);
 
         let transcript_title =
             Span::styled(format!(" {} ", STREAM_ASSISTANT_TITLE), theme::title());
+        let status_text = self.transcript_status_text();
         let transcript_block = Block::default()
             .title(transcript_title)
+            .title_bottom(Span::styled(
+                status_text,
+                if self.is_busy() {
+                    theme::warn()
+                } else {
+                    theme::dim()
+                },
+            ))
             .borders(Borders::ALL)
-            .border_style(theme::border());
-        let transcript_text = self.transcript_text();
-        let transcript = Paragraph::new(transcript_text)
+            .border_style(if self.is_busy() {
+                theme::warn()
+            } else {
+                theme::border()
+            });
+        self.scroll = self.scroll.min(self.max_scroll(chunks[0].height));
+        let transcript_lines = self.transcript_lines();
+        let transcript = Paragraph::new(transcript_lines)
             .block(transcript_block)
             .wrap(Wrap { trim: false })
             .scroll((self.scroll, 0));
         f.render_widget(transcript, chunks[0]);
 
-        let hint = if self.is_busy() {
-            INPUT_HINT_BUSY.to_string()
+        let (hint, hint_style) = if self.is_busy() {
+            (INPUT_HINT_BUSY.to_string(), theme::warn())
         } else if let Some(autocomplete) = self.autocomplete_hint() {
-            autocomplete
+            (autocomplete, theme::title())
         } else {
-            INPUT_HINT_IDLE.to_string()
+            (INPUT_HINT_IDLE.to_string(), theme::dim())
         };
         let input_block = Block::default()
             .title(Span::styled(" Input ", theme::title()))
-            .title_bottom(Span::styled(format!(" {} ", hint), theme::dim()))
+            .title_bottom(Span::styled(format!(" {} ", hint), hint_style))
             .borders(Borders::ALL)
-            .border_style(theme::border());
-        let input = Paragraph::new(self.render_input_line()).block(input_block);
+            .border_style(if self.is_busy() {
+                theme::warn()
+            } else {
+                theme::border()
+            });
+        let input = Paragraph::new(self.render_input_line())
+            .block(input_block)
+            .wrap(Wrap { trim: false });
         f.render_widget(input, chunks[1]);
     }
 
