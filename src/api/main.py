@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    from .routes import corpus, database, health, jobs, llm, validation, workflow
+    from .routes import chat, corpus, database, health, jobs, llm, validation, workflow
 
     app.include_router(health.router)
     app.include_router(llm.router, prefix="/llm", tags=["llm"])
@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
     app.include_router(database.router, prefix="/db", tags=["database"])
     app.include_router(validation.router, prefix="/validation", tags=["validation"])
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+    app.include_router(chat.router, prefix="/chat", tags=["chat"])
     return app
 
 
