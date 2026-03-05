@@ -1,6 +1,6 @@
-[![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
-[![](https://img.shields.io/badge/jikai_2.0.0-passing-dark_green)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
-[![](https://img.shields.io/badge/jikai_3.0.0-passing-dark_green)](https://github.com/gongahkia/jikai/releases/tag/3.0.0)
+[![](https://img.shields.io/badge/jikai_1.0.0-passing-8BC34A)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
+[![](https://img.shields.io/badge/jikai_2.0.0-passing-4CAF50)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
+[![](https://img.shields.io/badge/jikai_3.0.0-passing-2E7D32)](https://github.com/gongahkia/jikai/releases/tag/3.0.0)
 ![](https://github.com/gongahkia/jikai/actions/workflows/ci.yml/badge.svg)
 
 > [!IMPORTANT]
