@@ -8,7 +8,7 @@
 
 # `Jikai`
 
-[ML](#architecture) & [LLM](#architecture)-powered [Legal Hypothetical Generator](#model-support) for Singapore [Tort Law](https://www.advlawllc.com/practice/tort-law/#:~:text=Tort%20law%20deals%20with%20civil,defamation%2C%20trespass%2C%20and%20nuisance.).
+[ML](#so-wheres-the-ml-in-this) & [LLM](#so-wheres-the-llm-in-this)-powered [Legal Hypothetical Generator](#architecture) for Singapore [Tort Law](https://www.advlawllc.com/practice/tort-law/#:~:text=Tort%20law%20deals%20with%20civil,defamation%2C%20trespass%2C%20and%20nuisance.).
 
 ## Rationale
 
@@ -96,13 +96,43 @@ $ make lint
 Inside the Rust TUI, `Chat` is the default landing screen with command-driven workflows.
 Use `/menu` to open the multi-screen navigation, and `/help` to list command families (`hypo`, `regenerate`, `report`, `corpus`, `validation`, `jobs`, `providers`, `history`, `stats`, `settings`, `guided`, `label`).
 
-## So where's the ML in this?
+## So where's the [ML](https://en.wikipedia.org/wiki/Machine_learning) in this?
 
-## So where's the LLM in this?
+`Jikai` uses ML as a **required foundation stage** before LLM generation.
+
+* *ML training/inference pipeline*: `src/ml/pipeline.py` orchestrates the classifier (`src/ml/classifier.py`), regressor (`src/ml/regressor.py`), and clusterer (`src/ml/clustering.py`).
+* *Generation-time ML foundation*: `src/services/workflow_facade.py` calls `src/services/hypo_generator.py` first (`_prepare_combined_request`), and blocks generation if required ML models are unavailable.
+* *Topic and structure heuristics*: `src/ml/topic_selector.py` and `src/ml/structural_planner.py` provide retrieval/planning support to compose realistic fact patterns.
+* *Quality scoring signals*: the regressor and confidence values are attached into generation metadata and used in orchestration/feedback context.
+* *Corpus and model lifecycle jobs*: `/jobs/train`, `/jobs/label`, and `make train`/`make label` keep ML artifacts and labelled data current (`models/*`, `corpus/labelled/*.csv`).
+* *Retrieval ML layer*: `src/services/vector_service.py` uses `sentence-transformers` embeddings + Chroma for semantic search; `src/services/corpus_service.py` falls back to overlap matching if vector search is unavailable.
+
+## So where's the [LLM](https://en.wikipedia.org/wiki/Large_language_model) in this?
+
+The LLM layer is the **second stage** in generation, after ML scaffolding.
+
+* *Provider abstraction/routing*: `src/services/llm_service.py` handles provider initialization, health checks, fallback/circuit-breaker logic, model selection, streaming, and session cost tracking.
+* *Provider adapters*: `src/services/llm_providers/` contains implementations for Ollama, OpenAI, Anthropic, Google Gemini, and local llama.cpp-compatible servers.
+* *Prompted generation path*: `src/services/hypothetical_service.py` builds prompt context (`src/services/prompt_engineering/templates.py`) and calls `llm_service` to generate the final hypothetical/analysis output.
+* *Direct LLM API surface*: `/llm/generate`, `/llm/stream`, `/llm/models`, `/llm/health`, `/llm/select-provider`, `/llm/select-model` in `src/api/routes/llm.py`.
+* *LLM-assisted NLU path*: chat intent parsing in `src/services/chat_nlu.py` can optionally use an LLM (`/chat/interpret` endpoint).
+* *Config-driven provider enablement*: API keys/hosts in `.env` (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OLLAMA_HOST`, `LOCAL_LLM_HOST`) decide which providers are active at runtime.
 
 ## Architecture
 
 ![](./asset/reference/architecture.png)
+
+## Model Support
+
+`Jikai` uses a provider registry and initializes providers from environment configuration at startup.
+
+| Provider | Enabled When | Default Model | Model List Source | Streaming | Notes |
+|----------|--------------|---------------|-------------------|-----------|-------|
+| `ollama` | Always attempted (uses `OLLAMA_HOST`) | `llama2:7b` (or `LLM_MODEL`) | Dynamic from Ollama `/api/tags` | Yes | Default local-first provider path |
+| `openai` | `OPENAI_API_KEY` is set | `gpt-4o` | Dynamic from OpenAI `/v1/models` (fallback list on error) | Yes | Supports provider/model selection through `/llm/select-*` |
+| `anthropic` | `ANTHROPIC_API_KEY` is set (and SDK available) | `claude-sonnet-4-5-20250929` | Static allow-list in provider module | Yes | Claude adapter supports system prompts |
+| `google` | `GOOGLE_API_KEY` is set (and SDK available) | `gemini-2.0-flash` | Static allow-list in provider module | Yes | Gemini adapter supports system prompts |
+| `local` | `LOCAL_LLM_HOST` is set | `local` | Dynamic from `/v1/models` on local server (fallback to `local`) | Yes | Intended for llama.cpp/OpenAI-compatible local endpoints |
 
 ## API
 
@@ -144,18 +174,6 @@ Use `/menu` to open the multi-screen navigation, and `/help` to list command fam
 | `POST` | `/jobs/label` | Append labelled entries to training corpus CSV |
 | `GET` | `/jobs/{job_id}/status` | Poll async job status |
 | `POST` | `/jobs/{job_id}/cancel` | Cancel a running job |
-
-## Model Support
-
-`Jikai` uses a provider registry and initializes providers from environment configuration at startup.
-
-| Provider | Enabled When | Default Model | Model List Source | Streaming | Notes |
-|----------|--------------|---------------|-------------------|-----------|-------|
-| `ollama` | Always attempted (uses `OLLAMA_HOST`) | `llama2:7b` (or `LLM_MODEL`) | Dynamic from Ollama `/api/tags` | Yes | Default local-first provider path |
-| `openai` | `OPENAI_API_KEY` is set | `gpt-4o` | Dynamic from OpenAI `/v1/models` (fallback list on error) | Yes | Supports provider/model selection through `/llm/select-*` |
-| `anthropic` | `ANTHROPIC_API_KEY` is set (and SDK available) | `claude-sonnet-4-5-20250929` | Static allow-list in provider module | Yes | Claude adapter supports system prompts |
-| `google` | `GOOGLE_API_KEY` is set (and SDK available) | `gemini-2.0-flash` | Static allow-list in provider module | Yes | Gemini adapter supports system prompts |
-| `local` | `LOCAL_LLM_HOST` is set | `local` | Dynamic from `/v1/models` on local server (fallback to `local`) | Yes | Intended for llama.cpp/OpenAI-compatible local endpoints |
 
 ## Disclaimer
 
