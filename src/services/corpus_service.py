@@ -11,16 +11,6 @@ from ..config import settings
 from ..domain import canonicalize_topic
 from .vector_service import VectorServiceError, vector_service
 
-try:
-    import boto3
-    from botocore.exceptions import ClientError
-
-    _HAS_BOTO3 = True
-except ModuleNotFoundError:
-    boto3 = None
-    ClientError = Exception
-    _HAS_BOTO3 = False
-
 logger = structlog.get_logger(__name__)
 
 
@@ -55,7 +45,6 @@ class CorpusService:
         from ..config import settings as app_settings
 
         self._local_corpus_path = Path(app_settings.corpus_path)
-        self._s3_client = None
         self._vector_service = vector_service
         self._corpus_indexed = False
         self._index_lock = asyncio.Lock()
@@ -63,7 +52,6 @@ class CorpusService:
         self._topics_cache: Optional[List[str]] = None
         self._topics_cache_mtime: Optional[float] = None
         self._indexed_corpus_hash: Optional[str] = None
-        self._initialize_s3()
 
     def _get_local_corpus_mtime(self) -> Optional[float]:
         try:
@@ -96,27 +84,6 @@ class CorpusService:
         serialized = json.dumps(normalized_entries, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
-    def _initialize_s3(self):
-        """Initialize AWS S3 client if credentials are available."""
-        try:
-            if not _HAS_BOTO3:
-                logger.warning("boto3 not installed, using local storage only")
-                self._s3_client = None
-                return
-            if settings.aws.access_key_id and settings.aws.secret_access_key:
-                self._s3_client = boto3.client(
-                    "s3",
-                    aws_access_key_id=settings.aws.access_key_id,
-                    aws_secret_access_key=settings.aws.secret_access_key,
-                    region_name=settings.aws.region,
-                )
-                logger.info("S3 client initialized", bucket=settings.aws.s3_bucket)
-            else:
-                logger.warning("S3 credentials not provided, using local storage only")
-        except Exception as e:
-            logger.error("Failed to initialize S3 client", error=str(e))
-            self._s3_client = None
-
     @staticmethod
     def _normalize_topics(raw_topics: Any) -> List[str]:
         if raw_topics is None:
@@ -136,12 +103,9 @@ class CorpusService:
         return normalized
 
     async def load_corpus(self, source: str = "local") -> List[HypotheticalEntry]:
-        """Load corpus from local file or S3."""
+        """Load corpus from local JSON file."""
         try:
-            if source == "s3" and self._s3_client:
-                return await self._load_from_s3()
-            else:
-                return await self._load_from_local()
+            return await self._load_from_local()
         except Exception as e:
             logger.error("Failed to load corpus", source=source, error=str(e))
             raise CorpusServiceError(f"Failed to load corpus: {e}")
@@ -178,50 +142,12 @@ class CorpusService:
         except Exception as e:
             raise CorpusServiceError(f"Error reading local corpus: {e}")
 
-    async def _load_from_s3(self) -> List[HypotheticalEntry]:
-        """Load corpus from S3 bucket."""
-        try:
-            assert self._s3_client is not None
-            response = self._s3_client.get_object(
-                Bucket=settings.aws.s3_bucket, Key="corpus/tort/corpus.json"
-            )
-
-            data = json.loads(response["Body"].read().decode("utf-8"))
-
-            entries = []
-            for i, item in enumerate(data):
-                raw_topics = item.get("topics", item.get("topic", []))
-                entry = HypotheticalEntry(
-                    id=str(i),
-                    text=item.get("text", ""),
-                    topics=self._normalize_topics(raw_topics),
-                    metadata=item.get("metadata", {}),
-                    created_at=item.get("created_at"),
-                    updated_at=item.get("updated_at"),
-                )
-                entries.append(entry)
-
-            logger.info("Corpus loaded from S3", entries_count=len(entries))
-            return entries
-
-        except ClientError as e:
-            error_code = e.response["Error"]["Code"]
-            if error_code == "NoSuchKey":
-                raise CorpusServiceError("Corpus file not found in S3 bucket")
-            else:
-                raise CorpusServiceError(f"S3 error: {e}")
-        except Exception as e:
-            raise CorpusServiceError(f"Error loading from S3: {e}")
-
     async def save_corpus(
         self, entries: List[HypotheticalEntry], destination: str = "local"
     ) -> bool:
-        """Save corpus to local file or S3."""
+        """Save corpus to local JSON file."""
         try:
-            if destination == "s3" and self._s3_client:
-                return await self._save_to_s3(entries)
-            else:
-                return await self._save_to_local(entries)
+            return await self._save_to_local(entries)
         except Exception as e:
             logger.error("Failed to save corpus", destination=destination, error=str(e))
             raise CorpusServiceError(f"Failed to save corpus: {e}")
@@ -254,41 +180,6 @@ class CorpusService:
 
         except Exception as e:
             raise CorpusServiceError(f"Error saving to local file: {e}")
-
-    async def _save_to_s3(self, entries: List[HypotheticalEntry]) -> bool:
-        """Save corpus to S3 bucket."""
-        try:
-            # Convert to JSON-serializable format
-            data = []
-            for entry in entries:
-                data.append(
-                    {
-                        "text": entry.text,
-                        "topic": self._normalize_topics(entry.topics),
-                        "metadata": entry.metadata,
-                        "created_at": entry.created_at,
-                        "updated_at": entry.updated_at,
-                    }
-                )
-
-            json_data = json.dumps(data, indent=2, ensure_ascii=False)
-
-            assert self._s3_client is not None
-            self._s3_client.put_object(
-                Bucket=settings.aws.s3_bucket,
-                Key="corpus/tort/corpus.json",
-                Body=json_data.encode("utf-8"),
-                ContentType="application/json",
-            )
-
-            self._invalidate_topic_cache()
-            logger.info("Corpus saved to S3", entries_count=len(entries))
-            return True
-
-        except ClientError as e:
-            raise CorpusServiceError(f"S3 error: {e}")
-        except Exception as e:
-            raise CorpusServiceError(f"Error saving to S3: {e}")
 
     async def query_relevant_hypotheticals(
         self, query: CorpusQuery
@@ -555,27 +446,16 @@ class CorpusService:
         """Check the health of the corpus service."""
         health_status = {
             "local_corpus": False,
-            "s3_available": False,
             "total_entries": 0,
             "topics_count": 0,
         }
 
         try:
-            # Check local corpus
             if self._local_corpus_path.exists():
                 corpus = await self.load_corpus("local")
                 health_status["local_corpus"] = True
                 health_status["total_entries"] = len(corpus)
                 health_status["topics_count"] = len(await self.extract_all_topics())
-
-            # Check S3 availability
-            if self._s3_client:
-                try:
-                    self._s3_client.head_bucket(Bucket=settings.aws.s3_bucket)
-                    health_status["s3_available"] = True
-                except ClientError:
-                    health_status["s3_available"] = False
-
         except Exception as e:
             logger.error("Health check failed", error=str(e))
 
