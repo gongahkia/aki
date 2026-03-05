@@ -28,16 +28,19 @@ With these considerations in mind, I created `Jikai`.
 
 ## Stack
 
-* *Backend*: [Python](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), [Pydantic](https://docs.pydantic.dev/)
-* *TUI*: [Rust](https://www.rust-lang.org/), [ratatui](https://ratatui.rs/), [crossterm](https://docs.rs/crossterm/), [tokio](https://tokio.rs/)
-* *LLM Providers*: [Ollama](https://ollama.ai/), [Anthropic](https://www.anthropic.com/), [Google Gemini](https://ai.google.dev/), [OpenAI](https://openai.com/), [Local LLM](https://github.com/ggerganov/llama.cpp) via llama.cpp
-* *AI/ML*: [scikit-learn](https://scikit-learn.org/), [PyTorch](https://pytorch.org/), [Transformers](https://huggingface.co/docs/transformers/)
-* *Embeddings*: [Sentence Transformers](https://www.sbert.net/), [ChromaDB](https://www.trychroma.com/)
-* *Storage*: [SQLite](https://www.sqlite.org/), [ChromaDB](https://www.trychroma.com/), [AWS S3](https://aws.amazon.com/s3/) via [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
-* *OCR & Preprocessing*: [PyMuPDF](https://pymupdf.readthedocs.io/), [python-docx](https://python-docx.readthedocs.io/), [Pillow](https://pillow.readthedocs.io/), [pytesseract](https://pypi.org/project/pytesseract/)
-* *Scraping*: [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/), [lxml](https://lxml.de/), [httpx](https://www.python-httpx.org/)
-* *Monitoring*: [structlog](https://www.structlog.org/), [Prometheus](https://prometheus.io/)
-* *Testing*: [pytest](https://pytest.org/), [pytest-asyncio](https://pytest-asyncio.readthedocs.io/), [pytest-cov](https://pytest-cov.readthedocs.io/)
+* *Backend/API*: [Python 3.12+](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), [Pydantic](https://docs.pydantic.dev/), [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+* *TUI*: [Rust](https://www.rust-lang.org/), [ratatui](https://ratatui.rs/), [crossterm](https://docs.rs/crossterm/), [tokio](https://tokio.rs/), [reqwest](https://docs.rs/reqwest/)
+* *LLM Provider Layer*: [Ollama](https://ollama.ai/), [OpenAI](https://openai.com/), [Anthropic](https://www.anthropic.com/), [Google Gemini](https://ai.google.dev/), [Local LLM](https://github.com/ggerganov/llama.cpp) via llama.cpp server
+* *ML Foundation*: [scikit-learn](https://scikit-learn.org/), [pandas](https://pandas.pydata.org/), [PyTorch](https://pytorch.org/), [Transformers](https://huggingface.co/docs/transformers/)
+* *Retrieval/Embeddings*: [Sentence Transformers](https://www.sbert.net/), [ChromaDB](https://www.trychroma.com/)
+* *Data/Persistence*: [SQLite](https://www.sqlite.org/) (`data/jikai.db`), JSON corpus (`corpus/clean/tort/corpus.json`), Chroma persistent store (`./chroma_db`)
+* *Corpus Ingestion/Export*: [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/), [lxml](https://lxml.de/), [httpx](https://www.python-httpx.org/), [PyMuPDF](https://pymupdf.readthedocs.io/), [python-docx](https://python-docx.readthedocs.io/), [Pillow](https://pillow.readthedocs.io/), [pytesseract](https://pypi.org/project/pytesseract/)
+* *Observability/Logging*: [structlog](https://www.structlog.org/)
+* *Quality Tooling*: [pytest](https://pytest.org/), [pytest-asyncio](https://pytest-asyncio.readthedocs.io/), [pytest-cov](https://pytest-cov.readthedocs.io/), [flake8](https://flake8.pycqa.org/), [mypy](http://mypy-lang.org/), [black](https://black.readthedocs.io/), [isort](https://pycqa.github.io/isort/)
+
+## Screenshots
+
+...
 
 ## Usage
 
@@ -49,58 +52,81 @@ The below instructions are for locally running `Jikai`. Requires [Python 3.12+](
 $ make env-setup
 ```
 
-2. Next, run the below commands to install all dependencies and kickstart local services.
+2. Install dependencies and build the Rust TUI binaries.
 
 ```console
 $ make dev-setup
+```
+
+3. Start local LLM runtime (default provider/model path).
+
+```console
 $ ollama serve
 $ ollama pull llama2:7b
 ```
 
-3. Then run the below commands to interact with `Jikai`.
+4. Launch `Jikai` using one of the runtime entry points below.
 
 ```console
-$ make run        # starts API + Rust TUI together
-$ make api        # starts only the FastAPI backend
-$ make tui        # starts only the Rust TUI (requires API running)
-$ make preprocess # build corpus from raw files
-$ make train      # train ML models
-$ make warmup     # preload corpus and check provider health
+$ make run                                # API + Rust TUI together
+$ make api                                # API via Rust API monitor UI
+$ python -m src.api --host 127.0.0.1 --port 8000  # API only (plain uvicorn runner)
+$ make tui                                # Rust TUI only (requires API already running)
 ```
 
-Inside the TUI, `Chat` is now the default landing screen with a CLI-style transcript/input layout.
-Use `/menu` anytime to open the legacy multi-screen navigation as fallback.
-Chat command families now cover generation, reporting/regeneration, corpus/query/validation, jobs (`preprocess`, `scrape`, `train`, `embed`, `export`, `cleanup`), history/stats/providers/settings, and guided/label flows.
+5. Run data/model utility jobs as needed.
+
+```console
+$ make preprocess # build corpus/clean/tort/corpus.json from corpus/raw/*
+$ make train      # train required ML models
+$ make warmup     # preload corpus + probe provider health
+$ make label      # append labelled examples to corpus/labelled/sample.csv
+```
+
+6. Check runtime health and quality gates.
+
+```console
+$ make health
+$ make health-llm
+$ make test
+$ make lint
+```
+
+Inside the Rust TUI, `Chat` is the default landing screen with command-driven workflows.
+Use `/menu` to open the multi-screen navigation, and `/help` to list command families (`hypo`, `regenerate`, `report`, `corpus`, `validation`, `jobs`, `providers`, `history`, `stats`, `settings`, `guided`, `label`).
 
 ## Architecture
+
+`Jikai` runs as a Rust TUI + FastAPI system. The workflow path is: TUI/clients -> API routes -> `WorkflowFacade` (ML foundation + LLM generation) -> corpus/vector/validation/database services -> provider adapters and local persistence.
 
 ![](./asset/reference/architecture.png)
 
 ## API
 
-`Jikai`'s REST API is served at `http://localhost:8000`. Find the interactive docs at `/docs` when `API_DEBUG=true`.
+`Jikai`'s REST API is served at `http://localhost:8000`. Interactive docs are available at `/docs` when `API_DEBUG=true`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/health` | Health check across all services |
 | `GET` | `/version` | Service version info |
+| `POST` | `/chat/interpret` | Parse natural language into structured chat command intent |
 | `POST` | `/workflow/generate` | Generate a legal hypothetical |
 | `POST` | `/workflow/regenerate` | Regenerate from a previous generation |
 | `POST` | `/workflow/report` | Submit a quality report for a generation |
 | `GET` | `/workflow/reports/{generation_id}` | List reports for a generation |
-| `GET` | `/corpus/topics` | List all available tort law topics |
-| `GET` | `/corpus/entries` | Fetch corpus entries with optional topic filtering |
+| `GET` | `/corpus/topics` | List all available tort-law topics |
+| `GET` | `/corpus/entries` | Fetch corpus entries (`topic`, `limit` query params supported) |
 | `POST` | `/corpus/query` | Query corpus by topics with semantic search |
 | `POST` | `/corpus/add` | Add a new entry to the corpus |
 | `GET` | `/corpus/health` | Corpus service health check |
-| `GET` | `/llm/health` | Check LLM provider health |
-| `GET` | `/llm/models` | List available models per provider |
+| `GET` | `/llm/health` | Check LLM provider health (`provider` query param optional) |
+| `GET` | `/llm/models` | List available models per provider (`provider` query param optional) |
 | `POST` | `/llm/generate` | Direct LLM generation |
 | `POST` | `/llm/stream` | Streaming LLM generation (SSE) |
 | `POST` | `/llm/select-provider` | Switch the active LLM provider |
 | `POST` | `/llm/select-model` | Switch the active model |
 | `GET` | `/llm/session-cost` | Get session token usage and cost |
-| `GET` | `/db/history` | Fetch generation history |
+| `GET` | `/db/history` | Fetch generation history (`limit` query param supported) |
 | `GET` | `/db/generation/{generation_id}` | Get a specific generation |
 | `GET` | `/db/count` | Get total generation count |
 | `GET` | `/db/statistics` | Generation statistics from the SQLite database |
@@ -110,15 +136,23 @@ Chat command families now cover generation, reporting/regeneration, corpus/query
 | `POST` | `/jobs/scrape` | Scrape cases from legal databases (async job) |
 | `POST` | `/jobs/train` | Train ML pipeline models (async job) |
 | `POST` | `/jobs/embed` | Embed corpus into vector store (async job) |
-| `POST` | `/jobs/export` | Export a generation as DOCX (async job) |
+| `POST` | `/jobs/export` | Export a generation artifact (DOCX path by default) |
 | `POST` | `/jobs/cleanup` | Clean up data targets (async job) |
-| `POST` | `/jobs/label` | Add labelled entries to training corpus |
+| `POST` | `/jobs/label` | Append labelled entries to training corpus CSV |
 | `GET` | `/jobs/{job_id}/status` | Poll async job status |
 | `POST` | `/jobs/{job_id}/cancel` | Cancel a running job |
 
 ## Model Support
 
-...
+`Jikai` uses a provider registry and initializes providers from environment configuration at startup.
+
+| Provider | Enabled When | Default Model | Model List Source | Streaming | Notes |
+|----------|--------------|---------------|-------------------|-----------|-------|
+| `ollama` | Always attempted (uses `OLLAMA_HOST`) | `llama2:7b` (or `LLM_MODEL`) | Dynamic from Ollama `/api/tags` | Yes | Default local-first provider path |
+| `openai` | `OPENAI_API_KEY` is set | `gpt-4o` | Dynamic from OpenAI `/v1/models` (fallback list on error) | Yes | Supports provider/model selection through `/llm/select-*` |
+| `anthropic` | `ANTHROPIC_API_KEY` is set (and SDK available) | `claude-sonnet-4-5-20250929` | Static allow-list in provider module | Yes | Claude adapter supports system prompts |
+| `google` | `GOOGLE_API_KEY` is set (and SDK available) | `gemini-2.0-flash` | Static allow-list in provider module | Yes | Gemini adapter supports system prompts |
+| `local` | `LOCAL_LLM_HOST` is set | `local` | Dynamic from `/v1/models` on local server (fallback to `local`) | Yes | Intended for llama.cpp/OpenAI-compatible local endpoints |
 
 ## Disclaimer
 
