@@ -1,6 +1,9 @@
 """Unified ML pipeline orchestrator."""
 
+import hashlib
+import json
 import os
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
 import structlog
@@ -67,7 +70,7 @@ class MLPipeline:
         X_full, _ = extract_features(data["full"]["text"], vectorizer=self._vectorizer)
         self.clusterer.fit(X_full, n_clusters=n_clusters)
         _cb(0.90, "Saving models")
-        self._save_all()
+        self._save_all(data_path=data_path)
         self._metrics = {
             "classifier": cls_metrics,
             "regressor": reg_metrics,
@@ -142,7 +145,7 @@ class MLPipeline:
             "metrics": self._metrics,
         }
 
-    def _save_all(self):
+    def _save_all(self, data_path: str = ""):
         import joblib
 
         self.classifier.save_model(os.path.join(self.models_dir, "classifier.joblib"))
@@ -152,6 +155,31 @@ class MLPipeline:
             self._vectorizer, os.path.join(self.models_dir, "vectorizer.joblib")
         )
         joblib.dump(self._binarizer, os.path.join(self.models_dir, "binarizer.joblib"))
+        self._save_metadata(data_path)
+
+    def _save_metadata(self, data_path: str = ""):
+        """Save metadata.json alongside model files."""
+        dataset_hash = ""
+        if data_path and os.path.exists(data_path):
+            with open(data_path, "rb") as f:
+                dataset_hash = hashlib.sha256(f.read()).hexdigest()
+        feature_count = 0
+        if self._vectorizer is not None and hasattr(self._vectorizer, "vocabulary_"):
+            feature_count = len(self._vectorizer.vocabulary_)
+        metadata = {
+            "schema_version": 1,
+            "training_date": datetime.now(timezone.utc).isoformat(),
+            "dataset_hash": dataset_hash,
+            "dataset_path": data_path,
+            "feature_count": feature_count,
+            "classifier_trained": self.classifier.is_trained,
+            "regressor_trained": self.regressor.is_trained,
+            "clusterer_trained": self.clusterer.is_trained,
+        }
+        meta_path = os.path.join(self.models_dir, "metadata.json")
+        with open(meta_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+        logger.info("Model metadata saved", path=meta_path)
 
     def load_all(self):
         """Load all saved models."""
