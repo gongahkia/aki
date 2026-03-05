@@ -49,8 +49,10 @@ class CorpusService:
         self._corpus_indexed = False
         self._index_lock = asyncio.Lock()
         self._index_task: Optional[asyncio.Task] = None
+        self._index_task_lock = asyncio.Lock()
         self._topics_cache: Optional[List[str]] = None
         self._topics_cache_mtime: Optional[float] = None
+        self._topics_cache_lock = asyncio.Lock()
         self._indexed_corpus_hash: Optional[str] = None
 
     def _get_local_corpus_mtime(self) -> Optional[float]:
@@ -59,9 +61,10 @@ class CorpusService:
         except OSError:
             return None
 
-    def _invalidate_topic_cache(self):
-        self._topics_cache = None
-        self._topics_cache_mtime = None
+    async def _invalidate_topic_cache(self):
+        async with self._topics_cache_lock:
+            self._topics_cache = None
+            self._topics_cache_mtime = None
 
     def _compute_current_corpus_hash(self) -> Optional[str]:
         try:
@@ -174,7 +177,7 @@ class CorpusService:
             with open(self._local_corpus_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
-            self._invalidate_topic_cache()
+            await self._invalidate_topic_cache()
             logger.info("Corpus saved to local file", entries_count=len(entries))
             return True
 
@@ -190,7 +193,7 @@ class CorpusService:
         """
         try:
             if not self._corpus_indexed:
-                self._ensure_background_indexing()
+                await self._ensure_background_indexing()
                 logger.info(
                     "Vector index not ready, using fallback search",
                     query_topics=query.topics,
@@ -311,7 +314,7 @@ class CorpusService:
             self._corpus_indexed = False
             # Don't raise - allow fallback to simple search
 
-    def _ensure_background_indexing(self):
+    async def _ensure_background_indexing(self):
         """Schedule corpus indexing in background if not already running."""
         if self._corpus_indexed:
             current_hash = self._compute_current_corpus_hash()
@@ -321,9 +324,10 @@ class CorpusService:
                 and current_hash == self._indexed_corpus_hash
             ):
                 return
-        if self._index_task and not self._index_task.done():
-            return
-        self._index_task = asyncio.create_task(self._run_background_index())
+        async with self._index_task_lock:
+            if self._index_task and not self._index_task.done():
+                return
+            self._index_task = asyncio.create_task(self._run_background_index())
 
     async def _run_background_index(self):
         """Index corpus once in the background; safe under concurrent callers."""
@@ -339,12 +343,13 @@ class CorpusService:
         """Extract all unique topics from the corpus."""
         try:
             current_mtime = self._get_local_corpus_mtime()
-            if (
-                self._topics_cache is not None
-                and current_mtime is not None
-                and self._topics_cache_mtime == current_mtime
-            ):
-                return list(self._topics_cache)
+            async with self._topics_cache_lock:
+                if (
+                    self._topics_cache is not None
+                    and current_mtime is not None
+                    and self._topics_cache_mtime == current_mtime
+                ):
+                    return list(self._topics_cache)
 
             corpus = await self.load_corpus()
             all_topics = set()
@@ -353,11 +358,13 @@ class CorpusService:
                 all_topics.update(entry.topics)
 
             topics_list = sorted(list(all_topics))
-            if current_mtime is not None:
-                self._topics_cache = topics_list
-                self._topics_cache_mtime = current_mtime
-            else:
-                self._invalidate_topic_cache()
+            async with self._topics_cache_lock:
+                if current_mtime is not None:
+                    self._topics_cache = topics_list
+                    self._topics_cache_mtime = current_mtime
+                else:
+                    self._topics_cache = None
+                    self._topics_cache_mtime = None
             logger.info("Topics extracted", topics_count=len(topics_list))
 
             return topics_list

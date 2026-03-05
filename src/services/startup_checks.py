@@ -42,4 +42,18 @@ def ensure_required_tort_corpus_file(path: Union[str, Path]) -> Path:
             "Run `make preprocess` to rebuild it."
         )
 
+    for i, entry in enumerate(payload):
+        if not isinstance(entry, dict):
+            raise StartupCheckError(
+                f"Corpus entry {i} is not a dict in '{corpus_path}'."
+            )
+        if "text" not in entry:
+            raise StartupCheckError(
+                f"Corpus entry {i} missing required 'text' field in '{corpus_path}'."
+            )
+        if "topic" not in entry and "topics" not in entry:
+            raise StartupCheckError(
+                f"Corpus entry {i} missing 'topic'/'topics' field in '{corpus_path}'."
+            )
+
     return corpus_path

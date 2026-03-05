@@ -23,15 +23,6 @@
 
 # ── Phase G: Service Hardening ──
 
-(B) Add asyncio.Lock to _topics_cache reads/writes in src/services/corpus_service.py — concurrent requests can race on cache invalidation +refactor
-(B) Add asyncio.Lock to _index_task creation in src/services/corpus_service.py — concurrent query_relevant_hypotheticals calls can spawn duplicate background index tasks +refactor
-(B) Add threading.Lock to _ensure_initialized() in src/services/vector_service.py — lazy init from multiple threads can create duplicate ChromaDB clients +refactor
-(B) Add asyncio.Lock to _response_cache operations in src/services/hypothetical_service.py — concurrent reads/writes are currently unguarded +refactor
-(B) Fix src/services/database_service.py to wrap json.loads() calls for stored generation data in try/except and return a clear "corrupt record" error instead of crashing +refactor
-(B) Add max-size bound (1000 entries) to _failure_counts dict in src/services/llm_service.py with LRU eviction — currently grows unbounded +refactor
-(B) Add max-size bound (500 entries) to _response_cache in src/services/hypothetical_service.py with TTL eviction — currently unbounded memory growth +refactor
-(B) Fix src/services/startup_checks.py to validate corpus JSON schema per entry (check for required fields: text, topic at minimum) not just "is non-empty list" +refactor
-(B) Add asyncio.wait_for(timeout=30) wrapper around vector search calls in src/services/hypothetical_service.py — currently no timeout on semantic search +refactor
 
 # ── Phase H: Rust TUI Hardening ──
 

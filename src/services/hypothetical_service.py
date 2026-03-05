@@ -689,9 +689,12 @@ class HypotheticalService:
             from .vector_service import vector_service
 
             if vector_service._initialized or Path("chroma_db").exists():
-                results = await vector_service.semantic_search(
-                    query_topics=request.topics,
-                    n_results=min(3, request.sample_size),
+                results = await asyncio.wait_for(
+                    vector_service.semantic_search(
+                        query_topics=request.topics,
+                        n_results=min(3, request.sample_size),
+                    ),
+                    timeout=30,
                 )
                 if results:
                     entries = []

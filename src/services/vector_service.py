@@ -5,6 +5,7 @@ Provides semantic similarity search for legal hypotheticals.
 
 import asyncio
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -68,6 +69,7 @@ class VectorService:
         self._fallback_mode = False
         self._fallback_reason: Optional[str] = None
         self._index_lock = asyncio.Lock()
+        self._init_lock = threading.Lock()
 
     @staticmethod
     def _collection_metadata(corpus_hash: Optional[str] = None) -> Dict[str, Any]:
@@ -140,7 +142,9 @@ class VectorService:
     def _ensure_initialized(self):
         """Lazy init — only initialize on first use."""
         if not self._initialized:
-            self._initialize()
+            with self._init_lock:
+                if not self._initialized:
+                    self._initialize()
 
     def get_indexed_corpus_hash(self) -> Optional[str]:
         """Return corpus hash currently attached to vector collection metadata."""

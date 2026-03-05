@@ -174,6 +174,9 @@ class LLMService:
 
     def _record_failure(self, name: str):
         """Record a failure; trip circuit breaker after threshold."""
+        if len(self._failure_counts) > 1000:
+            oldest = next(iter(self._failure_counts))
+            del self._failure_counts[oldest]
         self._failure_counts[name] = self._failure_counts.get(name, 0) + 1
         if self._failure_counts[name] >= CIRCUIT_BREAKER_THRESHOLD:
             self._unhealthy_until[name] = time.time() + CIRCUIT_BREAKER_COOLDOWN
