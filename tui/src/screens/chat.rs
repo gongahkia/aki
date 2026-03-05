@@ -10,7 +10,7 @@ use std::fs::OpenOptions;
 use std::future::Future;
 use std::io::Write;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::UnboundedReceiver;
 use unicode_width::UnicodeWidthStr;
@@ -38,6 +38,7 @@ const STREAM_ASSISTANT_TITLE: &str = "Chat";
 const DEFAULT_LABEL_OUTPUT_PATH: &str = "corpus/labelled/sample.csv";
 const DEFAULT_LABEL_CORPUS_PATH: &str = "corpus/clean/tort/corpus.json";
 const CHAT_IO_LOG_PATH: &str = "data/logs/chat_io.log";
+const CHAT_SPINNER_FRAMES: [&str; 4] = ["|", "/", "-", "\\"];
 
 #[derive(Debug)]
 enum PendingOp {
@@ -60,6 +61,7 @@ struct TaskOp {
 
 #[derive(Debug, Clone)]
 enum TaskKind {
+    LoadSession,
     Tokens,
     Hypo,
     Regenerate,
@@ -91,6 +93,7 @@ enum TaskKind {
 
 #[derive(Debug)]
 enum TaskPayload {
+    Session(crate::state::chat::SavedChatSessionV1),
     Json(serde_json::Value),
     Generation(GenerationResponse),
     Regeneration(RegenerationResponse),
@@ -159,6 +162,8 @@ pub struct ChatScreen {
     guided_step: Option<usize>,
     label_session: Option<LabelSession>,
     autocomplete_index: usize,
+    spinner_frame: usize,
+    pending_started_at: Option<Instant>,
 }
 
 fn validate_path(path: &str) -> Result<(), String> {
@@ -199,6 +204,8 @@ impl ChatScreen {
             guided_step: None,
             label_session: None,
             autocomplete_index: 0,
+            spinner_frame: 0,
+            pending_started_at: None,
         }
     }
 
@@ -1392,15 +1399,11 @@ impl ChatScreen {
                     self.add_meta("Usage: /load <path-to-session.json>");
                     return ScreenAction::None;
                 };
-                match load_session(&path) {
-                    Ok(session) => {
-                        self.config = session.config;
-                        self.messages = session.messages;
-                        self.scroll_to_bottom();
-                        self.add_meta("Session loaded.");
-                    }
-                    Err(e) => self.add_meta(format!("Failed to load session: {}", e)),
-                }
+                self.start_task(TaskKind::LoadSession, async move {
+                    let session = load_session(&path)
+                        .map_err(|e| anyhow::anyhow!("Failed to load session: {}", e))?;
+                    Ok(TaskPayload::Session(session))
+                });
                 ScreenAction::None
             }
             ChatCommand::Quit => {
@@ -1427,6 +1430,8 @@ impl ChatScreen {
     where
         F: Future<Output = anyhow::Result<TaskPayload>> + Send + 'static,
     {
+        self.spinner_frame = 0;
+        self.pending_started_at = Some(Instant::now());
         self.pending = Some(PendingOp::Task(TaskOp {
             kind,
             handle: tokio::spawn(fut),
@@ -1436,6 +1441,8 @@ impl ChatScreen {
     fn start_stream_request(&mut self, ctx: &AppContext, prompt: String) {
         let assistant_index = self.messages.len();
         self.add_message(ChatRole::Assistant, "");
+        self.spinner_frame = 0;
+        self.pending_started_at = Some(Instant::now());
 
         let api = ctx.api_url.clone();
         let provider = self.config.provider.clone();
@@ -1860,6 +1867,7 @@ impl ChatScreen {
             } else {
                 self.pending = None;
             }
+            self.pending_started_at = None;
             self.emit_suggestions("chat_response");
         }
     }
@@ -1875,6 +1883,7 @@ impl ChatScreen {
             return;
         };
         self.pending = None;
+        self.pending_started_at = None;
 
         match result {
             Ok(Ok(payload)) => self.resolve_task_success(kind, payload),
@@ -1891,6 +1900,13 @@ impl ChatScreen {
 
     fn resolve_task_success(&mut self, kind: TaskKind, payload: TaskPayload) {
         match (kind, payload) {
+            (TaskKind::LoadSession, TaskPayload::Session(session)) => {
+                self.config = session.config;
+                self.messages = session.messages;
+                self.scroll_to_bottom();
+                self.add_meta("Session loaded.");
+                self.emit_suggestions("default");
+            }
             (TaskKind::Tokens, TaskPayload::Json(payload)) => {
                 let cost = payload
                     .get("total_cost_usd")
@@ -2583,6 +2599,14 @@ impl ChatScreen {
                 total += 1;
             }
         }
+        if let Some(activity) = self.pending_activity_text() {
+            if !self.messages.is_empty() {
+                total += 1;
+            }
+            let line = format!("{} {}", ChatRole::Meta.prefix(), activity);
+            let line_width = UnicodeWidthStr::width(line.as_str());
+            total += line_width.max(1).div_ceil(inner_width);
+        }
         total.max(1)
     }
 
@@ -2598,10 +2622,19 @@ impl ChatScreen {
 
     fn transcript_status_text(&self) -> String {
         let model = self.config.model.as_deref().unwrap_or("default");
-        let status = if self.is_busy() { "busy" } else { "ready" };
+        if let Some(activity) = self.pending_activity_text() {
+            return format!(
+                " {} {} | provider={} | model={} | temp={:.1} ",
+                Self::spinner_frame(self.spinner_frame),
+                activity,
+                self.config.provider,
+                model,
+                self.config.temperature
+            );
+        }
         format!(
-            " {} | provider={} | model={} | temp={:.1} ",
-            status, self.config.provider, model, self.config.temperature
+            " ready | provider={} | model={} | temp={:.1} ",
+            self.config.provider, model, self.config.temperature
         )
     }
 
@@ -2727,7 +2760,109 @@ impl ChatScreen {
         if lines.is_empty() {
             lines.push(Line::from(String::new()));
         }
+        if let Some(activity) = self.pending_activity_text() {
+            if !self.messages.is_empty() {
+                lines.push(Line::from(String::new()));
+            }
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{} ", ChatRole::Meta.prefix()),
+                    Self::role_prefix_style(&ChatRole::Meta),
+                ),
+                Span::styled(
+                    format!("{} {}", Self::spinner_frame(self.spinner_frame), activity),
+                    theme::warn(),
+                ),
+            ]));
+        }
         lines
+    }
+
+    fn spinner_frame(frame: usize) -> &'static str {
+        CHAT_SPINNER_FRAMES[frame % CHAT_SPINNER_FRAMES.len()]
+    }
+
+    fn pending_activity_text(&self) -> Option<String> {
+        let elapsed = self.pending_elapsed_label();
+        match self.pending.as_ref()? {
+            PendingOp::Streaming(stream) => {
+                let streaming_started = self
+                    .messages
+                    .get(stream.assistant_index)
+                    .map(|m| !m.content.trim().is_empty())
+                    .unwrap_or(false);
+                if streaming_started {
+                    Some(Self::with_elapsed(
+                        "Chatbot is responding...",
+                        elapsed.as_deref(),
+                    ))
+                } else {
+                    Some(Self::with_elapsed(
+                        "Chatbot is thinking...",
+                        elapsed.as_deref(),
+                    ))
+                }
+            }
+            PendingOp::Task(task) => Some(match &task.kind {
+                TaskKind::LoadSession
+                | TaskKind::Topics
+                | TaskKind::Corpus
+                | TaskKind::History
+                | TaskKind::Stats
+                | TaskKind::Providers
+                | TaskKind::Models
+                | TaskKind::Generation
+                | TaskKind::LabelLoad { .. } => {
+                    Self::with_elapsed("Project is loading...", elapsed.as_deref())
+                }
+                TaskKind::Hypo | TaskKind::Regenerate => {
+                    Self::with_elapsed("Chatbot is thinking...", elapsed.as_deref())
+                }
+                TaskKind::Train => Self::with_elapsed("Training ML models...", elapsed.as_deref()),
+                TaskKind::Preprocess | TaskKind::Scrape | TaskKind::Embed | TaskKind::Export => {
+                    Self::with_elapsed("Starting background job...", elapsed.as_deref())
+                }
+                TaskKind::JobStatus => {
+                    Self::with_elapsed("Checking job status...", elapsed.as_deref())
+                }
+                TaskKind::JobCancel => Self::with_elapsed("Cancelling job...", elapsed.as_deref()),
+                TaskKind::Tokens => {
+                    Self::with_elapsed("Calculating token usage...", elapsed.as_deref())
+                }
+                TaskKind::Report
+                | TaskKind::Reports
+                | TaskKind::Query
+                | TaskKind::Validate
+                | TaskKind::Cleanup
+                | TaskKind::LabelPersist => {
+                    Self::with_elapsed("Processing command...", elapsed.as_deref())
+                }
+            }),
+        }
+    }
+
+    fn with_elapsed(base: &str, elapsed: Option<&str>) -> String {
+        match elapsed {
+            Some(value) => format!("{} (elapsed {})", base, value),
+            None => base.to_string(),
+        }
+    }
+
+    fn pending_elapsed_label(&self) -> Option<String> {
+        let elapsed = self.pending_started_at?.elapsed();
+        Some(Self::format_elapsed(elapsed))
+    }
+
+    fn format_elapsed(duration: std::time::Duration) -> String {
+        let total = duration.as_secs();
+        let hours = total / 3600;
+        let mins = (total % 3600) / 60;
+        let secs = total % 60;
+        if hours > 0 {
+            format!("{hours:02}:{mins:02}:{secs:02}")
+        } else {
+            format!("{mins:02}:{secs:02}")
+        }
     }
 
     fn input_height(&self, area_width: u16) -> u16 {
@@ -2818,6 +2953,7 @@ impl ChatScreen {
 
     fn task_payload_type(payload: &TaskPayload) -> &'static str {
         match payload {
+            TaskPayload::Session(_) => "session",
             TaskPayload::Json(_) => "json",
             TaskPayload::Generation(_) => "generation",
             TaskPayload::Regeneration(_) => "regeneration",
@@ -2935,6 +3071,7 @@ impl ChatScreen {
                 }
             }
         }
+        self.pending_started_at = None;
     }
 }
 
@@ -3049,7 +3186,18 @@ impl Screen for ChatScreen {
         f.render_widget(transcript, chunks[0]);
 
         let (hint, hint_style) = if self.is_busy() {
-            (INPUT_HINT_BUSY.to_string(), theme::warn())
+            (
+                self.pending_activity_text()
+                    .map(|activity| {
+                        format!(
+                            "{} {} wait or /quit",
+                            Self::spinner_frame(self.spinner_frame),
+                            activity
+                        )
+                    })
+                    .unwrap_or_else(|| INPUT_HINT_BUSY.to_string()),
+                theme::warn(),
+            )
         } else if let Some(autocomplete) = self.autocomplete_hint() {
             (autocomplete, theme::title())
         } else {
@@ -3073,5 +3221,14 @@ impl Screen for ChatScreen {
     fn tick(&mut self, _ctx: &mut AppContext) {
         self.handle_stream_events();
         self.maybe_resolve_pending_task();
+        if self.is_busy() {
+            if self.pending_started_at.is_none() {
+                self.pending_started_at = Some(Instant::now());
+            }
+            self.spinner_frame = (self.spinner_frame + 1) % CHAT_SPINNER_FRAMES.len();
+        } else {
+            self.spinner_frame = 0;
+            self.pending_started_at = None;
+        }
     }
 }
