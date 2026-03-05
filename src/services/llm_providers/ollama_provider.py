@@ -1,5 +1,6 @@
 """Ollama LLM provider conforming to base interface."""
 
+import json
 import time
 from typing import Any, AsyncIterator, Dict, List
 
@@ -24,17 +25,25 @@ class OllamaProvider(LLMProvider):
         self,
         base_url: str = "http://localhost:11434",
         default_model: str = "llama2:7b",
-        timeout: int = 120,
+        connect_timeout: float = 5.0,
+        read_timeout: float = 60.0,
     ):
         self.base_url = base_url
         self.default_model = default_model
-        self.timeout = timeout
+        timeout = httpx.Timeout(connect=connect_timeout, read=read_timeout, write=10.0, pool=10.0)
         self.client = httpx.AsyncClient(timeout=timeout)
+
+    async def _validate_model(self, model: str) -> None:
+        """Fail fast if requested model is not available."""
+        models = await self.list_models()
+        if models and model not in models:
+            raise LLMServiceError(f"Model '{model}' not found in Ollama. Available: {models}")
 
     @retry_on_failure(max_attempts=3, delay=2.0, backoff=2.0)
     async def generate(self, request: LLMRequest) -> LLMResponse:
         start_time = time.time()
         model = request.model or self.default_model
+        await self._validate_model(model)
         payload = {
             "model": model,
             "prompt": request.prompt,
@@ -79,8 +88,9 @@ class OllamaProvider(LLMProvider):
             resp.raise_for_status()
             data = resp.json()
             return [m["name"] for m in data.get("models", [])]
-        except Exception:
-            return [self.default_model]
+        except Exception as e:
+            logger.warning("Ollama list_models failed", error=str(e))
+            return []
 
     async def health_check(self) -> Dict[str, Any]:
         try:
@@ -102,14 +112,16 @@ class OllamaProvider(LLMProvider):
         }
         if request.system_prompt:
             payload["system"] = request.system_prompt
-        import json
-
         async with self.client.stream(
             "POST", f"{self.base_url}/api/generate", json=payload
         ) as resp:
             async for line in resp.aiter_lines():
                 if line:
-                    data = json.loads(line)
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        logger.warning("Ollama stream: malformed JSON line, skipping", line=line[:100])
+                        continue
                     if token := data.get("response", ""):
                         yield token
 

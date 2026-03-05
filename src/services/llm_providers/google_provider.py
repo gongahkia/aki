@@ -56,11 +56,24 @@ class GoogleGeminiProvider(LLMProvider):
                 temperature=request.temperature,
                 max_output_tokens=request.max_tokens,
             )
-            response = await asyncio.to_thread(
-                model.generate_content, request.prompt, generation_config=config
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    model.generate_content, request.prompt, generation_config=config
+                ),
+                timeout=30,
             )
             response_time = time.time() - start_time
-            content = response.text if response.text else ""
+            # handle safety filter blocks
+            if hasattr(response, "prompt_feedback") and response.prompt_feedback:
+                block_reason = getattr(response.prompt_feedback, "block_reason", None)
+                if block_reason:
+                    raise LLMServiceError(f"Gemini content filtered: {block_reason}")
+            content = ""
+            try:
+                content = response.text or ""
+            except (ValueError, AttributeError):
+                logger.warning("Gemini response.text is None/unavailable")
+                return LLMResponse(content="", model=model_name, usage={}, finish_reason="error", response_time=response_time)
             usage = {}
             if hasattr(response, "usage_metadata") and response.usage_metadata:
                 um = response.usage_metadata
@@ -76,6 +89,10 @@ class GoogleGeminiProvider(LLMProvider):
                 finish_reason="stop",
                 response_time=response_time,
             )
+        except asyncio.TimeoutError:
+            raise LLMServiceError(f"Google Gemini timed out after 30s")
+        except LLMServiceError:
+            raise
         except Exception as e:
             logger.error("Google Gemini generation failed", error=str(e))
             raise LLMServiceError(f"Google Gemini error: {e}")

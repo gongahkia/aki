@@ -1,5 +1,48 @@
-port tui to rust
-test everything works if it should be working
-take screenshots
-update entire readme
-add new CI/CD workflows
+# Jikai Evolution Map — Audit-generated todo.txt
+# Priority (B) = audit-suggested improvement
+# Tags: +cleanup +ml +generation +labelling +refactor +llm +tui +infra +security +feature +corpus
+
+# ── Phase A: Dead Code Removal & Cleanup ──
+
+
+# ── Phase B: Corpus Labelling Pipeline ──
+
+
+# ── Phase C: ML Pipeline Buildout ──
+
+
+# ── Phase D: Template-Based Hypothetical Generation Engine ──
+
+
+# ── Phase E: LLM Role Refactor (Chat NLU Only) ──
+
+(B) Update the Rust TUI chat.rs to display ML confidence scores (topic_coverage, structural_completeness, quality_score) from the /workflow/generate response alongside generated hypotheticals +tui +feature
+
+# ── Phase F: Provider Hardening (Ollama & Gemini for Chat) ──
+
+(B) In src/services/llm_providers/base.py retry_on_failure decorator, differentiate retryable errors (TimeoutError, httpx.ConnectError, 429, 503) from permanent errors (401, 403, 404) — only retry retryable ones +llm +refactor
+(B) In base.py, add threading.Lock to ProviderRegistry.get() — concurrent access from async handlers can create duplicate provider instances +llm
+(B) Make circuit breaker cooldown in src/services/llm_service.py configurable via settings.py CIRCUIT_BREAKER_COOLDOWN_SECONDS with default 60 +llm +refactor
+
+# ── Phase G: Service Hardening ──
+
+(B) Add asyncio.Lock to _topics_cache reads/writes in src/services/corpus_service.py — concurrent requests can race on cache invalidation +refactor
+(B) Add asyncio.Lock to _index_task creation in src/services/corpus_service.py — concurrent query_relevant_hypotheticals calls can spawn duplicate background index tasks +refactor
+(B) Add threading.Lock to _ensure_initialized() in src/services/vector_service.py — lazy init from multiple threads can create duplicate ChromaDB clients +refactor
+(B) Add asyncio.Lock to _response_cache operations in src/services/hypothetical_service.py — concurrent reads/writes are currently unguarded +refactor
+(B) Fix src/services/database_service.py to wrap json.loads() calls for stored generation data in try/except and return a clear "corrupt record" error instead of crashing +refactor
+(B) Add max-size bound (1000 entries) to _failure_counts dict in src/services/llm_service.py with LRU eviction — currently grows unbounded +refactor
+(B) Add max-size bound (500 entries) to _response_cache in src/services/hypothetical_service.py with TTL eviction — currently unbounded memory growth +refactor
+(B) Fix src/services/startup_checks.py to validate corpus JSON schema per entry (check for required fields: text, topic at minimum) not just "is non-empty list" +refactor
+(B) Add asyncio.wait_for(timeout=30) wrapper around vector search calls in src/services/hypothetical_service.py — currently no timeout on semantic search +refactor
+
+# ── Phase H: Rust TUI Hardening ──
+
+(B) Replace all .as_i64().unwrap_or(0) and .as_str().unwrap_or("") JSON extraction patterns in tui/src/api/client.rs with match arms that log warnings on unexpected types before defaulting +tui +refactor
+(B) Add path existence validation for DEFAULT_LABEL_OUTPUT_PATH and DEFAULT_LABEL_CORPUS_PATH constants in tui/src/screens/chat.rs before using them in API calls +tui
+(B) Add path traversal validation for user-supplied file paths (export_path, corpus_path, raw_dir) in tui/src/screens/chat.rs — reject paths containing ".." +tui +security
+(B) Fix stream token race in tui/src/screens/chat.rs — check that assistant_index is within messages bounds before calling get_mut() to prevent silent token drops +tui
+(B) Add API version check on TUI startup in tui/src/app.rs — call GET /version and warn the user if backend version does not match TUI expected version +tui +feature
+(B) Reduce tokio features in tui/Cargo.toml from "full" to ["rt-multi-thread", "macros", "time", "net", "sync"] to reduce binary size +tui +infra
+(B) Add Ctrl+C stream interruption support in tui/src/screens/chat.rs — cancel ongoing streaming generation without quitting the entire TUI +tui +feature
+(B) Add connection status indicator in TUI status bar — show red/green dot based on last successful /health poll so the user knows when the API bridge is down +tui +feature
