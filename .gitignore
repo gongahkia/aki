@@ -11,3 +11,5 @@ htmlcov/
 .mypy_cache/
 bandit-report.json
 target/
+chroma_db/
+data/
