@@ -20,7 +20,6 @@
 
 # ── Phase F: Provider Hardening (Ollama & Gemini for Chat) ──
 
-(B) Make circuit breaker cooldown in src/services/llm_service.py configurable via settings.py CIRCUIT_BREAKER_COOLDOWN_SECONDS with default 60 +llm +refactor
 
 # ── Phase G: Service Hardening ──
 

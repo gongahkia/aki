@@ -156,6 +156,7 @@ class LLMProviderSettings(BaseSettings):
     local_llm_host: Optional[str] = Field(default=None, env="LOCAL_LLM_HOST")
     default_provider: str = Field(default="ollama", env="DEFAULT_PROVIDER")
     default_model: str = Field(default="llama2:7b", env="DEFAULT_MODEL")
+    circuit_breaker_cooldown: int = Field(default=60, env="CIRCUIT_BREAKER_COOLDOWN_SECONDS")
 
     class Config:
         env_prefix = ""

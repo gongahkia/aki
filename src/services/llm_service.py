@@ -18,7 +18,7 @@ MIN_GENERATION_TIMEOUT = 10
 MAX_GENERATION_TIMEOUT = 300
 HEALTH_CHECK_TIMEOUT = 30
 CIRCUIT_BREAKER_THRESHOLD = 3  # consecutive failures before marking unhealthy
-CIRCUIT_BREAKER_COOLDOWN = 60
+CIRCUIT_BREAKER_COOLDOWN = settings.llm_providers.circuit_breaker_cooldown
 
 # cost per 1K tokens (USD) - configurable
 TOKEN_COSTS = {
