@@ -10,6 +10,19 @@ from sklearn.preprocessing import MultiLabelBinarizer
 
 logger = structlog.get_logger(__name__)
 
+REQUIRED_COLUMNS = {"text", "topics", "quality_score", "complexity"}
+TOPIC_DELIMITER = "|"
+
+
+def _read_csv(csv_path: str) -> pd.DataFrame:
+    """Read CSV with encoding fallback (utf-8-sig -> latin-1)."""
+    for enc in ("utf-8-sig", "latin-1"):
+        try:
+            return pd.read_csv(csv_path, encoding=enc)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"Cannot decode CSV at {csv_path} with utf-8-sig or latin-1")
+
 
 def load_data(
     csv_path: str,
@@ -17,16 +30,27 @@ def load_data(
     random_state: int = 42,
     progress_callback: Optional[Callable] = None,
 ) -> dict:
-    """Load labelled corpus from CSV. Columns: text, topic_labels, quality_score, difficulty_level."""
+    """Load labelled corpus from CSV. Columns: text, topics, quality_score, complexity."""
     if progress_callback:
         progress_callback(0.1, "Loading CSV")
-    df = pd.read_csv(csv_path)
-    required = {"text", "topic_labels", "quality_score", "difficulty_level"}
-    missing = required - set(df.columns)
+    df = _read_csv(csv_path)
+    missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
-        raise ValueError(f"Missing columns: {missing}")
-    df["topic_list"] = df["topic_labels"].apply(
-        lambda x: [t.strip() for t in str(x).split("|")]
+        raise ValueError(f"Missing columns: {missing}. Got: {list(df.columns)}")
+    if not pd.api.types.is_numeric_dtype(df["quality_score"]):
+        try:
+            df["quality_score"] = pd.to_numeric(df["quality_score"])
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"quality_score column must be numeric: {e}")
+    if not pd.api.types.is_numeric_dtype(df["complexity"]):
+        try:
+            df["complexity"] = pd.to_numeric(df["complexity"])
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"complexity column must be numeric: {e}")
+    if len(df) < 2:
+        raise ValueError(f"Need at least 2 rows for train/test split, got {len(df)}")
+    df["topic_list"] = df["topics"].apply(
+        lambda x: [t.strip() for t in str(x).split(TOPIC_DELIMITER) if t.strip()]
     )
     if progress_callback:
         progress_callback(0.3, "Splitting data")
