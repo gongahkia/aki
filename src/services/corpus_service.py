@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import inspect
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -192,7 +193,9 @@ class CorpusService:
         """
         try:
             if not self._corpus_indexed:
-                await self._ensure_background_indexing()
+                maybe_awaitable = self._ensure_background_indexing()
+                if inspect.isawaitable(maybe_awaitable):
+                    await maybe_awaitable
                 logger.info(
                     "Vector index not ready, using fallback search",
                     query_topics=query.topics,

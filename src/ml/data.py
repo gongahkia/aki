@@ -12,6 +12,16 @@ logger = structlog.get_logger(__name__)
 
 REQUIRED_COLUMNS = {"text", "topics", "quality_score", "complexity"}
 TOPIC_DELIMITER = "|"
+DIFFICULTY_TO_COMPLEXITY = {
+    "beginner": 1,
+    "easy": 2,
+    "basic": 2,
+    "medium": 3,
+    "intermediate": 3,
+    "advanced": 4,
+    "hard": 4,
+    "expert": 5,
+}
 
 
 def _read_csv(csv_path: str) -> pd.DataFrame:
@@ -30,10 +40,30 @@ def load_data(
     random_state: int = 42,
     progress_callback: Optional[Callable] = None,
 ) -> dict:
-    """Load labelled corpus from CSV. Columns: text, topics, quality_score, complexity."""
+    """Load labelled corpus from CSV.
+
+    Supports canonical columns:
+    - text, topics, quality_score, complexity
+
+    And legacy aliases:
+    - topic_labels -> topics
+    - difficulty_level -> complexity
+    """
     if progress_callback:
         progress_callback(0.1, "Loading CSV")
     df = _read_csv(csv_path)
+    if "topics" not in df.columns:
+        if "topic_labels" in df.columns:
+            df["topics"] = df["topic_labels"]
+        elif "topic" in df.columns:
+            df["topics"] = df["topic"]
+    if "complexity" not in df.columns and "difficulty_level" in df.columns:
+        raw_difficulty = (
+            df["difficulty_level"].fillna("").astype(str).str.strip().str.lower()
+        )
+        mapped = raw_difficulty.map(DIFFICULTY_TO_COMPLEXITY)
+        fallback_numeric = pd.to_numeric(df["difficulty_level"], errors="coerce")
+        df["complexity"] = mapped.fillna(fallback_numeric)
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise ValueError(f"Missing columns: {missing}. Got: {list(df.columns)}")
@@ -47,6 +77,8 @@ def load_data(
             df["complexity"] = pd.to_numeric(df["complexity"])
         except (ValueError, TypeError) as e:
             raise ValueError(f"complexity column must be numeric: {e}")
+    if df["complexity"].isna().any():
+        raise ValueError("complexity column contains null/invalid values")
     if len(df) < 2:
         raise ValueError(f"Need at least 2 rows for train/test split, got {len(df)}")
     df["topic_list"] = df["topics"].apply(
