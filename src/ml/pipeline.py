@@ -101,7 +101,9 @@ class MLPipeline:
             )
         elif model_type == "regressor":
             self.regressor.train(
-                X_train, train_df["quality_score"].values, progress_callback
+                X_train,
+                train_df["quality_score"].values,
+                progress_callback=progress_callback,
             )
             self.regressor.save_model(os.path.join(self.models_dir, "regressor.joblib"))
         elif model_type == "clusterer":

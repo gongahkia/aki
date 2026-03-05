@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional
 import structlog
 from pydantic import BaseModel, Field
 
-from ..config import settings
 from ..domain import canonicalize_topic
 from .vector_service import VectorServiceError, vector_service
 

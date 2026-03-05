@@ -60,7 +60,9 @@ class ExportRequest(BaseModel):
 
 
 class CleanupRequest(BaseModel):
-    targets: List[str]  # config, models, history, embeddings, logs, labelled, database, tui_state
+    targets: List[
+        str
+    ]  # config, models, history, embeddings, logs, labelled, database, tui_state
 
 
 class LabelEntry(BaseModel):

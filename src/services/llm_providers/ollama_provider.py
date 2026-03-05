@@ -47,7 +47,9 @@ class OllamaProvider(LLMProvider):
         """Fail fast if requested model is not available."""
         models = await self.list_models()
         if models and model not in models:
-            raise LLMServiceError(f"Model '{model}' not found in Ollama. Available: {models}")
+            raise LLMServiceError(
+                f"Model '{model}' not found in Ollama. Available: {models}"
+            )
 
     @retry_on_failure(max_attempts=3, delay=2.0, backoff=2.0)
     async def generate(self, request: LLMRequest) -> LLMResponse:
@@ -146,7 +148,10 @@ class OllamaProvider(LLMProvider):
                     try:
                         data = json.loads(line)
                     except json.JSONDecodeError:
-                        logger.warning("Ollama stream: malformed JSON line, skipping", line=line[:100])
+                        logger.warning(
+                            "Ollama stream: malformed JSON line, skipping",
+                            line=line[:100],
+                        )
                         continue
                     if token := data.get("response", ""):
                         yield token

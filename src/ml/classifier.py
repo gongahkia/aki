@@ -31,7 +31,9 @@ class TopicClassifier:
             warnings.simplefilter("always", ConvergenceWarning)
             self.model.fit(X, y)
             if any(issubclass(warning.category, ConvergenceWarning) for warning in w):
-                logger.warning("LinearSVC did not converge within max_iter=5000; consider increasing max_iter or scaling features")
+                logger.warning(
+                    "LinearSVC did not converge within max_iter=5000; consider increasing max_iter or scaling features"
+                )
         self.is_trained = True
         if progress_callback:
             progress_callback(1.0, "Classifier trained")

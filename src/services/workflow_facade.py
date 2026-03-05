@@ -207,7 +207,9 @@ class WorkflowFacade:
     def _bootstrap_training_data_from_corpus(
         self, output_path: str, *, correlation_id: Optional[str]
     ) -> Optional[str]:
-        corpus_path = Path(getattr(settings, "corpus_path", "corpus/clean/tort/corpus.json"))
+        corpus_path = Path(
+            getattr(settings, "corpus_path", "corpus/clean/tort/corpus.json")
+        )
         if not corpus_path.exists():
             logger.error(
                 "Cannot bootstrap ML training data: corpus missing",
@@ -285,14 +287,13 @@ class WorkflowFacade:
         )
         return str(output)
 
-    async def _ensure_required_ml_training(self, *, correlation_id: Optional[str]) -> None:
+    async def _ensure_required_ml_training(
+        self, *, correlation_id: Optional[str]
+    ) -> None:
         if not self._require_ml_training or self._ml_ready:
             return
 
         async with self._ml_ready_lock:
-            if self._ml_ready:
-                return
-
             try:
                 from ..ml.pipeline import MLPipeline
             except Exception as exc:
@@ -330,7 +331,9 @@ class WorkflowFacade:
                 return
 
             configured_data_path = str(
-                getattr(settings.ml, "training_data_path", "corpus/labelled/tort_labels.csv")
+                getattr(
+                    settings.ml, "training_data_path", "corpus/labelled/tort_labels.csv"
+                )
             )
             candidate_paths = [
                 configured_data_path,
@@ -340,10 +343,13 @@ class WorkflowFacade:
             ]
             data_path = next((p for p in candidate_paths if Path(p).exists()), "")
             if not data_path:
-                data_path = self._bootstrap_training_data_from_corpus(
-                    "data/generated/ml_bootstrap_labels.csv",
-                    correlation_id=correlation_id,
-                ) or ""
+                data_path = (
+                    self._bootstrap_training_data_from_corpus(
+                        "data/generated/ml_bootstrap_labels.csv",
+                        correlation_id=correlation_id,
+                    )
+                    or ""
+                )
             if not data_path:
                 raise WorkflowFacadeError(
                     f"Required ML training data not found at '{configured_data_path}' "
@@ -473,8 +479,12 @@ class WorkflowFacade:
                 "topic_extraction_time_ms": extraction_time_ms,
             }
         )
-        combined_request, ml_result = await self._prepare_combined_request(prepared_request)
-        response = await self._hypothetical_service.generate_hypothetical(combined_request)
+        combined_request, ml_result = await self._prepare_combined_request(
+            prepared_request
+        )
+        response = await self._hypothetical_service.generate_hypothetical(
+            combined_request
+        )
         response = self._attach_combined_metadata(response, ml_result=ml_result)
         return GenerationExecutionResult(request=combined_request, response=response)
 

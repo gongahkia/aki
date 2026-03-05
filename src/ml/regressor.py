@@ -22,7 +22,13 @@ class QualityRegressor:
         self.is_trained = False
         self._metrics: Dict = {}
 
-    def train(self, X, y, dimension_targets: Optional[Dict[str, np.ndarray]] = None, progress_callback: Optional[Callable] = None):
+    def train(
+        self,
+        X,
+        y,
+        dimension_targets: Optional[Dict[str, np.ndarray]] = None,
+        progress_callback: Optional[Callable] = None,
+    ):
         """Train regressor on feature matrix X and quality scores y.
 
         Args:
@@ -38,13 +44,19 @@ class QualityRegressor:
         if dimension_targets:
             for dim_name, dim_y in dimension_targets.items():
                 if dim_name in QUALITY_DIMENSIONS:
-                    m = GradientBoostingRegressor(n_estimators=50, max_depth=3, random_state=42)
+                    m = GradientBoostingRegressor(
+                        n_estimators=50, max_depth=3, random_state=42
+                    )
                     m.fit(X, dim_y)
                     self.dimension_models[dim_name] = m
         self.is_trained = True
         if progress_callback:
             progress_callback(1.0, "Regressor trained")
-        logger.info("Quality regressor trained", n_samples=X.shape[0], dimensions=list(self.dimension_models.keys()))
+        logger.info(
+            "Quality regressor trained",
+            n_samples=X.shape[0],
+            dimensions=list(self.dimension_models.keys()),
+        )
 
     def predict(self, X) -> np.ndarray:
         """Predict quality scores, clamped to [0.0, 1.0]."""
@@ -89,4 +101,6 @@ class QualityRegressor:
             self.model = data  # backwards compat with old single-model saves
             self.dimension_models = {}
         self.is_trained = True
-        logger.info("Regressor loaded", path=path, dimensions=list(self.dimension_models.keys()))
+        logger.info(
+            "Regressor loaded", path=path, dimensions=list(self.dimension_models.keys())
+        )

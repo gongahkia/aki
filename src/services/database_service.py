@@ -241,6 +241,20 @@ class DatabaseService:
             )
             return fallback
 
+    def _safe_json_decode(
+        self,
+        value: Any,
+        *,
+        field_name: str,
+        fallback: Any,
+    ) -> Any:
+        """Backward-compatible alias for JSON decoding helper."""
+        return self._decode_json_payload(
+            value,
+            field_name=field_name,
+            fallback=fallback,
+        )
+
     def _legacy_history_record_to_payload(
         self, record: Dict[str, Any]
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
@@ -829,7 +843,9 @@ class DatabaseService:
                     GenerationReport(
                         id=row["id"],
                         generation_id=row["generation_id"],
-                        issue_types=self._safe_json_decode(row["issue_types"], field_name="issue_types", fallback=[]),
+                        issue_types=self._safe_json_decode(
+                            row["issue_types"], field_name="issue_types", fallback=[]
+                        ),
                         comment=row["comment"],
                         correlation_id=row["correlation_id"],
                         is_locked=bool(row["is_locked"]),
@@ -999,7 +1015,12 @@ class DatabaseService:
                     "last_generation": row["last_generation"],
                     "latency_metrics": latency_metrics,
                     "popular_topics": [
-                        {"topics": self._safe_json_decode(t["topics"], field_name="topics", fallback=[]), "count": t["count"]}
+                        {
+                            "topics": self._safe_json_decode(
+                                t["topics"], field_name="topics", fallback=[]
+                            ),
+                            "count": t["count"],
+                        }
                         for t in topic_rows
                     ],
                 }
@@ -1061,7 +1082,9 @@ class DatabaseService:
                     results.append(
                         {
                             "timestamp": row["timestamp"],
-                            "topics": self._safe_json_decode(row["topics"], field_name="topics", fallback=[]),
+                            "topics": self._safe_json_decode(
+                                row["topics"], field_name="topics", fallback=[]
+                            ),
                             "hypothetical": row["hypothetical"][:200] + "...",
                             "quality_score": row["quality_score"],
                         }

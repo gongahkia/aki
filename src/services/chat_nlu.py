@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import structlog
 
@@ -51,9 +51,20 @@ _KEYWORD_PATTERNS: List[tuple] = [
 ]
 
 _TOPIC_KEYWORDS = [
-    "negligence", "duty of care", "causation", "remoteness", "battery",
-    "assault", "defamation", "nuisance", "harassment", "false imprisonment",
-    "vicarious liability", "trespass", "rylands", "contributory",
+    "negligence",
+    "duty of care",
+    "causation",
+    "remoteness",
+    "battery",
+    "assault",
+    "defamation",
+    "nuisance",
+    "harassment",
+    "false imprisonment",
+    "vicarious liability",
+    "trespass",
+    "rylands",
+    "contributory",
 ]
 
 
@@ -69,9 +80,9 @@ def _keyword_fallback(text: str) -> Dict[str, Any]:
     if command_type == "generate":
         topics = [t for t in _TOPIC_KEYWORDS if t in text_lower]
         params["topics"] = topics if topics else ["negligence"]
-        complexity_match = re.search(r'\b([1-5])\b', text)
+        complexity_match = re.search(r"\b([1-5])\b", text)
         params["complexity"] = int(complexity_match.group(1)) if complexity_match else 3
-        party_match = re.search(r'(\d+)\s*part', text_lower)
+        party_match = re.search(r"(\d+)\s*part", text_lower)
         params["num_parties"] = int(party_match.group(1)) if party_match else 3
     return {"command_type": command_type, "parameters": params}
 
@@ -92,6 +103,7 @@ async def interpret(text: str, use_llm: bool = True) -> Dict[str, Any]:
 async def _llm_interpret(text: str) -> Dict[str, Any]:
     """Use LLM to interpret user intent."""
     from .llm_service import LLMRequest, llm_service
+
     request = LLMRequest(
         prompt=text,
         system_prompt=NLU_SYSTEM_PROMPT,
@@ -101,7 +113,7 @@ async def _llm_interpret(text: str) -> Dict[str, Any]:
     response = await llm_service.generate(request)
     raw = response.text.strip()
     # extract JSON from response
-    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+    json_match = re.search(r"\{.*\}", raw, re.DOTALL)
     if json_match:
         parsed = json.loads(json_match.group())
         if "command_type" in parsed:

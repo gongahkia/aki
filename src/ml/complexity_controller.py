@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import structlog
 
@@ -15,6 +15,7 @@ TIER_DEFAULTS: Dict[int, "ComplexityConstraints"] = {}
 @dataclass
 class ComplexityConstraints:
     """Generation constraints for a complexity tier."""
+
     word_count_min: int
     word_count_max: int
     max_legal_issues: int
@@ -38,7 +39,12 @@ class ComplexityController:
         self.is_trained = False
         self._learned_tiers: Dict[int, ComplexityConstraints] = {}
 
-    def train(self, texts: List[str], complexities: List[int], topics_per_entry: List[List[str]]) -> Dict:
+    def train(
+        self,
+        texts: List[str],
+        complexities: List[int],
+        topics_per_entry: List[List[str]],
+    ) -> Dict:
         """Learn constraints from labelled data by aggregating per tier."""
         tier_data: Dict[int, List] = {i: [] for i in range(1, 6)}
         for text, comp, topics in zip(texts, complexities, topics_per_entry):

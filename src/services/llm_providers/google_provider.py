@@ -73,7 +73,13 @@ class GoogleGeminiProvider(LLMProvider):
                 content = response.text or ""
             except (ValueError, AttributeError):
                 logger.warning("Gemini response.text is None/unavailable")
-                return LLMResponse(content="", model=model_name, usage={}, finish_reason="error", response_time=response_time)
+                return LLMResponse(
+                    content="",
+                    model=model_name,
+                    usage={},
+                    finish_reason="error",
+                    response_time=response_time,
+                )
             usage = {}
             if hasattr(response, "usage_metadata") and response.usage_metadata:
                 um = response.usage_metadata
@@ -90,7 +96,7 @@ class GoogleGeminiProvider(LLMProvider):
                 response_time=response_time,
             )
         except asyncio.TimeoutError:
-            raise LLMServiceError(f"Google Gemini timed out after 30s")
+            raise LLMServiceError("Google Gemini timed out after 30s")
         except LLMServiceError:
             raise
         except Exception as e:

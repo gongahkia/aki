@@ -26,7 +26,9 @@ class HypotheticalClusterer:
         n_samples = X.shape[0]
         if self.method == "kmeans":
             if n_clusters > n_samples:
-                raise ValueError(f"n_clusters ({n_clusters}) exceeds n_samples ({n_samples})")
+                raise ValueError(
+                    f"n_clusters ({n_clusters}) exceeds n_samples ({n_samples})"
+                )
             self.model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         else:
             self.model = DBSCAN(eps=0.5, min_samples=2)

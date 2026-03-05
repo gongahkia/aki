@@ -11,12 +11,24 @@ from typing import Dict, List, Optional, Set
 CORPUS_PATH = Path("corpus/clean/tort/corpus.json")
 OUTPUT_PATH = Path("corpus/labelled/tort_labels.csv")
 CSV_COLUMNS = [
-    "id", "text", "topics", "complexity", "quality_score",
-    "structural_elements", "num_parties", "case_references",
+    "id",
+    "text",
+    "topics",
+    "complexity",
+    "quality_score",
+    "structural_elements",
+    "num_parties",
+    "case_references",
 ]
 STRUCTURAL_OPTIONS = [
-    "parties", "scenario", "legal_issues", "analysis",
-    "complications", "defences", "remedies", "timeline",
+    "parties",
+    "scenario",
+    "legal_issues",
+    "analysis",
+    "complications",
+    "defences",
+    "remedies",
+    "timeline",
 ]
 
 
@@ -44,6 +56,7 @@ def _get_topic_suggestions(text: str) -> Optional[List[str]]:
     """Try to get topic predictions from trained classifier."""
     try:
         from .pipeline import MLPipeline
+
         pipeline = MLPipeline()
         pipeline.load_all()
         if not pipeline.classifier.is_trained:
@@ -56,6 +69,7 @@ def _get_topic_suggestions(text: str) -> Optional[List[str]]:
 
 def _get_canonical_topics() -> List[str]:
     from ..domain.topics import TORT_TOPICS
+
     return list(TORT_TOPICS.keys())
 
 
@@ -107,7 +121,9 @@ def _prompt_quality() -> float:
 
 def _prompt_structural() -> str:
     print(f"  structural options: {', '.join(STRUCTURAL_OPTIONS)}")
-    raw = _prompt("  structural_elements (pipe-separated)", "parties|scenario|legal_issues")
+    raw = _prompt(
+        "  structural_elements (pipe-separated)", "parties|scenario|legal_issues"
+    )
     return raw
 
 
@@ -138,7 +154,9 @@ def main():
     corpus = _load_corpus()
     labelled_ids = _load_labelled_ids()
     total = len(corpus)
-    remaining = [(i, entry) for i, entry in enumerate(corpus) if str(i) not in labelled_ids]
+    remaining = [
+        (i, entry) for i, entry in enumerate(corpus) if str(i) not in labelled_ids
+    ]
     if not remaining:
         print(f"all {total} entries already labelled")
         return

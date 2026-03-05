@@ -626,7 +626,9 @@ LEARNING OBJECTIVES ACHIEVED:
             hypothetical=hypothetical,
             available_topics=", ".join(available_topics),
             output_format=self.output_format,
-            latency_guardrail=HypotheticalGenerationTemplate._build_latency_guardrail(context.user_preferences),
+            latency_guardrail=HypotheticalGenerationTemplate._build_latency_guardrail(
+                context.user_preferences
+            ),
         )
 
         return {"system": self.system_prompt, "user": user_prompt}

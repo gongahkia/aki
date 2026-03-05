@@ -51,6 +51,7 @@ async def test_generate_generation_validates_topics_and_calls_hypothetical_servi
     assert result.request.topics == ["negligence"]
     assert result.request.correlation_id == "corr-1"
     assert result.request.method == "hybrid"
+    assert result.request.user_preferences is not None
     assert "ml_foundation" in result.request.user_preferences
     assert result.response.metadata["generation_id"] == 1
     hypothetical.generate_hypothetical.assert_awaited_once()
@@ -76,14 +77,13 @@ async def test_generate_generation_enforces_required_training_step():
         hypo_generator=_mock_hypo_generator(),
         require_ml_training=True,
     )
-    facade._ensure_required_ml_training = AsyncMock()
+    ensure_ml_training = AsyncMock()
+    setattr(facade, "_ensure_required_ml_training", ensure_ml_training)
 
     request = GenerationRequest(topics=["Negligence"], include_analysis=True)
     await facade.generate_generation(request, correlation_id="corr-train")
 
-    facade._ensure_required_ml_training.assert_awaited_once_with(
-        correlation_id="corr-train"
-    )
+    ensure_ml_training.assert_awaited_once_with(correlation_id="corr-train")
 
 
 @pytest.mark.asyncio

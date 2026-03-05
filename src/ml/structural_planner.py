@@ -13,8 +13,14 @@ from sklearn.svm import LinearSVC
 logger = structlog.get_logger(__name__)
 
 STRUCTURAL_ELEMENTS = [
-    "parties", "scenario", "legal_issues", "analysis",
-    "complications", "defences", "remedies", "timeline",
+    "parties",
+    "scenario",
+    "legal_issues",
+    "analysis",
+    "complications",
+    "defences",
+    "remedies",
+    "timeline",
 ]
 
 
@@ -31,7 +37,9 @@ class StructuralPlanner:
         """Train on labelled text->structural_elements mappings."""
         if len(texts) < 2:
             raise ValueError(f"Need at least 2 samples, got {len(texts)}")
-        self._vectorizer = TfidfVectorizer(max_features=3000, ngram_range=(1, 2), stop_words="english")
+        self._vectorizer = TfidfVectorizer(
+            max_features=3000, ngram_range=(1, 2), stop_words="english"
+        )
         X = self._vectorizer.fit_transform(texts)
         y = self._binarizer.fit_transform(structural_labels)
         self._model = OneVsRestClassifier(LinearSVC(dual="auto", max_iter=5000))
@@ -49,7 +57,7 @@ class StructuralPlanner:
             legal_issues_sequence: ordered list of topics to address
             analysis_points: structural elements present
         """
-        if not self.is_trained or self._model is None:
+        if not self.is_trained or self._model is None or self._vectorizer is None:
             return self._default_plan(topics, complexity)
         combined = text + " " + " ".join(topics)
         X = self._vectorizer.transform([combined])
