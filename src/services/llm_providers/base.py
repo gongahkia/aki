@@ -2,14 +2,27 @@
 
 import asyncio
 import random
+import threading
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Any, AsyncIterator, Dict, List, Optional
 
+import httpx
 import structlog
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
+
+_PERMANENT_HTTP_CODES = {401, 403, 404}
+
+
+def _is_retryable(exc: Exception) -> bool:
+    """Return True if the error is transient and worth retrying."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError, httpx.ConnectError)):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code not in _PERMANENT_HTTP_CODES
+    return not isinstance(exc, (PermissionError, FileNotFoundError))
 
 
 def retry_on_failure(
@@ -28,10 +41,11 @@ def retry_on_failure(
                 try:
                     return await func(*args, **kwargs)
                 except Exception as e:
-                    if attempt == max_attempts:
+                    if attempt == max_attempts or not _is_retryable(e):
                         logger.error(
-                            f"{func.__name__} failed after {max_attempts} attempts",
+                            f"{func.__name__} failed after {attempt} attempts",
                             error=str(e),
+                            retryable=_is_retryable(e),
                         )
                         raise
                     sleep_for = current_delay
@@ -112,6 +126,7 @@ class ProviderRegistry:
     def __init__(self):
         self._providers: Dict[str, type] = {}
         self._instances: Dict[str, LLMProvider] = {}
+        self._lock = threading.Lock()
 
     def register(self, name: str, provider_class: type):
         """Register a provider class by name."""
@@ -121,9 +136,10 @@ class ProviderRegistry:
         """Get or create a provider instance by name."""
         if name not in self._providers:
             raise LLMServiceError(f"Provider '{name}' not registered")
-        if name not in self._instances:
-            self._instances[name] = self._providers[name](**kwargs)
-        return self._instances[name]
+        with self._lock:
+            if name not in self._instances:
+                self._instances[name] = self._providers[name](**kwargs)
+            return self._instances[name]
 
     def list_providers(self) -> List[str]:
         """List registered provider names."""

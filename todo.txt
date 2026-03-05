@@ -20,8 +20,6 @@
 
 # ── Phase F: Provider Hardening (Ollama & Gemini for Chat) ──
 
-(B) In src/services/llm_providers/base.py retry_on_failure decorator, differentiate retryable errors (TimeoutError, httpx.ConnectError, 429, 503) from permanent errors (401, 403, 404) — only retry retryable ones +llm +refactor
-(B) In base.py, add threading.Lock to ProviderRegistry.get() — concurrent access from async handlers can create duplicate provider instances +llm
 (B) Make circuit breaker cooldown in src/services/llm_service.py configurable via settings.py CIRCUIT_BREAKER_COOLDOWN_SECONDS with default 60 +llm +refactor
 
 # ── Phase G: Service Hardening ──
