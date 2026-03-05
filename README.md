@@ -1,5 +1,6 @@
 [![](https://img.shields.io/badge/jikai_1.0.0-passing-green)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
 [![](https://img.shields.io/badge/jikai_2.0.0-passing-dark_green)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
+[![](https://img.shields.io/badge/jikai_3.0.0-passing-dark_green)](https://github.com/gongahkia/jikai/releases/tag/3.0.0)
 ![](https://github.com/gongahkia/jikai/actions/workflows/ci.yml/badge.svg)
 
 > [!IMPORTANT]
@@ -71,6 +72,10 @@ Inside the TUI, `Chat` is now the default landing screen with a CLI-style transc
 Use `/menu` anytime to open the legacy multi-screen navigation as fallback.
 Chat command families now cover generation, reporting/regeneration, corpus/query/validation, jobs (`preprocess`, `scrape`, `train`, `embed`, `export`, `cleanup`), history/stats/providers/settings, and guided/label flows.
 
+## Architecture
+
+![](./asset/reference/architecture.png)
+
 ## API
 
 `Jikai`'s REST API is served at `http://localhost:8000`. Find the interactive docs at `/docs` when `API_DEBUG=true`.
@@ -111,9 +116,9 @@ Chat command families now cover generation, reporting/regeneration, corpus/query
 | `GET` | `/jobs/{job_id}/status` | Poll async job status |
 | `POST` | `/jobs/{job_id}/cancel` | Cancel a running job |
 
-## Architecture
+## Model Support
 
-![](./asset/reference/architecture.png)
+...
 
 ## Disclaimer
 
