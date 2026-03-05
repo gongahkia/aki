@@ -8,7 +8,7 @@
 
 # `Jikai`
 
-AI-Powered Legal Hypothetical Generator for [Singapore Tort Law](https://www.advlawllc.com/practice/tort-law/#:~:text=Tort%20law%20deals%20with%20civil,defamation%2C%20trespass%2C%20and%20nuisance.).
+[ML](#architecture) & [LLM](#architecture)-powered [Legal Hypothetical Generator](#model-support) for Singapore [Tort Law](https://www.advlawllc.com/practice/tort-law/#:~:text=Tort%20law%20deals%20with%20civil,defamation%2C%20trespass%2C%20and%20nuisance.).
 
 ## Rationale
 
@@ -40,7 +40,8 @@ With these considerations in mind, I created `Jikai`.
 
 ## Screenshots
 
-...
+![](./asset/reference/1.png)
+![](./asset/reference/2.png)
 
 ## Usage
 
@@ -95,9 +96,11 @@ $ make lint
 Inside the Rust TUI, `Chat` is the default landing screen with command-driven workflows.
 Use `/menu` to open the multi-screen navigation, and `/help` to list command families (`hypo`, `regenerate`, `report`, `corpus`, `validation`, `jobs`, `providers`, `history`, `stats`, `settings`, `guided`, `label`).
 
-## Architecture
+## So where's the ML in this?
 
-`Jikai` runs as a Rust TUI + FastAPI system. The workflow path is: TUI/clients -> API routes -> `WorkflowFacade` (ML foundation + LLM generation) -> corpus/vector/validation/database services -> provider adapters and local persistence.
+## So where's the LLM in this?
+
+## Architecture
 
 ![](./asset/reference/architecture.png)
 
