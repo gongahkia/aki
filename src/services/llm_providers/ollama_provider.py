@@ -2,7 +2,7 @@
 
 import json
 import time
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 import structlog
@@ -25,12 +25,22 @@ class OllamaProvider(LLMProvider):
         self,
         base_url: str = "http://localhost:11434",
         default_model: str = "llama2:7b",
+        timeout: Optional[float] = None,
         connect_timeout: float = 5.0,
-        read_timeout: float = 60.0,
+        read_timeout: float = 300.0,
     ):
         self.base_url = base_url
         self.default_model = default_model
-        timeout = httpx.Timeout(connect=connect_timeout, read=read_timeout, write=10.0, pool=10.0)
+        if timeout is not None:
+            read_timeout = timeout
+        self.connect_timeout = connect_timeout
+        self.read_timeout = read_timeout
+        timeout = httpx.Timeout(
+            connect=connect_timeout,
+            read=read_timeout,
+            write=10.0,
+            pool=10.0,
+        )
         self.client = httpx.AsyncClient(timeout=timeout)
 
     async def _validate_model(self, model: str) -> None:
@@ -76,8 +86,23 @@ class OllamaProvider(LLMProvider):
                     "total_duration": data.get("total_duration", 0),
                 },
             )
+        except httpx.TimeoutException as e:
+            raise LLMServiceError(
+                "Ollama timeout while generating "
+                f"({type(e).__name__}, read_timeout={self.read_timeout}s)"
+            ) from e
+        except httpx.HTTPStatusError as e:
+            body = (e.response.text or "").strip()
+            if len(body) > 180:
+                body = f"{body[:177]}..."
+            detail = f" body={body!r}" if body else ""
+            raise LLMServiceError(
+                f"Ollama HTTP status error {e.response.status_code}.{detail}"
+            ) from e
         except httpx.HTTPError as e:
-            raise LLMServiceError(f"Ollama HTTP error: {e}")
+            raise LLMServiceError(
+                f"Ollama transport error ({type(e).__name__}): {e}"
+            ) from e
         except Exception as e:
             raise LLMServiceError(f"Ollama error: {e}")
 
@@ -115,6 +140,7 @@ class OllamaProvider(LLMProvider):
         async with self.client.stream(
             "POST", f"{self.base_url}/api/generate", json=payload
         ) as resp:
+            resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if line:
                     try:

@@ -1,6 +1,21 @@
 use crate::api::types::*;
+use anyhow::anyhow;
 use anyhow::Result;
 use reqwest::Client;
+use std::time::Duration;
+
+const DEFAULT_HTTP_TIMEOUT_SECONDS: u64 = 900;
+const MIN_HTTP_TIMEOUT_SECONDS: u64 = 30;
+const MAX_HTTP_TIMEOUT_SECONDS: u64 = 3600;
+const CONNECT_TIMEOUT_SECONDS: u64 = 5;
+
+fn resolve_http_timeout_seconds() -> u64 {
+    std::env::var("JIKAI_HTTP_TIMEOUT_SECONDS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .map(|secs| secs.clamp(MIN_HTTP_TIMEOUT_SECONDS, MAX_HTTP_TIMEOUT_SECONDS))
+        .unwrap_or(DEFAULT_HTTP_TIMEOUT_SECONDS)
+}
 
 fn extract_job_id(resp: &serde_json::Value) -> String {
     match resp["job_id"].as_str() {
@@ -15,21 +30,43 @@ fn extract_job_id(resp: &serde_json::Value) -> String {
 pub struct ApiClient {
     client: Client,
     base_url: String,
+    request_timeout_seconds: u64,
 }
 
 impl ApiClient {
     pub fn new(base_url: &str) -> Self {
+        let request_timeout_seconds = resolve_http_timeout_seconds();
         Self {
             client: Client::builder()
-                .timeout(std::time::Duration::from_secs(180))
+                .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECONDS))
+                .timeout(Duration::from_secs(request_timeout_seconds))
                 .build()
                 .unwrap_or_default(),
             base_url: base_url.trim_end_matches('/').to_string(),
+            request_timeout_seconds,
         }
     }
 
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url, path)
+    }
+
+    fn map_send_error(&self, endpoint: &str, err: reqwest::Error) -> anyhow::Error {
+        let url = self.url(endpoint);
+        if err.is_timeout() {
+            return anyhow!(
+                "request_timeout: request to {} exceeded {}s client timeout. Set JIKAI_HTTP_TIMEOUT_SECONDS higher if generation is slow.",
+                url,
+                self.request_timeout_seconds
+            );
+        }
+        if err.is_connect() {
+            return anyhow!(
+                "connection_failed: cannot reach API at {}. Start backend with `make api` or `make run`.",
+                self.base_url
+            );
+        }
+        anyhow!("request_failed: {}", err)
     }
 
     // -- health --
@@ -78,7 +115,8 @@ impl ApiClient {
             .post(self.url("/llm/generate"))
             .json(req)
             .send()
-            .await?;
+            .await
+            .map_err(|e| self.map_send_error("/llm/generate", e))?;
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             anyhow::bail!("LLM generate failed: {}", text);
@@ -103,7 +141,13 @@ impl ApiClient {
         if !params.is_empty() {
             url = format!("{}?{}", url, params.join("&"));
         }
-        let resp = self.client.post(&url).json(req).send().await?;
+        let resp = self
+            .client
+            .post(&url)
+            .json(req)
+            .send()
+            .await
+            .map_err(|e| self.map_send_error("/llm/stream", e))?;
         Ok(resp)
     }
 
@@ -205,7 +249,8 @@ impl ApiClient {
             .post(self.url("/workflow/generate"))
             .json(req)
             .send()
-            .await?;
+            .await
+            .map_err(|e| self.map_send_error("/workflow/generate", e))?;
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             if let Ok(err) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -240,7 +285,8 @@ impl ApiClient {
             .post(self.url("/workflow/regenerate"))
             .json(req)
             .send()
-            .await?;
+            .await
+            .map_err(|e| self.map_send_error("/workflow/regenerate", e))?;
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             anyhow::bail!("Regeneration failed: {}", text);
@@ -260,7 +306,10 @@ impl ApiClient {
         Ok(match resp["report_id"].as_i64() {
             Some(id) => id,
             None => {
-                eprintln!("[warn] report_id: expected i64, got {:?}", resp["report_id"]);
+                eprintln!(
+                    "[warn] report_id: expected i64, got {:?}",
+                    resp["report_id"]
+                );
                 0
             }
         })
