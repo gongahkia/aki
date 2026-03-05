@@ -23,7 +23,10 @@ class HypotheticalClusterer:
         """Fit clustering model on feature matrix X."""
         if progress_callback:
             progress_callback(0.1, f"Fitting {self.method} clusterer")
+        n_samples = X.shape[0]
         if self.method == "kmeans":
+            if n_clusters > n_samples:
+                raise ValueError(f"n_clusters ({n_clusters}) exceeds n_samples ({n_samples})")
             self.model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         else:
             self.model = DBSCAN(eps=0.5, min_samples=2)
@@ -44,7 +47,7 @@ class HypotheticalClusterer:
         if self.method == "kmeans":
             arr = X.toarray() if hasattr(X, "toarray") else X
             return int(self.model.predict(arr)[0])
-        return -1  # DBSCAN has no predict
+        raise NotImplementedError("DBSCAN does not support predict on new samples")
 
     def get_cluster_summary(self) -> Dict:
         """Return cluster statistics."""

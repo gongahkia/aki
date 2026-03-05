@@ -1,10 +1,12 @@
 """Multi-label topic classifier using sklearn OneVsRestClassifier."""
 
+import warnings
 from typing import Callable, Dict, List, Optional
 
 import joblib
 import numpy as np
 import structlog
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import LinearSVC
@@ -25,7 +27,11 @@ class TopicClassifier:
         if progress_callback:
             progress_callback(0.1, "Training topic classifier")
         self.model = OneVsRestClassifier(LinearSVC(max_iter=5000, dual="auto"))
-        self.model.fit(X, y)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always", ConvergenceWarning)
+            self.model.fit(X, y)
+            if any(issubclass(warning.category, ConvergenceWarning) for warning in w):
+                logger.warning("LinearSVC did not converge within max_iter=5000; consider increasing max_iter or scaling features")
         self.is_trained = True
         if progress_callback:
             progress_callback(1.0, "Classifier trained")

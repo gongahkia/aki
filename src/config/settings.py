@@ -166,9 +166,14 @@ class MLSettings(BaseSettings):
 
     models_dir: str = Field(default="models", env="ML_MODELS_DIR")
     training_data_path: str = Field(
-        default="corpus/labelled/sample.csv", env="ML_TRAINING_DATA"
+        default="corpus/labelled/tort_labels.csv", env="ML_TRAINING_DATA"
     )
     default_n_clusters: int = Field(default=5, env="ML_N_CLUSTERS")
+    max_features: int = Field(default=5000, env="ML_MAX_FEATURES")
+    n_estimators: int = Field(default=100, env="ML_N_ESTIMATORS")
+    max_depth: int = Field(default=5, env="ML_MAX_DEPTH")
+    test_size: float = Field(default=0.2, env="ML_TEST_SIZE")
+    random_state: int = Field(default=42, env="ML_RANDOM_STATE")
 
     class Config:
         env_prefix = "ML_"
