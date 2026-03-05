@@ -118,6 +118,9 @@ format: ## Format code
 warmup: ## Preload corpus and check provider health
 	python -m src.warmup $(if $(INIT_EMBEDDINGS),--init-embeddings,)
 
+label: ## Label corpus entries interactively
+	python -m src.ml.labeller
+
 train: ## Train ML models
 	python -m src.ml.pipeline --data corpus/labelled/sample.csv
 
