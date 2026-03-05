@@ -10,11 +10,38 @@ use crate::ui::widgets::status_bar::StatusBar;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use std::fs::OpenOptions;
+use std::io::Write;
 use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+const TUI_FLOW_LOG_PATH: &str = "data/logs/tui_flow.log";
+
+fn append_tui_flow_log(event: &str) {
+    let path = PathBuf::from(TUI_FLOW_LOG_PATH);
+    if let Some(parent) = path.parent() {
+        if std::fs::create_dir_all(parent).is_err() {
+            return;
+        }
+    }
+    let mut file = match OpenOptions::new().create(true).append(true).open(path) {
+        Ok(f) => f,
+        Err(_) => return,
+    };
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let event = event.replace('\n', "\\n");
+    let _ = writeln!(
+        file,
+        "ts={}.{:03} {}",
+        ts.as_secs(),
+        ts.subsec_millis(),
+        event
+    );
+}
 
 struct ManagedProcess {
     child: Child,
@@ -54,6 +81,7 @@ impl AppContext {
             }
         }
         if let Some(status) = exited {
+            append_tui_flow_log(&format!("ollama_process_exit status={}", status));
             self.ollama_process = None;
             self.ollama_last_exit = Some(status);
         }
@@ -197,13 +225,14 @@ pub struct App {
 impl App {
     pub fn new(api_url: String) -> Self {
         let state = TuiState::load();
+        let ui_mode = state.ui_mode.clone();
         let (main, root_label): (Box<dyn Screen + Send>, &'static str) = match state.ui_mode {
             UiMode::Traditional => (Box::new(MainMenuScreen::new()), "Main"),
             UiMode::Chat => (Box::new(ChatScreen::new()), "Chat"),
         };
         let ctx = AppContext::new(api_url.clone());
         let ver_api = api_url.clone();
-        Self {
+        let app = Self {
             screen_stack: vec![main],
             nav: NavStack::with_root(root_label),
             status_bar: StatusBar::default(),
@@ -220,7 +249,14 @@ impl App {
                     Err(_) => None,
                 }
             })),
-        }
+        };
+        append_tui_flow_log(&format!(
+            "app_start mode={} root={} api_url={}",
+            ui_mode.label(),
+            root_label,
+            api_url
+        ));
+        app
     }
 
     fn quit_menu_items() -> MenuState {
@@ -235,13 +271,21 @@ impl App {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) {
+        append_tui_flow_log(&format!(
+            "key_event screen={} quit_menu={} {}",
+            self.active_screen_name(),
+            self.quit_menu.is_some(),
+            Self::key_event_label(&key)
+        ));
         // intercept quit menu
         if let Some(menu) = &mut self.quit_menu {
             if key.code == KeyCode::Esc {
                 self.quit_menu = None;
+                append_tui_flow_log("quit_menu_dismissed key=Esc");
                 return;
             }
             if let Some(idx) = menu.handle_key(key) {
+                append_tui_flow_log(&format!("quit_menu_selected index={}", idx));
                 match idx {
                     0 => {
                         // clean & exit: push cleanup screen
@@ -251,8 +295,14 @@ impl App {
                         ));
                         self.process_action(action);
                     }
-                    1 => self.running = false,  // exit
-                    _ => self.quit_menu = None, // cancel
+                    1 => {
+                        self.running = false;
+                        append_tui_flow_log("app_running=false reason=quit_menu_exit");
+                    }
+                    _ => {
+                        self.quit_menu = None;
+                        append_tui_flow_log("quit_menu_cancelled");
+                    }
                 }
             }
             return;
@@ -260,6 +310,7 @@ impl App {
         // ctrl+c triggers quit menu
         if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.quit_menu = Some(Self::quit_menu_items());
+            append_tui_flow_log("quit_menu_opened reason=ctrl+c");
             return;
         }
         let action = if let Some(screen) = self.screen_stack.last_mut() {
@@ -267,6 +318,11 @@ impl App {
         } else {
             ScreenAction::Quit
         };
+        append_tui_flow_log(&format!(
+            "screen_handle_key_result screen={} action={}",
+            self.active_screen_name(),
+            Self::action_label(&action)
+        ));
         self.process_action(action);
     }
 
@@ -281,6 +337,14 @@ impl App {
         } else {
             ScreenAction::None
         };
+        if !matches!(pending_action, ScreenAction::None) {
+            append_tui_flow_log(&format!(
+                "tick_pending_action tick={} screen={} action={}",
+                self.tick_counter,
+                self.active_screen_name(),
+                Self::action_label(&pending_action)
+            ));
+        }
         self.process_action(pending_action);
         if self.tick_counter % 50 == 0 {
             self.refresh_status();
@@ -306,29 +370,54 @@ impl App {
         match action {
             ScreenAction::None => {}
             ScreenAction::Push(mut screen) => {
+                let from = self.active_screen_name().to_string();
+                let target = screen.name().to_string();
                 screen.on_enter(&mut self.ctx);
                 self.nav.push(screen.name());
                 self.screen_stack.push(screen);
+                append_tui_flow_log(&format!(
+                    "action_applied type=push from={} to={} stack={}",
+                    from,
+                    target,
+                    self.stack_trace()
+                ));
             }
             ScreenAction::Pop => {
                 if self.screen_stack.len() > 1 {
+                    let from = self.active_screen_name().to_string();
                     self.screen_stack.pop();
                     self.nav.pop();
+                    append_tui_flow_log(&format!(
+                        "action_applied type=pop from={} to={} stack={}",
+                        from,
+                        self.active_screen_name(),
+                        self.stack_trace()
+                    ));
                 } else {
                     // at root -- show quit menu with cleanup option
                     self.quit_menu = Some(Self::quit_menu_items());
+                    append_tui_flow_log("action_applied type=pop_root quit_menu_opened=true");
                 }
             }
             ScreenAction::Replace(mut screen) => {
+                let from = self.active_screen_name().to_string();
+                let target = screen.name().to_string();
                 screen.on_enter(&mut self.ctx);
                 self.nav.pop();
                 self.nav.push(screen.name());
                 if let Some(last) = self.screen_stack.last_mut() {
                     *last = screen;
                 }
+                append_tui_flow_log(&format!(
+                    "action_applied type=replace from={} to={} stack={}",
+                    from,
+                    target,
+                    self.stack_trace()
+                ));
             }
             ScreenAction::Quit => {
                 self.running = false;
+                append_tui_flow_log("action_applied type=quit app_running=false");
             }
         }
     }
@@ -341,7 +430,16 @@ impl App {
                     let handle = self.version_handle.take().unwrap();
                     if let Ok(Some(ver)) = futures::executor::block_on(handle) {
                         if ver != EXPECTED_API_VERSION {
-                            eprintln!("[warn] API version mismatch: backend={} TUI expects={}", ver, EXPECTED_API_VERSION);
+                            eprintln!(
+                                "[warn] API version mismatch: backend={} TUI expects={}",
+                                ver, EXPECTED_API_VERSION
+                            );
+                            append_tui_flow_log(&format!(
+                                "api_version_mismatch backend={} expected={}",
+                                ver, EXPECTED_API_VERSION
+                            ));
+                        } else {
+                            append_tui_flow_log(&format!("api_version_ok version={}", ver));
                         }
                     }
                     self.version_checked = true;
@@ -352,7 +450,14 @@ impl App {
         if let Some(handle) = &self.health_handle {
             if handle.is_finished() {
                 let handle = self.health_handle.take().unwrap();
+                let old = self.status_bar.api_ok;
                 self.status_bar.api_ok = futures::executor::block_on(handle).unwrap_or(false);
+                if self.status_bar.api_ok != old {
+                    append_tui_flow_log(&format!(
+                        "api_health_changed ok={}",
+                        self.status_bar.api_ok
+                    ));
+                }
             }
         }
         if self.health_handle.is_none() {
@@ -362,5 +467,37 @@ impl App {
                 client.health().await.is_ok()
             }));
         }
+    }
+
+    fn active_screen_name(&self) -> &str {
+        self.screen_stack
+            .last()
+            .map(|screen| screen.name())
+            .unwrap_or("None")
+    }
+
+    fn stack_trace(&self) -> String {
+        self.screen_stack
+            .iter()
+            .map(|screen| screen.name())
+            .collect::<Vec<_>>()
+            .join(">")
+    }
+
+    fn action_label(action: &ScreenAction) -> String {
+        match action {
+            ScreenAction::None => "none".to_string(),
+            ScreenAction::Push(screen) => format!("push:{}", screen.name()),
+            ScreenAction::Pop => "pop".to_string(),
+            ScreenAction::Replace(screen) => format!("replace:{}", screen.name()),
+            ScreenAction::Quit => "quit".to_string(),
+        }
+    }
+
+    fn key_event_label(key: &KeyEvent) -> String {
+        format!(
+            "code={:?} modifiers={:?} kind={:?} state={:?}",
+            key.code, key.modifiers, key.kind, key.state
+        )
     }
 }

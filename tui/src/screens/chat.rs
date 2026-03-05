@@ -6,9 +6,14 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 use std::collections::HashMap;
+use std::fs::OpenOptions;
 use std::future::Future;
+use std::io::Write;
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::UnboundedReceiver;
+use unicode_width::UnicodeWidthStr;
 
 use crate::api::streaming::{SseReader, StreamEvent};
 use crate::api::types::{
@@ -32,6 +37,7 @@ const INPUT_HINT_BUSY: &str = "request in progress... wait or /quit";
 const STREAM_ASSISTANT_TITLE: &str = "Chat";
 const DEFAULT_LABEL_OUTPUT_PATH: &str = "corpus/labelled/sample.csv";
 const DEFAULT_LABEL_CORPUS_PATH: &str = "corpus/clean/tort/corpus.json";
+const CHAT_IO_LOG_PATH: &str = "data/logs/chat_io.log";
 
 #[derive(Debug)]
 enum PendingOp {
@@ -146,6 +152,7 @@ pub struct ChatScreen {
     scroll: u16,
     follow_stream: bool,
     last_transcript_height: u16,
+    last_transcript_width: u16,
     pending: Option<PendingOp>,
     pending_confirmation: Option<PendingConfirmation>,
     runtime_ctx: ChatRuntimeContext,
@@ -185,6 +192,7 @@ impl ChatScreen {
             scroll: 0,
             follow_stream: true,
             last_transcript_height: 0,
+            last_transcript_width: 0,
             pending: None,
             pending_confirmation: None,
             runtime_ctx: ChatRuntimeContext::default(),
@@ -199,7 +207,10 @@ impl ChatScreen {
     }
 
     fn add_message(&mut self, role: ChatRole, content: impl Into<String>) {
-        self.messages.push(ChatMessage::new(role, content));
+        let content: String = content.into();
+        self.messages
+            .push(ChatMessage::new(role.clone(), content.clone()));
+        Self::append_chat_log_entry(&role, &content);
         self.scroll_to_bottom();
     }
 
@@ -208,8 +219,7 @@ impl ChatScreen {
     }
 
     fn scroll_to_bottom(&mut self) {
-        let lines = self.transcript_line_count();
-        self.scroll = lines.saturating_sub(1) as u16;
+        self.scroll = self.max_scroll(self.last_transcript_height, self.last_transcript_width);
         self.follow_stream = true;
     }
 
@@ -1912,12 +1922,17 @@ impl ChatScreen {
                     content.push_str(response.analysis.trim());
                 }
                 // display ML confidence scores if present
-                let scores: Vec<String> = ["topic_coverage", "structural_completeness", "quality_score"]
-                    .iter()
-                    .filter_map(|key| {
-                        response.metadata.get(*key).and_then(|v| v.as_f64()).map(|s| format!("{}: {:.2}", key, s))
-                    })
-                    .collect();
+                let scores: Vec<String> =
+                    ["topic_coverage", "structural_completeness", "quality_score"]
+                        .iter()
+                        .filter_map(|key| {
+                            response
+                                .metadata
+                                .get(*key)
+                                .and_then(|v| v.as_f64())
+                                .map(|s| format!("{}: {:.2}", key, s))
+                        })
+                        .collect();
                 if !scores.is_empty() {
                     content.push_str(&format!("\n\n[ML scores] {}", scores.join(" | ")));
                 }
@@ -2548,13 +2563,28 @@ impl ChatScreen {
         format!("Stream error [{}]: {}", code, message)
     }
 
-    fn transcript_line_count(&self) -> usize {
+    fn transcript_line_count(&self, transcript_width: u16) -> usize {
+        let inner_width = transcript_width.saturating_sub(2) as usize;
+        if inner_width == 0 {
+            return 1;
+        }
+
         let mut total = 0usize;
         for (idx, message) in self.messages.iter().enumerate() {
             let count = if message.content.is_empty() {
                 1
             } else {
-                message.content.lines().count().max(1)
+                let mut wrapped = 0usize;
+                for (line_idx, raw_line) in message.content.lines().enumerate() {
+                    let prefix_width = if line_idx == 0 {
+                        UnicodeWidthStr::width(message.role.prefix()) + 1
+                    } else {
+                        6
+                    };
+                    let line_width = prefix_width + UnicodeWidthStr::width(raw_line);
+                    wrapped += line_width.max(1).div_ceil(inner_width);
+                }
+                wrapped.max(1)
             };
             total += count;
             if idx + 1 < self.messages.len() {
@@ -2564,12 +2594,12 @@ impl ChatScreen {
         total.max(1)
     }
 
-    fn max_scroll(&self, transcript_height: u16) -> u16 {
+    fn max_scroll(&self, transcript_height: u16, transcript_width: u16) -> u16 {
         let viewport_lines = transcript_height.saturating_sub(2) as usize;
         if viewport_lines == 0 {
             return 0;
         }
-        self.transcript_line_count()
+        self.transcript_line_count(transcript_width)
             .saturating_sub(viewport_lines)
             .min(u16::MAX as usize) as u16
     }
@@ -2710,7 +2740,7 @@ impl ChatScreen {
 
     fn input_height(&self, area_width: u16) -> u16 {
         let inner_width = area_width.saturating_sub(2).max(1) as usize;
-        let chars = self.input.chars().count().saturating_add(1);
+        let chars = UnicodeWidthStr::width(self.input.as_str()).saturating_add(1);
         let wrapped = chars.div_ceil(inner_width).max(1);
         (wrapped as u16 + 2).clamp(3, 6)
     }
@@ -2747,6 +2777,51 @@ impl ChatScreen {
             message = message[..pos].to_string();
         }
         message
+    }
+
+    fn chat_log_path() -> PathBuf {
+        PathBuf::from(CHAT_IO_LOG_PATH)
+    }
+
+    fn append_chat_log_entry(role: &ChatRole, content: &str) {
+        let path = Self::chat_log_path();
+        if let Some(parent) = path.parent() {
+            if std::fs::create_dir_all(parent).is_err() {
+                return;
+            }
+        }
+        let mut file = match OpenOptions::new().create(true).append(true).open(path) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
+
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
+        let role_label = match role {
+            ChatRole::User => "user",
+            ChatRole::Assistant => "assistant",
+            ChatRole::Meta => "meta",
+        };
+        let content = if content.is_empty() {
+            "<empty>"
+        } else {
+            content
+        };
+
+        let _ = writeln!(
+            file,
+            "ts={}.{:03} role={} mode={} bytes={}",
+            ts.as_secs(),
+            ts.subsec_millis(),
+            role_label,
+            TuiState::load().ui_mode.label(),
+            content.len()
+        );
+        for line in content.lines() {
+            let _ = writeln!(file, "{}", line);
+        }
+        let _ = writeln!(file, "---");
     }
 
     fn task_payload_type(payload: &TaskPayload) -> &'static str {
@@ -2883,7 +2958,11 @@ impl Screen for ChatScreen {
         }
 
         // ctrl+c cancels active stream without quitting
-        if key.code == KeyCode::Char('c') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+        if key.code == KeyCode::Char('c')
+            && key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+        {
             if self.pending.is_some() {
                 self.cancel_pending();
                 self.add_meta("Stream interrupted.");
@@ -2905,7 +2984,8 @@ impl Screen for ChatScreen {
             }
             KeyCode::Down => {
                 if !self.move_autocomplete_selection(false) {
-                    let max_scroll = self.max_scroll(self.last_transcript_height);
+                    let max_scroll =
+                        self.max_scroll(self.last_transcript_height, self.last_transcript_width);
                     self.scroll = self.scroll.saturating_add(1).min(max_scroll);
                     self.follow_stream = self.scroll >= max_scroll;
                 }
@@ -2917,7 +2997,8 @@ impl Screen for ChatScreen {
                 return ScreenAction::None;
             }
             KeyCode::PageDown => {
-                let max_scroll = self.max_scroll(self.last_transcript_height);
+                let max_scroll =
+                    self.max_scroll(self.last_transcript_height, self.last_transcript_width);
                 self.scroll = self.scroll.saturating_add(8).min(max_scroll);
                 self.follow_stream = self.scroll >= max_scroll;
                 return ScreenAction::None;
@@ -2962,7 +3043,13 @@ impl Screen for ChatScreen {
                 theme::border()
             });
         self.last_transcript_height = chunks[0].height;
-        self.scroll = self.scroll.min(self.max_scroll(chunks[0].height));
+        self.last_transcript_width = chunks[0].width;
+        let max_scroll = self.max_scroll(chunks[0].height, chunks[0].width);
+        self.scroll = if self.follow_stream {
+            max_scroll
+        } else {
+            self.scroll.min(max_scroll)
+        };
         let transcript_lines = self.transcript_lines();
         let transcript = Paragraph::new(transcript_lines)
             .block(transcript_block)
