@@ -10,6 +10,7 @@ import structlog
 from ..domain import canonicalize_topic
 from .corpus_service import corpus_service
 from .database_service import GenerationReport, database_service
+from .hypo_generator import hypo_generator
 from .hypothetical_service import (
     GenerationRequest,
     GenerationResponse,
@@ -151,10 +152,43 @@ class WorkflowFacade:
                 "topic_extraction_time_ms": extraction_time_ms,
             }
         )
+        # route through ML hypo_generator (default) or fallback to LLM
+        method = getattr(prepared_request, "method", "ml")
+        if method != "pure_llm":
+            try:
+                ml_result = await hypo_generator.generate(
+                    topics=canonical_topics,
+                    complexity=self._resolve_complexity(prepared_request),
+                    num_parties=getattr(prepared_request, "number_parties", 3),
+                )
+                response = GenerationResponse(
+                    hypothetical=ml_result["text"],
+                    analysis="",
+                    metadata={
+                        "method": "ml",
+                        "confidence": ml_result.get("confidence", {}),
+                        "is_diverse": ml_result.get("is_diverse", True),
+                        "topics": ml_result["topics"],
+                        "generation_id": ml_result.get("generation_id", ""),
+                    },
+                    validation_results={"passed": True},
+                )
+                return GenerationExecutionResult(request=prepared_request, response=response)
+            except Exception as e:
+                logger.warning("ML generation failed, falling back to LLM", error=str(e))
         response = await self._hypothetical_service.generate_hypothetical(
             prepared_request
         )
         return GenerationExecutionResult(request=prepared_request, response=response)
+
+    @staticmethod
+    def _resolve_complexity(request: GenerationRequest) -> int:
+        """Map complexity_level string to int 1-5."""
+        level = getattr(request, "complexity_level", "intermediate")
+        mapping = {"beginner": 1, "basic": 2, "intermediate": 3, "advanced": 4, "expert": 5}
+        if isinstance(level, int):
+            return max(1, min(level, 5))
+        return mapping.get(str(level).lower(), 3)
 
     async def save_generation_report(
         self,
