@@ -130,16 +130,14 @@ class WorkflowFacade:
             extraction_time_ms,
             available_topics,
         ) = await self._validate_topics(request.topics)
-        invalid_topics = [
+        missing_reference_topics = [
             topic for topic in canonical_topics if topic not in available_topics
         ]
-        if invalid_topics:
-            raise WorkflowFacadeError(
-                (
-                    f"Invalid topics: {invalid_topics}. "
-                    f"Available topics: {available_topics[:10]}..."
-                ),
-                status_code=400,
+        if missing_reference_topics:
+            logger.warning(
+                "Requested topics missing from corpus references; continuing generation",
+                missing_topics=missing_reference_topics,
+                available_topics_count=len(available_topics),
             )
 
         resolved_correlation_id = (
@@ -173,9 +171,13 @@ class WorkflowFacade:
                     },
                     validation_results={"passed": True},
                 )
-                return GenerationExecutionResult(request=prepared_request, response=response)
+                return GenerationExecutionResult(
+                    request=prepared_request, response=response
+                )
             except Exception as e:
-                logger.warning("ML generation failed, falling back to LLM", error=str(e))
+                logger.warning(
+                    "ML generation failed, falling back to LLM", error=str(e)
+                )
         response = await self._hypothetical_service.generate_hypothetical(
             prepared_request
         )
@@ -185,7 +187,13 @@ class WorkflowFacade:
     def _resolve_complexity(request: GenerationRequest) -> int:
         """Map complexity_level string to int 1-5."""
         level = getattr(request, "complexity_level", "intermediate")
-        mapping = {"beginner": 1, "basic": 2, "intermediate": 3, "advanced": 4, "expert": 5}
+        mapping = {
+            "beginner": 1,
+            "basic": 2,
+            "intermediate": 3,
+            "advanced": 4,
+            "expert": 5,
+        }
         if isinstance(level, int):
             return max(1, min(level, 5))
         return mapping.get(str(level).lower(), 3)

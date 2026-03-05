@@ -146,6 +146,7 @@ impl GenerateScreen {
                     "red_herrings".into(),
                     serde_json::json!(self.config.red_herrings),
                 );
+                m.insert("provider_timeout_seconds".into(), serde_json::json!(120));
                 m
             }),
             method: self.config.method.clone(),

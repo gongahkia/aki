@@ -29,7 +29,7 @@ class LLMSettings(BaseSettings):
     model_name: str = Field(default="llama2:7b", env="LLM_MODEL")
     temperature: float = Field(default=0.7, env="LLM_TEMPERATURE")
     max_tokens: int = Field(default=2048, env="LLM_MAX_TOKENS")
-    timeout: int = Field(default=30, env="LLM_TIMEOUT")
+    timeout: int = Field(default=120, env="LLM_TIMEOUT")
 
     # Ollama specific settings
     ollama_host: str = Field(default="http://localhost:11434", env="OLLAMA_HOST")
@@ -56,7 +56,9 @@ class APISettings(BaseSettings):
     host: str = Field(default="127.0.0.1", env="API_HOST")
     port: int = Field(default=8000, env="API_PORT")
     debug: bool = Field(default=False, env="API_DEBUG")
-    cors_origins: List[str] = Field(default=["http://127.0.0.1:8000"], env="API_CORS_ORIGINS")
+    cors_origins: List[str] = Field(
+        default=["http://127.0.0.1:8000"], env="API_CORS_ORIGINS"
+    )
     rate_limit: int = Field(default=100, env="API_RATE_LIMIT")
     rate_limiter_max_buckets: int = Field(
         default=10000, env="API_RATE_LIMITER_MAX_BUCKETS"
@@ -156,7 +158,9 @@ class LLMProviderSettings(BaseSettings):
     local_llm_host: Optional[str] = Field(default=None, env="LOCAL_LLM_HOST")
     default_provider: str = Field(default="ollama", env="DEFAULT_PROVIDER")
     default_model: str = Field(default="llama2:7b", env="DEFAULT_MODEL")
-    circuit_breaker_cooldown: int = Field(default=60, env="CIRCUIT_BREAKER_COOLDOWN_SECONDS")
+    circuit_breaker_cooldown: int = Field(
+        default=60, env="CIRCUIT_BREAKER_COOLDOWN_SECONDS"
+    )
 
     class Config:
         env_prefix = ""

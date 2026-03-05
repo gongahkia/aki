@@ -1565,6 +1565,7 @@ impl ChatScreen {
             "temperature".into(),
             serde_json::json!(self.config.temperature),
         );
+        user_preferences.insert("provider_timeout_seconds".into(), serde_json::json!(120));
 
         let request = GenerationRequest {
             topics: topics.clone(),

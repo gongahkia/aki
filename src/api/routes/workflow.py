@@ -2,10 +2,12 @@
 
 from typing import Any, Dict, List, Optional
 
+import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 
 class GenerateRequest(BaseModel):
@@ -34,6 +36,36 @@ class ReportRequest(BaseModel):
     comment: Optional[str] = None
     correlation_id: Optional[str] = None
     is_locked: bool = True
+
+
+def _raise_mapped_http_exception(exc: Exception, *, operation: str):
+    from ...services.error_mapper import map_exception
+    from ...services.workflow_facade import WorkflowFacadeError
+
+    if isinstance(exc, WorkflowFacadeError):
+        default_status = exc.status_code
+    elif isinstance(exc, ValueError):
+        default_status = 400
+    else:
+        default_status = 500
+
+    logger.error(
+        "Workflow operation failed",
+        operation=operation,
+        error=str(exc),
+        default_status=default_status,
+        exc_info=True,
+    )
+    err = map_exception(exc, default_status=default_status)
+    raise HTTPException(
+        status_code=err.http_status,
+        detail={
+            "code": err.code,
+            "message": err.message,
+            "hint": err.hint,
+            "retryable": err.retryable,
+        },
+    )
 
 
 @router.post("/generate")
@@ -66,18 +98,7 @@ async def generate(req: GenerateRequest):
             "metadata": result.response.metadata,
         }
     except Exception as e:
-        from ...services.error_mapper import map_exception
-
-        err = map_exception(e)
-        raise HTTPException(
-            status_code=err.http_status,
-            detail={
-                "code": err.code,
-                "message": err.message,
-                "hint": err.hint,
-                "retryable": err.retryable,
-            },
-        )
+        _raise_mapped_http_exception(e, operation="generate")
 
 
 @router.post("/regenerate")
@@ -103,18 +124,7 @@ async def regenerate(req: RegenerateRequest):
             },
         }
     except Exception as e:
-        from ...services.error_mapper import map_exception
-
-        err = map_exception(e)
-        raise HTTPException(
-            status_code=err.http_status,
-            detail={
-                "code": err.code,
-                "message": err.message,
-                "hint": err.hint,
-                "retryable": err.retryable,
-            },
-        )
+        _raise_mapped_http_exception(e, operation="regenerate")
 
 
 @router.post("/report")
