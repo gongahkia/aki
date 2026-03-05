@@ -1,16 +1,21 @@
 """Shared generation/report/regeneration orchestration for API and TUI surfaces."""
 
+import asyncio
+import csv
+import json
 import time
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import structlog
 
+from ..config import settings
 from ..domain import canonicalize_topic
 from .corpus_service import corpus_service
 from .database_service import GenerationReport, database_service
-from .hypo_generator import hypo_generator
+from .hypo_generator import hypo_generator as default_hypo_generator
 from .hypothetical_service import (
     GenerationRequest,
     GenerationResponse,
@@ -19,6 +24,7 @@ from .hypothetical_service import (
 from .topic_guard import canonicalize_and_validate_topics
 
 logger = structlog.get_logger(__name__)
+ML_FEEDBACK_MARKER = "[ML_FOUNDATION]"
 
 
 class WorkflowFacadeError(Exception):
@@ -56,10 +62,16 @@ class WorkflowFacade:
         corpus_service: Any = corpus_service,
         hypothetical_service: Any = hypothetical_service,
         database_service: Any = database_service,
+        hypo_generator: Any = default_hypo_generator,
+        require_ml_training: bool = True,
     ):
         self._corpus_service = corpus_service
         self._hypothetical_service = hypothetical_service
         self._database_service = database_service
+        self._hypo_generator = hypo_generator
+        self._require_ml_training = require_ml_training
+        self._ml_ready = False
+        self._ml_ready_lock = asyncio.Lock()
 
     @staticmethod
     def _extract_validation_failure_reasons(response: Dict[str, Any]) -> List[str]:
@@ -118,6 +130,317 @@ class WorkflowFacade:
         extraction_time_ms = round((time.perf_counter() - extraction_started) * 1000, 2)
         return canonical_topics, extraction_time_ms, available_topics
 
+    @staticmethod
+    def _summarize_ml_seed(seed_text: str, max_chars: int = 520) -> str:
+        condensed = " ".join(str(seed_text or "").split())
+        if len(condensed) <= max_chars:
+            return condensed
+        return f"{condensed[: max_chars - 3]}..."
+
+    @staticmethod
+    def _append_ml_feedback(
+        user_preferences: Dict[str, Any], *, ml_seed: str, ml_quality: Optional[float]
+    ) -> Dict[str, Any]:
+        existing_feedback = str(user_preferences.get("feedback", "")).strip()
+        if ML_FEEDBACK_MARKER in existing_feedback:
+            return user_preferences
+        quality_note = (
+            f"quality_score={ml_quality:.2f}"
+            if isinstance(ml_quality, (int, float))
+            else "quality_score=unknown"
+        )
+        ml_feedback = (
+            f"{ML_FEEDBACK_MARKER} Use the ML draft as scaffolding only and rewrite it "
+            f"into a fresh, coherent scenario. Seed draft: {ml_seed}. {quality_note}."
+        )
+        user_preferences["feedback"] = (
+            f"{existing_feedback} {ml_feedback}".strip()
+            if existing_feedback
+            else ml_feedback
+        )
+        return user_preferences
+
+    @staticmethod
+    def _entry_topics(entry: Dict[str, Any]) -> List[str]:
+        raw = entry.get("topics", entry.get("topic", []))
+        if isinstance(raw, str):
+            candidate_topics = [raw]
+        elif isinstance(raw, (list, tuple, set)):
+            candidate_topics = [str(v) for v in raw]
+        else:
+            return []
+        resolved: List[str] = []
+        for topic in candidate_topics:
+            normalized = str(topic).strip()
+            if not normalized:
+                continue
+            try:
+                normalized = canonicalize_topic(normalized)
+            except Exception:
+                normalized = normalized.lower().replace(" ", "_")
+            if normalized not in resolved:
+                resolved.append(normalized)
+        return resolved
+
+    @staticmethod
+    def _estimate_complexity_score(text: str) -> int:
+        text_len = len(text)
+        if text_len < 700:
+            return 2
+        if text_len < 1500:
+            return 3
+        if text_len < 2600:
+            return 4
+        return 5
+
+    @staticmethod
+    def _estimate_quality_score(text: str) -> float:
+        text_len = len(text)
+        if text_len < 500:
+            return 0.62
+        if text_len < 1200:
+            return 0.72
+        if text_len < 2200:
+            return 0.80
+        return 0.87
+
+    def _bootstrap_training_data_from_corpus(
+        self, output_path: str, *, correlation_id: Optional[str]
+    ) -> Optional[str]:
+        corpus_path = Path(getattr(settings, "corpus_path", "corpus/clean/tort/corpus.json"))
+        if not corpus_path.exists():
+            logger.error(
+                "Cannot bootstrap ML training data: corpus missing",
+                corpus_path=str(corpus_path),
+                correlation_id=correlation_id,
+            )
+            return None
+
+        try:
+            raw_payload = json.loads(corpus_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.error(
+                "Cannot bootstrap ML training data: corpus parse failed",
+                corpus_path=str(corpus_path),
+                error=str(exc),
+                correlation_id=correlation_id,
+            )
+            return None
+
+        if isinstance(raw_payload, dict):
+            entries = raw_payload.get("entries")
+            if not isinstance(entries, list):
+                entries = raw_payload.get("cases")
+            if not isinstance(entries, list):
+                entries = []
+        elif isinstance(raw_payload, list):
+            entries = raw_payload
+        else:
+            entries = []
+
+        rows: List[Dict[str, Any]] = []
+        for idx, item in enumerate(entries):
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("text", "")).strip()
+            if not text:
+                continue
+            topics = self._entry_topics(item)
+            if not topics:
+                continue
+            rows.append(
+                {
+                    "id": str(item.get("id", idx)),
+                    "text": text,
+                    "topics": "|".join(topics),
+                    "complexity": self._estimate_complexity_score(text),
+                    "quality_score": self._estimate_quality_score(text),
+                }
+            )
+
+        if len(rows) < 2:
+            logger.error(
+                "Cannot bootstrap ML training data: insufficient labelled rows",
+                rows=len(rows),
+                corpus_entries=len(entries),
+                correlation_id=correlation_id,
+            )
+            return None
+
+        output = Path(output_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with output.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=["id", "text", "topics", "complexity", "quality_score"],
+            )
+            writer.writeheader()
+            writer.writerows(rows)
+
+        logger.info(
+            "Bootstrapped ML training data from corpus",
+            output_path=str(output),
+            rows=len(rows),
+            correlation_id=correlation_id,
+        )
+        return str(output)
+
+    async def _ensure_required_ml_training(self, *, correlation_id: Optional[str]) -> None:
+        if not self._require_ml_training or self._ml_ready:
+            return
+
+        async with self._ml_ready_lock:
+            if self._ml_ready:
+                return
+
+            try:
+                from ..ml.pipeline import MLPipeline
+            except Exception as exc:
+                logger.error(
+                    "ML pipeline import failed",
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+                raise WorkflowFacadeError(
+                    "Required ML pipeline is unavailable; cannot generate.",
+                    status_code=500,
+                ) from exc
+
+            models_dir = str(getattr(settings.ml, "models_dir", "models"))
+            pipeline = MLPipeline(models_dir=models_dir)
+            try:
+                pipeline.load_all()
+            except Exception as exc:
+                logger.warning(
+                    "ML pipeline load failed; will retrain",
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+
+            status = pipeline.get_status()
+            is_ready = (
+                bool(status.get("classifier_trained"))
+                and bool(status.get("regressor_trained"))
+                and bool(status.get("clusterer_trained"))
+                and getattr(pipeline, "_vectorizer", None) is not None
+                and getattr(pipeline, "_binarizer", None) is not None
+            )
+            if is_ready:
+                self._ml_ready = True
+                return
+
+            configured_data_path = str(
+                getattr(settings.ml, "training_data_path", "corpus/labelled/tort_labels.csv")
+            )
+            candidate_paths = [
+                configured_data_path,
+                "corpus/labelled/tort_labels.csv",
+                "corpus/labelled/sample.csv",
+                "data/generated/ml_bootstrap_labels.csv",
+            ]
+            data_path = next((p for p in candidate_paths if Path(p).exists()), "")
+            if not data_path:
+                data_path = self._bootstrap_training_data_from_corpus(
+                    "data/generated/ml_bootstrap_labels.csv",
+                    correlation_id=correlation_id,
+                ) or ""
+            if not data_path:
+                raise WorkflowFacadeError(
+                    f"Required ML training data not found at '{configured_data_path}' "
+                    "and bootstrap from corpus failed.",
+                    status_code=500,
+                )
+
+            n_clusters = int(getattr(settings.ml, "default_n_clusters", 5))
+            max_features = int(getattr(settings.ml, "max_features", 5000))
+            logger.info(
+                "Training required ML models before generation",
+                data_path=data_path,
+                n_clusters=n_clusters,
+                max_features=max_features,
+                correlation_id=correlation_id,
+            )
+            try:
+                await asyncio.to_thread(
+                    pipeline.train_all,
+                    data_path,
+                    None,
+                    n_clusters,
+                    max_features,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Required ML training failed",
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+                raise WorkflowFacadeError(
+                    "Required ML training failed; generation blocked.",
+                    status_code=500,
+                ) from exc
+            self._ml_ready = True
+
+    async def _prepare_combined_request(
+        self, request: GenerationRequest
+    ) -> tuple[GenerationRequest, Dict[str, Any]]:
+        await self._ensure_required_ml_training(correlation_id=request.correlation_id)
+        complexity = self._resolve_complexity(request)
+        try:
+            ml_result = await self._hypo_generator.generate(
+                topics=request.topics,
+                complexity=complexity,
+                num_parties=request.number_parties,
+            )
+        except Exception as exc:
+            logger.error(
+                "ML foundation stage failed",
+                error=str(exc),
+                correlation_id=request.correlation_id,
+            )
+            raise WorkflowFacadeError(
+                "ML foundation stage failed; cannot proceed with combined generation.",
+                status_code=500,
+            ) from exc
+
+        ml_seed = self._summarize_ml_seed(ml_result.get("text", ""))
+        ml_confidence = ml_result.get("confidence") or {}
+        ml_quality = ml_confidence.get("overall")
+        user_preferences = dict(request.user_preferences or {})
+        user_preferences["ml_foundation"] = {
+            "generation_id": ml_result.get("generation_id"),
+            "quality_score": ml_quality,
+            "is_diverse": bool(ml_result.get("is_diverse", True)),
+            "topics": ml_result.get("topics", request.topics),
+        }
+        user_preferences = self._append_ml_feedback(
+            user_preferences, ml_seed=ml_seed, ml_quality=ml_quality
+        )
+        combined_request = request.model_copy(
+            update={
+                # Force combined generation path for all requests.
+                "method": "hybrid",
+                "user_preferences": user_preferences,
+            }
+        )
+        return combined_request, ml_result
+
+    @staticmethod
+    def _attach_combined_metadata(
+        response: GenerationResponse,
+        *,
+        ml_result: Dict[str, Any],
+    ) -> GenerationResponse:
+        metadata = dict(response.metadata or {})
+        metadata.update(
+            {
+                "orchestration_mode": "ml_plus_llm",
+                "ml_foundation_generation_id": ml_result.get("generation_id"),
+                "ml_foundation_confidence": ml_result.get("confidence", {}),
+                "ml_foundation_is_diverse": bool(ml_result.get("is_diverse", True)),
+            }
+        )
+        return response.model_copy(update={"metadata": metadata})
+
     async def generate_generation(
         self,
         request: GenerationRequest,
@@ -150,38 +473,10 @@ class WorkflowFacade:
                 "topic_extraction_time_ms": extraction_time_ms,
             }
         )
-        # route through ML hypo_generator (default) or fallback to LLM
-        method = getattr(prepared_request, "method", "ml")
-        if method != "pure_llm":
-            try:
-                ml_result = await hypo_generator.generate(
-                    topics=canonical_topics,
-                    complexity=self._resolve_complexity(prepared_request),
-                    num_parties=getattr(prepared_request, "number_parties", 3),
-                )
-                response = GenerationResponse(
-                    hypothetical=ml_result["text"],
-                    analysis="",
-                    metadata={
-                        "method": "ml",
-                        "confidence": ml_result.get("confidence", {}),
-                        "is_diverse": ml_result.get("is_diverse", True),
-                        "topics": ml_result["topics"],
-                        "generation_id": ml_result.get("generation_id", ""),
-                    },
-                    validation_results={"passed": True},
-                )
-                return GenerationExecutionResult(
-                    request=prepared_request, response=response
-                )
-            except Exception as e:
-                logger.warning(
-                    "ML generation failed, falling back to LLM", error=str(e)
-                )
-        response = await self._hypothetical_service.generate_hypothetical(
-            prepared_request
-        )
-        return GenerationExecutionResult(request=prepared_request, response=response)
+        combined_request, ml_result = await self._prepare_combined_request(prepared_request)
+        response = await self._hypothetical_service.generate_hypothetical(combined_request)
+        response = self._attach_combined_metadata(response, ml_result=ml_result)
+        return GenerationExecutionResult(request=combined_request, response=response)
 
     @staticmethod
     def _resolve_complexity(request: GenerationRequest) -> int:
@@ -374,7 +669,7 @@ class WorkflowFacade:
             ),
             sample_size=request_data.get("sample_size", fallback.get("sample_size", 3)),
             user_preferences=user_preferences,
-            method=request_data.get("method", fallback.get("method", "pure_llm")),
+            method=request_data.get("method", fallback.get("method", "hybrid")),
             provider=request_data.get("provider", fallback.get("provider")),
             model=request_data.get("model", fallback.get("model")),
             include_analysis=bool(
@@ -388,9 +683,13 @@ class WorkflowFacade:
             correlation_id=correlation_id or str(uuid.uuid4()),
         )
 
-        regenerated = await self._hypothetical_service.generate_hypothetical(
+        combined_request, ml_result = await self._prepare_combined_request(
             regenerate_request
         )
+        regenerated = await self._hypothetical_service.generate_hypothetical(
+            combined_request
+        )
+        regenerated = self._attach_combined_metadata(regenerated, ml_result=ml_result)
         return RegenerationExecutionResult(
             source_generation_id=generation_id,
             feedback_context=feedback_context,

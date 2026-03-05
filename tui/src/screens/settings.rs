@@ -47,13 +47,12 @@ impl Screen for SettingsScreen {
                         0 => {
                             let state = TuiState::load();
                             let text = format!(
-                                "Provider: {}\nModel: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nMethod: {}\nInclude Analysis: {}",
+                                "Provider: {}\nModel: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nInclude Analysis: {}\nML Training: required before generation",
                                 state.last_config.provider,
                                 state.last_config.model.as_deref().unwrap_or("default"),
                                 state.last_config.temperature,
                                 state.last_config.complexity,
                                 state.last_config.parties,
-                                state.last_config.method,
                                 if state.last_config.include_analysis { "yes" } else { "no" },
                             );
                             self.phase = Phase::View(text);

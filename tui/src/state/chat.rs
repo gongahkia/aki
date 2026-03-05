@@ -518,11 +518,6 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
         if let Some(parties) = extract_u32_after_keywords(&words, &["parties", "party"]) {
             args.named.insert("parties".into(), parties.to_string());
         }
-        if lower.contains("pure llm") || lower.contains("pure_llm") {
-            args.named.insert("method".into(), "pure_llm".into());
-        } else if lower.contains("hybrid") {
-            args.named.insert("method".into(), "hybrid".into());
-        }
         if lower.contains("without analysis") || lower.contains("no analysis") {
             args.named.insert("analysis".into(), "false".into());
         } else if lower.contains("with analysis") || lower.contains("include analysis") {
@@ -553,12 +548,6 @@ pub fn infer_chat_intent(input: &str) -> ChatIntent {
 
     if contains_any_phrase(&lower, &["preprocess", "import corpus", "prepare corpus"]) {
         return ChatIntent::Command(ChatCommand::Preprocess(CommandArgs::default()));
-    }
-    if (contains_any_word(&words, &["train", "retrain"])
-        && contains_any_word(&words, &["model", "models", "classifier", "regressor"]))
-        || contains_any_phrase(&lower, &["train models"])
-    {
-        return ChatIntent::Command(ChatCommand::Train(CommandArgs::default()));
     }
     if contains_any_phrase(
         &lower,

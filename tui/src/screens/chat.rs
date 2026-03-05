@@ -596,7 +596,7 @@ impl ChatScreen {
                 };
                 self.runtime_ctx.last_topics = topics.clone();
                 self.add_meta(format!(
-                    "Generating hypothetical for topics: {}",
+                    "Step 1/2: ensuring required ML training. Step 2/2: generating hypothetical for topics: {}",
                     topics.join(", ")
                 ));
                 self.start_task(TaskKind::Hypo, {
@@ -1229,13 +1229,12 @@ impl ChatScreen {
                 } else {
                     let state = TuiState::load();
                     let text = format!(
-                        "Provider: {}\nModel: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nMethod: {}\nInclude Analysis: {}",
+                        "Provider: {}\nModel: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nInclude Analysis: {}\nML Training: required before generation",
                         state.last_config.provider,
                         state.last_config.model.as_deref().unwrap_or("default"),
                         state.last_config.temperature,
                         state.last_config.complexity,
                         state.last_config.parties,
-                        state.last_config.method,
                         if state.last_config.include_analysis {
                             "yes"
                         } else {
@@ -1527,7 +1526,7 @@ impl ChatScreen {
             args.positionals.join(",")
         } else {
             return Err(
-                "Usage: /hypo <topic1,topic2,...> [complexity=1-5|level] [parties=2-5] [method=hybrid|pure_llm] [analysis=true|false]"
+                "Usage: /hypo <topic1,topic2,...> [complexity=1-5|level] [parties=2-5] [analysis=true|false]"
                     .into(),
             );
         };
@@ -1546,11 +1545,6 @@ impl ChatScreen {
         } else {
             state.last_config.parties.parse::<u32>().unwrap_or(2)
         };
-
-        let method = args
-            .get("method")
-            .map(str::to_string)
-            .unwrap_or(state.last_config.method);
 
         let include_analysis = if let Some(raw) = args.get("analysis") {
             self.parse_bool(raw).ok_or_else(|| {
@@ -1574,7 +1568,7 @@ impl ChatScreen {
             complexity_level,
             sample_size: 3,
             user_preferences: Some(user_preferences),
-            method,
+            method: "hybrid".into(),
             provider: Some(self.config.provider.clone()),
             model: self.config.model.clone(),
             include_analysis,
@@ -2241,7 +2235,6 @@ impl ChatScreen {
             "validate",
             "preprocess",
             "scrape",
-            "train",
             "embed",
             "export",
             "cleanup",
@@ -2331,7 +2324,6 @@ impl ChatScreen {
             "validate",
             "preprocess",
             "scrape",
-            "train",
             "embed",
             "export",
             "cleanup",
@@ -2359,7 +2351,7 @@ impl ChatScreen {
             "model" => Some("/model [name]"),
             "ollama" => Some("/ollama serve | /ollama status | /ollama stop"),
             "temp" => Some("/temp <0.0-2.0>"),
-            "hypo" => Some("/hypo <topic1,topic2,...> [complexity=] [parties=] [method=]"),
+            "hypo" => Some("/hypo <topic1,topic2,...> [complexity=] [parties=] [analysis=]"),
             "regenerate" => Some("/regenerate <generation_id|last>"),
             "report" => Some("/report <generation_id|last> issue=<csv> [comment=\"...\"]"),
             "reports" => Some("/reports <generation_id|last>"),
@@ -2370,7 +2362,6 @@ impl ChatScreen {
             "validate" => Some("/validate required=<csv> [parties=<n>] [text=\"...\"]"),
             "preprocess" => Some("/preprocess [raw_dir=] [output_path=] [merge=true|false]"),
             "scrape" => Some("/scrape source=<commonlii|judiciary|sicc|gazette>"),
-            "train" => Some("/train [data_path=] [n_clusters=]"),
             "embed" => Some("/embed [corpus_path=] [batch_size=]"),
             "export" => Some("/export [format=docx|pdf] [generation_id=<id|last>]"),
             "cleanup" => Some("/cleanup targets=<csv>"),
@@ -2474,7 +2465,7 @@ impl ChatScreen {
             "history" => vec!["/generation last", "/regenerate last", "/stats"],
             "label" => vec!["/label set negligence", "/label skip", "/label done"],
             "label_done_pending" => vec!["/label done", "/label start", "/topics"],
-            "label_saved" => vec!["/train", "/embed", "/history limit=20"],
+            "label_saved" => vec!["/embed", "/history limit=20", "/topics"],
             "providers" => vec!["/models", "/provider ollama", "/hypo negligence,causation"],
             "ollama" => vec!["/ollama status", "/provider ollama", "/providers"],
             "corpus" => vec![
@@ -2894,7 +2885,7 @@ impl ChatScreen {
 /providers
 
 /generation
-/hypo <topic1,topic2,...> [complexity=1-5|level] [parties=<n>] [method=<name>] [analysis=true|false]
+/hypo <topic1,topic2,...> [complexity=1-5|level] [parties=<n>] [analysis=true|false]
 /regenerate <generation_id|last>
 /report <generation_id|last> issue=<csv> [comment=\"...\"]
 /reports <generation_id|last>
@@ -2909,7 +2900,6 @@ impl ChatScreen {
 /jobs
 /preprocess [raw_dir=<path>] [output_path=<path>] [merge=true|false] [include_non_tort=true|false]
 /scrape source=<commonlii|judiciary|sicc|gazette> [max_cases=<n>] [courts=<csv>] [years=<csv>] [tort_only=true|false]
-/train [data_path=<path>] [n_clusters=<n>]
 /embed [corpus_path=<path>] [batch_size=<n>]
 /export [format=docx|pdf] [generation_id=<id|last>] [output_path=<path>]
 /cleanup targets=<csv>

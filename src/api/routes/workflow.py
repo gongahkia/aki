@@ -17,7 +17,7 @@ class GenerateRequest(BaseModel):
     complexity_level: str = "intermediate"
     sample_size: int = Field(default=3, ge=1, le=10)
     user_preferences: Optional[Dict[str, Any]] = None
-    method: str = "pure_llm"
+    method: str = "hybrid"
     provider: Optional[str] = None
     model: Optional[str] = None
     include_analysis: bool = True
@@ -80,7 +80,7 @@ async def generate(req: GenerateRequest):
         complexity_level=req.complexity_level,
         sample_size=req.sample_size,
         user_preferences=req.user_preferences,
-        method=req.method,
+        method="hybrid",
         provider=req.provider,
         model=req.model,
         include_analysis=req.include_analysis,

@@ -9,6 +9,20 @@ from src.services.hypothetical_service import GenerationRequest, GenerationRespo
 from src.services.workflow_facade import WorkflowFacade, WorkflowFacadeError
 
 
+def _mock_hypo_generator():
+    return SimpleNamespace(
+        generate=AsyncMock(
+            return_value={
+                "text": "ML draft negligence scenario with scaffold facts.",
+                "confidence": {"overall": 0.79},
+                "is_diverse": True,
+                "topics": ["negligence"],
+                "generation_id": "mlseed123",
+            }
+        )
+    )
+
+
 @pytest.mark.asyncio
 async def test_generate_generation_validates_topics_and_calls_hypothetical_service():
     corpus = SimpleNamespace(extract_all_topics=AsyncMock(return_value=["negligence"]))
@@ -27,6 +41,8 @@ async def test_generate_generation_validates_topics_and_calls_hypothetical_servi
         corpus_service=corpus,
         hypothetical_service=hypothetical,
         database_service=database,
+        hypo_generator=_mock_hypo_generator(),
+        require_ml_training=False,
     )
 
     request = GenerationRequest(topics=["Negligence"], include_analysis=True)
@@ -34,8 +50,40 @@ async def test_generate_generation_validates_topics_and_calls_hypothetical_servi
 
     assert result.request.topics == ["negligence"]
     assert result.request.correlation_id == "corr-1"
+    assert result.request.method == "hybrid"
+    assert "ml_foundation" in result.request.user_preferences
     assert result.response.metadata["generation_id"] == 1
     hypothetical.generate_hypothetical.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_generate_generation_enforces_required_training_step():
+    corpus = SimpleNamespace(extract_all_topics=AsyncMock(return_value=["negligence"]))
+    expected_response = GenerationResponse(
+        hypothetical="Generated negligence scenario",
+        analysis="Analysis",
+        metadata={"generation_id": 7},
+        generation_time=0.2,
+        validation_results={"passed": True, "quality_score": 8.0},
+    )
+    hypothetical = SimpleNamespace(
+        generate_hypothetical=AsyncMock(return_value=expected_response)
+    )
+    facade = WorkflowFacade(
+        corpus_service=corpus,
+        hypothetical_service=hypothetical,
+        database_service=SimpleNamespace(),
+        hypo_generator=_mock_hypo_generator(),
+        require_ml_training=True,
+    )
+    facade._ensure_required_ml_training = AsyncMock()
+
+    request = GenerationRequest(topics=["Negligence"], include_analysis=True)
+    await facade.generate_generation(request, correlation_id="corr-train")
+
+    facade._ensure_required_ml_training.assert_awaited_once_with(
+        correlation_id="corr-train"
+    )
 
 
 @pytest.mark.asyncio
@@ -49,6 +97,8 @@ async def test_save_generation_report_translates_foreign_key_error():
         corpus_service=SimpleNamespace(),
         hypothetical_service=SimpleNamespace(),
         database_service=database,
+        hypo_generator=_mock_hypo_generator(),
+        require_ml_training=False,
     )
 
     with pytest.raises(WorkflowFacadeError) as exc_info:
@@ -105,6 +155,8 @@ async def test_regenerate_generation_reuses_feedback_context_and_lineage():
             generate_hypothetical=AsyncMock(side_effect=_generate)
         ),
         database_service=db,
+        hypo_generator=_mock_hypo_generator(),
+        require_ml_training=False,
     )
 
     result = await facade.regenerate_generation(
@@ -115,6 +167,7 @@ async def test_regenerate_generation_reuses_feedback_context_and_lineage():
     request = captured["request"]
     assert request.parent_generation_id == 10
     assert request.retry_attempt == 2
+    assert request.method == "hybrid"
     assert request.retry_reason.startswith("report_feedback")
     assert "new issues" in request.user_preferences["feedback"]
     assert result.regenerated.metadata["generation_id"] == 55
@@ -169,6 +222,8 @@ async def test_regenerate_generation_appends_quality_gate_failures_to_feedback()
             generate_hypothetical=AsyncMock(side_effect=_generate)
         ),
         database_service=db,
+        hypo_generator=_mock_hypo_generator(),
+        require_ml_training=False,
     )
 
     await facade.regenerate_generation(generation_id=20, correlation_id="regen-corr")
@@ -231,6 +286,8 @@ async def test_regenerate_generation_uses_quality_gate_reasons_when_report_conte
             generate_hypothetical=AsyncMock(side_effect=_generate)
         ),
         database_service=db,
+        hypo_generator=_mock_hypo_generator(),
+        require_ml_training=False,
     )
 
     await facade.regenerate_generation(generation_id=21, correlation_id="regen-corr")

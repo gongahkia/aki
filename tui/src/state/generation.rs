@@ -30,7 +30,7 @@ fn default_parties() -> String {
     "2".into()
 }
 fn default_method() -> String {
-    "pure_llm".into()
+    "hybrid".into()
 }
 fn default_true() -> bool {
     true

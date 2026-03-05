@@ -85,7 +85,7 @@ fn default_sample_size() -> u32 {
     3
 }
 fn default_method() -> String {
-    "pure_llm".into()
+    "hybrid".into()
 }
 fn default_true() -> bool {
     true

@@ -22,7 +22,6 @@ fn main_items() -> Vec<MenuItem> {
         MenuItem::new("Import & Preprocess", "OCR raw files into corpus"),
         MenuItem::new("Scrape SG Case Law", "fetch from legal databases"),
         MenuItem::new("Label Corpus", "tag entries with topics and quality"),
-        MenuItem::new("Train ML Models", "classifier, regressor, clusterer"),
         MenuItem::new("Index Semantic Search", "embed corpus into vector store"),
         MenuItem::new("Export", "save generation to DOCX/PDF"),
         MenuItem::new("More", "history, stats, providers, settings, batch"),
@@ -82,10 +81,9 @@ impl Screen for MainMenuScreen {
                         }
                         4 => ScreenAction::Push(Box::new(super::scrape::ScrapeScreen::new())),
                         5 => ScreenAction::Push(Box::new(super::corpus::LabelScreen::new())),
-                        6 => ScreenAction::Push(Box::new(super::train::TrainScreen::new())),
-                        7 => ScreenAction::Push(Box::new(super::embed::EmbedScreen::new())),
-                        8 => ScreenAction::Push(Box::new(super::export::ExportScreen::new())),
-                        9 => ScreenAction::Push(Box::new(super::more::MoreScreen::new())),
+                        6 => ScreenAction::Push(Box::new(super::embed::EmbedScreen::new())),
+                        7 => ScreenAction::Push(Box::new(super::export::ExportScreen::new())),
+                        8 => ScreenAction::Push(Box::new(super::more::MoreScreen::new())),
                         _ => ScreenAction::None,
                     }
                 } else {

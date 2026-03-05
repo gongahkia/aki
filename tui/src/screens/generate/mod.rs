@@ -36,7 +36,6 @@ struct GenerateConfig {
     temperature: f64,
     complexity: u32,
     parties: u32,
-    method: String,
     include_analysis: bool,
     red_herrings: bool,
 }
@@ -51,7 +50,6 @@ impl Default for GenerateConfig {
             temperature: state.last_config.temperature,
             complexity: state.last_config.complexity.parse().unwrap_or(3),
             parties: state.last_config.parties.parse().unwrap_or(2),
-            method: state.last_config.method,
             include_analysis: state.last_config.include_analysis,
             red_herrings: false,
         }
@@ -113,10 +111,10 @@ impl GenerateScreen {
 
     fn show_config_confirm(&self) -> Confirm {
         let summary = format!(
-            "Topics: {}  Provider: {}  Temp: {:.1}  Complexity: {}  Parties: {}  Method: {}  Analysis: {}",
+            "Topics: {}  Provider: {}  Temp: {:.1}  Complexity: {}  Parties: {}  Analysis: {}  ML Training: required",
             if self.config.topics.is_empty() { "--".into() } else { self.config.topics.join(", ") },
             self.config.provider, self.config.temperature, self.config.complexity,
-            self.config.parties, self.config.method,
+            self.config.parties,
             if self.config.include_analysis { "yes" } else { "no" },
         );
         Confirm::new(&format!("Proceed? {}", summary), true)
@@ -149,13 +147,15 @@ impl GenerateScreen {
                 m.insert("provider_timeout_seconds".into(), serde_json::json!(180));
                 m
             }),
-            method: self.config.method.clone(),
+            method: "hybrid".into(),
             provider: Some(self.config.provider.clone()),
             model: self.config.model.clone(),
             include_analysis: self.config.include_analysis,
             correlation_id: None,
         };
-        self.phase = Phase::Generating(Spinner::new("Generating hypothetical..."));
+        self.phase = Phase::Generating(Spinner::new(
+            "Step 1/2: Ensuring required ML training, then generating hypothetical...",
+        ));
         let api = ctx.api_url.clone();
         let handle = tokio::spawn(async move {
             let client = crate::api::client::ApiClient::new(&api);
@@ -181,7 +181,6 @@ impl GenerateScreen {
         state.last_config.temperature = self.config.temperature;
         state.last_config.complexity = self.config.complexity.to_string();
         state.last_config.parties = self.config.parties.to_string();
-        state.last_config.method = self.config.method.clone();
         state.last_config.include_analysis = self.config.include_analysis;
         state.save();
     }
@@ -244,7 +243,6 @@ impl Screen for GenerateScreen {
                         self.config.temperature = 0.2;
                         self.config.complexity = 5;
                         self.config.parties = 4;
-                        self.config.method = "hybrid".into();
                     }
                     self.phase = Phase::TopicSelect(self.build_topic_checkbox());
                 }
@@ -345,10 +343,10 @@ impl Screen for GenerateScreen {
                     .constraints([Constraint::Min(3), Constraint::Length(3)])
                     .split(area);
                 let summary = format!(
-                    "Topics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nMethod: {}\nAnalysis: {}",
+                    "Topics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nAnalysis: {}\nML Training: required before generation",
                     self.config.topics.join(", "), self.config.provider,
                     self.config.temperature, self.config.complexity,
-                    self.config.parties, self.config.method,
+                    self.config.parties,
                     if self.config.include_analysis { "yes" } else { "no" },
                 );
                 let block = Block::default()

@@ -84,7 +84,7 @@ class GenerationRequest(BaseModel):
     complexity_level: str = Field(default="intermediate")
     sample_size: int = Field(default=3, ge=1, le=10)
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    method: str = Field(default="pure_llm")  # pure_llm, ml_assisted, hybrid
+    method: str = Field(default="hybrid")  # hybrid is enforced by workflow facade
     provider: Optional[str] = None
     model: Optional[str] = None
     parent_generation_id: Optional[int] = None
