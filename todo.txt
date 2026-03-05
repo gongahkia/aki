@@ -16,7 +16,6 @@
 
 # ── Phase E: LLM Role Refactor (Chat NLU Only) ──
 
-(B) Update the Rust TUI chat.rs to display ML confidence scores (topic_coverage, structural_completeness, quality_score) from the /workflow/generate response alongside generated hypotheticals +tui +feature
 
 # ── Phase F: Provider Hardening (Ollama & Gemini for Chat) ──
 
@@ -26,11 +25,3 @@
 
 # ── Phase H: Rust TUI Hardening ──
 
-(B) Replace all .as_i64().unwrap_or(0) and .as_str().unwrap_or("") JSON extraction patterns in tui/src/api/client.rs with match arms that log warnings on unexpected types before defaulting +tui +refactor
-(B) Add path existence validation for DEFAULT_LABEL_OUTPUT_PATH and DEFAULT_LABEL_CORPUS_PATH constants in tui/src/screens/chat.rs before using them in API calls +tui
-(B) Add path traversal validation for user-supplied file paths (export_path, corpus_path, raw_dir) in tui/src/screens/chat.rs — reject paths containing ".." +tui +security
-(B) Fix stream token race in tui/src/screens/chat.rs — check that assistant_index is within messages bounds before calling get_mut() to prevent silent token drops +tui
-(B) Add API version check on TUI startup in tui/src/app.rs — call GET /version and warn the user if backend version does not match TUI expected version +tui +feature
-(B) Reduce tokio features in tui/Cargo.toml from "full" to ["rt-multi-thread", "macros", "time", "net", "sync"] to reduce binary size +tui +infra
-(B) Add Ctrl+C stream interruption support in tui/src/screens/chat.rs — cancel ongoing streaming generation without quitting the entire TUI +tui +feature
-(B) Add connection status indicator in TUI status bar — show red/green dot based on last successful /health poll so the user knows when the API bridge is down +tui +feature

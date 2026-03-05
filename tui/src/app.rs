@@ -179,6 +179,8 @@ impl AppContext {
     }
 }
 
+const EXPECTED_API_VERSION: &str = "2.0.0";
+
 pub struct App {
     screen_stack: Vec<Box<dyn Screen + Send>>,
     nav: NavStack,
@@ -187,6 +189,9 @@ pub struct App {
     pub running: bool,
     tick_counter: u64,
     quit_menu: Option<MenuState>,
+    health_handle: Option<tokio::task::JoinHandle<bool>>,
+    version_checked: bool,
+    version_handle: Option<tokio::task::JoinHandle<Option<String>>>,
 }
 
 impl App {
@@ -196,14 +201,25 @@ impl App {
             UiMode::Traditional => (Box::new(MainMenuScreen::new()), "Main"),
             UiMode::Chat => (Box::new(ChatScreen::new()), "Chat"),
         };
+        let ctx = AppContext::new(api_url.clone());
+        let ver_api = api_url.clone();
         Self {
             screen_stack: vec![main],
             nav: NavStack::with_root(root_label),
             status_bar: StatusBar::default(),
-            ctx: AppContext::new(api_url),
+            ctx,
             running: true,
             tick_counter: 0,
             quit_menu: None,
+            health_handle: None,
+            version_checked: false,
+            version_handle: Some(tokio::spawn(async move {
+                let client = crate::api::client::ApiClient::new(&ver_api);
+                match client.version().await {
+                    Ok(v) => v["version"].as_str().map(str::to_string),
+                    Err(_) => None,
+                }
+            })),
         }
     }
 
@@ -318,6 +334,33 @@ impl App {
     }
 
     fn refresh_status(&mut self) {
-        self.status_bar.api_ok = true; // optimistic; real impl would ping /health
+        // check version result
+        if !self.version_checked {
+            if let Some(handle) = &self.version_handle {
+                if handle.is_finished() {
+                    let handle = self.version_handle.take().unwrap();
+                    if let Ok(Some(ver)) = futures::executor::block_on(handle) {
+                        if ver != EXPECTED_API_VERSION {
+                            eprintln!("[warn] API version mismatch: backend={} TUI expects={}", ver, EXPECTED_API_VERSION);
+                        }
+                    }
+                    self.version_checked = true;
+                }
+            }
+        }
+        // poll health
+        if let Some(handle) = &self.health_handle {
+            if handle.is_finished() {
+                let handle = self.health_handle.take().unwrap();
+                self.status_bar.api_ok = futures::executor::block_on(handle).unwrap_or(false);
+            }
+        }
+        if self.health_handle.is_none() {
+            let api = self.ctx.api_url.clone();
+            self.health_handle = Some(tokio::spawn(async move {
+                let client = crate::api::client::ApiClient::new(&api);
+                client.health().await.is_ok()
+            }));
+        }
     }
 }

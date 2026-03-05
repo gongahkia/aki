@@ -2,6 +2,16 @@ use crate::api::types::*;
 use anyhow::Result;
 use reqwest::Client;
 
+fn extract_job_id(resp: &serde_json::Value) -> String {
+    match resp["job_id"].as_str() {
+        Some(id) => id.to_string(),
+        None => {
+            eprintln!("[warn] job_id: expected string, got {:?}", resp["job_id"]);
+            String::new()
+        }
+    }
+}
+
 pub struct ApiClient {
     client: Client,
     base_url: String,
@@ -247,7 +257,13 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        Ok(resp["report_id"].as_i64().unwrap_or(0))
+        Ok(match resp["report_id"].as_i64() {
+            Some(id) => id,
+            None => {
+                eprintln!("[warn] report_id: expected i64, got {:?}", resp["report_id"]);
+                0
+            }
+        })
     }
 
     pub async fn list_reports(&self, generation_id: i64) -> Result<Vec<GenerationReport>> {
@@ -350,7 +366,7 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        Ok(resp["job_id"].as_str().unwrap_or("").to_string())
+        Ok(extract_job_id(&resp))
     }
 
     pub async fn start_scrape(&self, req: &ScrapeRequest) -> Result<String> {
@@ -362,7 +378,7 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        Ok(resp["job_id"].as_str().unwrap_or("").to_string())
+        Ok(extract_job_id(&resp))
     }
 
     pub async fn start_train(&self, data_path: &str, n_clusters: u32) -> Result<String> {
@@ -396,7 +412,7 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        Ok(resp["job_id"].as_str().unwrap_or("").to_string())
+        Ok(extract_job_id(&resp))
     }
 
     pub async fn start_embed(&self, corpus_path: &str) -> Result<String> {
@@ -417,7 +433,7 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        Ok(resp["job_id"].as_str().unwrap_or("").to_string())
+        Ok(extract_job_id(&resp))
     }
 
     pub async fn start_export(&self, req: &ExportRequest) -> Result<String> {
@@ -429,7 +445,7 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        Ok(resp["job_id"].as_str().unwrap_or("").to_string())
+        Ok(extract_job_id(&resp))
     }
 
     pub async fn start_cleanup(&self, targets: &[String]) -> Result<serde_json::Value> {

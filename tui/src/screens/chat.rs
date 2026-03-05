@@ -154,6 +154,13 @@ pub struct ChatScreen {
     autocomplete_index: usize,
 }
 
+fn validate_path(path: &str) -> Result<(), String> {
+    if path.contains("..") {
+        return Err(format!("Path traversal rejected: '{}'", path));
+    }
+    Ok(())
+}
+
 impl ChatScreen {
     pub fn new() -> Self {
         let state = TuiState::load();
@@ -864,6 +871,12 @@ impl ChatScreen {
 
                 let raw_dir = args.get("raw_dir").map(str::to_string);
                 let output_path = args.get("output_path").map(str::to_string);
+                for p in raw_dir.iter().chain(output_path.iter()) {
+                    if let Err(e) = validate_path(p) {
+                        self.add_meta(e);
+                        return ScreenAction::None;
+                    }
+                }
                 self.start_task(TaskKind::Preprocess, {
                     let api = ctx.api_url.clone();
                     async move {
@@ -1251,6 +1264,16 @@ impl ChatScreen {
                             .get("corpus_path")
                             .unwrap_or(DEFAULT_LABEL_CORPUS_PATH)
                             .to_string();
+                        for p in [&output_path, &corpus_path] {
+                            if let Err(e) = validate_path(p) {
+                                self.add_meta(e);
+                                return ScreenAction::None;
+                            }
+                        }
+                        if !std::path::Path::new(&corpus_path).exists() {
+                            self.add_meta(format!("Corpus path not found: {}", corpus_path));
+                            return ScreenAction::None;
+                        }
                         self.start_task(
                             TaskKind::LabelLoad {
                                 output_path,
@@ -1887,6 +1910,16 @@ impl ChatScreen {
                 if !response.analysis.trim().is_empty() {
                     content.push_str("\n\nAnalysis:\n\n");
                     content.push_str(response.analysis.trim());
+                }
+                // display ML confidence scores if present
+                let scores: Vec<String> = ["topic_coverage", "structural_completeness", "quality_score"]
+                    .iter()
+                    .filter_map(|key| {
+                        response.metadata.get(*key).and_then(|v| v.as_f64()).map(|s| format!("{}: {:.2}", key, s))
+                    })
+                    .collect();
+                if !scores.is_empty() {
+                    content.push_str(&format!("\n\n[ML scores] {}", scores.join(" | ")));
                 }
                 self.add_message(ChatRole::Assistant, content);
 
@@ -2847,6 +2880,15 @@ impl Screen for ChatScreen {
     fn handle_key(&mut self, key: KeyEvent, ctx: &mut AppContext) -> ScreenAction {
         if matches!(key.code, KeyCode::Tab) && self.apply_autocomplete_selection(true) {
             return ScreenAction::None;
+        }
+
+        // ctrl+c cancels active stream without quitting
+        if key.code == KeyCode::Char('c') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+            if self.pending.is_some() {
+                self.cancel_pending();
+                self.add_meta("Stream interrupted.");
+                return ScreenAction::None;
+            }
         }
 
         match key.code {
