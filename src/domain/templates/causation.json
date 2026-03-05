@@ -1,0 +1,42 @@
+{
+  "topic_key": "causation",
+  "label": "Causation",
+  "scenario_patterns": [
+    "A patient dies after a misdiagnosis, but the underlying condition was already terminal",
+    "Two defendants independently commit tortious acts, each sufficient to cause the same harm",
+    "A plaintiff's pre-existing condition is aggravated by the defendant's negligence",
+    "An intervening event occurs between the defendant's breach and the plaintiff's injury"
+  ],
+  "legal_tests": [
+    "But-for test: but for the defendant's breach, would the plaintiff have suffered the damage? If the damage would have occurred regardless, causation fails",
+    "Material contribution test: where the but-for test is unworkable (e.g., multiple tortfeasors), the plaintiff may show the defendant's breach materially contributed to the harm",
+    "Novus actus interveniens: an intervening act may break the chain of causation if it is not reasonably foreseeable",
+    "Remoteness: the type of damage must be reasonably foreseeable even if the exact manner or extent need not be (Wagon Mound as applied in SG)",
+    "Loss of chance: in some contexts, courts assess whether the defendant's breach caused the plaintiff to lose a real or substantial chance of a better outcome"
+  ],
+  "common_fact_patterns": [
+    "Medical negligence where causation is complicated by the patient's underlying health conditions",
+    "Road traffic accidents with multiple contributing vehicles or causes",
+    "Industrial disease claims with multiple potential sources of exposure",
+    "Professional negligence where the plaintiff must show the advice, if correct, would have led to a different outcome",
+    "Failure to warn cases where the plaintiff must prove they would have acted differently if warned"
+  ],
+  "sg_case_references": [
+    "Man Mohan Singh s/o Jothirambal Singh v Zurich Insurance (Singapore) Pte Ltd [2008] SGCA 24 — but-for causation and assessment of damages",
+    "JSI Shipping (S) Pte Ltd v Teofoongwonglcloong [2007] SGCA 40 — causation in the context of solicitor's negligence",
+    "Sunny Metal & Engineering Pte Ltd v Ng Khim Ming Eric [2007] SGCA 36 — causation and remoteness of damage",
+    "Armstrong, Carol Ann v Quest Laboratories Pte Ltd [2020] SGCA 25 — loss of chance in medical negligence"
+  ],
+  "party_roles": [
+    "plaintiff/claimant bearing the burden of proving causation",
+    "defendant/tortfeasor",
+    "concurrent tortfeasor",
+    "intervening third party"
+  ],
+  "defences": [
+    "The damage would have occurred in any event (but-for test not satisfied)",
+    "Novus actus interveniens — an unforeseeable intervening act broke the chain of causation",
+    "The type of damage suffered was not reasonably foreseeable (remoteness)",
+    "Pre-existing condition — the plaintiff's injury was not caused or materially worsened by the breach"
+  ]
+}

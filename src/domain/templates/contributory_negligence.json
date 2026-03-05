@@ -1,0 +1,40 @@
+{
+  "topic_key": "contributory_negligence",
+  "label": "Contributory Negligence",
+  "scenario_patterns": [
+    "A jaywalking pedestrian is hit by a speeding driver",
+    "A motorcyclist not wearing a helmet suffers head injuries in a collision caused by another driver",
+    "A worker ignores safety protocols and is injured by machinery negligently maintained by the employer",
+    "A patient fails to follow medical advice, worsening injuries caused by a doctor's initial negligence"
+  ],
+  "legal_tests": [
+    "The plaintiff failed to take reasonable care for their own safety",
+    "The plaintiff's failure to take care materially contributed to the damage suffered",
+    "Apportionment is governed by the Contributory Negligence and Personal Injuries Act (Cap 54)",
+    "The court reduces damages by a percentage that is just and equitable having regard to the plaintiff's share of responsibility",
+    "Both causative potency and blameworthiness of each party's conduct are considered in apportionment"
+  ],
+  "common_fact_patterns": [
+    "Pedestrians jaywalking or crossing roads without due care in Singapore",
+    "Failure to wear seatbelts or motorcycle helmets, increasing severity of injuries",
+    "Workers disregarding workplace safety instructions or not using personal protective equipment",
+    "Passengers in vehicles driven by intoxicated drivers whom they knew to be drunk",
+    "Plaintiffs failing to mitigate injuries by not following medical treatment advice"
+  ],
+  "sg_case_references": [
+    "Asnah bte Ab Rahman v Li Jianlin [2016] SGCA 16 — apportionment between jaywalking pedestrian and negligent driver",
+    "Ng Swee Eng v Ang Oh Chuan [2002] 2 SLR(R) 321 — contributory negligence of motorcycle pillion rider not wearing helmet",
+    "Parno v SC Marine Pte Ltd [1999] SGCA 69 — contributory negligence of a worker in a workplace accident",
+    "Tan Hun Hoe v Harte Denis Mathew [2001] SGCA 48 — apportionment in medical negligence context"
+  ],
+  "party_roles": [
+    "plaintiff/claimant whose damages are reduced",
+    "defendant/tortfeasor raising the defence",
+    "concurrent tortfeasor seeking contribution"
+  ],
+  "defences": [
+    "This is itself a defence — contributory negligence is raised by the defendant to reduce the plaintiff's damages",
+    "The plaintiff's conduct was not merely careless but the sole effective cause of the damage (100% contributory negligence amounting to a complete defence)",
+    "Apportionment may also be raised between concurrent tortfeasors under the Civil Law Act (Cap 43) for contribution"
+  ]
+}

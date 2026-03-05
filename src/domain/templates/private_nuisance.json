@@ -1,0 +1,43 @@
+{
+  "topic_key": "private_nuisance",
+  "label": "Private Nuisance",
+  "scenario_patterns": [
+    "A factory emits noxious fumes that drift into neighbouring residential units",
+    "Construction works generate excessive noise and vibration affecting adjacent properties for months",
+    "Tree roots from a neighbour's property damage the plaintiff's boundary wall and drainage",
+    "A neighbour's persistent burning of incense or joss paper causes smoke to enter the plaintiff's flat"
+  ],
+  "legal_tests": [
+    "The defendant's use of land caused an unreasonable interference with the plaintiff's use and enjoyment of their land",
+    "The plaintiff must have a proprietary interest in the land affected (ownership or exclusive possession)",
+    "Unreasonableness is assessed by balancing the gravity of the harm against the utility of the defendant's conduct",
+    "Factors include locality, duration and frequency, sensitivity of the plaintiff, and the nature of the interference",
+    "The interference may be physical damage to the land or intangible interference (noise, smell, vibration)"
+  ],
+  "common_fact_patterns": [
+    "Noise from construction, renovation, or industrial activities affecting neighbouring HDB or condo units",
+    "Smoke, dust, or fumes from nearby commercial or industrial operations",
+    "Water seepage from an upper-floor unit damaging the lower-floor unit in strata-titled property",
+    "Tree encroachment — branches or roots from a neighbouring property causing damage",
+    "Persistent odour from food establishments affecting residential neighbours"
+  ],
+  "sg_case_references": [
+    "Tesa Tape Asia Pacific Pte Ltd v Wing Seng Logistics Pte Ltd [2006] SGHC 36 — nuisance from water seepage and interference with use of land",
+    "Management Corporation Strata Title Plan No 2668 v Rott George Hugo [2013] SGHC 62 — nuisance in the strata-titled property context",
+    "Amritlal Pte Ltd v Ling Kok Lian [2016] SGHC 33 — private nuisance from construction and renovation works",
+    "Ng Huat Seng v Munib Mohammad Madni [2017] SGCA 58 — nuisance and encroachment by tree roots"
+  ],
+  "party_roles": [
+    "plaintiff/occupier of the affected land",
+    "defendant/creator of the nuisance",
+    "landlord of the property causing nuisance",
+    "management corporation (for strata-titled property)"
+  ],
+  "defences": [
+    "The use was reasonable given the locality and character of the neighbourhood",
+    "Statutory authority — the activity was authorised by statute",
+    "Prescription — the nuisance has been continuously and openly committed for 20 years",
+    "Consent — the plaintiff consented to the interference",
+    "Contributory negligence — the plaintiff's own conduct contributed to the harm"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "topic_key": "rylands_v_fletcher",
+  "label": "Rylands v Fletcher",
+  "scenario_patterns": [
+    "A factory stores large quantities of chemicals that leak and contaminate neighbouring land",
+    "A construction company's water reservoir bursts and floods adjacent properties",
+    "An industrial gas tank ruptures, causing toxic fumes to escape onto neighbouring premises",
+    "A swimming pool on an upper floor of a building leaks and causes damage to units below"
+  ],
+  "legal_tests": [
+    "The defendant brought or accumulated something onto their land",
+    "The thing accumulated amounts to a non-natural use of the land",
+    "The thing was something likely to do mischief if it escaped",
+    "The thing did in fact escape from the defendant's land to the plaintiff's land",
+    "The escape caused foreseeable damage to the plaintiff's property or land"
+  ],
+  "common_fact_patterns": [
+    "Chemical or hazardous material storage at industrial premises that leaks into neighbouring land",
+    "Water escape from reservoirs, tanks, or swimming pools causing flooding to adjacent properties",
+    "Gas or fuel storage facilities where leaks affect surrounding areas",
+    "Construction site accumulations (water, slurry, soil) escaping to neighbouring properties",
+    "Waste or pollutant accumulation in industrial zones that contaminates surrounding land"
+  ],
+  "sg_case_references": [
+    "Tesa Tape Asia Pacific Pte Ltd v Wing Seng Logistics Pte Ltd [2006] SGHC 36 — Rylands v Fletcher principles applied to water escape in Singapore",
+    "Management Corporation Strata Title Plan No 2297 v Seasons Park Ltd [2005] SGHC 144 — non-natural use and escape in strata property context",
+    "Jurong Town Corp v Sembawang Engineers and Constructors Pte Ltd [2009] SGHC 44 — accumulation and escape from construction works",
+    "Cambridge Water Co v Eastern Counties Leather plc [1994] 2 AC 264 — English authority regularly applied in SG for foreseeability of damage requirement"
+  ],
+  "party_roles": [
+    "plaintiff/occupier of land affected by the escape",
+    "defendant/occupier who accumulated the thing on their land",
+    "contractor responsible for the accumulation",
+    "landlord or management corporation"
+  ],
+  "defences": [
+    "Act of God — the escape was caused by natural forces that could not reasonably have been anticipated",
+    "Act of a stranger — the escape was caused by the deliberate act of a third party over whom the defendant had no control",
+    "Consent — the plaintiff consented to the accumulation (e.g., common benefit)",
+    "Statutory authority — the accumulation was authorised or required by statute",
+    "Default of the plaintiff — the plaintiff's own act or default caused the escape"
+  ]
+}

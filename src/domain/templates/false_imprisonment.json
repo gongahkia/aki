@@ -1,0 +1,43 @@
+{
+  "topic_key": "false_imprisonment",
+  "label": "False Imprisonment",
+  "scenario_patterns": [
+    "A retail store security guard detains a shopper in a back room for hours based on a mistaken suspicion of theft",
+    "An employer locks an employee in a meeting room and refuses to let them leave until they sign a resignation letter",
+    "A private security firm restrains a person at a condominium guardhouse without lawful authority",
+    "A creditor physically blocks a debtor from leaving a room until the debtor agrees to pay"
+  ],
+  "legal_tests": [
+    "Total restraint of the plaintiff's liberty — the plaintiff must be confined with no reasonable means of escape",
+    "The restraint must be without lawful justification",
+    "The defendant must have intended the act of confinement (intent to harm is not required)",
+    "The plaintiff need not be aware of the confinement at the time for the tort to be established",
+    "Any residual exit route must be reasonable — the plaintiff is not required to risk injury or indignity to escape"
+  ],
+  "common_fact_patterns": [
+    "Shoplifting detention by retail security that exceeds reasonable scope or duration",
+    "Wrongful detention by private security at condominiums or commercial premises",
+    "Employer locking employees in rooms during disputes or termination processes",
+    "Unlawful arrest or detention by private persons exceeding citizen's arrest powers",
+    "Immigration-related wrongful detention of foreign workers by employers"
+  ],
+  "sg_case_references": [
+    "Seah Kok Meng v Public Prosecutor [2001] SGHC 306 — elements of false imprisonment discussed",
+    "Lee Tat Development Pte Ltd v Management Corporation Strata Title Plan No 301 [2009] SGCA 16 — trespass to person including false imprisonment",
+    "Lim Thian Lai v Public Prosecutor [2006] 2 SLR 155 — wrongful confinement and restraint of liberty",
+    "James Raj s/o Arokiasamy v Public Prosecutor [2014] SGHC 10 — unlawful restraint principles applicable in civil context"
+  ],
+  "party_roles": [
+    "plaintiff/person whose liberty was restrained",
+    "defendant/person who imposed the confinement",
+    "employer vicariously liable for employee's wrongful detention",
+    "security company"
+  ],
+  "defences": [
+    "Lawful authority — detention was pursuant to a lawful arrest under the Criminal Procedure Code",
+    "Reasonable condition — the plaintiff was free to leave upon satisfying a reasonable condition",
+    "Consent — the plaintiff voluntarily remained",
+    "Citizen's arrest under s 66 CPC — reasonable suspicion of a seizable offence and the person was promptly handed to police",
+    "Statutory authority — detention authorised by specific legislation (e.g., Mental Health Act)"
+  ]
+}

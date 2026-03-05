@@ -1,0 +1,41 @@
+{
+  "topic_key": "duty_of_care",
+  "label": "Duty of Care",
+  "scenario_patterns": [
+    "A government agency issues an approval that a private party relies on to its detriment",
+    "An auditor certifies financial statements that a third-party investor relies upon",
+    "A school fails to supervise students during an excursion, resulting in injury",
+    "A statutory board's negligent inspection causes economic loss to a downstream purchaser"
+  ],
+  "legal_tests": [
+    "Threshold question: factual foreseeability — was it foreseeable that the defendant's carelessness could cause harm to the plaintiff?",
+    "Stage 1 (Proximity): sufficient legal proximity between the parties based on physical, circumstantial, or causal closeness, voluntary assumption of responsibility, or reliance",
+    "Stage 2 (Policy): are there policy considerations that negate, reduce, or limit the scope of the duty, the class of persons to whom it is owed, or the damages recoverable?",
+    "The Spandeck test is a single unified test applicable to all claims including pure economic loss, personal injury, and property damage"
+  ],
+  "common_fact_patterns": [
+    "Pure economic loss claims — whether a duty extends beyond physical damage to financial harm",
+    "Negligent misstatement relied upon by a third party not in a direct contractual relationship",
+    "Public authority liability — whether a statutory body owes a private law duty of care",
+    "Omissions — whether a defendant who failed to act owes a duty to prevent harm",
+    "Employer-employee relationship giving rise to a duty to provide a safe system of work"
+  ],
+  "sg_case_references": [
+    "Spandeck Engineering (S) Pte Ltd v Defence Science & Technology Agency [2007] SGCA 37 — the seminal case establishing the unified two-stage test",
+    "Anwar Patrick Adrian v Ng Chong & Hue LLC [2014] SGCA 34 — solicitor's duty of care to third-party beneficiaries",
+    "Animal Concerns Research & Education Society v Tan Boon Kwee [2011] SGCA 2 — proximity analysis in the context of a charity and its officer",
+    "RSP Architects Planners & Engineers v Management Corporation Strata Title Plan No 1075 [1999] SGCA 53 — duty of care in construction defect cases"
+  ],
+  "party_roles": [
+    "plaintiff/claimant",
+    "defendant owing alleged duty",
+    "third-party beneficiary",
+    "statutory/public authority"
+  ],
+  "defences": [
+    "No factual foreseeability of harm to the plaintiff",
+    "Insufficient proximity — no direct relationship, assumption of responsibility, or reliance",
+    "Policy considerations negating duty — indeterminate liability, floodgates, inconsistency with statutory scheme",
+    "The damage claimed falls outside the scope of any duty owed"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "topic_key": "assault",
+  "label": "Assault",
+  "scenario_patterns": [
+    "A person raises a fist and threatens to punch another in a coffeeshop dispute",
+    "A loan shark's runner makes threatening gestures at a debtor's door",
+    "A road rage driver exits the vehicle brandishing a weapon at another motorist",
+    "A person points an object resembling a weapon at another in a shopping mall"
+  ],
+  "legal_tests": [
+    "The defendant's act caused the plaintiff to reasonably apprehend the imminent application of force",
+    "The apprehension must be of immediate or imminent contact, not a future or conditional threat",
+    "The defendant must have intended to cause such apprehension (or been reckless as to causing it)",
+    "Words alone may constitute assault if accompanied by threatening conduct or circumstances",
+    "The plaintiff must actually apprehend the contact — a subjective requirement tempered by objective reasonableness"
+  ],
+  "common_fact_patterns": [
+    "Threats made during neighbourhood disputes in HDB estates",
+    "Road rage incidents where drivers threaten physical violence",
+    "Loan shark harassment involving intimidation at the victim's residence",
+    "Workplace bullying involving threats of physical harm",
+    "Brandishing weapons or weapon-like objects in public places"
+  ],
+  "sg_case_references": [
+    "Malcomson Nicholas Hugh Bertram v Mehta Naresh Kumar [2001] SGHC 308 — assault as a tort in the Singapore context",
+    "Wee Sia Tian v Long Thik Boon [1996] SGHC 84 — assault and battery arising from a physical altercation",
+    "Lee Tat Development Pte Ltd v Management Corporation Strata Title Plan No 301 [2009] SGCA 16 — discussed trespass to person including assault",
+    "Public Prosecutor v Lim Yee Hua [2018] SGHC 83 — criminal assault with discussion of elements applicable to the tort"
+  ],
+  "party_roles": [
+    "plaintiff/victim who apprehended imminent force",
+    "defendant/person who caused the apprehension",
+    "witness",
+    "employer vicariously liable for employee's assault"
+  ],
+  "defences": [
+    "No reasonable apprehension of imminent contact was created",
+    "Consent — the plaintiff consented to the risk of such apprehension (e.g., mutual confrontation)",
+    "Self-defence — the defendant acted to prevent an imminent attack",
+    "Lawful authority — the defendant was exercising a lawful power (e.g., police officer)",
+    "The threat was conditional or related to the future, not imminent"
+  ]
+}

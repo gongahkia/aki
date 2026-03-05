@@ -1,0 +1,43 @@
+{
+  "topic_key": "battery",
+  "label": "Battery",
+  "scenario_patterns": [
+    "A security guard physically pushes a shopper out of a store without justification",
+    "A medical practitioner performs a procedure without obtaining the patient's informed consent",
+    "A person spits on another during a heated argument in a hawker centre",
+    "An employer grabs an employee's arm aggressively during a workplace dispute"
+  ],
+  "legal_tests": [
+    "The defendant intentionally applied force to the plaintiff's person",
+    "The contact was direct or indirect (including through an instrument or object set in motion by the defendant)",
+    "The plaintiff did not consent to the contact",
+    "The force need not cause injury — any intentional, unwanted physical contact suffices",
+    "The defendant must have intended the act of contact, though not necessarily the resulting harm"
+  ],
+  "common_fact_patterns": [
+    "Altercations in public places such as hawker centres, MRT stations, or HDB void decks",
+    "Medical procedures performed without valid informed consent",
+    "Excessive use of force by security personnel or bouncers",
+    "Workplace physical altercations between colleagues or employer and employee",
+    "Unwanted physical contact in the context of domestic disputes"
+  ],
+  "sg_case_references": [
+    "Aries Telecoms (M) Bhd v ViewQwest Pte Ltd [2020] SGCA 12 — intentional torts including battery discussed in SG context",
+    "Wee Sia Tian v Long Thik Boon [1996] SGHC 84 — battery arising from a physical assault",
+    "Koh Sak Peow v Yeo Khee Siang [1996] SGHC 141 — battery and assessment of damages for physical assault",
+    "Re Kong Chian & Ors [1965] MLJ 81 — early authority on battery elements in the local context"
+  ],
+  "party_roles": [
+    "plaintiff/victim of unwanted contact",
+    "defendant/person who applied force",
+    "employer vicariously liable for employee's battery",
+    "medical practitioner"
+  ],
+  "defences": [
+    "Consent — the plaintiff consented to the contact (express or implied, e.g., in sports)",
+    "Self-defence — reasonable force used to defend oneself or another",
+    "Defence of property — reasonable force to protect one's property",
+    "Lawful authority — force applied under statutory or lawful power (e.g., lawful arrest)",
+    "Necessity — force applied to prevent greater harm"
+  ]
+}

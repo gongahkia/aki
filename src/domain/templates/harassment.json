@@ -1,0 +1,44 @@
+{
+  "topic_key": "harassment",
+  "label": "Harassment",
+  "scenario_patterns": [
+    "A person repeatedly sends threatening messages via WhatsApp to an ex-partner",
+    "An online troll publishes doxxing information and abusive posts targeting a public figure",
+    "A debt collector makes persistent threatening phone calls and visits to a debtor's workplace",
+    "A neighbour engages in a sustained campaign of intimidation including verbal abuse and surveillance"
+  ],
+  "legal_tests": [
+    "Under the Protection from Harassment Act 2014 (POHA), s 3: no person shall use threatening, abusive or insulting words or behaviour causing harassment, alarm or distress",
+    "S 4 POHA: no person shall use threatening, abusive or insulting communication likely to cause harassment, alarm or distress (intent not required, but the communication must be heard, seen, or perceived)",
+    "S 7 POHA: unlawful stalking — a course of conduct involving acts associated with stalking that causes harassment, alarm or distress",
+    "S 10 POHA: doxxing — publishing identifiable information with intent to cause harassment, violence, or fear",
+    "For civil remedies, the plaintiff applies for a Protection Order (PO) under s 12 POHA or a court order for false statements under s 15"
+  ],
+  "common_fact_patterns": [
+    "Cyberbullying and online harassment via social media, messaging apps, or forums",
+    "Workplace harassment by colleagues, supervisors, or clients",
+    "Stalking by ex-partners involving repeated unwanted contact, surveillance, or following",
+    "Doxxing — publishing personal information online to incite harassment against the victim",
+    "Neighbour disputes involving persistent verbal abuse, intimidation, or nuisance behaviour"
+  ],
+  "sg_case_references": [
+    "Benber Dayao Yu v Jacter Singh [2017] SGHC 92 — one of the early POHA protection order applications",
+    "Loh Jian Qiang Jason v Tey Kim Hock [2021] SGDC 87 — POHA protection order for stalking and harassment",
+    "Tan Eng Hong v AG [2013] SGCA 44 — though a constitutional case, discussed the context of harassment law in Singapore",
+    "Public Prosecutor v Ong Wee Teck [2021] SGMC 23 — doxxing under s 10 POHA",
+    "Sim Feng Zhi Joel v Loo Wen Xian [2023] SGHC 93 — POHA false statement order and protection order"
+  ],
+  "party_roles": [
+    "victim/applicant for protection order",
+    "respondent/alleged harasser",
+    "employer (in workplace harassment context)",
+    "internet intermediary or platform operator"
+  ],
+  "defences": [
+    "The conduct was reasonable in the circumstances",
+    "The communication was not threatening, abusive, or insulting when assessed objectively",
+    "The respondent did not intend and had no reason to believe the conduct would cause harassment (for s 3 POHA)",
+    "The publication was fair comment or in the public interest",
+    "The alleged stalking did not amount to a course of conduct (isolated incident)"
+  ]
+}

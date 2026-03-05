@@ -1,0 +1,41 @@
+{
+  "topic_key": "negligence",
+  "label": "Negligence",
+  "scenario_patterns": [
+    "A contractor fails to secure scaffolding, causing injury to a passerby on a public road",
+    "A doctor misdiagnoses a patient's condition, leading to delayed treatment and worsened prognosis",
+    "A building management corporation fails to maintain common property, resulting in a slip-and-fall injury",
+    "A driver runs a red light and collides with a pedestrian at a signalised crossing"
+  ],
+  "legal_tests": [
+    "Duty of care established via the Spandeck two-stage test (threshold factual foreseeability, then proximity and policy considerations)",
+    "Breach of duty assessed by the standard of a reasonable person in the defendant's position",
+    "Causation established via the but-for test — but for the defendant's breach, the damage would not have occurred",
+    "Remoteness of damage — the type of damage must be reasonably foreseeable (Wagon Mound test as applied in SG)"
+  ],
+  "common_fact_patterns": [
+    "Road traffic accidents involving negligent driving on Singapore roads",
+    "Medical negligence claims against doctors and hospitals in Singapore",
+    "Occupier's liability for unsafe premises in commercial or residential buildings",
+    "Professional negligence by lawyers, accountants, or financial advisors",
+    "Construction site accidents due to inadequate safety measures"
+  ],
+  "sg_case_references": [
+    "Spandeck Engineering (S) Pte Ltd v Defence Science & Technology Agency [2007] SGCA 37 — established the unified two-stage test for duty of care in Singapore",
+    "Man Mohan Singh s/o Jothirambal Singh v Zurich Insurance (Singapore) Pte Ltd [2008] SGCA 24 — clarified causation and assessment of damages in negligence",
+    "Ngiam Kong Seng v Lim Chiew Hock [2008] SGCA 23 — medical negligence and standard of care for medical professionals",
+    "NTUC Foodfare Co-operative Ltd v SIA Engineering Co Ltd [2018] SGCA 41 — duty of care in pure economic loss cases under Spandeck"
+  ],
+  "party_roles": [
+    "plaintiff/claimant",
+    "defendant/tortfeasor",
+    "third party",
+    "insurer"
+  ],
+  "defences": [
+    "Contributory negligence under the Contributory Negligence and Personal Injuries Act (Cap 54)",
+    "Volenti non fit injuria — voluntary assumption of risk by the plaintiff",
+    "Novus actus interveniens — intervening act breaking the chain of causation",
+    "Limitation defence under the Limitation Act (Cap 163) — 3-year time bar for personal injury, 6 years for other damage"
+  ]
+}

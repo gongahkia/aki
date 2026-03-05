@@ -1,0 +1,44 @@
+{
+  "topic_key": "defamation",
+  "label": "Defamation",
+  "scenario_patterns": [
+    "A social media post accuses a business owner of fraud without factual basis",
+    "A newspaper publishes an article falsely alleging a politician accepted bribes",
+    "An ex-employer provides a defamatory reference to a prospective employer",
+    "An online forum post falsely accuses a hawker stall of using unsanitary ingredients"
+  ],
+  "legal_tests": [
+    "The statement must be defamatory — it must tend to lower the plaintiff in the estimation of right-thinking members of society, cause the plaintiff to be shunned or avoided, or expose the plaintiff to hatred, contempt, or ridicule",
+    "The statement must refer to the plaintiff (directly or by reasonable inference)",
+    "The statement must be published — communicated to at least one person other than the plaintiff",
+    "Libel (written/permanent form) is actionable per se; slander (spoken/transient form) generally requires proof of special damage unless it falls within recognised exceptions",
+    "The natural and ordinary meaning or innuendo meaning of the words is assessed from the perspective of an ordinary reasonable reader"
+  ],
+  "common_fact_patterns": [
+    "Online defamation via social media platforms, blogs, or forum posts",
+    "Defamation by newspapers, magazines, or broadcast media",
+    "Corporate defamation — false statements about a company's business practices",
+    "Workplace defamation — false statements by employers or colleagues affecting reputation",
+    "Political defamation — false accusations against public figures or politicians"
+  ],
+  "sg_case_references": [
+    "Lee Hsien Loong v Roy Ngerng Yi Ling [2014] SGHC 230 — online defamation, assessment of damages for defamatory blog posts",
+    "Review Publishing Co Ltd v Lee Hsien Loong [2010] SGCA 1 — Reynolds privilege (responsible journalism) considered and not adopted in Singapore",
+    "Lim Eng Hock Peter v Lin Jian Wei [2010] SGCA 26 — defamation damages and the natural and ordinary meaning test",
+    "Golden Season Pte Ltd v Kairos Singapore Holdings Pte Ltd [2015] SGHC 38 — corporate defamation and publication on online platforms",
+    "Lee Kuan Yew v Vinocur [1995] SGHC 170 — defamation by foreign media concerning a Singapore public figure"
+  ],
+  "party_roles": [
+    "plaintiff/claimant whose reputation is allegedly damaged",
+    "defendant/publisher of the defamatory statement",
+    "editor or platform operator",
+    "original source of the defamatory allegation"
+  ],
+  "defences": [
+    "Justification (truth) — the statement is substantially true in its defamatory meaning",
+    "Fair comment — honest opinion on a matter of public interest based on true facts",
+    "Absolute privilege — statements made in parliamentary or judicial proceedings",
+    "Qualified privilege — statements made on an occasion of duty or interest, without malice",
+    "Offer of amends under the Defamation Act (Cap 75) — prompt correction and apology"
+  ]
+}

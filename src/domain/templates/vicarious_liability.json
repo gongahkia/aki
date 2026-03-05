@@ -1,0 +1,44 @@
+{
+  "topic_key": "vicarious_liability",
+  "label": "Vicarious Liability",
+  "scenario_patterns": [
+    "A delivery driver causes an accident while making deliveries for his employer",
+    "A security guard assaults a visitor while on duty at a commercial building",
+    "A clinic nurse administers the wrong medication to a patient during working hours",
+    "An independent contractor hired by a company causes property damage at a worksite"
+  ],
+  "legal_tests": [
+    "There must be a relationship of employer and employee (as distinct from principal and independent contractor)",
+    "The tortious act must have been committed in the course of employment",
+    "The Salmond test: the act was either authorised by the employer, or was an unauthorised mode of performing an authorised act",
+    "Close connection test: whether the wrongful act was so closely connected with the employment that it would be fair and just to hold the employer liable",
+    "The employer-employee relationship is determined by the multi-factor test including control, integration, and economic reality"
+  ],
+  "common_fact_patterns": [
+    "Road accidents by employees driving company vehicles or making deliveries",
+    "Assaults or torts by security guards, bouncers, or enforcement officers during duty",
+    "Medical negligence by hospital employees — nurses, junior doctors, or technicians",
+    "Fraud or misrepresentation by employees in the course of business dealings",
+    "Torts by gig economy workers — whether they are employees or independent contractors"
+  ],
+  "sg_case_references": [
+    "Ng Huat Seng v Munib Mohammad Madni [2017] SGCA 58 — vicarious liability of employer for employee's negligence",
+    "Skandinaviska Enskilda Banken AB (Publ) v Asia Pacific Breweries (Singapore) Pte Ltd [2011] SGCA 22 — vicarious liability for employee's fraud and the close connection test",
+    "Keppel Bus Co Ltd v Sa'ad bin Ahmad [1974] 1 MLJ 191 — employer's vicarious liability for bus driver's negligence",
+    "Jet Holding Ltd v Cooper Cameron (Singapore) Pte Ltd [2006] SGCA 20 — distinction between employee and independent contractor"
+  ],
+  "party_roles": [
+    "plaintiff/claimant harmed by the employee's tort",
+    "employee/tortfeasor who committed the wrongful act",
+    "employer vicariously liable",
+    "independent contractor (no vicarious liability)",
+    "labour hire or staffing agency"
+  ],
+  "defences": [
+    "The tortfeasor was an independent contractor, not an employee",
+    "The tortious act was not committed in the course of employment — it was a frolic of the employee's own",
+    "The employee's act was wholly outside the scope of authorised duties with no close connection to employment",
+    "Contributory negligence of the plaintiff reducing the employer's liability",
+    "The employee acted in direct contravention of an express prohibition that limited the scope of employment"
+  ]
+}
