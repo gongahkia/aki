@@ -626,23 +626,10 @@ LEARNING OBJECTIVES ACHIEVED:
             hypothetical=hypothetical,
             available_topics=", ".join(available_topics),
             output_format=self.output_format,
-            latency_guardrail=self._build_latency_guardrail(context.user_preferences),
+            latency_guardrail=HypotheticalGenerationTemplate._build_latency_guardrail(context.user_preferences),
         )
 
         return {"system": self.system_prompt, "user": user_prompt}
-
-    @staticmethod
-    def _build_latency_guardrail(preferences: Optional[Dict[str, Any]]) -> str:
-        if not preferences:
-            return ""
-        if not bool(preferences.get("prioritize_latency")):
-            return ""
-        return (
-            "LATENCY MODE:\n"
-            "- Keep analysis concise and focused.\n"
-            "- Limit output to high-impact issues and short conclusions.\n"
-            "- Avoid exhaustive tangents unless critical."
-        )
 
 
 class PromptTemplateManager:
