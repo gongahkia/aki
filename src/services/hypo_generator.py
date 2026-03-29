@@ -16,6 +16,21 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# ── abbreviation-aware sentence splitting ────────────────────────────────
+_ABBREV_PATTERN = re.compile(
+    r"(?<!\b(?:Mr|Mrs|Ms|Dr|Prof|Jr|Sr|St|Sgt|Lt|Col|Gen|Rev|Hon"
+    r"|v|vs|s|no|nos|art|para|cl|e\.g|i\.e|etc|approx|inc|corp"
+    r"|ltd|pte|dept))"
+    r"(?<=[.!?])\s+",
+    re.IGNORECASE,
+)
+
+def _split_sentences(text: str) -> List[str]:
+    """Split text into sentences, respecting common legal abbreviations."""
+    parts = _ABBREV_PATTERN.split(text)
+    return [p.strip() for p in parts if p.strip()]
+
+
 # ── Singapore-appropriate fictional names ──────────────────────────────────
 _CHINESE_NAMES = [
     "Tan Wei Ming",
@@ -253,7 +268,7 @@ class HypoAssembler:
         sentences_pool: List[str] = []
         for frag in fragments[:3]:
             text = frag.get("text", "")
-            sents = re.split(r"(?<=[.!?])\s+", text)
+            sents = _split_sentences(text)
             if not sents:
                 continue
             try: # rank sentences by keyword overlap with topics
@@ -286,7 +301,7 @@ class HypoAssembler:
         """Add more detail from corpus fragments to meet word count."""
         extra = []
         for frag in fragments:
-            sents = re.split(r"(?<=[.!?])\s+", frag.get("text", ""))
+            sents = _split_sentences(frag.get("text", ""))
             extra.extend(sents[1:4])
             if sum(len(s.split()) for s in extra) >= words_needed:
                 break
