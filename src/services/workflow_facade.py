@@ -3,6 +3,7 @@
 import asyncio
 import csv
 import json
+import re
 import time
 import uuid
 from dataclasses import dataclass
@@ -195,14 +196,26 @@ class WorkflowFacade:
 
     @staticmethod
     def _estimate_quality_score(text: str) -> float:
-        text_len = len(text)
-        if text_len < 500:
-            return 0.62
-        if text_len < 1200:
-            return 0.72
-        if text_len < 2200:
-            return 0.80
-        return 0.87
+        """Multi-factor quality estimation (avoids pure length bias)."""
+        words = text.split()
+        word_count = len(words)
+        length_score = min(1.0, word_count / 1000) * 0.25 # length contributes 25% max
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        sentence_count = max(1, len(sentences))
+        unique_words = len(set(w.lower() for w in words))
+        vocab_diversity = min(1.0, unique_words / max(1, word_count)) # type-token ratio
+        diversity_score = vocab_diversity * 0.25
+        legal_terms = [
+            "duty", "breach", "causation", "damages", "liability", "negligence",
+            "defendant", "plaintiff", "claimant", "tort", "reasonable",
+            "foreseeable", "proximate", "standard of care", "defence",
+        ]
+        text_lower = text.lower()
+        legal_hits = sum(1 for t in legal_terms if t in text_lower)
+        legal_score = min(1.0, legal_hits / 6) * 0.30 # legal term density contributes 30%
+        avg_sent_len = word_count / sentence_count
+        structure_score = (0.2 if 10 <= avg_sent_len <= 30 else 0.1) # well-formed sentences
+        return round(min(1.0, max(0.3, length_score + diversity_score + legal_score + structure_score)), 2)
 
     def _bootstrap_training_data_from_corpus(
         self, output_path: str, *, correlation_id: Optional[str]
