@@ -200,13 +200,16 @@ async def export(req: ExportRequest):
     async def run():
         try:
             output = req.output_path or f"data/export_{job_id}.{req.format}"
+            model_answer = req.model_answer or ""
             if req.generation_id:
                 from ...services import database_service
 
                 gen = await database_service.get_generation_by_id(req.generation_id)
                 if gen:
-                    hypo = gen.get("hypothetical", req.hypothetical or "")
-                    analysis = gen.get("analysis", req.analysis or "")
+                    resp = gen.get("response", {})
+                    hypo = resp.get("hypothetical", gen.get("hypothetical", req.hypothetical or ""))
+                    analysis = resp.get("analysis", gen.get("analysis", req.analysis or ""))
+                    model_answer = model_answer or resp.get("model_answer", "")
                 else:
                     hypo = req.hypothetical or ""
                     analysis = req.analysis or ""
@@ -224,9 +227,9 @@ async def export(req: ExportRequest):
                 if analysis:
                     doc.add_heading("Legal Analysis", level=1)
                     doc.add_paragraph(analysis)
-                if req.model_answer:
+                if model_answer:
                     doc.add_heading("Model Answer", level=1)
-                    doc.add_paragraph(req.model_answer)
+                    doc.add_paragraph(model_answer)
                 Path(output).parent.mkdir(parents=True, exist_ok=True)
                 doc.save(output)
                 _jobs[job_id]["status"] = "completed"
@@ -240,6 +243,64 @@ async def export(req: ExportRequest):
 
     asyncio.create_task(run())
     return {"job_id": job_id}
+
+
+class ExportTrainingDataRequest(BaseModel):
+    output_path: str = "data/generated/approved_training_data.csv"
+    min_score: float = Field(default=7.0, ge=0, le=10)
+
+
+@router.post("/export-training-data")
+async def export_training_data(req: ExportTrainingDataRequest):
+    from ...services import database_service
+
+    try:
+        count = await database_service.export_approved_training_data(
+            req.output_path, min_score=req.min_score
+        )
+        return {"exported_rows": count, "output_path": req.output_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class AnkiExportRequest(BaseModel):
+    generation_ids: Optional[List[int]] = None
+    output_path: str = "data/export/anki_cards.tsv"
+    include_model_answer: bool = True
+
+
+@router.post("/export-anki")
+async def export_anki(req: AnkiExportRequest):
+    from ...services import database_service
+    from ...services.export_service import export_to_anki_tsv
+
+    try:
+        generations = []
+        if req.generation_ids:
+            for gid in req.generation_ids:
+                gen = await database_service.get_generation_by_id(gid)
+                if gen:
+                    resp = gen.get("response", {})
+                    generations.append({
+                        "hypothetical": resp.get("hypothetical", ""),
+                        "analysis": resp.get("analysis", ""),
+                        "model_answer": resp.get("model_answer", ""),
+                        "topics": gen.get("request", {}).get("topics", []),
+                    })
+        else:
+            history = await database_service.get_generation_history(limit=100)
+            for gen in history:
+                resp = gen.get("response", {})
+                generations.append({
+                    "hypothetical": resp.get("hypothetical", gen.get("hypothetical", "")),
+                    "analysis": resp.get("analysis", gen.get("analysis", "")),
+                    "model_answer": resp.get("model_answer", ""),
+                    "topics": gen.get("request", {}).get("topics", gen.get("topics", [])),
+                })
+        count = export_to_anki_tsv(generations, req.output_path, req.include_model_answer)
+        return {"exported_cards": count, "output_path": req.output_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/cleanup")
