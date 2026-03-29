@@ -234,10 +234,17 @@ class ValidationService:
                 matches = re.findall(pattern, text)
                 entities.update(matches)
 
-            # Remove common non-entity words
-            common_words = {"Singapore", "Tort", "Law", "Court", "The", "A", "An"}
+            # remove common non-entity words (exact token match, not substring)
+            common_words = {
+                "Singapore", "Tort", "Law", "Court", "The", "A", "An",
+                "High", "Supreme", "District", "State", "Appeal",
+                "Section", "Act", "January", "February", "March", "April",
+                "May", "June", "July", "August", "September", "October",
+                "November", "December",
+            }
             entities = {
-                e for e in entities if not any(word in e for word in common_words)
+                e for e in entities
+                if not any(token == word for token in e.split() for word in common_words)
             }
 
             actual_count = len(entities)
