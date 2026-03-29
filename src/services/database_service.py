@@ -1185,6 +1185,44 @@ class DatabaseService:
 
         return health_status
 
+    async def export_approved_training_data(self, output_path: str, min_score: float = 7.0) -> int:
+        """Export high-quality generations as ML training data CSV."""
+        def _export():
+            import csv as _csv
+            rows = []
+            with self._connection() as conn:
+                cursor = conn.execute(
+                    "SELECT id, topics, hypothetical, quality_score, request_data FROM generation_history "
+                    "WHERE validation_passed = 1 AND quality_score >= ?",
+                    (min_score,),
+                )
+                for row in cursor.fetchall():
+                    text = row["hypothetical"] or ""
+                    if not text.strip():
+                        continue
+                    req = self._decode_json_payload(row["request_data"], field_name="request_data", fallback={})
+                    topics = req.get("topics", [])
+                    complexity = req.get("complexity_level", "intermediate")
+                    complexity_map = {"beginner": 1, "basic": 2, "intermediate": 3, "advanced": 4, "expert": 5}
+                    comp_int = complexity_map.get(str(complexity).lower(), 3) if not isinstance(complexity, int) else complexity
+                    rows.append({
+                        "id": str(row["id"]),
+                        "text": text,
+                        "topics": "|".join(topics) if isinstance(topics, list) else str(topics),
+                        "complexity": comp_int,
+                        "quality_score": round(float(row["quality_score"] or 0.7), 2),
+                    })
+            if not rows:
+                return 0
+            out = Path(output_path)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            with out.open("w", encoding="utf-8", newline="") as f:
+                writer = _csv.DictWriter(f, fieldnames=["id", "text", "topics", "complexity", "quality_score"])
+                writer.writeheader()
+                writer.writerows(rows)
+            return len(rows)
+        return await self._run_in_thread(_export)
+
 
 # Global database service instance
 database_service = DatabaseService()
