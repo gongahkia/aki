@@ -17,6 +17,7 @@ from .hypothetical_service import (
 from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
 from .startup_checks import StartupCheckError, ensure_required_tort_corpus_file
 from .validation_service import ValidationService, validation_service
+from .export_service import export_to_anki_tsv, export_to_csv
 from .workflow_facade import (
     GenerationExecutionResult,
     RegenerationExecutionResult,
@@ -65,6 +66,8 @@ __all__ = [
     "GenerationExecutionResult",
     "RegenerationExecutionResult",
     "workflow_facade",
+    "export_to_anki_tsv",
+    "export_to_csv",
 ]
 
 if _HAS_VECTOR:
