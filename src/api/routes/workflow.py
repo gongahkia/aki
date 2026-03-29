@@ -93,6 +93,7 @@ async def generate(req: GenerateRequest):
         return {
             "hypothetical": result.response.hypothetical,
             "analysis": result.response.analysis,
+            "model_answer": result.response.model_answer,
             "generation_time": result.response.generation_time,
             "validation_results": result.response.validation_results,
             "metadata": result.response.metadata,
@@ -118,6 +119,7 @@ async def regenerate(req: RegenerateRequest):
             "regenerated": {
                 "hypothetical": result.regenerated.hypothetical,
                 "analysis": result.regenerated.analysis,
+                "model_answer": result.regenerated.model_answer,
                 "generation_time": result.regenerated.generation_time,
                 "validation_results": result.regenerated.validation_results,
                 "metadata": result.regenerated.metadata,
@@ -125,6 +127,42 @@ async def regenerate(req: RegenerateRequest):
         }
     except Exception as e:
         _raise_mapped_http_exception(e, operation="regenerate")
+
+
+class BatchGenerateRequest(BaseModel):
+    total_count: int = Field(default=10, ge=1, le=50)
+    topics_per_hypo: int = Field(default=3, ge=1, le=10)
+    complexity_level: str = "intermediate"
+    number_parties: int = Field(default=3, ge=2, le=5)
+    min_coverage: int = Field(default=1, ge=1, le=5)
+
+
+@router.post("/batch-generate")
+async def batch_generate(req: BatchGenerateRequest):
+    from ...services import workflow_facade
+
+    try:
+        results = await workflow_facade.batch_generate_with_coverage(
+            total_count=req.total_count,
+            topics_per_hypo=req.topics_per_hypo,
+            complexity_level=req.complexity_level,
+            number_parties=req.number_parties,
+            min_coverage=req.min_coverage,
+        )
+        return {
+            "count": len(results),
+            "generations": [
+                {
+                    "hypothetical": r.response.hypothetical,
+                    "analysis": r.response.analysis,
+                    "model_answer": r.response.model_answer,
+                    "metadata": r.response.metadata,
+                }
+                for r in results
+            ],
+        }
+    except Exception as e:
+        _raise_mapped_http_exception(e, operation="batch_generate")
 
 
 @router.post("/report")
