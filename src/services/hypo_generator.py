@@ -387,24 +387,28 @@ class DiversityChecker:
         self.threshold = similarity_threshold
         self._previous_texts: List[str] = []
         self._vectorizer: Any = None
+        self._prev_matrix: Any = None # cached TF-IDF matrix for previous texts
 
     def check(self, text: str) -> bool:
         """Return True if text is sufficiently diverse from previous generations."""
         if not self._previous_texts:
             self._previous_texts.append(text)
+            self._vectorizer = None
+            self._prev_matrix = None
             return True
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.metrics.pairwise import cosine_similarity
 
-            all_texts = self._previous_texts + [text]
-            self._vectorizer = TfidfVectorizer(max_features=2000)
-            tfidf = self._vectorizer.fit_transform(all_texts)
-            new_vec = tfidf[-1:]
-            prev_vecs = tfidf[:-1]
-            sims = cosine_similarity(new_vec, prev_vecs).flatten()
+            if self._vectorizer is None: # first comparison — fit vectorizer
+                self._vectorizer = TfidfVectorizer(max_features=2000)
+                self._prev_matrix = self._vectorizer.fit_transform(self._previous_texts)
+            new_vec = self._vectorizer.transform([text])
+            sims = cosine_similarity(new_vec, self._prev_matrix).flatten()
             if max(sims) > self.threshold:
                 return False
+            from scipy.sparse import vstack
+            self._prev_matrix = vstack([self._prev_matrix, new_vec])
         except Exception:
             pass
         self._previous_texts.append(text)
@@ -412,6 +416,8 @@ class DiversityChecker:
 
     def reset(self):
         self._previous_texts.clear()
+        self._vectorizer = None
+        self._prev_matrix = None
 
 
 class MultiIssueCombiner:
