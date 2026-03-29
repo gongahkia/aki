@@ -297,15 +297,24 @@ class ValidationService:
                     seen_topics.add(canonical)
                     canonical_required_topics.append(canonical)
 
+            negation_patterns = re.compile(
+                r"\b(?:no|not|without|lack(?:s|ing)?|absence of|never)\b"
+            )
             for canonical_topic in canonical_required_topics:
                 keywords = self._topic_keywords.get(
                     canonical_topic,
                     [canonical_topic.replace("_", " ")],
                 )
-
-                # Check if any keyword appears in text
-                found_keywords = [kw for kw in keywords if kw in text_lower]
-
+                found_keywords = []
+                for kw in keywords:
+                    idx = text_lower.find(kw)
+                    if idx == -1:
+                        continue
+                    window_start = max(0, idx - 40) # check ~40 chars before for negation
+                    context_window = text_lower[window_start:idx]
+                    if negation_patterns.search(context_window):
+                        continue # keyword appears in negated context
+                    found_keywords.append(kw)
                 if found_keywords:
                     topics_found.append(canonical_topic)
                     topic_evidence[canonical_topic] = found_keywords
