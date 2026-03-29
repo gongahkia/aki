@@ -902,6 +902,36 @@ class ValidationService:
                 "error": str(e),
             }
 
+    async def validate_with_llm(
+        self, text: str, required_topics: List[str], expected_parties: int
+    ) -> Dict[str, Any]:
+        """Optional LLM-based validation for topic coverage and logical coherence.
+        Gated behind settings.validation_use_llm (default False)."""
+        try:
+            from ..config import settings as app_settings
+            if not getattr(app_settings, "validation_use_llm", False):
+                return {}
+            from .llm_service import llm_service
+            prompt = (
+                "You are a Singapore tort law expert. Evaluate this hypothetical:\n\n"
+                f"{text[:3000]}\n\n"
+                f"Required topics: {', '.join(required_topics)}\n"
+                f"Expected parties: {expected_parties}\n\n"
+                "Respond in JSON with keys: topics_covered (list), topics_missing (list), "
+                "logical_coherence (float 0-1), party_count (int), issues (list of strings)."
+            )
+            response = await llm_service.generate(
+                system_prompt="You are a legal validation assistant. Respond only in valid JSON.",
+                user_prompt=prompt,
+                max_tokens=500,
+            )
+            import json
+            result = json.loads(response.get("content", "{}"))
+            return {"llm_validation": result, "passed": result.get("logical_coherence", 0) >= 0.6}
+        except Exception as exc:
+            logger.warning("LLM validation failed (non-fatal)", error=str(exc))
+            return {}
+
     def _run_ml_checks(self, text: str, required_topics: List[str]) -> Dict:
         """Run ML-based validation checks if models are trained."""
         pipeline = self._get_ml_pipeline()
