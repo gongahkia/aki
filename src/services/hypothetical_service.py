@@ -959,6 +959,17 @@ class HypotheticalService:
                 ],
             }
 
+            # optional LLM validation pass (non-blocking, enriches results)
+            llm_validation = {}
+            try:
+                llm_validation = await self.validation_service.validate_with_llm(
+                    hypothetical, request.topics, request.number_parties
+                )
+                if llm_validation:
+                    validation_result["llm_validation"] = llm_validation
+            except Exception:
+                pass # LLM validation is optional
+
             result = ValidationResult(
                 adherence_check=validation_result,
                 similarity_check=similarity_result,
@@ -973,6 +984,7 @@ class HypotheticalService:
                 passed=passed,
                 quality_score=quality_score,
                 method="deterministic",
+                llm_validation=bool(llm_validation),
                 correlation_id=request.correlation_id,
             )
 
