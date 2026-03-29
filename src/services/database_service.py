@@ -622,6 +622,10 @@ class DatabaseService:
             logger.error("Failed to get recent generations", error=str(e))
             return []
 
+    async def get_generation_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Backward-compatible alias for recent generation history."""
+        return await self.get_recent_generations(limit)
+
     async def get_history_records(self, limit: int = 500) -> List[Dict[str, Any]]:
         """Return history in legacy-compatible record shape, sourced from SQLite."""
         try:
@@ -1185,10 +1189,14 @@ class DatabaseService:
 
         return health_status
 
-    async def export_approved_training_data(self, output_path: str, min_score: float = 7.0) -> int:
+    async def export_approved_training_data(
+        self, output_path: str, min_score: float = 7.0
+    ) -> int:
         """Export high-quality generations as ML training data CSV."""
+
         def _export():
             import csv as _csv
+
             rows = []
             with self._connection() as conn:
                 cursor = conn.execute(
@@ -1200,27 +1208,51 @@ class DatabaseService:
                     text = row["hypothetical"] or ""
                     if not text.strip():
                         continue
-                    req = self._decode_json_payload(row["request_data"], field_name="request_data", fallback={})
+                    req = self._decode_json_payload(
+                        row["request_data"], field_name="request_data", fallback={}
+                    )
                     topics = req.get("topics", [])
                     complexity = req.get("complexity_level", "intermediate")
-                    complexity_map = {"beginner": 1, "basic": 2, "intermediate": 3, "advanced": 4, "expert": 5}
-                    comp_int = complexity_map.get(str(complexity).lower(), 3) if not isinstance(complexity, int) else complexity
-                    rows.append({
-                        "id": str(row["id"]),
-                        "text": text,
-                        "topics": "|".join(topics) if isinstance(topics, list) else str(topics),
-                        "complexity": comp_int,
-                        "quality_score": round(float(row["quality_score"] or 0.7), 2),
-                    })
+                    complexity_map = {
+                        "beginner": 1,
+                        "basic": 2,
+                        "intermediate": 3,
+                        "advanced": 4,
+                        "expert": 5,
+                    }
+                    comp_int = (
+                        complexity_map.get(str(complexity).lower(), 3)
+                        if not isinstance(complexity, int)
+                        else complexity
+                    )
+                    rows.append(
+                        {
+                            "id": str(row["id"]),
+                            "text": text,
+                            "topics": (
+                                "|".join(topics)
+                                if isinstance(topics, list)
+                                else str(topics)
+                            ),
+                            "complexity": comp_int,
+                            "quality_score": round(
+                                float(row["quality_score"] or 0.7), 2
+                            ),
+                        }
+                    )
             if not rows:
                 return 0
             out = Path(output_path)
             out.parent.mkdir(parents=True, exist_ok=True)
             with out.open("w", encoding="utf-8", newline="") as f:
-                writer = _csv.DictWriter(f, fieldnames=["id", "text", "topics", "complexity", "quality_score"])
+                writer = _csv.DictWriter(
+                    f,
+                    fieldnames=["id", "text", "topics", "complexity", "quality_score"],
+                )
                 writer.writeheader()
                 writer.writerows(rows)
             return len(rows)
+
         return await self._run_in_thread(_export)
 
 

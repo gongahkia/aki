@@ -7,6 +7,7 @@ from .database_service import (
     database_service,
 )
 from .error_mapper import ErrorMapping, map_exception
+from .export_service import export_to_anki_tsv, export_to_csv
 from .hypothetical_service import (
     GenerationRequest,
     GenerationResponse,
@@ -17,7 +18,6 @@ from .hypothetical_service import (
 from .llm_service import LLMRequest, LLMResponse, LLMService, llm_service
 from .startup_checks import StartupCheckError, ensure_required_tort_corpus_file
 from .validation_service import ValidationService, validation_service
-from .export_service import export_to_anki_tsv, export_to_csv
 from .workflow_facade import (
     GenerationExecutionResult,
     RegenerationExecutionResult,

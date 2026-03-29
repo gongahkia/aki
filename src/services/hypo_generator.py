@@ -17,18 +17,62 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # ── abbreviation-aware sentence splitting ────────────────────────────────
-_ABBREV_PATTERN = re.compile(
-    r"(?<!\b(?:Mr|Mrs|Ms|Dr|Prof|Jr|Sr|St|Sgt|Lt|Col|Gen|Rev|Hon"
-    r"|v|vs|s|no|nos|art|para|cl|e\.g|i\.e|etc|approx|inc|corp"
-    r"|ltd|pte|dept))"
-    r"(?<=[.!?])\s+",
-    re.IGNORECASE,
-)
+_SENTENCE_BOUNDARY_PATTERN = re.compile(r"(?<=[.!?])\s+")
+_ABBREVIATIONS = {
+    "mr",
+    "mrs",
+    "ms",
+    "dr",
+    "prof",
+    "jr",
+    "sr",
+    "st",
+    "sgt",
+    "lt",
+    "col",
+    "gen",
+    "rev",
+    "hon",
+    "v",
+    "vs",
+    "s",
+    "no",
+    "nos",
+    "art",
+    "para",
+    "cl",
+    "e.g",
+    "i.e",
+    "etc",
+    "approx",
+    "inc",
+    "corp",
+    "ltd",
+    "pte",
+    "dept",
+}
+
+
+def _ends_with_abbreviation(text: str) -> bool:
+    """Return True when the current sentence tail should not trigger a split."""
+    if not text:
+        return False
+    last_token = text.rstrip("\"')]}").split()[-1]
+    return last_token.rstrip(".").lower() in _ABBREVIATIONS
+
 
 def _split_sentences(text: str) -> List[str]:
     """Split text into sentences, respecting common legal abbreviations."""
-    parts = _ABBREV_PATTERN.split(text)
-    return [p.strip() for p in parts if p.strip()]
+    parts: List[str] = []
+    for segment in _SENTENCE_BOUNDARY_PATTERN.split(text):
+        cleaned = segment.strip()
+        if not cleaned:
+            continue
+        if parts and _ends_with_abbreviation(parts[-1]):
+            parts[-1] = f"{parts[-1]} {cleaned}"
+        else:
+            parts.append(cleaned)
+    return parts
 
 
 # ── Singapore-appropriate fictional names ──────────────────────────────────
@@ -244,18 +288,78 @@ class HypoAssembler:
             lines.append(f"{name} {role} in the area.")
         return " ".join(lines)
 
-    _NAME_EXCLUSIONS = { # common words that match name regex but aren't party names
-        "Singapore", "Court", "High", "Supreme", "District", "State", "Appeal",
-        "Tort", "Law", "The", "This", "That", "These", "Those", "However",
-        "Furthermore", "Moreover", "Nevertheless", "Accordingly", "Therefore",
-        "Section", "Act", "Statute", "Regulation", "Article", "Chapter",
-        "January", "February", "March", "April", "May", "June", "July",
-        "August", "September", "October", "November", "December",
-        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-        "Orchard", "Tampines", "Jurong", "Bedok", "Woodlands", "Hougang",
-        "Clementi", "Sentosa", "Marina", "Chinatown", "Raffles", "Changi",
-        "Pte", "Ltd", "Inc", "Corp", "Holdings", "Services", "Enterprises",
-        "Road", "Street", "Avenue", "Drive", "Lane", "Place", "Boulevard",
+    _NAME_EXCLUSIONS = {  # common words that match name regex but aren't party names
+        "Singapore",
+        "Court",
+        "High",
+        "Supreme",
+        "District",
+        "State",
+        "Appeal",
+        "Tort",
+        "Law",
+        "The",
+        "This",
+        "That",
+        "These",
+        "Those",
+        "However",
+        "Furthermore",
+        "Moreover",
+        "Nevertheless",
+        "Accordingly",
+        "Therefore",
+        "Section",
+        "Act",
+        "Statute",
+        "Regulation",
+        "Article",
+        "Chapter",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+        "Orchard",
+        "Tampines",
+        "Jurong",
+        "Bedok",
+        "Woodlands",
+        "Hougang",
+        "Clementi",
+        "Sentosa",
+        "Marina",
+        "Chinatown",
+        "Raffles",
+        "Changi",
+        "Pte",
+        "Ltd",
+        "Inc",
+        "Corp",
+        "Holdings",
+        "Services",
+        "Enterprises",
+        "Road",
+        "Street",
+        "Avenue",
+        "Drive",
+        "Lane",
+        "Place",
+        "Boulevard",
     }
 
     def _extract_fact_patterns(
@@ -264,19 +368,21 @@ class HypoAssembler:
         """Extract and recombine fact patterns from corpus fragments."""
         if not fragments:
             return ""
-        topic_query = " ".join(party_names[:1] + [frag.get("topics", ["tort"])[0] if isinstance(frag.get("topics"), list) else "tort" for frag in fragments[:1]])
         sentences_pool: List[str] = []
         for frag in fragments[:3]:
             text = frag.get("text", "")
             sents = _split_sentences(text)
             if not sents:
                 continue
-            try: # rank sentences by keyword overlap with topics
+            try:  # rank sentences by keyword overlap with topics
                 frag_topics = frag.get("topics", [])
                 topic_words = set()
-                for t in (frag_topics if isinstance(frag_topics, list) else []):
+                for t in frag_topics if isinstance(frag_topics, list) else []:
                     topic_words.update(t.lower().replace("_", " ").split())
-                scored = [(s, sum(1 for w in s.lower().split() if w in topic_words)) for s in sents]
+                scored = [
+                    (s, sum(1 for w in s.lower().split() if w in topic_words))
+                    for s in sents
+                ]
                 scored.sort(key=lambda x: x[1], reverse=True)
                 sentences_pool.extend(s for s, _ in scored[:5])
             except Exception:
@@ -288,7 +394,8 @@ class HypoAssembler:
         result = " ".join(selected)
         name_patterns = re.findall(r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*\b", result)
         filtered = [
-            n for n in name_patterns
+            n
+            for n in name_patterns
             if not any(token in self._NAME_EXCLUSIONS for token in n.split())
         ]
         unique_originals = list(dict.fromkeys(filtered))[: len(party_names)]
@@ -414,7 +521,7 @@ class DiversityChecker:
         self.threshold = similarity_threshold
         self._previous_texts: List[str] = []
         self._vectorizer: Any = None
-        self._prev_matrix: Any = None # cached TF-IDF matrix for previous texts
+        self._prev_matrix: Any = None  # cached TF-IDF matrix for previous texts
 
     def check(self, text: str) -> bool:
         """Return True if text is sufficiently diverse from previous generations."""
@@ -427,7 +534,7 @@ class DiversityChecker:
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.metrics.pairwise import cosine_similarity
 
-            if self._vectorizer is None: # first comparison — fit vectorizer
+            if self._vectorizer is None:  # first comparison — fit vectorizer
                 self._vectorizer = TfidfVectorizer(max_features=2000)
                 self._prev_matrix = self._vectorizer.fit_transform(self._previous_texts)
             new_vec = self._vectorizer.transform([text])
@@ -435,6 +542,7 @@ class DiversityChecker:
             if max(sims) > self.threshold:
                 return False
             from scipy.sparse import vstack
+
             self._prev_matrix = vstack([self._prev_matrix, new_vec])
         except Exception:
             pass

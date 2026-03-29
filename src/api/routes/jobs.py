@@ -207,8 +207,12 @@ async def export(req: ExportRequest):
                 gen = await database_service.get_generation_by_id(req.generation_id)
                 if gen:
                     resp = gen.get("response", {})
-                    hypo = resp.get("hypothetical", gen.get("hypothetical", req.hypothetical or ""))
-                    analysis = resp.get("analysis", gen.get("analysis", req.analysis or ""))
+                    hypo = resp.get(
+                        "hypothetical", gen.get("hypothetical", req.hypothetical or "")
+                    )
+                    analysis = resp.get(
+                        "analysis", gen.get("analysis", req.analysis or "")
+                    )
                     model_answer = model_answer or resp.get("model_answer", "")
                 else:
                     hypo = req.hypothetical or ""
@@ -281,23 +285,33 @@ async def export_anki(req: AnkiExportRequest):
                 gen = await database_service.get_generation_by_id(gid)
                 if gen:
                     resp = gen.get("response", {})
-                    generations.append({
-                        "hypothetical": resp.get("hypothetical", ""),
-                        "analysis": resp.get("analysis", ""),
-                        "model_answer": resp.get("model_answer", ""),
-                        "topics": gen.get("request", {}).get("topics", []),
-                    })
+                    generations.append(
+                        {
+                            "hypothetical": resp.get("hypothetical", ""),
+                            "analysis": resp.get("analysis", ""),
+                            "model_answer": resp.get("model_answer", ""),
+                            "topics": gen.get("request", {}).get("topics", []),
+                        }
+                    )
         else:
             history = await database_service.get_generation_history(limit=100)
             for gen in history:
                 resp = gen.get("response", {})
-                generations.append({
-                    "hypothetical": resp.get("hypothetical", gen.get("hypothetical", "")),
-                    "analysis": resp.get("analysis", gen.get("analysis", "")),
-                    "model_answer": resp.get("model_answer", ""),
-                    "topics": gen.get("request", {}).get("topics", gen.get("topics", [])),
-                })
-        count = export_to_anki_tsv(generations, req.output_path, req.include_model_answer)
+                generations.append(
+                    {
+                        "hypothetical": resp.get(
+                            "hypothetical", gen.get("hypothetical", "")
+                        ),
+                        "analysis": resp.get("analysis", gen.get("analysis", "")),
+                        "model_answer": resp.get("model_answer", ""),
+                        "topics": gen.get("request", {}).get(
+                            "topics", gen.get("topics", [])
+                        ),
+                    }
+                )
+        count = export_to_anki_tsv(
+            generations, req.output_path, req.include_model_answer
+        )
         return {"exported_cards": count, "output_path": req.output_path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

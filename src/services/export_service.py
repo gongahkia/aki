@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import csv
 import html
-import io
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import structlog
 
@@ -57,21 +56,32 @@ def export_to_csv(
     """Export hypotheticals as flat CSV."""
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fields = ["id", "topics", "hypothetical", "analysis", "model_answer", "quality_score"]
+    fields = [
+        "id",
+        "topics",
+        "hypothetical",
+        "analysis",
+        "model_answer",
+        "quality_score",
+    ]
     count = 0
     with out.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         for gen in generations:
             topics = gen.get("topics", [])
-            writer.writerow({
-                "id": gen.get("id", ""),
-                "topics": "|".join(topics) if isinstance(topics, list) else str(topics),
-                "hypothetical": gen.get("hypothetical", ""),
-                "analysis": gen.get("analysis", ""),
-                "model_answer": gen.get("model_answer", ""),
-                "quality_score": gen.get("quality_score", ""),
-            })
+            writer.writerow(
+                {
+                    "id": gen.get("id", ""),
+                    "topics": (
+                        "|".join(topics) if isinstance(topics, list) else str(topics)
+                    ),
+                    "hypothetical": gen.get("hypothetical", ""),
+                    "analysis": gen.get("analysis", ""),
+                    "model_answer": gen.get("model_answer", ""),
+                    "quality_score": gen.get("quality_score", ""),
+                }
+            )
             count += 1
     logger.info("exported csv", count=count, path=str(out))
     return count

@@ -202,6 +202,7 @@ SCENARIO METADATA:
     def _load_relevant_cases(topics: List[str]) -> List[Dict[str, str]]:
         """Load SG case citations from corpus/cases/ that match given topics."""
         import structlog
+
         _logger = structlog.get_logger(__name__)
         candidate_dirs = [
             Path(__file__).resolve().parent.parent.parent.parent / "corpus" / "cases",
@@ -209,7 +210,10 @@ SCENARIO METADATA:
         ]
         cases_dir = next((d for d in candidate_dirs if d.exists()), None)
         if cases_dir is None:
-            _logger.debug("corpus/cases directory not found", tried=[str(d) for d in candidate_dirs])
+            _logger.debug(
+                "corpus/cases directory not found",
+                tried=[str(d) for d in candidate_dirs],
+            )
             return []
         matched = []
         topic_set = {canonicalize_topic(t) for t in topics}
@@ -221,7 +225,9 @@ SCENARIO METADATA:
                 if case_topics & topic_set:
                     matched.append(case)
             except Exception as exc:
-                _logger.warning("failed to load case file", path=str(case_file), error=str(exc))
+                _logger.warning(
+                    "failed to load case file", path=str(case_file), error=str(exc)
+                )
                 continue
         return matched
 

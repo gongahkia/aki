@@ -77,13 +77,18 @@ class ComplexityController:
         """Auto-calibrate difficulty tiers from corpus statistics."""
         import json
         from pathlib import Path
+
         corpus_file = Path(corpus_path)
         if not corpus_file.exists():
             logger.warning("corpus not found for calibration", path=corpus_path)
             return {}
         try:
             raw = json.loads(corpus_file.read_text(encoding="utf-8"))
-            entries = raw if isinstance(raw, list) else raw.get("entries", raw.get("cases", []))
+            entries = (
+                raw
+                if isinstance(raw, list)
+                else raw.get("entries", raw.get("cases", []))
+            )
         except Exception as exc:
             logger.error("corpus parse failed during calibration", error=str(exc))
             return {}
@@ -98,7 +103,11 @@ class ComplexityController:
             if isinstance(topics, str):
                 topics = [topics]
             word_count = len(text.split())
-            inferred_complexity = 2 if word_count < 500 else (3 if word_count < 1000 else (4 if word_count < 1500 else 5))
+            inferred_complexity = (
+                2
+                if word_count < 500
+                else (3 if word_count < 1000 else (4 if word_count < 1500 else 5))
+            )
             texts.append(text)
             complexities.append(inferred_complexity)
             topics_list.append(topics)

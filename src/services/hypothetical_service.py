@@ -117,7 +117,7 @@ class GenerationResponse(BaseModel):
 
     hypothetical: str
     analysis: str
-    model_answer: str = "" # optional model answer walkthrough
+    model_answer: str = ""  # optional model answer walkthrough
     metadata: Dict[str, Any] = Field(default_factory=dict)
     generation_time: float = 0.0
     validation_results: Dict[str, Any] = Field(default_factory=dict)
@@ -552,11 +552,17 @@ class HypotheticalService:
             # Step 4.5: Generate model answer if requested
             model_answer = ""
             model_answer_time_ms = 0.0
-            if request.user_preferences and request.user_preferences.get("include_model_answer"):
+            if request.user_preferences and request.user_preferences.get(
+                "include_model_answer"
+            ):
                 try:
                     ma_started = time.perf_counter()
-                    model_answer = await self._generate_model_answer(request, hypothetical)
-                    model_answer_time_ms = round((time.perf_counter() - ma_started) * 1000, 2)
+                    model_answer = await self._generate_model_answer(
+                        request, hypothetical
+                    )
+                    model_answer_time_ms = round(
+                        (time.perf_counter() - ma_started) * 1000, 2
+                    )
                 except Exception as ma_err:
                     logger.warning("Model answer generation failed", error=str(ma_err))
 
@@ -968,7 +974,7 @@ class HypotheticalService:
                 if llm_validation:
                     validation_result["llm_validation"] = llm_validation
             except Exception:
-                pass # LLM validation is optional
+                pass  # LLM validation is optional
 
             result = ValidationResult(
                 adherence_check=validation_result,

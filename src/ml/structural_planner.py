@@ -25,7 +25,7 @@ class StructuralPlanner:
     Uses rule-based heuristics (ML training removed — no labeled data available)."""
 
     def __init__(self):
-        self.is_trained = False # kept for interface compat
+        self.is_trained = False  # kept for interface compat
 
     def predict(self, text: str, topics: List[str], complexity: int = 3) -> Dict:
         """Return structural plan based on topic count and complexity tier."""
@@ -37,7 +37,9 @@ class StructuralPlanner:
         if complexity >= 4:
             base_elements.extend(["defences", "timeline"])
         if complexity >= 5 or num_issues >= 4:
-            base_elements.extend(e for e in ["remedies", "analysis"] if e not in base_elements)
+            base_elements.extend(
+                e for e in ["remedies", "analysis"] if e not in base_elements
+            )
         return {
             "party_roles": party_count,
             "scenario_type": "multi-event" if num_issues > 3 else "single-event",

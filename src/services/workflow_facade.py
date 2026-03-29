@@ -199,23 +199,49 @@ class WorkflowFacade:
         """Multi-factor quality estimation (avoids pure length bias)."""
         words = text.split()
         word_count = len(words)
-        length_score = min(1.0, word_count / 1000) * 0.25 # length contributes 25% max
+        length_score = min(1.0, word_count / 1000) * 0.25  # length contributes 25% max
         sentences = re.split(r"(?<=[.!?])\s+", text)
         sentence_count = max(1, len(sentences))
         unique_words = len(set(w.lower() for w in words))
-        vocab_diversity = min(1.0, unique_words / max(1, word_count)) # type-token ratio
+        vocab_diversity = min(
+            1.0, unique_words / max(1, word_count)
+        )  # type-token ratio
         diversity_score = vocab_diversity * 0.25
         legal_terms = [
-            "duty", "breach", "causation", "damages", "liability", "negligence",
-            "defendant", "plaintiff", "claimant", "tort", "reasonable",
-            "foreseeable", "proximate", "standard of care", "defence",
+            "duty",
+            "breach",
+            "causation",
+            "damages",
+            "liability",
+            "negligence",
+            "defendant",
+            "plaintiff",
+            "claimant",
+            "tort",
+            "reasonable",
+            "foreseeable",
+            "proximate",
+            "standard of care",
+            "defence",
         ]
         text_lower = text.lower()
         legal_hits = sum(1 for t in legal_terms if t in text_lower)
-        legal_score = min(1.0, legal_hits / 6) * 0.30 # legal term density contributes 30%
+        legal_score = (
+            min(1.0, legal_hits / 6) * 0.30
+        )  # legal term density contributes 30%
         avg_sent_len = word_count / sentence_count
-        structure_score = (0.2 if 10 <= avg_sent_len <= 30 else 0.1) # well-formed sentences
-        return round(min(1.0, max(0.3, length_score + diversity_score + legal_score + structure_score)), 2)
+        structure_score = (
+            0.2 if 10 <= avg_sent_len <= 30 else 0.1
+        )  # well-formed sentences
+        return round(
+            min(
+                1.0,
+                max(
+                    0.3, length_score + diversity_score + legal_score + structure_score
+                ),
+            ),
+            2,
+        )
 
     def _bootstrap_training_data_from_corpus(
         self, output_path: str, *, correlation_id: Optional[str]
@@ -400,12 +426,17 @@ class WorkflowFacade:
             # calibrate complexity controller from corpus
             try:
                 from ..ml.complexity_controller import ComplexityController
+
                 ctrl = ComplexityController()
-                corpus_path = str(getattr(settings, "corpus_path", "corpus/clean/tort/corpus.json"))
+                corpus_path = str(
+                    getattr(settings, "corpus_path", "corpus/clean/tort/corpus.json")
+                )
                 ctrl.calibrate_from_corpus(corpus_path)
                 logger.info("complexity controller calibrated from corpus")
             except Exception as cal_exc:
-                logger.warning("complexity calibration failed (non-fatal)", error=str(cal_exc))
+                logger.warning(
+                    "complexity calibration failed (non-fatal)", error=str(cal_exc)
+                )
             self._ml_ready = True
 
     async def _prepare_combined_request(
@@ -729,7 +760,6 @@ class WorkflowFacade:
             regenerated=regenerated,
         )
 
-
     async def batch_generate_with_coverage(
         self,
         *,
@@ -741,6 +771,7 @@ class WorkflowFacade:
     ) -> List[GenerationExecutionResult]:
         """Generate N hypotheticals ensuring all 28 topics are covered at least min_coverage times."""
         from ..domain import all_tort_topic_keys
+
         all_topics = list(all_tort_topic_keys())
         coverage_count: Dict[str, int] = {t: 0 for t in all_topics}
         results: List[GenerationExecutionResult] = []
@@ -748,8 +779,11 @@ class WorkflowFacade:
             uncovered = [t for t, c in coverage_count.items() if c < min_coverage]
             if uncovered:
                 import random
-                selected = random.sample(uncovered, min(topics_per_hypo, len(uncovered)))
-            else: # all covered — pick least-covered topics
+
+                selected = random.sample(
+                    uncovered, min(topics_per_hypo, len(uncovered))
+                )
+            else:  # all covered — pick least-covered topics
                 sorted_topics = sorted(coverage_count.items(), key=lambda x: x[1])
                 selected = [t for t, _ in sorted_topics[:topics_per_hypo]]
             request = GenerationRequest(
@@ -764,7 +798,12 @@ class WorkflowFacade:
                 results.append(result)
                 for t in selected:
                     coverage_count[t] = coverage_count.get(t, 0) + 1
-                logger.info("batch generation progress", completed=i + 1, total=total_count, topics=selected)
+                logger.info(
+                    "batch generation progress",
+                    completed=i + 1,
+                    total=total_count,
+                    topics=selected,
+                )
             except Exception as exc:
                 logger.error("batch generation item failed", index=i, error=str(exc))
                 continue

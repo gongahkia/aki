@@ -236,15 +236,39 @@ class ValidationService:
 
             # remove common non-entity words (exact token match, not substring)
             common_words = {
-                "Singapore", "Tort", "Law", "Court", "The", "A", "An",
-                "High", "Supreme", "District", "State", "Appeal",
-                "Section", "Act", "January", "February", "March", "April",
-                "May", "June", "July", "August", "September", "October",
-                "November", "December",
+                "Singapore",
+                "Tort",
+                "Law",
+                "Court",
+                "The",
+                "A",
+                "An",
+                "High",
+                "Supreme",
+                "District",
+                "State",
+                "Appeal",
+                "Section",
+                "Act",
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
             }
             entities = {
-                e for e in entities
-                if not any(token == word for token in e.split() for word in common_words)
+                e
+                for e in entities
+                if not any(
+                    token == word for token in e.split() for word in common_words
+                )
             }
 
             actual_count = len(entities)
@@ -310,10 +334,12 @@ class ValidationService:
                     idx = text_lower.find(kw)
                     if idx == -1:
                         continue
-                    window_start = max(0, idx - 40) # check ~40 chars before for negation
+                    window_start = max(
+                        0, idx - 40
+                    )  # check ~40 chars before for negation
                     context_window = text_lower[window_start:idx]
                     if negation_patterns.search(context_window):
-                        continue # keyword appears in negated context
+                        continue  # keyword appears in negated context
                     found_keywords.append(kw)
                 if found_keywords:
                     topics_found.append(canonical_topic)
@@ -909,9 +935,12 @@ class ValidationService:
         Gated behind settings.validation_use_llm (default False)."""
         try:
             from ..config import settings as app_settings
+
             if not getattr(app_settings, "validation_use_llm", False):
                 return {}
+            from .llm_providers.base import LLMRequest
             from .llm_service import llm_service
+
             prompt = (
                 "You are a Singapore tort law expert. Evaluate this hypothetical:\n\n"
                 f"{text[:3000]}\n\n"
@@ -921,13 +950,20 @@ class ValidationService:
                 "logical_coherence (float 0-1), party_count (int), issues (list of strings)."
             )
             response = await llm_service.generate(
-                system_prompt="You are a legal validation assistant. Respond only in valid JSON.",
-                user_prompt=prompt,
-                max_tokens=500,
+                LLMRequest(
+                    prompt=prompt,
+                    system_prompt="You are a legal validation assistant. Respond only in valid JSON.",
+                    max_tokens=500,
+                    temperature=0.0,
+                )
             )
             import json
-            result = json.loads(response.get("content", "{}"))
-            return {"llm_validation": result, "passed": result.get("logical_coherence", 0) >= 0.6}
+
+            result = json.loads(response.content or "{}")
+            return {
+                "llm_validation": result,
+                "passed": result.get("logical_coherence", 0) >= 0.6,
+            }
         except Exception as exc:
             logger.warning("LLM validation failed (non-fatal)", error=str(exc))
             return {}

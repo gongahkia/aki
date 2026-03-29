@@ -52,7 +52,7 @@ from ..config import settings
 
 logger = structlog.get_logger(__name__)
 DEFAULT_MIN_SIMILARITY = 0.25
-LEGAL_BERT_MODEL = "nlpaueb/legal-bert-base-uncased" # domain-specific alternative
+LEGAL_BERT_MODEL = "nlpaueb/legal-bert-base-uncased"  # domain-specific alternative
 
 
 class VectorServiceError(Exception):
