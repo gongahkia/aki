@@ -117,6 +117,7 @@ class GenerationResponse(BaseModel):
 
     hypothetical: str
     analysis: str
+    model_answer: str = "" # optional model answer walkthrough
     metadata: Dict[str, Any] = Field(default_factory=dict)
     generation_time: float = 0.0
     validation_results: Dict[str, Any] = Field(default_factory=dict)
@@ -548,6 +549,17 @@ class HypotheticalService:
                     (time.perf_counter() - analysis_started) * 1000, 2
                 )
 
+            # Step 4.5: Generate model answer if requested
+            model_answer = ""
+            model_answer_time_ms = 0.0
+            if request.user_preferences and request.user_preferences.get("include_model_answer"):
+                try:
+                    ma_started = time.perf_counter()
+                    model_answer = await self._generate_model_answer(request, hypothetical)
+                    model_answer_time_ms = round((time.perf_counter() - ma_started) * 1000, 2)
+                except Exception as ma_err:
+                    logger.warning("Model answer generation failed", error=str(ma_err))
+
             # Step 5: Calculate generation time
             generation_time = round(time.perf_counter() - overall_started, 3)
             topic_extraction_time_ms = round(
@@ -559,12 +571,14 @@ class HypotheticalService:
                 "generation_time_ms": generation_time_ms,
                 "validation_time_ms": validation_time_ms,
                 "analysis_time_ms": analysis_time_ms,
+                "model_answer_time_ms": model_answer_time_ms,
             }
 
             # Create response
             response = GenerationResponse(
                 hypothetical=hypothetical,
                 analysis=analysis,
+                model_answer=model_answer,
                 metadata={
                     "topics": request.topics,
                     "law_domain": request.law_domain,
@@ -1100,6 +1114,43 @@ class HypotheticalService:
                 correlation_id=request.correlation_id,
             )
             return f"Legal analysis generation failed: {e}"
+
+    async def _generate_model_answer(
+        self, request: GenerationRequest, hypothetical: str
+    ) -> str:
+        """Generate a model answer walking through the legal analysis of the hypothetical."""
+        system_prompt = (
+            "You are a Singapore tort law examiner writing model answers. "
+            "Provide a structured answer to the hypothetical using IRAC method "
+            "(Issue, Rule, Application, Conclusion) for each legal issue. "
+            "Reference Singapore case law where appropriate."
+        )
+        user_prompt = (
+            f"Write a model answer for this tort law hypothetical:\n\n{hypothetical}\n\n"
+            f"Topics to address: {', '.join(request.topics)}\n\n"
+            "Structure your answer with IRAC for each issue. Be thorough but concise."
+        )
+        timeout_seconds = self._resolve_provider_timeout(request)
+        llm_request = LLMRequest(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            temperature=0.4,
+            max_tokens=3000,
+            correlation_id=request.correlation_id,
+            timeout_seconds=timeout_seconds,
+        )
+        llm_response = await self._await_provider_operation(
+            self.llm_service.generate(llm_request),
+            operation_name="model answer generation",
+            timeout_seconds=timeout_seconds,
+            correlation_id=request.correlation_id,
+        )
+        logger.info(
+            "Model answer generated",
+            length=len(llm_response.content),
+            correlation_id=request.correlation_id,
+        )
+        return llm_response.content
 
     def _extract_hypothetical_from_response(self, response_content: str) -> str:
         """

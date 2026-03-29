@@ -46,6 +46,7 @@ class PromptTemplateType(str, Enum):
     LEGAL_ANALYSIS = "legal_analysis"
     TOPIC_EXTRACTION = "topic_extraction"
     QUALITY_ASSESSMENT = "quality_assessment"
+    MODEL_ANSWER = "model_answer"
 
 
 class PromptTechnique(str, Enum):
