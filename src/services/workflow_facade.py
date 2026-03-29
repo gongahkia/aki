@@ -721,4 +721,52 @@ class WorkflowFacade:
         )
 
 
+    async def batch_generate_with_coverage(
+        self,
+        *,
+        total_count: int = 10,
+        topics_per_hypo: int = 3,
+        complexity_level: str = "intermediate",
+        number_parties: int = 3,
+        min_coverage: int = 1,
+    ) -> List[GenerationExecutionResult]:
+        """Generate N hypotheticals ensuring all 28 topics are covered at least min_coverage times."""
+        from ..domain import all_tort_topic_keys
+        all_topics = list(all_tort_topic_keys())
+        coverage_count: Dict[str, int] = {t: 0 for t in all_topics}
+        results: List[GenerationExecutionResult] = []
+        for i in range(total_count):
+            uncovered = [t for t, c in coverage_count.items() if c < min_coverage]
+            if uncovered:
+                import random
+                selected = random.sample(uncovered, min(topics_per_hypo, len(uncovered)))
+            else: # all covered — pick least-covered topics
+                sorted_topics = sorted(coverage_count.items(), key=lambda x: x[1])
+                selected = [t for t, _ in sorted_topics[:topics_per_hypo]]
+            request = GenerationRequest(
+                topics=selected,
+                law_domain="tort",
+                number_parties=number_parties,
+                complexity_level=complexity_level,
+                correlation_id=str(uuid.uuid4()),
+            )
+            try:
+                result = await self.generate_generation(request)
+                results.append(result)
+                for t in selected:
+                    coverage_count[t] = coverage_count.get(t, 0) + 1
+                logger.info("batch generation progress", completed=i + 1, total=total_count, topics=selected)
+            except Exception as exc:
+                logger.error("batch generation item failed", index=i, error=str(exc))
+                continue
+        uncovered_final = [t for t, c in coverage_count.items() if c < min_coverage]
+        logger.info(
+            "batch generation complete",
+            total=len(results),
+            uncovered_topics=uncovered_final,
+            coverage=dict(coverage_count),
+        )
+        return results
+
+
 workflow_facade = WorkflowFacade()
