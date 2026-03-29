@@ -200,21 +200,27 @@ SCENARIO METADATA:
     @staticmethod
     def _load_relevant_cases(topics: List[str]) -> List[Dict[str, str]]:
         """Load SG case citations from corpus/cases/ that match given topics."""
-        cases_dir = Path("corpus/cases")
-        if not cases_dir.exists():
+        import structlog
+        _logger = structlog.get_logger(__name__)
+        candidate_dirs = [
+            Path(__file__).resolve().parent.parent.parent.parent / "corpus" / "cases",
+            Path("corpus/cases"),
+        ]
+        cases_dir = next((d for d in candidate_dirs if d.exists()), None)
+        if cases_dir is None:
+            _logger.debug("corpus/cases directory not found", tried=[str(d) for d in candidate_dirs])
             return []
-        from .. import normalize_topic
-
         matched = []
-        topic_set = {normalize_topic(t) for t in topics}
+        topic_set = {canonicalize_topic(t) for t in topics}
         for case_file in sorted(cases_dir.glob("*.json")):
             try:
                 with open(case_file, "r", encoding="utf-8") as f:
                     case = json.load(f)
-                case_topics = {normalize_topic(t) for t in case.get("topics", [])}
+                case_topics = {canonicalize_topic(t) for t in case.get("topics", [])}
                 if case_topics & topic_set:
                     matched.append(case)
-            except Exception:
+            except Exception as exc:
+                _logger.warning("failed to load case file", path=str(case_file), error=str(exc))
                 continue
         return matched
 
