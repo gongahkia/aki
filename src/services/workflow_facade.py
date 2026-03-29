@@ -397,6 +397,15 @@ class WorkflowFacade:
                     "Required ML training failed; generation blocked.",
                     status_code=500,
                 ) from exc
+            # calibrate complexity controller from corpus
+            try:
+                from ..ml.complexity_controller import ComplexityController
+                ctrl = ComplexityController()
+                corpus_path = str(getattr(settings, "corpus_path", "corpus/clean/tort/corpus.json"))
+                ctrl.calibrate_from_corpus(corpus_path)
+                logger.info("complexity controller calibrated from corpus")
+            except Exception as cal_exc:
+                logger.warning("complexity calibration failed (non-fatal)", error=str(cal_exc))
             self._ml_ready = True
 
     async def _prepare_combined_request(
