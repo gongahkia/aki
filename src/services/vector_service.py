@@ -52,6 +52,7 @@ from ..config import settings
 
 logger = structlog.get_logger(__name__)
 DEFAULT_MIN_SIMILARITY = 0.25
+LEGAL_BERT_MODEL = "nlpaueb/legal-bert-base-uncased" # domain-specific alternative
 
 
 class VectorServiceError(Exception):
@@ -84,6 +85,10 @@ class VectorService:
             from ..config import settings as app_settings
 
             model_name = app_settings.embedding_model
+            use_legal_bert = getattr(app_settings, "use_legal_bert_embeddings", False)
+            if use_legal_bert:
+                model_name = LEGAL_BERT_MODEL
+                logger.info("Using Legal-BERT for domain-specific embeddings")
             logger.info("Loading embedding model", model=model_name)
             try:
                 self._embedding_model = SentenceTransformer(model_name)
