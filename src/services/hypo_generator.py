@@ -229,6 +229,20 @@ class HypoAssembler:
             lines.append(f"{name} {role} in the area.")
         return " ".join(lines)
 
+    _NAME_EXCLUSIONS = { # common words that match name regex but aren't party names
+        "Singapore", "Court", "High", "Supreme", "District", "State", "Appeal",
+        "Tort", "Law", "The", "This", "That", "These", "Those", "However",
+        "Furthermore", "Moreover", "Nevertheless", "Accordingly", "Therefore",
+        "Section", "Act", "Statute", "Regulation", "Article", "Chapter",
+        "January", "February", "March", "April", "May", "June", "July",
+        "August", "September", "October", "November", "December",
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+        "Orchard", "Tampines", "Jurong", "Bedok", "Woodlands", "Hougang",
+        "Clementi", "Sentosa", "Marina", "Chinatown", "Raffles", "Changi",
+        "Pte", "Ltd", "Inc", "Corp", "Holdings", "Services", "Enterprises",
+        "Road", "Street", "Avenue", "Drive", "Lane", "Place", "Boulevard",
+    }
+
     def _extract_fact_patterns(
         self, fragments: List[Dict], party_names: List[str]
     ) -> str:
@@ -239,17 +253,18 @@ class HypoAssembler:
         for frag in fragments[:3]:
             text = frag.get("text", "")
             sents = re.split(r"(?<=[.!?])\s+", text)
-            # take middle sentences (skip intro/conclusion)
-            mid = sents[len(sents) // 4 : 3 * len(sents) // 4]
+            mid = sents[len(sents) // 4 : 3 * len(sents) // 4] # skip intro/conclusion
             sentences_pool.extend(mid[:5])
         if not sentences_pool:
             return ""
-        # replace original names with our party names
         selected = sentences_pool[:8]
         result = " ".join(selected)
-        # simple name substitution
         name_patterns = re.findall(r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*\b", result)
-        unique_originals = list(dict.fromkeys(name_patterns))[: len(party_names)]
+        filtered = [
+            n for n in name_patterns
+            if not any(token in self._NAME_EXCLUSIONS for token in n.split())
+        ]
+        unique_originals = list(dict.fromkeys(filtered))[: len(party_names)]
         for i, original in enumerate(unique_originals):
             if i < len(party_names):
                 result = result.replace(original, party_names[i])
