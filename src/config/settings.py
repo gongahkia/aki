@@ -222,6 +222,8 @@ class Settings(BaseSettings):
     min_realism_score: float = Field(default=0.75, env="MIN_REALISM_SCORE")
     min_quality_score: float = Field(default=0.7, env="MIN_QUALITY_SCORE")
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
+    use_legal_bert_embeddings: bool = Field(default=False, env="USE_LEGAL_BERT_EMBEDDINGS")
+    validation_use_llm: bool = Field(default=False, env="VALIDATION_USE_LLM")
 
     # Sub-configurations
     database: DatabaseSettings = DatabaseSettings()
