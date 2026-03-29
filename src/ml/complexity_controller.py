@@ -73,6 +73,39 @@ class ComplexityController:
         logger.info("complexity_controller trained", tiers=len(self._learned_tiers))
         return {"tiers": {k: v.word_count_max for k, v in self._learned_tiers.items()}}
 
+    def calibrate_from_corpus(self, corpus_path: str) -> Dict:
+        """Auto-calibrate difficulty tiers from corpus statistics."""
+        import json
+        from pathlib import Path
+        corpus_file = Path(corpus_path)
+        if not corpus_file.exists():
+            logger.warning("corpus not found for calibration", path=corpus_path)
+            return {}
+        try:
+            raw = json.loads(corpus_file.read_text(encoding="utf-8"))
+            entries = raw if isinstance(raw, list) else raw.get("entries", raw.get("cases", []))
+        except Exception as exc:
+            logger.error("corpus parse failed during calibration", error=str(exc))
+            return {}
+        texts, complexities, topics_list = [], [], []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            text = str(entry.get("text", "")).strip()
+            if not text:
+                continue
+            topics = entry.get("topics", [])
+            if isinstance(topics, str):
+                topics = [topics]
+            word_count = len(text.split())
+            inferred_complexity = 2 if word_count < 500 else (3 if word_count < 1000 else (4 if word_count < 1500 else 5))
+            texts.append(text)
+            complexities.append(inferred_complexity)
+            topics_list.append(topics)
+        if len(texts) >= 2:
+            return self.train(texts, complexities, topics_list)
+        return {}
+
     def get_constraints(self, complexity: int) -> ComplexityConstraints:
         """Return constraints for a complexity tier (1-5)."""
         c = max(1, min(int(complexity), 5))
