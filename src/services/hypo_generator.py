@@ -249,12 +249,24 @@ class HypoAssembler:
         """Extract and recombine fact patterns from corpus fragments."""
         if not fragments:
             return ""
+        topic_query = " ".join(party_names[:1] + [frag.get("topics", ["tort"])[0] if isinstance(frag.get("topics"), list) else "tort" for frag in fragments[:1]])
         sentences_pool: List[str] = []
         for frag in fragments[:3]:
             text = frag.get("text", "")
             sents = re.split(r"(?<=[.!?])\s+", text)
-            mid = sents[len(sents) // 4 : 3 * len(sents) // 4] # skip intro/conclusion
-            sentences_pool.extend(mid[:5])
+            if not sents:
+                continue
+            try: # rank sentences by keyword overlap with topics
+                frag_topics = frag.get("topics", [])
+                topic_words = set()
+                for t in (frag_topics if isinstance(frag_topics, list) else []):
+                    topic_words.update(t.lower().replace("_", " ").split())
+                scored = [(s, sum(1 for w in s.lower().split() if w in topic_words)) for s in sents]
+                scored.sort(key=lambda x: x[1], reverse=True)
+                sentences_pool.extend(s for s, _ in scored[:5])
+            except Exception:
+                mid = sents[len(sents) // 4 : 3 * len(sents) // 4]
+                sentences_pool.extend(mid[:5])
         if not sentences_pool:
             return ""
         selected = sentences_pool[:8]
