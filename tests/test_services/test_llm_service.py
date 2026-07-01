@@ -2,6 +2,7 @@
 Tests for LLM Service.
 """
 
+import asyncio
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,6 +18,16 @@ from src.services.llm_service import (
     LLMService,
     LLMServiceError,
 )
+
+
+def _status_error(status_code: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "https://llm.test/generate")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError(
+        f"provider returned {status_code}",
+        request=request,
+        response=response,
+    )
 
 
 class TestLLMRequest:
@@ -331,6 +342,63 @@ class TestLLMService:
         fallback = llm_service._get_fallback_provider("openai")
 
         assert fallback == "ollama"
+
+    def test_fallback_order_is_independent_of_registry_order(self, llm_service):
+        """Fallback selection should use configured provider policy."""
+        llm_service._registry.list_instances.return_value = [
+            "anthropic",
+            "google",
+            "openai",
+            "ollama",
+        ]
+        llm_service._unhealthy_until = {}
+
+        assert llm_service._get_fallback_provider("anthropic") == "ollama"
+
+        llm_service._unhealthy_until["ollama"] = 9999999999.0
+
+        assert llm_service._get_fallback_provider("anthropic") == "openai"
+
+    @pytest.mark.parametrize(
+        ("error", "failure_kind"),
+        [
+            (asyncio.TimeoutError(), "timeout"),
+            (_status_error(503), "provider_5xx"),
+            (_status_error(429), "rate_limit"),
+            (httpx.ConnectError("connection refused"), "provider_down"),
+        ],
+    )
+    def test_transient_failure_modes_trip_circuit(
+        self, llm_service, error, failure_kind
+    ):
+        """Timeout, 5xx, rate-limit, and provider-down failures are transient."""
+        assert llm_service._classify_failure(error) == failure_kind
+        assert llm_service._should_trip_circuit(error) is True
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            LLMServiceError("OpenAI HTTP error: 401 unauthorized api key"),
+            LLMServiceError("Model 'gpt-missing' not found"),
+        ],
+    )
+    def test_permanent_failures_do_not_trip_circuit(self, llm_service, error):
+        """Auth and model configuration errors should not poison fallback state."""
+        assert llm_service._classify_failure(error) == "permanent"
+        assert llm_service._should_trip_circuit(error) is False
+
+    def test_record_failure_trips_circuit_with_jitter(self, llm_service):
+        """Circuit cooldown should include bounded jitter."""
+        with (
+            patch("src.services.llm_service.random.uniform", return_value=5.0),
+            patch("src.services.llm_service.time.time", return_value=100.0),
+        ):
+            llm_service._record_failure("openai", failure_kind="rate_limit")
+            llm_service._record_failure("openai", failure_kind="rate_limit")
+            llm_service._record_failure("openai", failure_kind="rate_limit")
+
+        assert llm_service._failure_counts["openai"] == 3
+        assert llm_service._unhealthy_until["openai"] == 165.0
 
     @pytest.mark.asyncio
     async def test_generate_uses_local_first_fallback_when_primary_unhealthy(

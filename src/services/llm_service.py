@@ -3,9 +3,11 @@ LLM Service using provider registry for multi-provider support.
 """
 
 import asyncio
+import random
 import time
 from typing import Any, Dict, List, Optional
 
+import httpx
 import structlog
 
 from ..config import settings
@@ -19,6 +21,15 @@ MAX_GENERATION_TIMEOUT = 300
 HEALTH_CHECK_TIMEOUT = 30
 CIRCUIT_BREAKER_THRESHOLD = 3  # consecutive failures before marking unhealthy
 CIRCUIT_BREAKER_COOLDOWN = settings.llm_providers.circuit_breaker_cooldown
+CIRCUIT_BREAKER_JITTER_RATIO = 0.2
+PROVIDER_FALLBACK_ORDER = ("ollama", "local", "openai", "google", "anthropic")
+CIRCUIT_BREAKER_FAILURE_KINDS = {
+    "timeout",
+    "provider_5xx",
+    "rate_limit",
+    "provider_down",
+    "unknown",
+}
 
 # cost per 1K tokens (USD) - configurable
 TOKEN_COSTS = {
@@ -172,18 +183,110 @@ class LLMService:
             self._failure_counts[name] = 0
         return True
 
-    def _record_failure(self, name: str):
+    @staticmethod
+    def _fallback_rank(name: str) -> int:
+        try:
+            return PROVIDER_FALLBACK_ORDER.index(name)
+        except ValueError:
+            return len(PROVIDER_FALLBACK_ORDER)
+
+    @staticmethod
+    def _classify_failure(error: BaseException) -> str:
+        if isinstance(error, (asyncio.TimeoutError, TimeoutError)):
+            return "timeout"
+        if isinstance(error, httpx.HTTPStatusError):
+            status = error.response.status_code
+            if status == 429:
+                return "rate_limit"
+            if 500 <= status < 600:
+                return "provider_5xx"
+            if status in {401, 403, 404}:
+                return "permanent"
+        if isinstance(error, (httpx.ConnectError, httpx.NetworkError, ConnectionError)):
+            return "provider_down"
+
+        message = str(error).lower()
+        if any(
+            token in message for token in ("rate limit", "too many requests", "429")
+        ):
+            return "rate_limit"
+        if any(token in message for token in ("timed out", "timeout")):
+            return "timeout"
+        if any(
+            token in message
+            for token in (
+                " 500",
+                "500.",
+                " 502",
+                "502.",
+                " 503",
+                "503.",
+                " 504",
+                "504.",
+                "5xx",
+                "server error",
+                "status error 5",
+            )
+        ):
+            return "provider_5xx"
+        if any(
+            token in message
+            for token in (
+                "connection",
+                "refused",
+                "unreachable",
+                "all connection attempts failed",
+                "network",
+                "provider down",
+                "transport error",
+            )
+        ):
+            return "provider_down"
+        if any(
+            token in message
+            for token in (
+                "api key",
+                "apikey",
+                "authentication",
+                "unauthorized",
+                "forbidden",
+                "401",
+                "403",
+            )
+        ):
+            return "permanent"
+        if "model" in message and any(
+            token in message
+            for token in ("not found", "not available", "does not exist")
+        ):
+            return "permanent"
+        return "unknown"
+
+    def _should_trip_circuit(self, error: BaseException) -> bool:
+        return self._classify_failure(error) in CIRCUIT_BREAKER_FAILURE_KINDS
+
+    @staticmethod
+    def _cooldown_with_jitter() -> float:
+        cooldown = float(CIRCUIT_BREAKER_COOLDOWN)
+        if CIRCUIT_BREAKER_JITTER_RATIO <= 0 or cooldown <= 0:
+            return cooldown
+        spread = cooldown * CIRCUIT_BREAKER_JITTER_RATIO
+        return max(1.0, cooldown + random.uniform(-spread, spread))
+
+    def _record_failure(self, name: str, *, failure_kind: str = "unknown"):
         """Record a failure; trip circuit breaker after threshold."""
         if len(self._failure_counts) > 1000:
             oldest = next(iter(self._failure_counts))
             del self._failure_counts[oldest]
         self._failure_counts[name] = self._failure_counts.get(name, 0) + 1
         if self._failure_counts[name] >= CIRCUIT_BREAKER_THRESHOLD:
-            self._unhealthy_until[name] = time.time() + CIRCUIT_BREAKER_COOLDOWN
+            cooldown = self._cooldown_with_jitter()
+            self._unhealthy_until[name] = time.time() + cooldown
             logger.warning(
                 "Circuit breaker tripped",
                 provider=name,
-                cooldown=CIRCUIT_BREAKER_COOLDOWN,
+                failure_kind=failure_kind,
+                cooldown=round(cooldown, 2),
             )
 
     def _record_success(self, name: str):
@@ -256,10 +359,14 @@ class LLMService:
 
     def _get_fallback_provider(self, exclude: str) -> Optional[str]:
         """Get next available healthy provider."""
-        for name in registry.list_instances():
-            if name != exclude and self._is_provider_healthy(name):
-                return name
-        return None
+        candidates = [
+            name
+            for name in registry.list_instances()
+            if name != exclude and self._is_provider_healthy(name)
+        ]
+        if not candidates:
+            return None
+        return sorted(candidates, key=lambda name: (self._fallback_rank(name), name))[0]
 
     async def generate(
         self,
@@ -311,8 +418,8 @@ class LLMService:
                 correlation_id=correlation_id,
             )
             return response
-        except asyncio.TimeoutError:
-            self._record_failure(provider_name)
+        except asyncio.TimeoutError as e:
+            self._record_failure(provider_name, failure_kind="timeout")
             logger.warning(
                 "LLM generation timed out",
                 provider=provider_name,
@@ -321,12 +428,22 @@ class LLMService:
             )
             raise LLMServiceError(
                 f"Generation timed out after {request_timeout}s on provider '{provider_name}'"
-            )
+            ) from e
         except Exception as e:
-            self._record_failure(provider_name)
+            failure_kind = self._classify_failure(e)
+            if self._should_trip_circuit(e):
+                self._record_failure(provider_name, failure_kind=failure_kind)
+            else:
+                logger.info(
+                    "LLM generation failed without circuit breaker trip",
+                    provider=provider_name,
+                    failure_kind=failure_kind,
+                    correlation_id=correlation_id,
+                )
             logger.error(
                 "LLM generation failed",
                 provider=provider_name,
+                failure_kind=failure_kind,
                 error=str(e),
                 correlation_id=correlation_id,
             )
@@ -369,8 +486,8 @@ class LLMService:
                 model=request.model,
                 correlation_id=correlation_id,
             )
-        except TimeoutError:
-            self._record_failure(provider_name)
+        except TimeoutError as e:
+            self._record_failure(provider_name, failure_kind="timeout")
             logger.warning(
                 "LLM stream timed out",
                 provider=provider_name,
@@ -379,16 +496,26 @@ class LLMService:
             )
             raise LLMServiceError(
                 f"Stream timed out after {request_timeout}s on provider '{provider_name}'"
-            )
+            ) from e
         except Exception as e:
-            self._record_failure(provider_name)
+            failure_kind = self._classify_failure(e)
+            if self._should_trip_circuit(e):
+                self._record_failure(provider_name, failure_kind=failure_kind)
+            else:
+                logger.info(
+                    "LLM stream failed without circuit breaker trip",
+                    provider=provider_name,
+                    failure_kind=failure_kind,
+                    correlation_id=correlation_id,
+                )
             logger.error(
                 "LLM stream failed",
                 provider=provider_name,
+                failure_kind=failure_kind,
                 error=str(e),
                 correlation_id=correlation_id,
             )
-            raise LLMServiceError(f"Stream failed on '{provider_name}': {e}")
+            raise LLMServiceError(f"Stream failed on '{provider_name}': {e}") from e
 
     async def health_check(self, provider: Optional[str] = None) -> Dict[str, Any]:
         """Check health of all or specific provider."""
