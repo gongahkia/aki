@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
+from src.corpus_ingestion import read_ingestion_health
+
 from ..config import settings
 from ..domain import canonicalize_topic, normalize_scope_token, resolve_domain_pack
 from .vector_service import VectorServiceError, vector_service
@@ -707,6 +709,7 @@ class CorpusService:
             "local_corpus": False,
             "total_entries": 0,
             "topics_count": 0,
+            "ingestion": read_ingestion_health(),
         }
 
         try:

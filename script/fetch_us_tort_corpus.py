@@ -11,6 +11,12 @@ from typing import Any
 
 import httpx
 
+from src.corpus_ingestion import (
+    DEFAULT_EVENTS_PATH,
+    DEFAULT_HEALTH_PATH,
+    CorpusParseError,
+    fetch_http_json,
+)
 
 USER_AGENT = "jikai-us-tort-ingester/0.1"
 CAP_TERMS_URL = "https://case.law/terms/"
@@ -165,12 +171,22 @@ def record_from_cap_case(
     }
 
 
-def fetch_cap_case(client: httpx.Client, url: str) -> dict[str, Any]:
-    response = client.get(url)
-    response.raise_for_status()
-    payload = response.json()
+def fetch_cap_case(
+    client: httpx.Client,
+    url: str,
+    *,
+    events_path: Path = DEFAULT_EVENTS_PATH,
+    health_path: Path = DEFAULT_HEALTH_PATH,
+) -> dict[str, Any]:
+    payload = fetch_http_json(
+        client,
+        url,
+        source="us_tort:cap",
+        events_path=events_path,
+        health_path=health_path,
+    )
     if not isinstance(payload, dict):
-        raise ValueError(f"CAP response is not a JSON object: {url}")
+        raise CorpusParseError(f"CAP response is not a JSON object: {url}")
     return payload
 
 

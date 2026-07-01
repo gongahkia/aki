@@ -10,8 +10,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
+from src.corpus_ingestion import (
+    CorpusValidationError,
+    emit_event,
+    quarantine_record,
+    record_source_failure,
+    record_source_success,
+)
 from ..domain import resolve_domain_pack
 from .corpus_preprocessor import (
     MIN_ENTRY_CHARS,
@@ -70,6 +77,7 @@ class StageResult(BaseModel):
     records_count: int
     content_hash: str
     skipped: bool
+    quarantined_count: int = 0
 
 
 class MedallionManifest(BaseModel):
@@ -171,6 +179,11 @@ def run_bronze(
     manifest_path: Path = DEFAULT_MANIFEST_PATH,
 ) -> StageResult:
     pack = resolve_domain_pack(corpus_pack)
+    emit_event(
+        "stage_started",
+        source=f"{pack.key}:bronze",
+        message="bronze stage started",
+    )
     records = []
     for source_path in _iter_raw_files(pack.raw_paths):
         rel_path = _repo_relative(source_path)
@@ -189,6 +202,7 @@ def run_bronze(
                 source=source,
             )
         )
+        record_source_success(f"{pack.key}:raw:{rel_path}", source.url)
 
     payload = MedallionManifest(
         corpus_pack_key=pack.key,
@@ -205,6 +219,12 @@ def run_bronze(
         records=records,
     ).model_dump(mode="json")
     skipped, digest = _write_json_if_changed(manifest_path, payload)
+    emit_event(
+        "stage_completed",
+        source=f"{pack.key}:bronze",
+        message="bronze stage completed",
+        details={"records_count": len(records), "skipped": skipped},
+    )
     return StageResult(
         stage="bronze",
         path=manifest_path.as_posix(),
@@ -251,59 +271,102 @@ def run_silver(
     manifest_path: Path = DEFAULT_MANIFEST_PATH,
     output_path: Optional[Path] = None,
     legacy_topic_path: Optional[Path] = None,
+    quarantine_path: Optional[Path] = None,
     min_entry_chars: int = MIN_ENTRY_CHARS,
 ) -> StageResult:
     if not manifest_path.exists():
         run_bronze(corpus_pack=corpus_pack, manifest_path=manifest_path)
     output_path = output_path or _default_silver_path(corpus_pack)
+    quarantine_path = quarantine_path or output_path.with_name("quarantine.jsonl")
+    if quarantine_path.exists():
+        quarantine_path.unlink()
+    emit_event(
+        "stage_started",
+        source=f"{corpus_pack}:silver",
+        message="silver stage started",
+    )
     records: list[SilverRecord] = []
     seen_text_hashes: set[str] = set()
+    quarantined_count = 0
     legacy_topics = _load_legacy_topics(
         legacy_topic_path or _default_legacy_topic_path(corpus_pack)
     )
     for index, bronze in enumerate(_load_bronze_records(manifest_path)):
         if bronze.corpus_pack_key != corpus_pack:
             continue
-        source_path = Path(bronze.source.path)
-        text = normalize_text(extract_text(source_path))
-        if len(text) < min_entry_chars:
-            continue
-        text_hash = _sha256_bytes(text.encode("utf-8"))
-        if text_hash in seen_text_hashes:
-            continue
-        seen_text_hashes.add(text_hash)
-        topics = legacy_topics.get(index) or _normalize_topics(
-            infer_topics_from_dir(source_path.parent.name)
-        )
-        records.append(
-            SilverRecord(
-                id=bronze.id,
-                text=text,
-                topics=topics,
-                source=bronze.source,
-                provenance={
-                    "bronze_record_id": bronze.id,
-                    "source_url": bronze.source.url,
-                    "retrieved_at": bronze.source.retrieved_at,
-                    "source_content_hash": bronze.source.content_hash,
-                    "normalized_text_hash": text_hash,
-                },
-                metadata={
-                    "source_file": source_path.as_posix(),
-                    "source_dir": source_path.parent.name,
-                    "medallion_layer": "silver",
-                },
+        try:
+            source_path = Path(bronze.source.path)
+            text = normalize_text(extract_text(source_path))
+            if len(text) < min_entry_chars:
+                continue
+            text_hash = _sha256_bytes(text.encode("utf-8"))
+            if text_hash in seen_text_hashes:
+                continue
+            topics = legacy_topics.get(index) or _normalize_topics(
+                infer_topics_from_dir(source_path.parent.name)
             )
-        )
+            record = SilverRecord.model_validate(
+                {
+                    "id": bronze.id,
+                    "text": text,
+                    "topics": topics,
+                    "source": bronze.source,
+                    "provenance": {
+                        "bronze_record_id": bronze.id,
+                        "source_url": bronze.source.url,
+                        "retrieved_at": bronze.source.retrieved_at,
+                        "source_content_hash": bronze.source.content_hash,
+                        "normalized_text_hash": text_hash,
+                    },
+                    "metadata": {
+                        "source_file": source_path.as_posix(),
+                        "source_dir": source_path.parent.name,
+                        "medallion_layer": "silver",
+                    },
+                }
+            )
+            seen_text_hashes.add(text_hash)
+            records.append(record)
+            record_source_success(
+                f"{corpus_pack}:silver:{bronze.id}", bronze.source.url
+            )
+        except (OSError, ValueError, ValidationError) as exc:
+            quarantined_count += 1
+            error = CorpusValidationError(str(exc))
+            record_source_failure(
+                f"{corpus_pack}:silver:{bronze.id}",
+                bronze.source.url,
+                str(error),
+            )
+            quarantine_record(
+                quarantine_path,
+                stage="silver",
+                source=bronze.id,
+                source_url=bronze.source.url,
+                payload=bronze.model_dump(mode="json"),
+                error=error,
+            )
+            continue
 
     payload = [record.model_dump(mode="json") for record in records]
     skipped, digest = _write_json_if_changed(output_path, payload)
+    emit_event(
+        "stage_completed",
+        source=f"{corpus_pack}:silver",
+        message="silver stage completed",
+        details={
+            "records_count": len(records),
+            "quarantined_count": quarantined_count,
+            "skipped": skipped,
+        },
+    )
     return StageResult(
         stage="silver",
         path=output_path.as_posix(),
         records_count=len(records),
         content_hash=digest,
         skipped=skipped,
+        quarantined_count=quarantined_count,
     )
 
 
@@ -386,9 +449,12 @@ def run_all(corpus_pack: str = "sg_tort") -> list[StageResult]:
 
 def _print_result(result: StageResult) -> None:
     status = "skipped" if result.skipped else "wrote"
+    quarantine = (
+        f", quarantined={result.quarantined_count}" if result.quarantined_count else ""
+    )
     print(
         f"{result.stage}: {status} {result.records_count} records "
-        f"-> {result.path} sha256={result.content_hash}"
+        f"-> {result.path} sha256={result.content_hash}{quarantine}"
     )
 
 
@@ -399,6 +465,7 @@ def main() -> int:
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
     parser.add_argument("--silver-path", type=Path)
     parser.add_argument("--gold-path", type=Path)
+    parser.add_argument("--quarantine-path", type=Path)
     parser.add_argument("--write-legacy-clean", action="store_true")
     args = parser.parse_args()
 
@@ -415,6 +482,7 @@ def main() -> int:
                 corpus_pack=args.corpus_pack,
                 manifest_path=args.manifest_path,
                 output_path=args.silver_path,
+                quarantine_path=args.quarantine_path,
             )
         )
     elif args.stage == "gold":

@@ -1,6 +1,6 @@
 import pytest
 
-from script.fetch_uk_tort_corpus import clean_text, record_from_tna_xml
+from script.fetch_uk_tort_corpus import clean_text, fetch_tna_xml, record_from_tna_xml
 
 
 MINIMAL_TNA_XML = """\
@@ -34,6 +34,39 @@ MINIMAL_TNA_XML = """\
   </judgment>
 </akomaNtoso>
 """
+
+
+class _FakeStreamResponse:
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def raise_for_status(self):
+        return None
+
+    def iter_bytes(self):
+        yield self.body
+
+
+class _StreamOnlyClient:
+    get_called = False
+
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def get(self, *_args, **_kwargs):
+        self.get_called = True
+        raise AssertionError("plain get should not be used")
+
+    def stream(self, method, url):
+        assert method == "GET"
+        assert url == "https://caselaw.nationalarchives.gov.uk/example/data.xml"
+        return _FakeStreamResponse(self.body)
 
 
 def test_clean_text_compacts_xml_text_spacing():
@@ -84,3 +117,17 @@ def test_record_from_tna_xml_fails_for_invalid_xml():
             topics=["negligence"],
             retrieved_at="2026-07-01",
         )
+
+
+def test_fetch_tna_xml_uses_streaming_retry_helper(tmp_path):
+    client = _StreamOnlyClient(MINIMAL_TNA_XML.encode("utf-8"))
+
+    xml_text = fetch_tna_xml(
+        client,
+        "https://caselaw.nationalarchives.gov.uk/example/data.xml",
+        events_path=tmp_path / "events.jsonl",
+        health_path=tmp_path / "health.json",
+    )
+
+    assert "judgmentBody" in xml_text
+    assert client.get_called is False

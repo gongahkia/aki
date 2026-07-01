@@ -1,6 +1,41 @@
+import json
+
 import pytest
 
-from script.fetch_us_tort_corpus import clean_text, record_from_cap_case
+from script.fetch_us_tort_corpus import clean_text, fetch_cap_case, record_from_cap_case
+
+
+class _FakeStreamResponse:
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def raise_for_status(self):
+        return None
+
+    def iter_bytes(self):
+        yield self.body
+
+
+class _StreamOnlyClient:
+    get_called = False
+
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def get(self, *_args, **_kwargs):
+        self.get_called = True
+        raise AssertionError("plain get should not be used")
+
+    def stream(self, method, url):
+        assert method == "GET"
+        assert url == "https://static.case.law/example.json"
+        return _FakeStreamResponse(self.body)
 
 
 def test_clean_text_compacts_spaces_and_blank_lines():
@@ -63,3 +98,17 @@ def test_record_from_cap_case_fails_without_opinion_text():
             topics=["negligence"],
             retrieved_at="2026-07-01",
         )
+
+
+def test_fetch_cap_case_uses_streaming_retry_helper(tmp_path):
+    client = _StreamOnlyClient(json.dumps({"id": 1}).encode("utf-8"))
+
+    payload = fetch_cap_case(
+        client,
+        "https://static.case.law/example.json",
+        events_path=tmp_path / "events.jsonl",
+        health_path=tmp_path / "health.json",
+    )
+
+    assert payload == {"id": 1}
+    assert client.get_called is False

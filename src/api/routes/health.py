@@ -17,8 +17,9 @@ async def health():
     except Exception:
         db_ok = False
     corpus_ok = True
+    corpus_health = {}
     try:
-        await corpus_service.health_check()
+        corpus_health = await corpus_service.health_check()
     except Exception:
         corpus_ok = False
     llm_health = {}
@@ -32,7 +33,7 @@ async def health():
         "version": settings.app_version,
         "services": {
             "database": db_ok,
-            "corpus": corpus_ok,
+            "corpus": {"healthy": corpus_ok, **corpus_health},
             "llm": llm_health,
         },
     }

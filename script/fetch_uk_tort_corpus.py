@@ -12,6 +12,11 @@ from xml.etree import ElementTree as ET
 
 import httpx
 
+from src.corpus_ingestion import (
+    DEFAULT_EVENTS_PATH,
+    DEFAULT_HEALTH_PATH,
+    fetch_http_text,
+)
 
 USER_AGENT = "jikai-uk-tort-ingester/0.1"
 OJL_URL = "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2"
@@ -196,10 +201,20 @@ def record_from_tna_xml(
     }
 
 
-def fetch_tna_xml(client: httpx.Client, url: str) -> str:
-    response = client.get(url)
-    response.raise_for_status()
-    return response.text
+def fetch_tna_xml(
+    client: httpx.Client,
+    url: str,
+    *,
+    events_path: Path = DEFAULT_EVENTS_PATH,
+    health_path: Path = DEFAULT_HEALTH_PATH,
+) -> str:
+    return fetch_http_text(
+        client,
+        url,
+        source="uk_tort:tna",
+        events_path=events_path,
+        health_path=health_path,
+    )
 
 
 def build_records(

@@ -8,6 +8,7 @@ EVAL_OUTPUT ?= data/generated/eval_results.json
 EVAL_CONCURRENCY ?= 5
 EVAL_EVALUATORS ?=
 CORPUS_PACK ?= sg_tort
+API_BASE_URL ?= http://localhost:8000
 
 help: ## Show this help message
 	@echo "Jikai - AI-Powered Legal Hypothetical Generator"
@@ -153,10 +154,10 @@ eval: ## Run SG-LegalBench eval harness
 # -- health --
 
 health: ## Check API health
-	curl -sf http://localhost:8000/health | python -m json.tool
+	curl -sf "$(API_BASE_URL)/health" | python3 -m json.tool
 
 health-llm: ## Check LLM health
-	curl -sf http://localhost:8000/llm/health | python -m json.tool
+	curl -sf "$(API_BASE_URL)/llm/health" | python3 -m json.tool
 
 # -- cleanup --
 
