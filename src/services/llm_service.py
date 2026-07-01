@@ -158,6 +158,23 @@ class LLMService:
             except Exception as e:
                 logger.warning("Failed to init Local LLM provider", error=str(e))
 
+        configured_providers = [
+            getattr(settings.llm, "provider", None),
+            getattr(settings.llm_providers, "default_provider", None),
+        ]
+        active_providers = registry.list_instances()
+        for configured in configured_providers:
+            provider = str(configured or "").strip().lower()
+            if provider in active_providers:
+                self._default_provider = provider
+                break
+        configured_model = str(
+            getattr(settings.llm, "model_name", None)
+            or getattr(settings.llm_providers, "default_model", "")
+        ).strip()
+        if configured_model:
+            self._default_model = configured_model
+
         logger.info(
             "LLM providers initialized",
             active=registry.list_instances(),

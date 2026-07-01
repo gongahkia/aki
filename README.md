@@ -5,6 +5,7 @@ Jikai generates legal hypotheticals and model answers with an ML foundation stag
 It is built for law students, educators, and legal-tech builders who want local-first practice-question generation, corpus-backed retrieval, validation gates, and exportable study artifacts.
 Current corpus: Singapore Tort. Pivot target: SG + UK + US Tort corpus packs, with SG Tort as the reference pack.
 Try it locally with `make env-setup`, `make dev-setup`, and `make run`.
+Public demo: stable URL pending [issue #13](https://github.com/gongahkia/jikai/issues/13); local browser demo at `/demo`; deployment runbook at [`docs/deployment/hosted-demo.md`](docs/deployment/hosted-demo.md).
 
 [![](https://img.shields.io/badge/jikai_1.0.0-passing-8BC34A)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
 [![](https://img.shields.io/badge/jikai_2.0.0-passing-4CAF50)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
@@ -143,7 +144,11 @@ $ python -m src.api --host 127.0.0.1 --port 8000  # API only (plain uvicorn runn
 $ make tui                                # Rust TUI only (requires API already running)
 ```
 
-5. Generate a local SG Tort hypothetical through the API.
+5. Open the local browser demo or generate an SG Tort hypothetical through the API.
+
+```console
+$ open http://127.0.0.1:8000/demo
+```
 
 ```console
 $ curl -s http://127.0.0.1:8000/workflow/generate \

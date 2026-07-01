@@ -1,34 +1,45 @@
 services:
   - type: web
-    name: junas-deterministic-demo
     runtime: docker
-    plan: free
-    dockerfilePath: ./Dockerfile.public-demo
+    name: jikai-demo
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /ready
-    autoDeployTrigger: commit
+    healthCheckPath: /health
+    autoDeploy: false
     envVars:
-      - key: JUNAS_PUBLIC_DEMO_ENABLED
-        value: "1"
-      - key: JUNAS_REVIEW_PERSIST
-        value: "0"
-      - key: PIPELINE_LAYERS
-        value: ""
-      - key: JUNAS_PUBLIC_EVIDENCE_ENABLED
-        value: "0"
-      - key: JUNAS_PUBLIC_EVIDENCE_PROVIDER
-        value: none
-      - key: JUNAS_LLM_ENABLED
-        value: "0"
-      - key: JUNAS_LLM_PROVIDER
-        value: none
-      - key: JUNAS_LLM_HELPERS_ENABLED
-        value: "0"
-      - key: JUNAS_LLM_DEFINED_TERMS_ENABLED
-        value: "0"
-      - key: JUNAS_LLM_COVERAGE_AUDIT_ENABLED
-        value: "0"
-      - key: JUNAS_IMAGE_SCAN_PROVIDER
-        value: none
-      - key: JUNAS_TENANCY_ENABLED
-        value: "0"
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: API_DEBUG
+        value: "false"
+      - key: API_CORS_ORIGINS
+        value: '["https://jikai-demo.onrender.com"]'
+      - key: API_RATE_LIMIT
+        value: "30"
+      - key: API_RATE_LIMITER_BUCKET_TTL_SECONDS
+        value: "60"
+      - key: API_RATE_LIMITER_MAX_BUCKETS
+        value: "2000"
+      - key: API_RATE_LIMITER_CLEANUP_INTERVAL_SECONDS
+        value: "30"
+      - key: LLM_TIMEOUT
+        value: "90"
+      - key: LLM_PROVIDER
+        value: openai
+      - key: LLM_MODEL
+        value: gpt-4o-mini
+      - key: DEFAULT_PROVIDER
+        value: openai
+      - key: DEFAULT_MODEL
+        value: gpt-4o-mini
+      - key: DATABASE_PATH
+        value: /tmp/jikai.db
+      - key: LOCAL_RESPONSE_CACHE_ENABLED
+        value: "true"
+      - key: LOCAL_RESPONSE_CACHE_TTL_SECONDS
+        value: "300"
+      - key: OPENAI_API_KEY
+        sync: false

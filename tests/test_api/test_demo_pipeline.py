@@ -3,6 +3,17 @@ from fastapi.testclient import TestClient
 from src.api.main import create_app
 
 
+def test_generation_page_serves_public_demo_shell():
+    client = TestClient(create_app())
+
+    response = client.get("/demo")
+
+    assert response.status_code == 200
+    assert "Jikai Demo" in response.text
+    assert "/workflow/generate" in response.text
+    assert "server-side provider" in response.text
+
+
 def test_pipeline_page_serves_visual_shell():
     client = TestClient(create_app())
 

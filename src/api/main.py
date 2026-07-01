@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import settings
+from .rate_limiter import InMemoryRateLimitMiddleware
 
 logger = structlog.get_logger(__name__)
 
@@ -21,6 +22,13 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    app.add_middleware(
+        InMemoryRateLimitMiddleware,
+        requests_per_window=settings.api.rate_limit,
+        window_seconds=settings.api.rate_limiter_bucket_ttl_seconds,
+        max_buckets=settings.api.rate_limiter_max_buckets,
+        cleanup_interval_seconds=settings.api.rate_limiter_cleanup_interval_seconds,
     )
     from .routes import (
         chat,

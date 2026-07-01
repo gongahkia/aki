@@ -372,6 +372,403 @@ PIPELINE_PAGE_HTML = """<!doctype html>
 """
 
 
+GENERATION_PAGE_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Jikai Demo</title>
+  <style>
+    :root {
+      --bg: #f7f8f5;
+      --ink: #18211c;
+      --muted: #5d665f;
+      --line: #cfd8d1;
+      --panel: #fff;
+      --green: #0c754c;
+      --blue: #255c91;
+      --red: #a7342f;
+      --soft: #edf2ed;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .wrap {
+      width: min(1160px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+    .topbar {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 14px;
+      padding: 18px 0 28px;
+      align-items: start;
+    }
+    form, .output, .notice {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    form {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      position: sticky;
+      top: 12px;
+    }
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    input, select, button, textarea {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      padding: 0 10px;
+    }
+    textarea {
+      min-height: 70px;
+      padding-top: 8px;
+      resize: vertical;
+    }
+    button {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: .65;
+      cursor: wait;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: none;
+    }
+    .check input { width: auto; min-height: 0; }
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+    .notice {
+      padding: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .notice strong { color: var(--ink); }
+    .output {
+      min-height: 640px;
+      padding: 16px;
+    }
+    .status {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--muted);
+      font-weight: 750;
+    }
+    .pill.ok { background: #dff3e8; color: var(--green); }
+    .pill.err { background: #ffe1de; color: var(--red); }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .section {
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+    }
+    .section:first-of-type { border-top: 0; }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f9faf8;
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .bodytext {
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    a {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    @media (max-width: 840px) {
+      .topbar { align-items: flex-start; flex-direction: column; padding: 14px 0; }
+      main { grid-template-columns: 1fr; }
+      form { position: static; }
+      .row { grid-template-columns: 1fr; }
+      .output { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap topbar">
+      <div>
+        <h1>Jikai Demo</h1>
+        <div class="subtitle">SG Tort hypothetical generation</div>
+      </div>
+      <div class="links">
+        <a href="/demo/pipeline">Pipeline trace</a>
+        <a href="/health">Health</a>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="stack">
+      <form id="demo-form">
+        <label>Jurisdiction
+          <select id="jurisdiction">
+            <option value="sg">Singapore</option>
+            <option value="uk">UK</option>
+            <option value="us">US</option>
+          </select>
+        </label>
+        <label>Topics
+          <input id="topics" value="negligence, causation">
+        </label>
+        <label>Subtopics
+          <input id="subtopics" value="duty of care, remoteness">
+        </label>
+        <div class="row">
+          <label>Complexity
+            <select id="complexity">
+              <option value="intermediate">Intermediate</option>
+              <option value="beginner">Beginner</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </label>
+          <label>Parties
+            <input id="parties" type="number" min="2" max="5" value="3">
+          </label>
+        </div>
+        <div class="row">
+          <label>Provider
+            <select id="provider">
+              <option value="">Host default</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="google">Google</option>
+              <option value="ollama">Ollama</option>
+              <option value="local">Local</option>
+            </select>
+          </label>
+          <label>Model
+            <input id="model" placeholder="host default">
+          </label>
+        </div>
+        <label class="check">
+          <input id="answer" type="checkbox" checked>
+          Include model answer
+        </label>
+        <button id="submit" type="submit">Generate</button>
+      </form>
+      <div class="notice">
+        <strong>Demo mode:</strong> prompts and outputs are processed by the
+        server-side provider configured by the host. Do not enter personal data,
+        privileged facts, or exam-confidential material.
+      </div>
+      <div class="notice">
+        The public deployment should use server-owned provider credentials,
+        request timeouts, and rate limits. Visitors never supply API keys.
+      </div>
+    </div>
+    <section class="output">
+      <div class="status">
+        <span id="status-text">Ready</span>
+        <span id="status-pill" class="pill">idle</span>
+      </div>
+      <div id="result">
+        <div class="section">
+          <h2>Result</h2>
+          <div class="bodytext">Choose topics and generate an SG Tort hypothetical.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[ch]));
+    const list = (value) => value.split(",").map((item) => item.trim()).filter(Boolean);
+
+    function setStatus(text, mode) {
+      $("status-text").textContent = text;
+      $("status-pill").textContent = mode;
+      $("status-pill").className = `pill ${mode === "ok" ? "ok" : mode === "err" ? "err" : ""}`;
+    }
+
+    function renderResult(payload) {
+      const validation = payload.validation_results || {};
+      $("result").innerHTML = `
+        <div class="section">
+          <h2>Hypothetical</h2>
+          <div class="bodytext">${esc(payload.hypothetical || "")}</div>
+        </div>
+        <div class="section">
+          <h2>Model Answer</h2>
+          <div class="bodytext">${esc(payload.model_answer || "Not returned.")}</div>
+        </div>
+        <div class="section">
+          <h2>Validation</h2>
+          <pre>${esc(JSON.stringify(validation, null, 2))}</pre>
+        </div>`;
+    }
+
+    function renderError(status, payload) {
+      const detail = payload.detail || payload;
+      const message = detail.message || detail.code || JSON.stringify(detail);
+      $("result").innerHTML = `
+        <div class="section">
+          <h2>Generation Failed</h2>
+          <div class="bodytext">${esc(message)}</div>
+        </div>
+        <div class="section">
+          <h2>Details</h2>
+          <pre>${esc(JSON.stringify({status, detail}, null, 2))}</pre>
+        </div>`;
+    }
+
+    async function generate(event) {
+      event.preventDefault();
+      setStatus("Generating", "run");
+      $("submit").disabled = true;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 95000);
+      const jurisdiction = $("jurisdiction").value;
+      const body = {
+        topics: list($("topics").value),
+        corpus_pack: `${jurisdiction}_tort`,
+        jurisdiction,
+        subject: "tort",
+        law_domain: "tort",
+        subtopics: list($("subtopics").value),
+        number_parties: Number($("parties").value),
+        complexity_level: $("complexity").value,
+        user_preferences: {
+          include_model_answer: $("answer").checked,
+          timeout_seconds: 90
+        },
+        include_analysis: true
+      };
+      if (jurisdiction === "sg") body.corpus_pack = "sg_tort";
+      if ($("provider").value) body.provider = $("provider").value;
+      if ($("model").value.trim()) body.model = $("model").value.trim();
+
+      try {
+        const res = await fetch("/workflow/generate", {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+        const payload = await res.json();
+        if (!res.ok) {
+          setStatus("Failed", "err");
+          renderError(res.status, payload);
+          return;
+        }
+        setStatus("Complete", "ok");
+        renderResult(payload);
+      } catch (error) {
+        setStatus("Failed", "err");
+        renderError(0, {
+          detail: {
+            code: error.name === "AbortError" ? "client_timeout" : "request_failed",
+            message: error.name === "AbortError"
+              ? "Request timed out in the browser."
+              : error.message
+          }
+        });
+      } finally {
+        clearTimeout(timer);
+        $("submit").disabled = false;
+      }
+    }
+
+    $("demo-form").addEventListener("submit", generate);
+  </script>
+</body>
+</html>
+"""
+
+
 def _topics_from_query(raw_topics: str) -> List[str]:
     return [topic.strip() for topic in raw_topics.split(",") if topic.strip()]
 
@@ -379,6 +776,16 @@ def _topics_from_query(raw_topics: str) -> List[str]:
 @router.get("/pipeline", response_class=HTMLResponse)
 async def pipeline_page() -> HTMLResponse:
     return HTMLResponse(PIPELINE_PAGE_HTML)
+
+
+@router.get("", response_class=HTMLResponse)
+async def generation_page() -> HTMLResponse:
+    return HTMLResponse(GENERATION_PAGE_HTML)
+
+
+@router.get("/generate", response_class=HTMLResponse)
+async def generation_page_alias() -> HTMLResponse:
+    return HTMLResponse(GENERATION_PAGE_HTML)
 
 
 @router.get("/pipeline/trace")
