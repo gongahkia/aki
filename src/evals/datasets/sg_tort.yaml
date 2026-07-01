@@ -1,0 +1,62 @@
+cases:
+  - name: negligence_duty_breach_generation
+    inputs:
+      topics:
+        - negligence
+        - duty of care
+        - breach
+      complexity: 3
+      num_parties: 3
+      seed: sg_tort_001
+    expected_output:
+      contains:
+        - Singapore
+        - negligence
+      min_length: 250
+      tort_elements:
+        - duty
+        - breach
+    metadata:
+      jurisdiction: SG
+      category: tort
+      task_type: hypothetical_generation
+
+  - name: nuisance_land_generation
+    inputs:
+      topics:
+        - private nuisance
+        - trespass to land
+      complexity: 3
+      num_parties: 3
+      seed: sg_tort_002
+    expected_output:
+      contains:
+        - Singapore
+      min_length: 250
+    metadata:
+      jurisdiction: SG
+      category: tort
+      task_type: hypothetical_generation
+
+  - name: vicarious_liability_generation
+    inputs:
+      topics:
+        - vicarious liability
+        - negligence
+      complexity: 4
+      num_parties: 4
+      seed: sg_tort_003
+    expected_output:
+      contains:
+        - Singapore
+        - negligence
+      min_length: 250
+      tort_elements:
+        - duty
+        - breach
+        - causation
+        - damage
+    metadata:
+      jurisdiction: SG
+      category: tort
+      task_type: hypothetical_generation

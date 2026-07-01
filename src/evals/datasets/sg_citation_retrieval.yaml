@@ -1,0 +1,34 @@
+cases:
+  - name: spandeck_negligence_retrieval
+    inputs:
+      query: Retrieve SG negligence material for duty of care and breach.
+      citation: "[2007] SGCA 37"
+      topics:
+        - negligence
+        - duty of care
+    expected_output:
+      contains:
+        - "[2007] SGCA 37"
+        - negligence
+      min_length: 250
+    metadata:
+      jurisdiction: SG
+      category: citation_retrieval
+      task_type: retrieval
+
+  - name: nuisance_land_retrieval
+    inputs:
+      query: Retrieve SG tort material for private nuisance and trespass to land.
+      citation: "[1998] SGHC 123"
+      topics:
+        - private nuisance
+        - trespass to land
+    expected_output:
+      contains:
+        - "[1998] SGHC 123"
+        - Singapore
+      min_length: 250
+    metadata:
+      jurisdiction: SG
+      category: citation_retrieval
+      task_type: retrieval

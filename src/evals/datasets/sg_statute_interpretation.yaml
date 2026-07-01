@@ -1,0 +1,44 @@
+cases:
+  - name: road_traffic_section_mcq
+    inputs:
+      question: Which statute is the best starting point for a careless driving problem?
+      statute: Road Traffic Act
+      section: 65
+      choices:
+        A: Evidence Act
+        B: Road Traffic Act
+        C: Limitation Act
+        D: Defamation Act
+      answer_key: B
+    expected_output:
+      contains:
+        - "Answer: B"
+        - Road Traffic Act
+      statutes:
+        - Road Traffic Act
+    metadata:
+      jurisdiction: SG
+      category: statute_interpretation
+      task_type: mcq
+
+  - name: limitation_section_mcq
+    inputs:
+      question: Which statute should be checked first for a stale tort claim?
+      statute: Limitation Act
+      section: 6
+      choices:
+        A: Limitation Act
+        B: Penal Code
+        C: State Courts Act
+        D: Civil Law Act
+      answer_key: A
+    expected_output:
+      contains:
+        - "Answer: A"
+        - Limitation Act
+      statutes:
+        - Limitation Act
+    metadata:
+      jurisdiction: SG
+      category: statute_interpretation
+      task_type: mcq

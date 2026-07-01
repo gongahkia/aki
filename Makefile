@@ -1,6 +1,12 @@
 # Jikai Makefile
 
-.PHONY: help install dev test lint format clean run api api-build tui tui-build warmup train preprocess health health-llm env-setup dev-setup
+.PHONY: help install dev test lint format clean run api api-build tui tui-build warmup train preprocess eval health health-llm env-setup dev-setup
+
+DATASET ?= sg_tort.yaml
+WORKFLOW ?= sg_tort_hypothetical
+EVAL_OUTPUT ?= data/generated/eval_results.json
+EVAL_CONCURRENCY ?= 5
+EVAL_EVALUATORS ?=
 
 help: ## Show this help message
 	@echo "Jikai - AI-Powered Legal Hypothetical Generator"
@@ -126,6 +132,13 @@ train: ## Train ML models
 
 preprocess: ## Build corpus from raw files
 	python -m src.services.corpus_preprocessor
+
+eval: ## Run SG-LegalBench eval harness
+	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.evals.run \
+		--workflow "$(WORKFLOW)" \
+		--dataset "$(DATASET)" \
+		--max-concurrency "$(EVAL_CONCURRENCY)" \
+		--output "$(EVAL_OUTPUT)" $(foreach evaluator,$(EVAL_EVALUATORS),--evaluator "$(evaluator)")
 
 # -- health --
 
