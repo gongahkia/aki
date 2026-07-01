@@ -54,6 +54,7 @@ async def test_generate_generation_validates_topics_and_calls_hypothetical_servi
     assert result.request.user_preferences is not None
     assert "ml_foundation" in result.request.user_preferences
     assert result.response.metadata["generation_id"] == 1
+    assert result.response.metadata["entity_consistency"]["issue_count"] == 0
     hypothetical.generate_hypothetical.assert_awaited_once()
 
 

@@ -22,6 +22,7 @@ from .hypothetical_service import (
     GenerationResponse,
     hypothetical_service,
 )
+from .entity_validator import entity_consistency_validator
 from .topic_guard import canonicalize_and_validate_topics
 
 logger = structlog.get_logger(__name__)
@@ -64,12 +65,14 @@ class WorkflowFacade:
         hypothetical_service: Any = hypothetical_service,
         database_service: Any = database_service,
         hypo_generator: Any = default_hypo_generator,
+        entity_validator: Any = entity_consistency_validator,
         require_ml_training: bool = True,
     ):
         self._corpus_service = corpus_service
         self._hypothetical_service = hypothetical_service
         self._database_service = database_service
         self._hypo_generator = hypo_generator
+        self._entity_validator = entity_validator
         self._require_ml_training = require_ml_training
         self._ml_ready = False
         self._ml_ready_lock = asyncio.Lock()
@@ -511,6 +514,39 @@ class WorkflowFacade:
         )
         return response.model_copy(update={"metadata": metadata})
 
+    def _attach_entity_consistency_metadata(
+        self,
+        response: GenerationResponse,
+        *,
+        request: GenerationRequest,
+    ) -> GenerationResponse:
+        metadata = dict(response.metadata or {})
+        try:
+            result = self._entity_validator.validate(
+                response.hypothetical,
+                corpus_pack=request.corpus_pack,
+                jurisdiction=request.jurisdiction,
+                subject=request.subject,
+            )
+            metadata["entity_consistency"] = result.model_dump()
+        except Exception as exc:
+            metadata["entity_consistency"] = {
+                "passed": False,
+                "soft_failures": True,
+                "issue_count": 1,
+                "issues": [
+                    {
+                        "code": "entity_validator_error",
+                        "severity": "warning",
+                        "message": str(exc),
+                        "evidence": request.corpus_pack,
+                    }
+                ],
+                "entities": {},
+                "skipped_checks": [],
+            }
+        return response.model_copy(update={"metadata": metadata})
+
     async def generate_generation(
         self,
         request: GenerationRequest,
@@ -555,6 +591,9 @@ class WorkflowFacade:
             combined_request
         )
         response = self._attach_combined_metadata(response, ml_result=ml_result)
+        response = self._attach_entity_consistency_metadata(
+            response, request=combined_request
+        )
         return GenerationExecutionResult(request=combined_request, response=response)
 
     @staticmethod
