@@ -120,13 +120,24 @@ class WorkflowFacade:
         return deduped
 
     async def _validate_topics(
-        self, topics: List[str]
+        self,
+        topics: List[str],
+        *,
+        corpus_pack: str,
+        jurisdiction: str,
+        subject: str,
     ) -> tuple[List[str], float, List[str]]:
-        canonical_topics = canonicalize_and_validate_topics(topics)
+        canonical_topics = canonicalize_and_validate_topics(
+            topics, corpus_pack=corpus_pack
+        )
         extraction_started = time.perf_counter()
         available_topics = [
             canonicalize_topic(topic)
-            for topic in await self._corpus_service.extract_all_topics()
+            for topic in await self._corpus_service.extract_all_topics(
+                corpus_pack=corpus_pack,
+                jurisdiction=jurisdiction,
+                subject=subject,
+            )
         ]
         extraction_time_ms = round((time.perf_counter() - extraction_started) * 1000, 2)
         return canonical_topics, extraction_time_ms, available_topics
@@ -511,7 +522,12 @@ class WorkflowFacade:
             canonical_topics,
             extraction_time_ms,
             available_topics,
-        ) = await self._validate_topics(request.topics)
+        ) = await self._validate_topics(
+            request.topics,
+            corpus_pack=request.corpus_pack,
+            jurisdiction=request.jurisdiction,
+            subject=request.subject,
+        )
         missing_reference_topics = [
             topic for topic in canonical_topics if topic not in available_topics
         ]
@@ -721,6 +737,14 @@ class WorkflowFacade:
 
         regenerate_request = GenerationRequest(
             topics=canonical_topics,
+            corpus_pack=request_data.get(
+                "corpus_pack", fallback.get("corpus_pack", "sg_tort")
+            ),
+            jurisdiction=request_data.get(
+                "jurisdiction", fallback.get("jurisdiction", "sg")
+            ),
+            subject=request_data.get("subject", fallback.get("subject", "tort")),
+            subtopics=request_data.get("subtopics", fallback.get("subtopics", [])),
             law_domain=request_data.get(
                 "law_domain", fallback.get("law_domain", "tort")
             ),

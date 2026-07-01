@@ -9,14 +9,14 @@ Implements various prompt engineering techniques including:
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
-from ...domain import canonicalize_topic
+from ...domain import canonicalize_topic, resolve_domain_pack
 
 # topic-specific prompt hints for expanded subtopics
 TOPIC_HINTS: Dict[str, str] = {
@@ -65,11 +65,28 @@ class PromptContext:
     """Context information for prompt generation."""
 
     topics: List[str]
+    corpus_pack: str = "sg_tort"
+    jurisdiction: str = "sg"
+    subject: str = "tort"
+    subtopics: List[str] = field(default_factory=list)
     law_domain: str = "tort"
     number_parties: int = 3
     reference_hypotheticals: Optional[List[str]] = None
     user_preferences: Optional[Dict[str, Any]] = None
     complexity_level: str = "intermediate"  # beginner, intermediate, advanced
+
+def _context_labels(context: PromptContext) -> Dict[str, str]:
+    try:
+        pack = resolve_domain_pack(context.corpus_pack)
+        jurisdiction_label = pack.jurisdiction.display_name
+        subject_label = pack.subject_label
+    except Exception:
+        jurisdiction_label = context.jurisdiction.upper()
+        subject_label = context.subject.replace("_", " ").title()
+    return {
+        "jurisdiction_label": jurisdiction_label,
+        "subject_label": subject_label,
+    }
 
 
 class PromptTemplate(BaseModel):
@@ -103,10 +120,10 @@ class HypotheticalGenerationTemplate(PromptTemplate):
         )
 
     def _get_system_prompt(self) -> str:
-        return """You are an expert legal educator specializing in Singapore Tort Law. Your role is to create realistic, educational hypothetical scenarios that help law students understand complex legal concepts.
+        return """You are an expert legal educator specializing in {jurisdiction_label} {subject_label}. Your role is to create realistic, educational hypothetical scenarios that help law students understand complex legal concepts.
 
 EXPERTISE AREAS:
-- Singapore Tort Law principles and precedents
+- {jurisdiction_label} {subject_label} principles and precedents
 - Realistic fact pattern construction
 - Educational scenario design
 - Legal issue identification and complexity management
@@ -115,7 +132,7 @@ TASK APPROACH:
 1. Analyze the requested legal topics and their interconnections
 2. Design a realistic scenario that naturally incorporates these topics
 3. Ensure the scenario is educational and thought-provoking
-4. Maintain authenticity to Singapore legal context
+4. Maintain authenticity to the selected jurisdictional context
 
 QUALITY STANDARDS:
 - Factual accuracy and legal realism
@@ -126,8 +143,12 @@ QUALITY STANDARDS:
 
     def _get_user_prompt_template(self) -> str:
         return """CONTEXT ANALYSIS:
+Corpus Pack: {corpus_pack}
+Jurisdiction: {jurisdiction_label}
+Subject: {subject_label}
 Legal Domain: {law_domain}
 Target Topics: {topics}
+Target Subtopics: {subtopics}
 Number of Parties: {number_parties}
 Complexity Level: {complexity_level}
 
@@ -138,7 +159,7 @@ TASK INSTRUCTIONS:
 Create a comprehensive {law_domain} law hypothetical that incorporates the specified topics. Follow this structured approach:
 
 STEP 1: SCENARIO DESIGN
-- Design a realistic setting in Singapore context
+- Design a realistic setting in {jurisdiction_label} context
 - Create {number_parties} distinct parties with clear roles
 - Establish a believable sequence of events
 - Ensure natural integration of legal issues
@@ -165,7 +186,7 @@ STEP 4: QUALITY VERIFICATION
 
 REQUIREMENTS:
 - Length: 800-1200 words
-- Setting: Singapore context
+- Setting: {jurisdiction_label} context
 - Parties: Exactly {number_parties} distinct individuals/entities
 - Topics: Must include all specified topics naturally
 - Style: Professional, clear, engaging narrative
@@ -190,7 +211,7 @@ OUTPUT FORMAT:
     def _get_output_format(self) -> str:
         return """HYPOTHETICAL SCENARIO:
 
-[Provide a detailed, realistic scenario that naturally incorporates all specified legal topics. The scenario should be set in Singapore and involve exactly the specified number of parties. Focus on creating a compelling narrative that presents legal issues without explicitly identifying them.]
+[Provide a detailed, realistic scenario that naturally incorporates all specified legal topics. The scenario should be set in {jurisdiction_label} and involve exactly the specified number of parties. Focus on creating a compelling narrative that presents legal issues without explicitly identifying them.]
 
 SCENARIO METADATA:
 - Setting: [Brief description of the location/situation]
@@ -200,7 +221,7 @@ SCENARIO METADATA:
 
     @staticmethod
     def _load_relevant_cases(topics: List[str]) -> List[Dict[str, str]]:
-        """Load SG case citations from corpus/cases/ that match given topics."""
+        """Load case citations from corpus/cases/ that match given topics."""
         import structlog
 
         _logger = structlog.get_logger(__name__)
@@ -244,7 +265,7 @@ SCENARIO METADATA:
                 hints.append(f"- {canonical_topic}: {TOPIC_HINTS[canonical_topic]}")
         topic_hints = "TOPIC-SPECIFIC GUIDANCE:\n" + "\n".join(hints) if hints else ""
 
-        # Inject relevant SG case citations
+        # Inject relevant case citations.
         cases = self._load_relevant_cases(context.topics)
         case_section = ""
         if cases:
@@ -255,23 +276,29 @@ SCENARIO METADATA:
                 summary = c.get("summary", "")[:200]
                 case_lines.append(f"- {name} {citation}: {summary}")
             case_section = (
-                "\nRELEVANT SG CASE CITATIONS (incorporate where appropriate):\n"
+                "\nRELEVANT CASE CITATIONS (incorporate where appropriate):\n"
                 + "\n".join(case_lines)
                 + "\n"
             )
+        labels = _context_labels(context)
+        output_format = self.output_format.format(**labels)
 
         user_prompt = self.user_prompt_template.format(
+            corpus_pack=context.corpus_pack,
+            jurisdiction_label=labels["jurisdiction_label"],
+            subject_label=labels["subject_label"],
             law_domain=context.law_domain,
             topics=", ".join(context.topics),
+            subtopics=", ".join(context.subtopics) if context.subtopics else "none",
             number_parties=context.number_parties,
             complexity_level=context.complexity_level,
             reference_examples=reference_examples,
-            output_format=self.output_format,
+            output_format=output_format,
             topic_hints=topic_hints + case_section,
             latency_guardrail=self._build_latency_guardrail(context.user_preferences),
         )
 
-        return {"system": self.system_prompt, "user": user_prompt}
+        return {"system": self.system_prompt.format(**labels), "user": user_prompt}
 
     @staticmethod
     def _build_latency_guardrail(preferences: Optional[Dict[str, Any]]) -> str:
@@ -322,6 +349,7 @@ ANALYSIS APPROACH:
 Analyze the following hypothetical against the specified parameters.
 
 PARAMETERS TO VERIFY:
+- Jurisdiction: {jurisdiction_label}
 - Law Domain: {law_domain}
 - Required Topics: {topics}
 - Number of Parties: {number_parties}
@@ -346,7 +374,7 @@ Please provide a detailed analysis for each criterion:
 
 3. LEGAL ACCURACY:
    - Are the legal issues correctly presented? [YES/NO + Explanation]
-   - Is the Singapore legal context accurate? [YES/NO + Explanation]
+   - Is the {jurisdiction_label} legal context accurate? [YES/NO + Explanation]
    - Are the legal concepts properly integrated? [YES/NO + Explanation]
 
 4. EDUCATIONAL VALUE:
@@ -381,7 +409,9 @@ CRITICAL ISSUES:
         self, context: PromptContext, hypothetical: str, **kwargs: Any
     ) -> Dict[str, str]:
         """Format the adherence check prompt."""
+        labels = _context_labels(context)
         user_prompt = self.user_prompt_template.format(
+            jurisdiction_label=labels["jurisdiction_label"],
             law_domain=context.law_domain,
             topics=", ".join(context.topics),
             number_parties=context.number_parties,
@@ -521,10 +551,10 @@ class LegalAnalysisTemplate(PromptTemplate):
         )
 
     def _get_system_prompt(self) -> str:
-        return """You are a distinguished Singapore Tort Law expert and legal educator. Your role is to provide comprehensive legal analysis of hypothetical scenarios to guide student learning.
+        return """You are a distinguished {jurisdiction_label} {subject_label} expert and legal educator. Your role is to provide comprehensive legal analysis of hypothetical scenarios to guide student learning.
 
 LEGAL EXPERTISE:
-- Singapore Tort Law principles and precedents
+- {jurisdiction_label} {subject_label} principles and precedents
 - Case law analysis and application
 - Legal issue identification and prioritization
 - Liability assessment and damage evaluation
@@ -549,6 +579,9 @@ Provide a comprehensive legal analysis of the following hypothetical scenario.
 
 HYPOTHETICAL SCENARIO:
 {hypothetical}
+
+JURISDICTION:
+{jurisdiction_label}
 
 AVAILABLE LEGAL TOPICS:
 {available_topics}
@@ -635,8 +668,10 @@ LEARNING OBJECTIVES ACHIEVED:
         **kwargs: Any,
     ) -> Dict[str, str]:
         """Format the legal analysis prompt."""
+        labels = _context_labels(context)
         user_prompt = self.user_prompt_template.format(
             hypothetical=hypothetical,
+            jurisdiction_label=labels["jurisdiction_label"],
             available_topics=", ".join(available_topics),
             output_format=self.output_format,
             latency_guardrail=HypotheticalGenerationTemplate._build_latency_guardrail(
@@ -644,7 +679,7 @@ LEARNING OBJECTIVES ACHIEVED:
             ),
         )
 
-        return {"system": self.system_prompt, "user": user_prompt}
+        return {"system": self.system_prompt.format(**labels), "user": user_prompt}
 
 
 class PromptTemplateManager:

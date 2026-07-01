@@ -10,6 +10,10 @@ router = APIRouter()
 
 class CorpusQueryRequest(BaseModel):
     topics: List[str]
+    corpus_pack: str = "sg_tort"
+    jurisdiction: str = "sg"
+    subject: str = "tort"
+    subtopics: List[str] = Field(default_factory=list)
     sample_size: int = Field(default=5, ge=1, le=50)
     exclude_ids: List[str] = Field(default_factory=list)
     min_topic_overlap: int = Field(default=1, ge=1)
@@ -18,6 +22,10 @@ class CorpusQueryRequest(BaseModel):
 class AddEntryRequest(BaseModel):
     text: str
     topics: List[str]
+    corpus_pack: str = "sg_tort"
+    jurisdiction: str = "sg"
+    subject: str = "tort"
+    subtopics: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -30,10 +38,23 @@ async def list_topics():
 
 
 @router.get("/entries")
-async def list_entries(topic: Optional[str] = None, limit: int = 500):
+async def list_entries(
+    topic: Optional[str] = None,
+    limit: int = 500,
+    corpus_pack: str = "sg_tort",
+    jurisdiction: str = "sg",
+    subject: str = "tort",
+):
     from ...services import corpus_service
 
     entries = await corpus_service.load_corpus()
+    entries = [
+        e
+        for e in entries
+        if e.corpus_pack_key == corpus_pack
+        and e.jurisdiction == jurisdiction
+        and e.subject == subject
+    ]
     if topic:
         entries = [
             e
@@ -54,6 +75,10 @@ async def query_corpus(req: CorpusQueryRequest):
 
     query = CorpusQuery(
         topics=req.topics,
+        corpus_pack=req.corpus_pack,
+        jurisdiction=req.jurisdiction,
+        subject=req.subject,
+        subtopics=req.subtopics,
         sample_size=req.sample_size,
         exclude_ids=req.exclude_ids,
         min_topic_overlap=req.min_topic_overlap,
@@ -70,7 +95,15 @@ async def add_entry(req: AddEntryRequest):
     from ...services import corpus_service
     from ...services.corpus_service import HypotheticalEntry
 
-    entry = HypotheticalEntry(text=req.text, topics=req.topics, metadata=req.metadata)
+    entry = HypotheticalEntry(
+        text=req.text,
+        topics=req.topics,
+        corpus_pack_key=req.corpus_pack,
+        jurisdiction=req.jurisdiction,
+        subject=req.subject,
+        subtopics=req.subtopics,
+        metadata=req.metadata,
+    )
     entry_id = await corpus_service.add_hypothetical(entry)
     return {"id": entry_id}
 

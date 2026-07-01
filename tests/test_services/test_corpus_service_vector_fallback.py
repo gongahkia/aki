@@ -115,3 +115,47 @@ async def test_keyword_fallback_used_when_semantic_search_returns_no_matches(
     assert len(results) == 1
     assert results[0].id == "1"
     service._vector_service.semantic_search.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_keyword_fallback_filters_by_jurisdiction(monkeypatch):
+    service = CorpusService()
+    service._corpus_indexed = False
+    service._index_task = None
+    service._vector_service = AsyncMock()
+    monkeypatch.setattr(service, "_ensure_background_indexing", MagicMock())
+    monkeypatch.setattr(
+        service,
+        "load_corpus",
+        AsyncMock(
+            return_value=[
+                HypotheticalEntry(
+                    id="sg",
+                    text="Negligence scenario in Singapore",
+                    topics=["negligence"],
+                    corpus_pack_key="sg_tort",
+                    jurisdiction="sg",
+                    subject="tort",
+                ),
+                HypotheticalEntry(
+                    id="test",
+                    text="Negligence scenario in Testland",
+                    topics=["negligence"],
+                    corpus_pack_key="test_tort",
+                    jurisdiction="test",
+                    subject="tort",
+                ),
+            ]
+        ),
+    )
+
+    query = CorpusQuery(
+        topics=["negligence"],
+        corpus_pack="test_tort",
+        jurisdiction="test",
+        subject="tort",
+        sample_size=2,
+    )
+    results = await service.query_relevant_hypotheticals(query)
+
+    assert [entry.id for entry in results] == ["test"]

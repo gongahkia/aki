@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 
 import structlog
 
-from ..domain import all_tort_topic_keys, canonicalize_topic
+from ..domain import all_tort_topic_keys, canonicalize_topic, normalize_scope_token
 
 logger = structlog.get_logger(__name__)
 
@@ -481,6 +481,23 @@ class ValidationService:
                 "message": f"Validation error: {e}",
             }
 
+    def validate_jurisdiction_context(
+        self, text: str, jurisdiction: str = "sg"
+    ) -> Dict[str, Any]:
+        """Route jurisdiction-specific context checks."""
+        jurisdiction_key = normalize_scope_token(jurisdiction)
+        if jurisdiction_key in {"sg", "singapore", "singapore_law", "singapore_tort"}:
+            result = self.validate_singapore_context(text)
+            result["jurisdiction"] = "sg"
+            return result
+        return {
+            "passed": True,
+            "jurisdiction": jurisdiction_key,
+            "jurisdiction_mentions": text.lower().count(jurisdiction_key),
+            "evidence": [],
+            "message": "No deterministic jurisdiction overlay configured",
+        }
+
     def calculate_overall_score(
         self, validation_results: Dict[str, Dict[str, Any]]
     ) -> Tuple[float, bool]:
@@ -510,8 +527,12 @@ class ValidationService:
             if validation_results.get("word_count", {}).get("passed"):
                 score += 1.5
 
-            # Singapore context (2 points)
-            if validation_results.get("singapore_context", {}).get("passed"):
+            # Jurisdiction context (2 points)
+            jurisdiction_context = validation_results.get(
+                "jurisdiction_context",
+                validation_results.get("singapore_context", {}),
+            )
+            if jurisdiction_context.get("passed"):
                 score += 2.0
 
             # Pass if score >= 7.0 (70%)
@@ -658,9 +679,18 @@ class ValidationService:
                 "error": str(e),
             }
 
-    def validate_legal_realism(self, text: str) -> Dict[str, Any]:
+    def validate_legal_realism(
+        self, text: str, jurisdiction: str = "sg"
+    ) -> Dict[str, Any]:
         """Score legal realism signals: SG venue cues, procedure cues, and timeline coherence."""
         try:
+            jurisdiction_key = normalize_scope_token(jurisdiction)
+            is_sg = jurisdiction_key in {
+                "sg",
+                "singapore",
+                "singapore_law",
+                "singapore_tort",
+            }
             text_lower = text.lower()
             singapore_context_cues = [
                 "singapore",
@@ -711,27 +741,35 @@ class ValidationService:
             party_role_result = self.validate_party_role_clarity(text)
 
             singapore_context_score = min(1.0, len(found_singapore_context) / 4.0)
+            jurisdiction_context_score = (
+                singapore_context_score if is_sg else 1.0
+            )
             procedure_score = min(1.0, len(found_procedure) / 4.0)
             timeline_score = min(1.0, len(found_timeline) / 3.0)
             chronology_score = float(chronology_result.get("coherence_score", 0.0))
             party_role_score = float(party_role_result.get("clarity_score", 0.0))
             realism_score = round(
-                (singapore_context_score * 0.32)
+                (jurisdiction_context_score * 0.32)
                 + (procedure_score * 0.23)
                 + (timeline_score * 0.1)
                 + (chronology_score * 0.2)
                 + (party_role_score * 0.15),
                 3,
             )
-            if singapore_context_score == 0.0:
+            if is_sg and singapore_context_score == 0.0:
                 realism_score = min(realism_score, 0.59)
-            passed = realism_score >= 0.6 and singapore_context_score > 0.0
+            passed = realism_score >= 0.6 and (
+                jurisdiction_context_score > 0.0 or not is_sg
+            )
 
             return {
                 "passed": passed,
                 "realism_score": realism_score,
                 "components": {
                     "singapore_context_score": round(singapore_context_score, 3),
+                    "jurisdiction_context_score": round(
+                        jurisdiction_context_score, 3
+                    ),
                     "procedure_score": round(procedure_score, 3),
                     "timeline_score": round(timeline_score, 3),
                     "chronology_score": round(chronology_score, 3),
@@ -739,6 +777,7 @@ class ValidationService:
                 },
                 "evidence": {
                     "singapore_context": found_singapore_context,
+                    "jurisdiction": jurisdiction_key,
                     "procedure": found_procedure,
                     "timeline": found_timeline,
                     "chronology": chronology_result,
@@ -850,6 +889,10 @@ class ValidationService:
         required_topics: List[str],
         expected_parties: int,
         law_domain: str = "tort",
+        corpus_pack: str = "sg_tort",
+        jurisdiction: str = "sg",
+        subject: str = "tort",
+        subtopics: List[str] | None = None,
         fast_mode: bool = False,
     ) -> Dict[str, Any]:
         """
@@ -862,11 +905,17 @@ class ValidationService:
             # Run all validation checks
             party_result = self.validate_party_count(text, expected_parties)
             topic_result = self.validate_topic_inclusion(text, required_topics)
+            jurisdiction_key = normalize_scope_token(jurisdiction)
 
             if fast_mode:
                 fast_results = {
                     "party_count": party_result,
                     "topic_inclusion": topic_result,
+                    "jurisdiction_context": {
+                        "passed": True,
+                        "jurisdiction": jurisdiction_key,
+                        "message": "Fast mode skips jurisdiction-context scoring",
+                    },
                 }
                 overall_score, passed = self.calculate_fast_score(fast_results)
                 return {
@@ -875,14 +924,19 @@ class ValidationService:
                     "checks": fast_results,
                     "summary": {
                         "mode": "fast",
+                        "corpus_pack": corpus_pack,
+                        "jurisdiction": jurisdiction_key,
+                        "subject": subject,
                         "parties": f"{party_result['actual_count']}/{expected_parties}",
                         "topics": f"{len(topic_result['topics_found'])}/{len(required_topics)}",
                     },
                 }
 
             word_result = self.validate_word_count(text)
-            singapore_result = self.validate_singapore_context(text)
-            legal_realism_result = self.validate_legal_realism(text)
+            jurisdiction_result = self.validate_jurisdiction_context(
+                text, jurisdiction_key
+            )
+            legal_realism_result = self.validate_legal_realism(text, jurisdiction_key)
             exam_likeness_result = self.validate_exam_likeness(text)
 
             # Collect all results
@@ -890,10 +944,12 @@ class ValidationService:
                 "party_count": party_result,
                 "topic_inclusion": topic_result,
                 "word_count": word_result,
-                "singapore_context": singapore_result,
+                "jurisdiction_context": jurisdiction_result,
                 "legal_realism": legal_realism_result,
                 "exam_likeness": exam_likeness_result,
             }
+            if jurisdiction_key == "sg":
+                all_results["singapore_context"] = jurisdiction_result
 
             # Calculate overall score
             overall_score, passed = self.calculate_overall_score(all_results)
@@ -912,7 +968,14 @@ class ValidationService:
                     "parties": f"{party_result['actual_count']}/{expected_parties}",
                     "topics": f"{len(topic_result['topics_found'])}/{len(required_topics)}",
                     "words": word_result["word_count"],
-                    "singapore_context": singapore_result["passed"],
+                    "corpus_pack": corpus_pack,
+                    "jurisdiction": jurisdiction_key,
+                    "subject": subject,
+                    "subtopics": subtopics or [],
+                    "jurisdiction_context": jurisdiction_result["passed"],
+                    "singapore_context": jurisdiction_result["passed"]
+                    if jurisdiction_key == "sg"
+                    else None,
                     "legal_realism": legal_realism_result["realism_score"],
                     "exam_likeness": exam_likeness_result["exam_likeness_score"],
                 },
@@ -929,7 +992,12 @@ class ValidationService:
             }
 
     async def validate_with_llm(
-        self, text: str, required_topics: List[str], expected_parties: int
+        self,
+        text: str,
+        required_topics: List[str],
+        expected_parties: int,
+        jurisdiction: str = "sg",
+        subject: str = "tort",
     ) -> Dict[str, Any]:
         """Optional LLM-based validation for topic coverage and logical coherence.
         Gated behind settings.validation_use_llm (default False)."""
@@ -942,7 +1010,7 @@ class ValidationService:
             from .llm_service import llm_service
 
             prompt = (
-                "You are a Singapore tort law expert. Evaluate this hypothetical:\n\n"
+                f"You are a {jurisdiction} {subject} law expert. Evaluate this hypothetical:\n\n"
                 f"{text[:3000]}\n\n"
                 f"Required topics: {', '.join(required_topics)}\n"
                 f"Expected parties: {expected_parties}\n\n"

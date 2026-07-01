@@ -74,7 +74,7 @@ class VectorService:
 
     @staticmethod
     def _collection_metadata(corpus_hash: Optional[str] = None) -> Dict[str, Any]:
-        metadata: Dict[str, Any] = {"description": "Singapore Tort Law Hypotheticals"}
+        metadata: Dict[str, Any] = {"description": "Jikai legal hypotheticals"}
         if corpus_hash:
             metadata["corpus_hash"] = corpus_hash
         return metadata
@@ -221,6 +221,12 @@ class VectorService:
                     metadatas.append(
                         {
                             "topics": ",".join(hypo.get("topics", [])),
+                            "corpus_pack_key": hypo.get(
+                                "corpus_pack_key", "sg_tort"
+                            ),
+                            "jurisdiction": hypo.get("jurisdiction", "sg"),
+                            "subject": hypo.get("subject", "tort"),
+                            "subtopics": ",".join(hypo.get("subtopics", [])),
                             "complexity": hypo.get("metadata", {}).get(
                                 "complexity", "intermediate"
                             ),
@@ -253,6 +259,10 @@ class VectorService:
     async def semantic_search(
         self,
         query_topics: List[str],
+        corpus_pack: str = "sg_tort",
+        jurisdiction: str = "sg",
+        subject: str = "tort",
+        subtopics: Optional[List[str]] = None,
         n_results: int = 5,
         exclude_ids: Optional[List[str]] = None,
         min_similarity: Optional[float] = None,
@@ -292,7 +302,10 @@ class VectorService:
                 )
             )
             similarity_threshold = max(0.0, min(1.0, similarity_threshold))
-            query_text = f"Legal hypothetical involving {', '.join(query_topics)} in Singapore tort law"
+            query_text = (
+                f"Legal hypothetical involving {', '.join(query_topics)} "
+                f"in {jurisdiction} {subject} law"
+            )
 
             query_embedding = self._embed_text(query_text)
 
@@ -308,9 +321,27 @@ class VectorService:
 
             candidates: List[Dict[str, Any]] = []
             exclude_set = set(exclude_ids) if exclude_ids else set()
+            subtopic_set = set(subtopics or [])
 
             for i, doc_id in enumerate(results["ids"][0]):
                 if doc_id in exclude_set:
+                    continue
+                metadata = results["metadatas"][0][i] or {}
+                metadata_subtopics = [
+                    value
+                    for value in str(metadata.get("subtopics", "")).split(",")
+                    if value
+                ]
+                metadata_pack = metadata.get("corpus_pack_key", "sg_tort")
+                metadata_jurisdiction = metadata.get("jurisdiction", "sg")
+                metadata_subject = metadata.get("subject", "tort")
+                if corpus_pack and metadata_pack != corpus_pack:
+                    continue
+                if jurisdiction and metadata_jurisdiction != jurisdiction:
+                    continue
+                if subject and metadata_subject != subject:
+                    continue
+                if subtopic_set and not (subtopic_set & set(metadata_subtopics)):
                     continue
 
                 distance = results["distances"][0][i]
@@ -320,11 +351,13 @@ class VectorService:
                     {
                         "id": doc_id,
                         "text": results["documents"][0][i],
-                        "topics": results["metadatas"][0][i]["topics"].split(","),
+                        "topics": metadata["topics"].split(","),
+                        "corpus_pack_key": metadata_pack,
+                        "jurisdiction": metadata_jurisdiction,
+                        "subject": metadata_subject,
+                        "subtopics": metadata_subtopics,
                         "metadata": {
-                            "complexity": results["metadatas"][0][i].get(
-                                "complexity", "intermediate"
-                            )
+                            "complexity": metadata.get("complexity", "intermediate")
                         },
                         "similarity_score": similarity_score,
                     }

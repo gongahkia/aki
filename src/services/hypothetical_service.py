@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Any, Awaitable, Dict, List, Optional, cast
 
 import structlog
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..config import settings
+from ..domain import normalize_scope_token, resolve_domain_pack
 
 try:
     from .corpus_service import CorpusQuery, HypotheticalEntry, corpus_service
@@ -79,6 +80,10 @@ class GenerationRequest(BaseModel):
     """Request model for hypothetical generation."""
 
     topics: List[str] = Field(..., min_items=1, max_items=10)
+    corpus_pack: str = Field(default="sg_tort")
+    jurisdiction: str = Field(default="sg")
+    subject: str = Field(default="tort")
+    subtopics: List[str] = Field(default_factory=list)
     law_domain: str = Field(default="tort")
     number_parties: int = Field(default=3, ge=2, le=5)
     complexity_level: str = Field(default="intermediate")
@@ -105,6 +110,47 @@ class GenerationRequest(BaseModel):
                 f"Unsupported law_domain '{value}'. Allowed values: {allowed_list}"
             )
         return normalized
+
+    @field_validator("corpus_pack", "jurisdiction", "subject")
+    @classmethod
+    def normalize_scope_fields(cls, value: str) -> str:
+        token = normalize_scope_token(value)
+        if token in {"singapore", "singapore_law", "singapore_tort"}:
+            return "sg"
+        return token
+
+    @field_validator("subtopics")
+    @classmethod
+    def normalize_subtopics(cls, values: List[str]) -> List[str]:
+        normalized: List[str] = []
+        for value in values:
+            token = normalize_scope_token(value)
+            if token and token not in normalized:
+                normalized.append(token)
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_domain_pack_scope(self) -> "GenerationRequest":
+        try:
+            domain_pack = resolve_domain_pack(self.corpus_pack)
+        except KeyError as exc:
+            raise ValueError(f"Unknown corpus_pack '{self.corpus_pack}'") from exc
+        if not domain_pack.jurisdiction.matches(self.jurisdiction):
+            raise ValueError(
+                f"corpus_pack '{self.corpus_pack}' supports jurisdiction "
+                f"'{domain_pack.jurisdiction_key}', not '{self.jurisdiction}'"
+            )
+        if self.subject != domain_pack.subject_key:
+            raise ValueError(
+                f"corpus_pack '{self.corpus_pack}' supports subject "
+                f"'{domain_pack.subject_key}', not '{self.subject}'"
+            )
+        if self.law_domain != self.subject:
+            raise ValueError("law_domain must match subject during migration")
+        self.jurisdiction = domain_pack.jurisdiction_key
+        self.subject = domain_pack.subject_key
+        self.law_domain = domain_pack.subject_key
+        return self
 
     @field_validator("complexity_level")
     @classmethod
@@ -282,9 +328,11 @@ class HypotheticalService:
         quality_gate = validation_results.adherence_check.get("quality_gate", {})
         failed_checks = quality_gate.get("failed_checks", [])
         feedback_reasons = []
+        domain_pack = resolve_domain_pack(request.corpus_pack)
         if "legal_realism" in failed_checks:
             feedback_reasons.append(
-                "Strengthen Singapore legal realism with concrete venue/procedure details and coherent chronology."
+                f"Strengthen {domain_pack.jurisdiction.display_name} legal realism "
+                "with concrete venue/procedure details and coherent chronology."
             )
         if "quality_score" in failed_checks:
             feedback_reasons.append(
@@ -310,6 +358,10 @@ class HypotheticalService:
     def _cache_key(request: GenerationRequest) -> str:
         payload = {
             "topics": sorted(request.topics),
+            "corpus_pack": request.corpus_pack,
+            "jurisdiction": request.jurisdiction,
+            "subject": request.subject,
+            "subtopics": sorted(request.subtopics),
             "law_domain": request.law_domain,
             "number_parties": request.number_parties,
             "complexity_level": request.complexity_level,
@@ -330,23 +382,35 @@ class HypotheticalService:
         return str(settings.environment).strip().lower() != "production"
 
     @staticmethod
-    def _enforce_singapore_scope(request: GenerationRequest) -> None:
-        """Reject generation requests that explicitly target non-Singapore jurisdiction."""
+    def _validate_requested_scope(request: GenerationRequest) -> None:
+        """Reject requests whose explicit preferences conflict with pack scope."""
+        domain_pack = resolve_domain_pack(request.corpus_pack)
         preferences = request.user_preferences or {}
-        requested_scope = (
-            str(
-                preferences.get("jurisdiction")
-                or preferences.get("country")
-                or preferences.get("legal_system")
-                or "singapore"
-            )
-            .strip()
-            .lower()
-        )
-        allowed_scopes = {"singapore", "sg", "singapore_law", "singapore tort"}
-        if requested_scope not in allowed_scopes:
+        requested_scope = preferences.get("jurisdiction") or preferences.get("country")
+        if requested_scope and not domain_pack.jurisdiction.matches(
+            str(requested_scope)
+        ):
             raise HypotheticalServiceError(
-                "Unsupported jurisdiction scope. Only Singapore tort-law generation is supported."
+                f"Unsupported jurisdiction scope '{requested_scope}' for "
+                f"corpus pack '{request.corpus_pack}'."
+            )
+        requested_subject = preferences.get("subject") or preferences.get("law_domain")
+        if requested_subject and normalize_scope_token(str(requested_subject)) != (
+            request.subject
+        ):
+            raise HypotheticalServiceError(
+                f"Unsupported subject scope '{requested_subject}' for "
+                f"corpus pack '{request.corpus_pack}'."
+            )
+        if not domain_pack.jurisdiction.matches(request.jurisdiction):
+            raise HypotheticalServiceError(
+                f"Corpus pack '{request.corpus_pack}' does not support "
+                f"jurisdiction '{request.jurisdiction}'."
+            )
+        if request.subject != domain_pack.subject_key:
+            raise HypotheticalServiceError(
+                f"Corpus pack '{request.corpus_pack}' does not support "
+                f"subject '{request.subject}'."
             )
 
     def _is_cacheable_request(self, request: GenerationRequest) -> bool:
@@ -441,7 +505,7 @@ class HypotheticalService:
             overall_started = time.perf_counter()
             correlation_id = (request.correlation_id or "").strip() or str(uuid.uuid4())
             request = request.model_copy(update={"correlation_id": correlation_id})
-            self._enforce_singapore_scope(request)
+            self._validate_requested_scope(request)
 
             logger.info(
                 "Starting hypothetical generation",
@@ -587,6 +651,10 @@ class HypotheticalService:
                 model_answer=model_answer,
                 metadata={
                     "topics": request.topics,
+                    "corpus_pack": request.corpus_pack,
+                    "jurisdiction": request.jurisdiction,
+                    "subject": request.subject,
+                    "subtopics": request.subtopics,
                     "law_domain": request.law_domain,
                     "number_parties": request.number_parties,
                     "complexity_level": request.complexity_level,
@@ -712,6 +780,10 @@ class HypotheticalService:
                 results = await asyncio.wait_for(
                     vector_service.semantic_search(
                         query_topics=request.topics,
+                        corpus_pack=request.corpus_pack,
+                        jurisdiction=request.jurisdiction,
+                        subject=request.subject,
+                        subtopics=request.subtopics,
                         n_results=min(3, request.sample_size),
                     ),
                     timeout=30,
@@ -725,6 +797,14 @@ class HypotheticalService:
                                     id=r.get("id", ""),
                                     text=r["text"],
                                     topics=r.get("topics", []),
+                                    corpus_pack_key=r.get(
+                                        "corpus_pack_key", request.corpus_pack
+                                    ),
+                                    jurisdiction=r.get(
+                                        "jurisdiction", request.jurisdiction
+                                    ),
+                                    subject=r.get("subject", request.subject),
+                                    subtopics=r.get("subtopics", []),
                                     metadata=r.get("metadata", {}),
                                 )
                             )
@@ -756,6 +836,10 @@ class HypotheticalService:
         try:
             query = CorpusQuery(
                 topics=request.topics,
+                corpus_pack=request.corpus_pack,
+                jurisdiction=request.jurisdiction,
+                subject=request.subject,
+                subtopics=request.subtopics,
                 sample_size=request.sample_size,
                 min_topic_overlap=1,
             )
@@ -802,6 +886,10 @@ class HypotheticalService:
             # Create prompt context
             context = PromptContext(
                 topics=request.topics,
+                corpus_pack=request.corpus_pack,
+                jurisdiction=request.jurisdiction,
+                subject=request.subject,
+                subtopics=request.subtopics,
                 law_domain=request.law_domain,
                 number_parties=request.number_parties,
                 reference_hypotheticals=[entry.text for entry in context_entries],
@@ -919,6 +1007,10 @@ class HypotheticalService:
                 required_topics=request.topics,
                 expected_parties=request.number_parties,
                 law_domain=request.law_domain,
+                corpus_pack=request.corpus_pack,
+                jurisdiction=request.jurisdiction,
+                subject=request.subject,
+                subtopics=request.subtopics,
                 fast_mode=self._should_use_fast_validation(request),
             )
 
@@ -969,7 +1061,11 @@ class HypotheticalService:
             llm_validation = {}
             try:
                 llm_validation = await self.validation_service.validate_with_llm(
-                    hypothetical, request.topics, request.number_parties
+                    hypothetical,
+                    request.topics,
+                    request.number_parties,
+                    jurisdiction=request.jurisdiction,
+                    subject=request.subject,
                 )
                 if llm_validation:
                     validation_result["llm_validation"] = llm_validation
@@ -1080,10 +1176,19 @@ class HypotheticalService:
         """Generate legal analysis for the hypothetical."""
         try:
             # Get all available topics
-            all_topics = await self.corpus_service.extract_all_topics()
+            all_topics = await self.corpus_service.extract_all_topics(
+                corpus_pack=request.corpus_pack,
+                jurisdiction=request.jurisdiction,
+                subject=request.subject,
+            )
 
             context = PromptContext(
-                topics=request.topics, law_domain=request.law_domain
+                topics=request.topics,
+                corpus_pack=request.corpus_pack,
+                jurisdiction=request.jurisdiction,
+                subject=request.subject,
+                subtopics=request.subtopics,
+                law_domain=request.law_domain,
             )
 
             prompt_data = self.prompt_manager.format_prompt(
@@ -1137,14 +1242,18 @@ class HypotheticalService:
         self, request: GenerationRequest, hypothetical: str
     ) -> str:
         """Generate a model answer walking through the legal analysis of the hypothetical."""
+        domain_pack = resolve_domain_pack(request.corpus_pack)
         system_prompt = (
-            "You are a Singapore tort law examiner writing model answers. "
+            f"You are a {domain_pack.jurisdiction.display_name} "
+            f"{domain_pack.subject_label} examiner writing model answers. "
             "Provide a structured answer to the hypothetical using IRAC method "
             "(Issue, Rule, Application, Conclusion) for each legal issue. "
-            "Reference Singapore case law where appropriate."
+            f"Reference {domain_pack.jurisdiction.display_name} case law where appropriate."
         )
         user_prompt = (
-            f"Write a model answer for this tort law hypothetical:\n\n{hypothetical}\n\n"
+            f"Write a model answer for this {request.subject} law hypothetical "
+            f"under {domain_pack.jurisdiction.display_name} law:\n\n"
+            f"{hypothetical}\n\n"
             f"Topics to address: {', '.join(request.topics)}\n\n"
             "Structure your answer with IRAC for each issue. Be thorough but concise."
         )

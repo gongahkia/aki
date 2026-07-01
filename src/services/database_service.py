@@ -101,6 +101,10 @@ class DatabaseService:
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
                         topics TEXT NOT NULL,
+                        corpus_pack_key TEXT DEFAULT 'sg_tort',
+                        jurisdiction TEXT DEFAULT 'sg',
+                        subject TEXT DEFAULT 'tort',
+                        subtopics TEXT DEFAULT '[]',
                         law_domain TEXT,
                         number_parties INTEGER,
                         complexity_level TEXT,
@@ -212,6 +216,22 @@ class DatabaseService:
             cursor.execute(
                 "ALTER TABLE generation_history ADD COLUMN quality_gate_failure_reasons TEXT"
             )
+        if "corpus_pack_key" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN corpus_pack_key TEXT DEFAULT 'sg_tort'"
+            )
+        if "jurisdiction" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN jurisdiction TEXT DEFAULT 'sg'"
+            )
+        if "subject" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN subject TEXT DEFAULT 'tort'"
+            )
+        if "subtopics" not in columns:
+            cursor.execute(
+                "ALTER TABLE generation_history ADD COLUMN subtopics TEXT DEFAULT '[]'"
+            )
 
     def _ensure_generation_reports_columns(self, cursor: sqlite3.Cursor):
         """Backfill report columns for existing databases."""
@@ -284,6 +304,10 @@ class DatabaseService:
         request_data = {
             "topics": topics,
             "law_domain": "tort",
+            "corpus_pack": "sg_tort",
+            "jurisdiction": "sg",
+            "subject": "tort",
+            "subtopics": [],
             "number_parties": number_parties,
             "complexity_level": str(config.get("complexity", "intermediate")),
             "method": config.get("method", "pure_llm"),
@@ -518,10 +542,11 @@ class DatabaseService:
                         """
                         INSERT INTO generation_history (
                             timestamp, topics, law_domain, number_parties, complexity_level,
+                            corpus_pack_key, jurisdiction, subject, subtopics,
                             hypothetical, analysis, generation_time, validation_passed,
                             quality_score, quality_gate_failure_reasons, request_data,
                             response_data, parent_generation_id, retry_reason, retry_attempt
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                         (
                             response_data.get("metadata", {}).get(
@@ -531,6 +556,12 @@ class DatabaseService:
                             request_data.get("law_domain"),
                             request_data.get("number_parties"),
                             request_data.get("complexity_level"),
+                            request_data.get("corpus_pack", "sg_tort"),
+                            request_data.get("jurisdiction", "sg"),
+                            request_data.get(
+                                "subject", request_data.get("law_domain", "tort")
+                            ),
+                            json.dumps(request_data.get("subtopics", [])),
                             response_data.get("hypothetical", ""),
                             response_data.get("analysis", ""),
                             response_data.get("generation_time", 0.0),

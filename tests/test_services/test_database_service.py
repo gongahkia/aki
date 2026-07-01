@@ -91,6 +91,22 @@ class TestDatabaseService:
         assert health["record_count"] == 1
 
     @pytest.mark.asyncio
+    async def test_generation_history_has_jurisdiction_scope_columns(
+        self, database_service
+    ):
+        """Generation history schema should persist pack and jurisdiction scope."""
+        conn = database_service._get_connection()
+        try:
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info('generation_history')")
+            }
+        finally:
+            conn.close()
+
+        assert {"corpus_pack_key", "jurisdiction", "subject", "subtopics"} <= columns
+
+    @pytest.mark.asyncio
     async def test_get_recent_generations(self, database_service):
         """Test retrieving recent generations."""
         # Save multiple generations

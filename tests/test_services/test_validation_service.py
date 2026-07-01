@@ -205,6 +205,29 @@ class TestValidationService:
         assert "word_count" not in result["checks"]
         assert "singapore_context" not in result["checks"]
 
+    def test_validate_hypothetical_receives_non_sg_jurisdiction_context(
+        self, validation_service
+    ):
+        """Non-SG validation should carry jurisdiction without SG context gate."""
+        text = """
+        Alice Smith sued Bob Jones after a negligent warehouse accident. The defendant
+        breached a duty of care and caused the claimant's injury. The parties disputed
+        liability, damages, and whether the claimant failed to mitigate loss.
+        """ * 10
+
+        result = validation_service.validate_hypothetical(
+            text=text,
+            required_topics=["negligence", "duty of care"],
+            expected_parties=2,
+            corpus_pack="test_tort",
+            jurisdiction="test",
+            subject="tort",
+            law_domain="tort",
+        )
+
+        assert result["summary"]["jurisdiction"] == "test"
+        assert result["checks"]["jurisdiction_context"]["jurisdiction"] == "test"
+
     def test_validate_legal_realism_scores_high_with_singapore_context(
         self, validation_service
     ):

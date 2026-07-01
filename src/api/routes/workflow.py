@@ -12,6 +12,10 @@ logger = structlog.get_logger(__name__)
 
 class GenerateRequest(BaseModel):
     topics: List[str] = Field(min_length=1, max_length=10)
+    corpus_pack: str = "sg_tort"
+    jurisdiction: str = "sg"
+    subject: str = "tort"
+    subtopics: List[str] = Field(default_factory=list)
     law_domain: str = "tort"
     number_parties: int = Field(default=3, ge=2, le=5)
     complexity_level: str = "intermediate"
@@ -75,6 +79,10 @@ async def generate(req: GenerateRequest):
 
     gen_req = GenerationRequest(
         topics=req.topics,
+        corpus_pack=req.corpus_pack,
+        jurisdiction=req.jurisdiction,
+        subject=req.subject,
+        subtopics=req.subtopics,
         law_domain=req.law_domain,
         number_parties=req.number_parties,
         complexity_level=req.complexity_level,

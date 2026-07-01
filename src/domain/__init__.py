@@ -3,10 +3,13 @@
 from .packs import (
     DOMAIN_PACK_REGISTRY,
     DomainPack,
+    Jurisdiction,
     default_domain_pack,
     get_domain_pack,
     list_domain_packs,
+    normalize_scope_token,
     register_domain_pack,
+    resolve_domain_pack,
 )
 from .topics import (
     TOPIC_ALIASES,
@@ -20,11 +23,14 @@ from .topics import (
 
 __all__ = [
     "DomainPack",
+    "Jurisdiction",
     "DOMAIN_PACK_REGISTRY",
     "register_domain_pack",
     "get_domain_pack",
     "list_domain_packs",
     "default_domain_pack",
+    "resolve_domain_pack",
+    "normalize_scope_token",
     "TopicDefinition",
     "TORT_TOPICS",
     "TOPIC_ALIASES",

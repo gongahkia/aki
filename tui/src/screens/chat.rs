@@ -804,6 +804,10 @@ impl ChatScreen {
 
                 let req = CorpusQueryRequest {
                     topics,
+                    corpus_pack: "sg_tort".into(),
+                    jurisdiction: "sg".into(),
+                    subject: "tort".into(),
+                    subtopics: Vec::new(),
                     sample_size,
                     exclude_ids: vec![],
                     min_topic_overlap: overlap,
@@ -855,6 +859,10 @@ impl ChatScreen {
                     text,
                     required_topics,
                     expected_parties,
+                    corpus_pack: "sg_tort".into(),
+                    jurisdiction: "sg".into(),
+                    subject: "tort".into(),
+                    subtopics: Vec::new(),
                     law_domain: "tort".into(),
                     fast_mode: false,
                 };
@@ -1570,6 +1578,10 @@ impl ChatScreen {
 
         let request = GenerationRequest {
             topics: topics.clone(),
+            corpus_pack: "sg_tort".into(),
+            jurisdiction: "sg".into(),
+            subject: "tort".into(),
+            subtopics: Vec::new(),
             law_domain: "tort".into(),
             number_parties,
             complexity_level,

@@ -5,6 +5,15 @@ from src.services.prompt_engineering import (
     PromptTemplateManager,
     PromptTemplateType,
 )
+from src.domain import (
+    TOPIC_ALIASES,
+    DomainPack,
+    Jurisdiction,
+    all_tort_topic_keys,
+    canonicalize_topic,
+    is_tort_topic,
+    register_domain_pack,
+)
 
 
 def test_topic_hints_support_spaced_topic_aliases():
@@ -29,3 +38,31 @@ def test_topic_hints_normalize_case_and_whitespace_variants():
     prompt = manager.format_prompt(PromptTemplateType.HYPOTHETICAL_GENERATION, context)
 
     assert "- occupiers_liability:" in prompt["user"]
+
+
+def test_prompt_context_uses_registered_jurisdiction_label():
+    register_domain_pack(
+        DomainPack(
+            key="prompt_tort",
+            display_name="Promptland Tort Law",
+            jurisdiction=Jurisdiction(key="prompt", display_name="Promptland"),
+            law_domain="tort",
+            canonicalize_topic=canonicalize_topic,
+            is_supported_topic=is_tort_topic,
+            topic_keys=all_tort_topic_keys(),
+            topic_aliases=dict(TOPIC_ALIASES),
+            subject_label="Tort Law",
+        )
+    )
+    manager = PromptTemplateManager()
+    context = PromptContext(
+        topics=["negligence"],
+        corpus_pack="prompt_tort",
+        jurisdiction="prompt",
+        subject="tort",
+    )
+
+    prompt = manager.format_prompt(PromptTemplateType.HYPOTHETICAL_GENERATION, context)
+
+    assert "Promptland Tort Law" in prompt["system"]
+    assert "Jurisdiction: Promptland" in prompt["user"]

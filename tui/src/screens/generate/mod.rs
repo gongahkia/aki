@@ -123,6 +123,10 @@ impl GenerateScreen {
     fn start_generation(&mut self, ctx: &mut AppContext) {
         let req = GenerationRequest {
             topics: self.config.topics.clone(),
+            corpus_pack: "sg_tort".into(),
+            jurisdiction: "sg".into(),
+            subject: "tort".into(),
+            subtopics: Vec::new(),
             law_domain: "tort".into(),
             number_parties: self.config.parties,
             complexity_level: match self.config.complexity {

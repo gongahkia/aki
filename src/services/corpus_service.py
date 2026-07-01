@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from ..domain import canonicalize_topic
+from ..domain import canonicalize_topic, normalize_scope_token, resolve_domain_pack
 from .vector_service import VectorServiceError, vector_service
 
 logger = structlog.get_logger(__name__)
@@ -20,6 +20,10 @@ class HypotheticalEntry(BaseModel):
     id: Optional[str] = None
     text: str
     topics: List[str]
+    corpus_pack_key: str = "sg_tort"
+    jurisdiction: str = "sg"
+    subject: str = "tort"
+    subtopics: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -29,9 +33,23 @@ class CorpusQuery(BaseModel):
     """Model for corpus queries."""
 
     topics: List[str]
+    corpus_pack: str = "sg_tort"
+    jurisdiction: str = "sg"
+    subject: str = "tort"
+    subtopics: List[str] = Field(default_factory=list)
     sample_size: int = Field(default=5, ge=1, le=50)
     exclude_ids: List[str] = Field(default_factory=list)
     min_topic_overlap: int = Field(default=1, ge=1)
+
+    @field_validator("corpus_pack", "jurisdiction", "subject")
+    @classmethod
+    def normalize_scope_fields(cls, value: str) -> str:
+        return CorpusService._normalize_scope(value, "sg")
+
+    @field_validator("subtopics")
+    @classmethod
+    def normalize_subtopics(cls, value: List[str]) -> List[str]:
+        return CorpusService._normalize_string_list(value)
 
 
 class CorpusServiceError(Exception):
@@ -105,6 +123,78 @@ class CorpusService:
                 normalized.append(canonical)
         return normalized
 
+    @staticmethod
+    def _normalize_scope(value: Any, fallback: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return fallback
+        token = normalize_scope_token(text)
+        if token in {"singapore", "singapore_law", "singapore_tort"}:
+            return "sg"
+        return token
+
+    @staticmethod
+    def _normalize_string_list(raw_values: Any) -> List[str]:
+        if raw_values is None:
+            return []
+        if isinstance(raw_values, list):
+            values = raw_values
+        else:
+            values = [raw_values]
+        normalized: List[str] = []
+        for value in values:
+            token = normalize_scope_token(str(value))
+            if token and token not in normalized:
+                normalized.append(token)
+        return normalized
+
+    @classmethod
+    def _entry_scope_from_item(cls, item: Dict[str, Any]) -> Dict[str, Any]:
+        default_pack = resolve_domain_pack("sg_tort")
+        metadata = item.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        corpus_pack_key = (
+            item.get("corpus_pack_key")
+            or item.get("corpus_pack")
+            or metadata.get("corpus_pack_key")
+            or metadata.get("corpus_pack")
+            or default_pack.key
+        )
+        subject = (
+            item.get("subject")
+            or item.get("law_domain")
+            or metadata.get("subject")
+            or metadata.get("law_domain")
+            or default_pack.subject_key
+        )
+        jurisdiction = (
+            item.get("jurisdiction")
+            or metadata.get("jurisdiction")
+            or default_pack.jurisdiction_key
+        )
+        subtopics = item.get("subtopics", metadata.get("subtopics", []))
+        return {
+            "corpus_pack_key": cls._normalize_scope(corpus_pack_key, default_pack.key),
+            "jurisdiction": cls._normalize_scope(
+                jurisdiction, default_pack.jurisdiction_key
+            ),
+            "subject": cls._normalize_scope(subject, default_pack.subject_key),
+            "subtopics": cls._normalize_string_list(subtopics),
+        }
+
+    @staticmethod
+    def _entry_matches_scope(entry: HypotheticalEntry, query: CorpusQuery) -> bool:
+        if query.corpus_pack and entry.corpus_pack_key != query.corpus_pack:
+            return False
+        if query.jurisdiction and entry.jurisdiction != query.jurisdiction:
+            return False
+        if query.subject and entry.subject != query.subject:
+            return False
+        if query.subtopics and not (set(entry.subtopics) & set(query.subtopics)):
+            return False
+        return True
+
     async def load_corpus(self, source: str = "local") -> List[HypotheticalEntry]:
         """Load corpus from local JSON file."""
         try:
@@ -127,10 +217,15 @@ class CorpusService:
             entries = []
             for i, item in enumerate(data):
                 raw_topics = item.get("topics", item.get("topic", []))
+                scope = self._entry_scope_from_item(item)
                 entry = HypotheticalEntry(
-                    id=str(i),
+                    id=str(item.get("id", i)),
                     text=item.get("text", ""),
                     topics=self._normalize_topics(raw_topics),
+                    corpus_pack_key=scope["corpus_pack_key"],
+                    jurisdiction=scope["jurisdiction"],
+                    subject=scope["subject"],
+                    subtopics=scope["subtopics"],
                     metadata=item.get("metadata", {}),
                     created_at=item.get("created_at"),
                     updated_at=item.get("updated_at"),
@@ -168,6 +263,10 @@ class CorpusService:
                     {
                         "text": entry.text,
                         "topic": self._normalize_topics(entry.topics),
+                        "corpus_pack_key": entry.corpus_pack_key,
+                        "jurisdiction": entry.jurisdiction,
+                        "subject": entry.subject,
+                        "subtopics": entry.subtopics,
                         "metadata": entry.metadata,
                         "created_at": entry.created_at,
                         "updated_at": entry.updated_at,
@@ -206,6 +305,10 @@ class CorpusService:
                 try:
                     results = await self._vector_service.semantic_search(
                         query_topics=query.topics,
+                        corpus_pack=query.corpus_pack,
+                        jurisdiction=query.jurisdiction,
+                        subject=query.subject,
+                        subtopics=query.subtopics,
                         n_results=query.sample_size,
                         exclude_ids=query.exclude_ids,
                     )
@@ -218,6 +321,14 @@ class CorpusService:
                                 id=result["id"],
                                 text=result["text"],
                                 topics=result["topics"],
+                                corpus_pack_key=result.get(
+                                    "corpus_pack_key", query.corpus_pack
+                                ),
+                                jurisdiction=result.get(
+                                    "jurisdiction", query.jurisdiction
+                                ),
+                                subject=result.get("subject", query.subject),
+                                subtopics=result.get("subtopics", []),
                                 metadata=result["metadata"],
                             )
                             relevant_entries.append(entry)
@@ -238,7 +349,10 @@ class CorpusService:
             # Fallback: Simple topic overlap (original method)
             corpus = await self.load_corpus()
             available_entries = [
-                entry for entry in corpus if entry.id not in query.exclude_ids
+                entry
+                for entry in corpus
+                if entry.id not in query.exclude_ids
+                and self._entry_matches_scope(entry, query)
             ]
 
             scored_entries = []
@@ -292,6 +406,10 @@ class CorpusService:
                         "id": entry.id,
                         "text": entry.text,
                         "topics": entry.topics,
+                        "corpus_pack_key": entry.corpus_pack_key,
+                        "jurisdiction": entry.jurisdiction,
+                        "subject": entry.subject,
+                        "subtopics": entry.subtopics,
                         "metadata": entry.metadata,
                     }
                 )
@@ -341,12 +459,23 @@ class CorpusService:
         finally:
             self._index_task = None
 
-    async def extract_all_topics(self) -> List[str]:
+    async def extract_all_topics(
+        self,
+        *,
+        corpus_pack: str = "sg_tort",
+        jurisdiction: str = "sg",
+        subject: str = "tort",
+    ) -> List[str]:
         """Extract all unique topics from the corpus."""
         try:
             current_mtime = self._get_local_corpus_mtime()
+            use_cache = (
+                corpus_pack == "sg_tort" and jurisdiction == "sg" and subject == "tort"
+            )
             async with self._topics_cache_lock:
                 if (
+                    use_cache
+                    and
                     self._topics_cache is not None
                     and current_mtime is not None
                     and self._topics_cache_mtime == current_mtime
@@ -355,16 +484,23 @@ class CorpusService:
 
             corpus = await self.load_corpus()
             all_topics = set()
+            query = CorpusQuery(
+                topics=["negligence"],
+                corpus_pack=corpus_pack,
+                jurisdiction=jurisdiction,
+                subject=subject,
+            )
 
             for entry in corpus:
-                all_topics.update(entry.topics)
+                if self._entry_matches_scope(entry, query):
+                    all_topics.update(entry.topics)
 
             topics_list = sorted(list(all_topics))
             async with self._topics_cache_lock:
-                if current_mtime is not None:
+                if use_cache and current_mtime is not None:
                     self._topics_cache = topics_list
                     self._topics_cache_mtime = current_mtime
-                else:
+                elif use_cache:
                     self._topics_cache = None
                     self._topics_cache_mtime = None
             logger.info("Topics extracted", topics_count=len(topics_list))

@@ -51,6 +51,14 @@ fn default_finish_reason() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerationRequest {
     pub topics: Vec<String>,
+    #[serde(default = "default_corpus_pack")]
+    pub corpus_pack: String,
+    #[serde(default = "default_jurisdiction")]
+    pub jurisdiction: String,
+    #[serde(default = "default_law_domain")]
+    pub subject: String,
+    #[serde(default)]
+    pub subtopics: Vec<String>,
     #[serde(default = "default_law_domain")]
     pub law_domain: String,
     #[serde(default = "default_parties")]
@@ -71,6 +79,12 @@ pub struct GenerationRequest {
     pub include_analysis: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<String>,
+}
+fn default_corpus_pack() -> String {
+    "sg_tort".into()
+}
+fn default_jurisdiction() -> String {
+    "sg".into()
 }
 fn default_law_domain() -> String {
     "tort".into()
@@ -175,6 +189,14 @@ pub struct CorpusEntry {
     pub text: String,
     #[serde(default)]
     pub topics: Vec<String>,
+    #[serde(default = "default_corpus_pack")]
+    pub corpus_pack_key: String,
+    #[serde(default = "default_jurisdiction")]
+    pub jurisdiction: String,
+    #[serde(default = "default_law_domain")]
+    pub subject: String,
+    #[serde(default)]
+    pub subtopics: Vec<String>,
     #[serde(default)]
     pub metadata: HashMap<String, serde_json::Value>,
 }
@@ -182,6 +204,14 @@ pub struct CorpusEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorpusQueryRequest {
     pub topics: Vec<String>,
+    #[serde(default = "default_corpus_pack")]
+    pub corpus_pack: String,
+    #[serde(default = "default_jurisdiction")]
+    pub jurisdiction: String,
+    #[serde(default = "default_law_domain")]
+    pub subject: String,
+    #[serde(default)]
+    pub subtopics: Vec<String>,
     #[serde(default = "default_sample_size")]
     pub sample_size: u32,
     #[serde(default)]
@@ -228,6 +258,14 @@ pub struct ValidateRequest {
     pub required_topics: Vec<String>,
     #[serde(default = "default_expected_parties")]
     pub expected_parties: u32,
+    #[serde(default = "default_corpus_pack")]
+    pub corpus_pack: String,
+    #[serde(default = "default_jurisdiction")]
+    pub jurisdiction: String,
+    #[serde(default = "default_law_domain")]
+    pub subject: String,
+    #[serde(default)]
+    pub subtopics: Vec<String>,
     #[serde(default = "default_law_domain")]
     pub law_domain: String,
     #[serde(default)]
