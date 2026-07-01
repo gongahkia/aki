@@ -3,7 +3,7 @@
 Status: draft for launch review  
 Primary audience: Hacker News, legal-tech builders, law students who inspect the repo  
 Repo: https://github.com/gongahkia/jikai  
-Demo: local `/demo/pipeline` route now; hosted URL pending issue #13
+Demo: local `/demo/pipeline` route now; video artifact at `docs/launch/jikai-demo-video.mp4`; hosted URL pending issue #13
 
 ## The Short Version
 
@@ -110,4 +110,3 @@ If the corpus-pack shape works, Jikai becomes more than an SG Tort generator. It
 The hard part is not making an LLM produce legal-looking text. The hard part is building enough surrounding machinery that the generated text can be traced, constrained, and improved. Jikai's bet is that legal-study tooling should be built around that machinery first.
 
 That is the architecture worth launching: ML foundation before LLM generation, corpus packs before generic prompts, validation before trust, and study artifacts after generation.
-

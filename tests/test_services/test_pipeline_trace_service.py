@@ -20,10 +20,13 @@ async def test_pipeline_trace_contains_required_stages_and_redacts_prompt():
         "prompt",
         "generation",
         "validation",
+        "study",
     ]
     prompt_stage = next(stage for stage in trace["stages"] if stage["id"] == "prompt")
     assert prompt_stage["details"]["redacted"] is True
     assert "user_prompt" not in prompt_stage["details"]
+    study_stage = next(stage for stage in trace["stages"] if stage["id"] == "study")
+    assert "anki_tsv_preview" in study_stage["details"]
     assert trace["summary"]["passed"] is True
 
 

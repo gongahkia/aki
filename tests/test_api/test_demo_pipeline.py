@@ -25,10 +25,14 @@ def test_pipeline_trace_endpoint_returns_stage_json():
     payload = response.json()
     assert payload["mode"] == "fixture"
     assert payload["summary"]["passed"] is True
-    assert [stage["id"] for stage in payload["stages"]][-2:] == [
+    assert [stage["id"] for stage in payload["stages"]][-3:] == [
         "generation",
         "validation",
+        "study",
     ]
+    study_stage = payload["stages"][-1]
+    assert "anki_tsv_preview" in study_stage["details"]
+    assert "model_answer" in study_stage["details"]
 
 
 def test_pipeline_trace_endpoint_can_expose_prompt():

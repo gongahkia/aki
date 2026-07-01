@@ -4,6 +4,7 @@ Status: draft
 Rules checked: 2026-07-01  
 Repo: https://github.com/gongahkia/jikai  
 Hosted demo: blocked by issue #13  
+Demo video: `docs/launch/jikai-demo-video.mp4`
 Pipeline demo route: local `/demo/pipeline`
 
 ## Rule Checks
@@ -26,7 +27,7 @@ Pipeline demo route: local `/demo/pipeline`
 | GitHub repo | maintainer | Ready |
 | Blog post | maintainer | Draft at `docs/launch/blog-ml-foundation-before-llm.md` |
 | Hosted demo | maintainer | Blocked by #13 |
-| Demo video | maintainer | Runbook at `docs/launch/demo-video-runbook.md`; recording blocked until hosted demo or local recording pass |
+| Demo video | maintainer | Ready: `docs/launch/jikai-demo-video.mp4`; runbook at `docs/launch/demo-video-runbook.md` |
 | Blind eval artifact | external raters | Blocked by #14 |
 
 ## Show HN Title
@@ -81,7 +82,7 @@ Place at top and bottom:
 | Repo quickstart | maintainer | Fresh clone can run API/TUI or local API route with documented deps | Pending final dry run |
 | Hosted demo | maintainer | Public URL returns pipeline demo and generation path | Blocked by #13 |
 | Blog | maintainer | 2,000-3,000 words, factual claims, code references, repo/demo links | Draft ready |
-| Demo video | maintainer | <=90s, actual generation + validation + export/study value | Runbook ready, recording pending |
+| Demo video | maintainer | <=90s, actual generation + validation + export/study value | Ready |
 | Blind eval | external raters | >=3 raters complete comparison sheet | Blocked by #14 |
 | HN copy | maintainer | No bar-prep conflation, no "beats" claim without metric | Draft ready |
 | Social posts | maintainer | X, LinkedIn, Reddit variants prepared | Draft ready |
@@ -175,4 +176,3 @@ Response rules:
 - Do not debate legal advice.
 - Do not ask for votes.
 - Do not use AI-generated canned replies.
-

@@ -32,6 +32,15 @@ DEFAULT_DEMO_HYPOTHETICAL = (
     "brake defect caused Lim's physical injury and consequential loss."
 )
 
+DEFAULT_DEMO_MODEL_ANSWER = (
+    "A strong answer would identify a duty of care owed by Bright Services and Tan "
+    "to road users near the delivery route. Bright Services likely breached that "
+    "duty by continuing to deploy an e-bike with a known brake defect after reports "
+    "from other riders. Causation turns on whether the unrepaired brake materially "
+    "contributed to the collision and Lim's injury. Tan's emergency swerve may reduce "
+    "criticism of his conduct, but it does not necessarily break the causal chain."
+)
+
 
 class PipelineTraceService:
     """Build inspectable stage-by-stage generation traces."""
@@ -126,6 +135,12 @@ class PipelineTraceService:
                 "complete" if validation_snapshot["passed"] else "warning",
                 validation_snapshot,
             ),
+            self._stage(
+                "study",
+                "Study export",
+                "complete",
+                self._study_snapshot(request, generation["output"]),
+            ),
         ]
 
         return {
@@ -142,6 +157,7 @@ class PipelineTraceService:
                 "jurisdiction": request.jurisdiction,
                 "corpus_pack": request.corpus_pack,
                 "retrieved_count": len(retrieved),
+                "study_artifacts": ["model_answer", "anki_tsv"],
                 "failure_reasons": validation_snapshot["failure_reasons"],
             },
             "stages": stages,
@@ -272,6 +288,7 @@ class PipelineTraceService:
                 "status": "complete",
                 "source": "deterministic_fixture",
                 "output": DEFAULT_DEMO_HYPOTHETICAL,
+                "model_answer": DEFAULT_DEMO_MODEL_ANSWER,
                 "output_chars": len(DEFAULT_DEMO_HYPOTHETICAL),
                 "provider": "redacted",
                 "validation_results": None,
@@ -296,12 +313,29 @@ class PipelineTraceService:
             "status": "complete",
             "source": "live_workflow",
             "output": response.hypothetical,
+            "model_answer": response.model_answer,
             "output_chars": len(response.hypothetical),
             "provider": provider_data if expose_provider else "redacted",
             "metadata": response.metadata,
             "validation_results": response.validation_results,
             "ml_foundation": preferences.get("ml_foundation", {}),
             "retrieved_count_observed_before_generation": len(retrieved),
+        }
+
+    def _study_snapshot(
+        self,
+        request: GenerationRequest,
+        generated_text: str,
+    ) -> Dict[str, Any]:
+        tags = " ".join(f"tort::{topic}" for topic in request.topics)
+        front = self._clip(generated_text, 420)
+        back = self._clip(DEFAULT_DEMO_MODEL_ANSWER, 420)
+        return {
+            "model_answer": DEFAULT_DEMO_MODEL_ANSWER,
+            "anki_tsv_preview": f"{front}\t{back}\t{tags}",
+            "export_formats": ["anki_tsv", "generation_report"],
+            "tags": tags,
+            "note": "Preview only; /jobs/export-anki writes the TSV export in normal use.",
         }
 
     def _ml_snapshot(

@@ -1,8 +1,9 @@
 # 90-Second Demo Video Runbook
 
-Status: recording pending  
-Target length: 75-90 seconds  
-Required before final recording: hosted demo from #13 or a clean local browser recording
+Status: recorded
+Target length: 75-90 seconds
+Recorded artifact: `docs/launch/jikai-demo-video.mp4`
+Renderer: `script/render_launch_demo_video.py`
 
 ## Goal
 
@@ -13,6 +14,10 @@ Show actual workflow value for non-builder audiences:
 3. Generate or display the hypothetical and model-answer path.
 4. Show validation passing.
 5. Show study export value through Anki/export or a saved artifact.
+
+## Current Artifact
+
+`docs/launch/jikai-demo-video.mp4` is a 60-second MP4 rendered from the local demo trace endpoint. It shows the generated hypothetical, validation gate, model answer, and Anki TSV preview. The hosted demo URL remains blocked by #13.
 
 ## Recording Setup
 
@@ -82,4 +87,3 @@ curl -s http://127.0.0.1:8000/jobs/export-anki \
 - Export or study workflow value is visible.
 - Repo URL is visible in final frame.
 - Runtime errors, provider keys, and private prompts are not visible.
-
