@@ -1,0 +1,47 @@
+from fastapi.testclient import TestClient
+
+from src.api.main import create_app
+
+
+def test_pipeline_page_serves_visual_shell():
+    client = TestClient(create_app())
+
+    response = client.get("/demo/pipeline")
+
+    assert response.status_code == 200
+    assert "Jikai Pipeline Trace" in response.text
+    assert "/demo/pipeline/trace" in response.text
+
+
+def test_pipeline_trace_endpoint_returns_stage_json():
+    client = TestClient(create_app())
+
+    response = client.get(
+        "/demo/pipeline/trace",
+        params={"topics": "negligence, causation"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "fixture"
+    assert payload["summary"]["passed"] is True
+    assert [stage["id"] for stage in payload["stages"]][-2:] == [
+        "generation",
+        "validation",
+    ]
+
+
+def test_pipeline_trace_endpoint_can_expose_prompt():
+    client = TestClient(create_app())
+
+    response = client.get(
+        "/demo/pipeline/trace",
+        params={"topics": "negligence, causation", "expose_prompt": "true"},
+    )
+
+    assert response.status_code == 200
+    prompt_stage = next(
+        stage for stage in response.json()["stages"] if stage["id"] == "prompt"
+    )
+    assert prompt_stage["details"]["redacted"] is False
+    assert "user_prompt" in prompt_stage["details"]

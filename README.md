@@ -34,6 +34,8 @@ flowchart LR
 
 The diagram is maintained directly in this README. Update it with the stage owners below when the code path changes.
 
+![Jikai pipeline trace](./asset/reference/pipeline-trace.png)
+
 | Stage | What It Constrains | Code |
 |-------|--------------------|------|
 | Scope guard | Corpus pack, jurisdiction, subject, topic aliases | `src/domain/packs.py`, `src/services/topic_guard.py` |
