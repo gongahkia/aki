@@ -1,0 +1,346 @@
+{
+  "schema_version": "1.0",
+  "key": "sg_tort",
+  "display_name": "Singapore Tort Law",
+  "status": "reference",
+  "jurisdiction": {
+    "code": "sg",
+    "name": "Singapore",
+    "legal_system": "common_law"
+  },
+  "subject": {
+    "key": "tort",
+    "name": "Tort Law"
+  },
+  "corpus": {
+    "clean_path": "corpus/clean/tort/corpus.json",
+    "raw_paths": [
+      "corpus/raw/tort"
+    ],
+    "record_format": "legacy_text_topic_v1",
+    "id_prefix": "sg_tort"
+  },
+  "sources": [
+    {
+      "name": "Bundled SG Tort seed corpus",
+      "url": "file://corpus/raw/tort",
+      "source_format": "txt",
+      "access": "local_repo",
+      "terms_url": null,
+      "notes": "Current preprocessor input path for the bundled reference corpus."
+    },
+    {
+      "name": "CommonLII Singapore cases",
+      "url": "http://www.commonlii.org/sg/",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": null,
+      "notes": "Existing scraper source; redistribution terms must be checked before shipping scraped full text."
+    },
+    {
+      "name": "Singapore Judiciary judgments",
+      "url": "https://www.judiciary.gov.sg/judgments",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": null,
+      "notes": "Existing scraper source; use source terms before redistributing scraped full text."
+    },
+    {
+      "name": "Singapore International Commercial Court judgments",
+      "url": "https://www.sicc.gov.sg",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": null,
+      "notes": "Existing scraper source used by SG scraping code."
+    },
+    {
+      "name": "Singapore Law Gazette",
+      "url": "https://lawgazette.com.sg",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": null,
+      "notes": "Existing scraper source used by SG scraping code."
+    }
+  ],
+  "license": {
+    "name": "repository_fixture",
+    "url": null,
+    "redistribution_status": "bundled_fixture",
+    "attribution_required": false,
+    "commercial_use": "unverified_for_external_sources",
+    "terms_notes": "The current bundled corpus is a repository fixture. This manifest does not clear redistribution of future scraped CommonLII, Judiciary, SICC, or Law Gazette full text."
+  },
+  "taxonomy": {
+    "version": "2026-07-01",
+    "topics": [
+      {
+        "key": "negligence",
+        "label": "Negligence",
+        "category": "Negligence-Based",
+        "description": "Duty, breach, damage, causation.",
+        "aliases": [],
+        "subtopics": [
+          {"key": "duty_of_care", "label": "Duty of care"},
+          {"key": "standard_of_care", "label": "Standard of care"},
+          {"key": "causation", "label": "Causation"},
+          {"key": "remoteness", "label": "Remoteness"}
+        ]
+      },
+      {
+        "key": "duty_of_care",
+        "label": "Duty Of Care",
+        "category": "Negligence-Based",
+        "description": "Neighbour principle, proximity, and policy.",
+        "aliases": ["duty of care"],
+        "subtopics": []
+      },
+      {
+        "key": "standard_of_care",
+        "label": "Standard Of Care",
+        "category": "Negligence-Based",
+        "description": "Reasonable person standard.",
+        "aliases": ["standard of care"],
+        "subtopics": []
+      },
+      {
+        "key": "causation",
+        "label": "Causation",
+        "category": "Negligence-Based",
+        "description": "But-for causation and legal causation.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "remoteness",
+        "label": "Remoteness",
+        "category": "Negligence-Based",
+        "description": "Foreseeability of damage.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "contributory_negligence",
+        "label": "Contributory Negligence",
+        "category": "Negligence-Based",
+        "description": "Claimant fault and apportionment.",
+        "aliases": ["contributory negligence"],
+        "subtopics": []
+      },
+      {
+        "key": "battery",
+        "label": "Battery",
+        "category": "Intentional Torts",
+        "description": "Intentional application of force.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "assault",
+        "label": "Assault",
+        "category": "Intentional Torts",
+        "description": "Apprehension of immediate contact.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "false_imprisonment",
+        "label": "False Imprisonment",
+        "category": "Intentional Torts",
+        "description": "Unlawful restraint of liberty.",
+        "aliases": ["false imprisonment"],
+        "subtopics": []
+      },
+      {
+        "key": "trespass_to_land",
+        "label": "Trespass To Land",
+        "category": "Intentional Torts",
+        "description": "Unlawful entry onto land.",
+        "aliases": ["trespass to land"],
+        "subtopics": []
+      },
+      {
+        "key": "vicarious_liability",
+        "label": "Vicarious Liability",
+        "category": "Liability",
+        "description": "Employer liability for employee torts.",
+        "aliases": ["vicarious liability"],
+        "subtopics": []
+      },
+      {
+        "key": "strict_liability",
+        "label": "Strict Liability",
+        "category": "Liability",
+        "description": "Liability without fault.",
+        "aliases": ["strict liability"],
+        "subtopics": []
+      },
+      {
+        "key": "occupiers_liability",
+        "label": "Occupiers Liability",
+        "category": "Liability",
+        "description": "Duties to visitors and trespassers.",
+        "aliases": ["occupiers liability"],
+        "subtopics": []
+      },
+      {
+        "key": "employers_liability",
+        "label": "Employers Liability",
+        "category": "Liability",
+        "description": "Workplace safety duties.",
+        "aliases": ["employers liability"],
+        "subtopics": []
+      },
+      {
+        "key": "product_liability",
+        "label": "Product Liability",
+        "category": "Liability",
+        "description": "Defective product claims.",
+        "aliases": ["product liability"],
+        "subtopics": []
+      },
+      {
+        "key": "defamation",
+        "label": "Defamation",
+        "category": "Specific Torts",
+        "description": "False statements harming reputation.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "private_nuisance",
+        "label": "Private Nuisance",
+        "category": "Specific Torts",
+        "description": "Unreasonable interference with land use.",
+        "aliases": ["private nuisance"],
+        "subtopics": []
+      },
+      {
+        "key": "harassment",
+        "label": "Harassment",
+        "category": "Specific Torts",
+        "description": "Course of conduct causing alarm.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "economic_loss",
+        "label": "Economic Loss",
+        "category": "Damages",
+        "description": "Pure financial loss claims.",
+        "aliases": ["economic loss"],
+        "subtopics": []
+      },
+      {
+        "key": "psychiatric_harm",
+        "label": "Psychiatric Harm",
+        "category": "Damages",
+        "description": "Nervous shock and mental injury.",
+        "aliases": ["psychiatric harm"],
+        "subtopics": []
+      },
+      {
+        "key": "breach_of_statutory_duty",
+        "label": "Breach Of Statutory Duty",
+        "category": "Doctrines & Defences",
+        "description": "Breach of obligations imposed by statute.",
+        "aliases": ["breach of statutory duty"],
+        "subtopics": []
+      },
+      {
+        "key": "rylands_v_fletcher",
+        "label": "Rylands V Fletcher",
+        "category": "Doctrines & Defences",
+        "description": "Strict liability for escape of dangerous things.",
+        "aliases": ["rylands v fletcher"],
+        "subtopics": []
+      },
+      {
+        "key": "consent_defence",
+        "label": "Consent Defence",
+        "category": "Doctrines & Defences",
+        "description": "Voluntary assumption of known risk.",
+        "aliases": ["consent defence"],
+        "subtopics": []
+      },
+      {
+        "key": "illegality_defence",
+        "label": "Illegality Defence",
+        "category": "Doctrines & Defences",
+        "description": "Claim barred by claimant illegality.",
+        "aliases": ["illegality defence"],
+        "subtopics": []
+      },
+      {
+        "key": "limitation_periods",
+        "label": "Limitation Periods",
+        "category": "Doctrines & Defences",
+        "description": "Time-bar and accrual limits.",
+        "aliases": ["limitation periods"],
+        "subtopics": []
+      },
+      {
+        "key": "res_ipsa_loquitur",
+        "label": "Res Ipsa Loquitur",
+        "category": "Doctrines & Defences",
+        "description": "Inference of negligence from circumstances.",
+        "aliases": ["res ipsa loquitur"],
+        "subtopics": []
+      },
+      {
+        "key": "novus_actus_interveniens",
+        "label": "Novus Actus Interveniens",
+        "category": "Doctrines & Defences",
+        "description": "Intervening act breaks causation chain.",
+        "aliases": ["novus actus interveniens"],
+        "subtopics": []
+      },
+      {
+        "key": "volenti_non_fit_injuria",
+        "label": "Volenti Non Fit Injuria",
+        "category": "Doctrines & Defences",
+        "description": "No injury where risk was voluntarily accepted.",
+        "aliases": ["volenti non fit injuria"],
+        "subtopics": []
+      }
+    ]
+  },
+  "pipeline": {
+    "ingestion_command": "python -m src.services.corpus_preprocessor",
+    "cleaner_command": "python -m src.services.corpus_preprocessor",
+    "embedding_command": "curl -X POST http://127.0.0.1:8000/jobs/embed -H 'Content-Type: application/json' -d '{\"corpus_path\":\"corpus/clean/tort/corpus.json\"}'",
+    "training_command": "python -m src.ml.pipeline --data corpus/labelled/sample.csv"
+  },
+  "validation": {
+    "expected_record_count_min": 41,
+    "required_record_fields": ["text", "topic"],
+    "canonical_record_fields": [
+      "id",
+      "corpus_pack_key",
+      "jurisdiction",
+      "subject",
+      "topics",
+      "subtopics",
+      "text",
+      "source",
+      "license",
+      "metadata"
+    ],
+    "topic_coverage": "Each record should map to at least one taxonomy topic.",
+    "jurisdiction_expectations": [
+      "Singapore law context",
+      "Singapore court or authority cues where source material supports them"
+    ],
+    "quality_checks": [
+      "JSON parses",
+      "All records include non-empty text",
+      "All topic values canonicalize through the SG Tort taxonomy",
+      "No source with restricted or unknown terms is redistributed as full text"
+    ]
+  },
+  "artifacts": {
+    "vector_collection": "tort_hypotheticals",
+    "labels_path": "corpus/labelled/tort_labels.csv",
+    "models_dir": "models"
+  },
+  "notes": "This is the reference pack for the current repo state. Runtime code still needs Phase 1 migration before manifests become executable pack boundaries."
+}
