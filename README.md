@@ -276,7 +276,8 @@ SG Tort is the current reference corpus. The pivot path is:
 1. Add first-class jurisdiction, subject, topic, and subtopic fields.
 2. Convert SG Tort into the reference corpus pack.
 3. Add UK and US Tort packs only after source terms and redistribution constraints are documented.
-4. Keep public comparison claims out of the README until blind evaluation artifacts support them.
+4. Use the blind-evaluation rubric in [`docs/evals/blind-eval-rubric-v1.md`](docs/evals/blind-eval-rubric-v1.md) before generating comparison samples.
+5. Keep public comparison claims out of the README until blind evaluation artifacts support them.
 
 ## Disclaimer
 

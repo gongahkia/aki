@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "rubric_version": "1.0",
+  "jurisdiction": "sg",
+  "subject": "tort",
+  "corpus_pack_key": "sg_tort",
+  "corpus_pack_revision": "git-sha-or-release-tag",
+  "created_at": "2026-07-01",
+  "packet_randomization": {
+    "method": "seeded_shuffle",
+    "seed_record": "store privately until ratings close",
+    "source_labels_visible_to_raters": false
+  },
+  "baseline": {
+    "source_type": "reviewer_written_original",
+    "license_status": "permission_granted",
+    "permission_evidence": "path-or-ticket-id",
+    "terms_url": null,
+    "notes": "Do not use Quimbee or Studicata sample text without written permission."
+  },
+  "packets": [
+    {
+      "packet_id": "pilot0-001",
+      "topic": "negligence",
+      "subtopics": ["duty_of_care"],
+      "difficulty": "medium",
+      "samples": [
+        {
+          "sample_id": "pilot0-001-a",
+          "visible_label": "A",
+          "source": "jikai",
+          "artifact_path": "private/path/or/public/permitted/path.md"
+        },
+        {
+          "sample_id": "pilot0-001-b",
+          "visible_label": "B",
+          "source": "baseline",
+          "artifact_path": "private/path/or/public/permitted/path.md"
+        }
+      ]
+    }
+  ]
+}
