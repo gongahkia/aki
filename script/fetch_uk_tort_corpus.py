@@ -124,17 +124,16 @@ def record_from_tna_xml(
     neutral_citation = _first_text(root, "neutralCitation") or _uk_metadata_text(
         root, "cite"
     )
-    document_uri = _frbr_value(root, "FRBRuri") or source_url.removesuffix(
-        "/data.xml"
-    )
+    document_uri = _frbr_value(root, "FRBRuri") or source_url.removesuffix("/data.xml")
     judgment_date = _first_attr(root, "FRBRdate", "date") or _first_attr(
         root, "docDate", "date"
     )
     transform_date = ""
     for element in root.iter():
-        if _local_name(element.tag) == "FRBRdate" and element.attrib.get(
-            "name"
-        ) == "transform":
+        if (
+            _local_name(element.tag) == "FRBRdate"
+            and element.attrib.get("name") == "transform"
+        ):
             transform_date = str(element.attrib.get("date", "")).strip()
             break
     content_hash = _uk_metadata_text(root, "hash")
@@ -144,9 +143,7 @@ def record_from_tna_xml(
         raise ValueError(f"TNA judgment has no body text: {source_url}")
 
     header = "\n".join(
-        value
-        for value in (case_name, neutral_citation, court, judgment_date)
-        if value
+        value for value in (case_name, neutral_citation, court, judgment_date) if value
     )
     capped_text, truncated = _capped_text(
         clean_text(f"{header}\n\n{body_text}"),
