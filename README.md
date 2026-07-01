@@ -16,18 +16,77 @@ Try it locally with `make env-setup`, `make dev-setup`, and `make run`.
 
 ## Why It Exists
 
-Jikai is not a chatbot wrapper. It is a local-first generation pipeline:
+Jikai is not a chatbot wrapper. It is a local-first generation pipeline whose design goal is reproducible practice volume: generate a grounded fact pattern, inspect whether it covered the requested doctrine, then export it into a study workflow.
 
-```text
-requested topics
-  -> ML classifier/regressor/clusterer
-  -> structural planning + semantic corpus retrieval
-  -> templated LLM generation
-  -> deterministic validation + optional LLM validation
-  -> model answer, history, reports, DOCX/PDF, Anki TSV
+## Pipeline Walkthrough
+
+```mermaid
+flowchart LR
+  A[Request<br/>corpus pack, jurisdiction, topics] --> B[Scope guard<br/>topic taxonomy + corpus pack]
+  B --> C[ML foundation<br/>classifier + regressor + clusterer]
+  C --> D[Planning<br/>topic selector + structural planner]
+  D --> E[Retrieval<br/>semantic search or corpus overlap]
+  E --> F[Prompt assembly<br/>shared template + jurisdiction overlay]
+  F --> G[LLM draft<br/>provider gateway]
+  G --> H[Validation<br/>topic, party, realism, similarity]
+  H --> I[Study artifacts<br/>model answer, history, reports, exports]
 ```
 
-The design goal is reproducible practice volume: generate a grounded fact pattern, inspect whether it covered the requested doctrine, then export it into a study workflow.
+The diagram is maintained directly in this README. Update it with the stage owners below when the code path changes.
+
+| Stage | What It Constrains | Code |
+|-------|--------------------|------|
+| Scope guard | Corpus pack, jurisdiction, subject, topic aliases | `src/domain/packs.py`, `src/services/topic_guard.py` |
+| ML foundation | Topic prediction, quality scoring, diversity cluster | `src/ml/pipeline.py`, `src/ml/classifier.py`, `src/ml/regressor.py`, `src/ml/clustering.py` |
+| Planning | Topic-ranked examples and fact-pattern skeleton | `src/ml/topic_selector.py`, `src/ml/structural_planner.py`, `src/services/hypo_generator.py` |
+| Retrieval | SG Tort examples, vector metadata, fallback overlap search | `src/services/vector_service.py`, `src/services/corpus_service.py` |
+| Prompt assembly | Common-law base prompt plus selected jurisdiction overlay | `src/services/prompt_engineering/templates.py`, `corpus/packs/sg_tort/manifest.json` |
+| LLM draft | Provider/model routing, health, fallback, streaming | `src/services/llm_service.py`, `src/services/llm_providers/` |
+| Validation | Required topics, party count, jurisdiction context, realism gate, similarity | `src/services/validation_service.py`, `src/services/hypothetical_service.py` |
+| Artifacts | History, feedback, DOCX/PDF, Anki TSV | `src/services/database_service.py`, `src/services/export_service.py` |
+
+### Example Pipeline Artifact
+
+The shortened fixture below shows the shape of one SG Tort run. It is documentation data, not benchmark evidence.
+
+```json
+{
+  "input": {
+    "corpus_pack": "sg_tort",
+    "jurisdiction": "sg",
+    "subject": "tort",
+    "topics": ["negligence", "causation"],
+    "number_parties": 3
+  },
+  "ml_foundation": {
+    "topics": ["negligence", "causation"],
+    "quality_score": 0.82,
+    "is_diverse": true
+  },
+  "retrieved_grounding": [
+    {
+      "source": "corpus/clean/tort/corpus.json",
+      "topics": ["negligence", "causation"],
+      "jurisdiction": "sg"
+    }
+  ],
+  "generated_excerpt": "In Singapore, Tan Wei Ming, a delivery rider, collided with a pedestrian outside a Marina Bay office tower after Bright Services Pte Ltd delayed repairing a known brake fault. The facts raise whether the company breached its duty of care and whether that breach caused the pedestrian's injury.",
+  "validation": {
+    "topic_inclusion": {
+      "topics_found": ["negligence", "causation"],
+      "coverage_ratio": 1.0
+    },
+    "jurisdiction_context": {
+      "passed": true,
+      "evidence": ["singapore", "marina bay"]
+    },
+    "quality_gate": {
+      "passed": true,
+      "failed_checks": []
+    }
+  }
+}
+```
 
 ## Feature Surface
 
