@@ -342,5 +342,5 @@
     "labels_path": "corpus/labelled/tort_labels.csv",
     "models_dir": "models"
   },
-  "notes": "This is the reference pack for the current repo state. Runtime code still needs Phase 1 migration before manifests become executable pack boundaries."
+  "notes": "This is the reference pack for the current repo state. The clean corpus remains legacy text/topic JSON and is wrapped at load time with sg_tort, sg, tort, and empty subtopics."
 }

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import Callable, Dict, Mapping, Tuple
+from pathlib import Path
+from typing import Any, Callable, Dict, Mapping, Tuple
 
 from .topics import (
     TOPIC_ALIASES,
@@ -52,6 +54,10 @@ class DomainPack:
     topic_keys: Tuple[str, ...]
     topic_aliases: Mapping[str, str]
     subject_label: str = "Tort Law"
+    manifest_path: str = ""
+    corpus_path: str = ""
+    raw_paths: Tuple[str, ...] = ()
+    record_format: str = ""
 
     @property
     def jurisdiction_key(self) -> str:
@@ -60,6 +66,27 @@ class DomainPack:
     @property
     def subject_key(self) -> str:
         return self.law_domain
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_manifest(path: str) -> Dict[str, Any]:
+    manifest_path = _repo_root() / path
+    try:
+        with manifest_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+_SG_TORT_MANIFEST_PATH = "corpus/packs/sg_tort/manifest.json"
+_SG_TORT_MANIFEST = _load_manifest(_SG_TORT_MANIFEST_PATH)
+_SG_TORT_CORPUS = _SG_TORT_MANIFEST.get("corpus", {})
+if not isinstance(_SG_TORT_CORPUS, dict):
+    _SG_TORT_CORPUS = {}
 
 
 DOMAIN_PACK_REGISTRY: Dict[str, DomainPack] = {
@@ -76,6 +103,12 @@ DOMAIN_PACK_REGISTRY: Dict[str, DomainPack] = {
         is_supported_topic=is_tort_topic,
         topic_keys=all_tort_topic_keys(),
         topic_aliases=dict(TOPIC_ALIASES),
+        manifest_path=_SG_TORT_MANIFEST_PATH,
+        corpus_path=str(
+            _SG_TORT_CORPUS.get("clean_path", "corpus/clean/tort/corpus.json")
+        ),
+        raw_paths=tuple(_SG_TORT_CORPUS.get("raw_paths", ("corpus/raw/tort",))),
+        record_format=str(_SG_TORT_CORPUS.get("record_format", "legacy_text_topic_v1")),
     )
 }
 

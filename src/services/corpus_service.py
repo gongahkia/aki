@@ -73,9 +73,18 @@ class CorpusService:
         self._topics_cache_lock = asyncio.Lock()
         self._indexed_corpus_hash: Optional[str] = None
 
-    def _get_local_corpus_mtime(self) -> Optional[float]:
+    def _resolve_corpus_path(self, corpus_pack: str = "sg_tort") -> Path:
         try:
-            return self._local_corpus_path.stat().st_mtime
+            domain_pack = resolve_domain_pack(corpus_pack)
+        except KeyError:
+            return self._local_corpus_path
+        if domain_pack.corpus_path:
+            return Path(domain_pack.corpus_path)
+        return self._local_corpus_path
+
+    def _get_local_corpus_mtime(self, corpus_pack: str = "sg_tort") -> Optional[float]:
+        try:
+            return self._resolve_corpus_path(corpus_pack).stat().st_mtime
         except OSError:
             return None
 
@@ -84,9 +93,9 @@ class CorpusService:
             self._topics_cache = None
             self._topics_cache_mtime = None
 
-    def _compute_current_corpus_hash(self) -> Optional[str]:
+    def _compute_current_corpus_hash(self, corpus_pack: str = "sg_tort") -> Optional[str]:
         try:
-            payload = self._local_corpus_path.read_bytes()
+            payload = self._resolve_corpus_path(corpus_pack).read_bytes()
         except OSError:
             return None
         return hashlib.sha256(payload).hexdigest()
@@ -195,23 +204,26 @@ class CorpusService:
             return False
         return True
 
-    async def load_corpus(self, source: str = "local") -> List[HypotheticalEntry]:
+    async def load_corpus(
+        self, source: str = "local", corpus_pack: str = "sg_tort"
+    ) -> List[HypotheticalEntry]:
         """Load corpus from local JSON file."""
         try:
-            return await self._load_from_local()
+            return await self._load_from_local(corpus_pack=corpus_pack)
         except Exception as e:
             logger.error("Failed to load corpus", source=source, error=str(e))
             raise CorpusServiceError(f"Failed to load corpus: {e}")
 
-    async def _load_from_local(self) -> List[HypotheticalEntry]:
+    async def _load_from_local(
+        self, *, corpus_pack: str = "sg_tort"
+    ) -> List[HypotheticalEntry]:
         """Load corpus from local JSON file."""
-        if not self._local_corpus_path.exists():
-            raise CorpusServiceError(
-                f"Local corpus file not found: {self._local_corpus_path}"
-            )
+        corpus_path = self._resolve_corpus_path(corpus_pack)
+        if not corpus_path.exists():
+            raise CorpusServiceError(f"Local corpus file not found: {corpus_path}")
 
         try:
-            with open(self._local_corpus_path, "r", encoding="utf-8") as f:
+            with open(corpus_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             entries = []
@@ -232,7 +244,12 @@ class CorpusService:
                 )
                 entries.append(entry)
 
-            logger.info("Corpus loaded from local file", entries_count=len(entries))
+            logger.info(
+                "Corpus loaded from local file",
+                corpus_pack=corpus_pack,
+                corpus_path=str(corpus_path),
+                entries_count=len(entries),
+            )
             return entries
 
         except json.JSONDecodeError as e:
@@ -347,7 +364,7 @@ class CorpusService:
                     )
 
             # Fallback: Simple topic overlap (original method)
-            corpus = await self.load_corpus()
+            corpus = await self.load_corpus(corpus_pack=query.corpus_pack)
             available_entries = [
                 entry
                 for entry in corpus
@@ -468,7 +485,7 @@ class CorpusService:
     ) -> List[str]:
         """Extract all unique topics from the corpus."""
         try:
-            current_mtime = self._get_local_corpus_mtime()
+            current_mtime = self._get_local_corpus_mtime(corpus_pack)
             use_cache = (
                 corpus_pack == "sg_tort" and jurisdiction == "sg" and subject == "tort"
             )
@@ -482,7 +499,7 @@ class CorpusService:
                 ):
                     return list(self._topics_cache)
 
-            corpus = await self.load_corpus()
+            corpus = await self.load_corpus(corpus_pack=corpus_pack)
             all_topics = set()
             query = CorpusQuery(
                 topics=["negligence"],
@@ -597,7 +614,7 @@ class CorpusService:
 
         try:
             if self._local_corpus_path.exists():
-                corpus = await self.load_corpus("local")
+                corpus = await self.load_corpus("local", corpus_pack="sg_tort")
                 health_status["local_corpus"] = True
                 health_status["total_entries"] = len(corpus)
                 health_status["topics_count"] = len(await self.extract_all_topics())
