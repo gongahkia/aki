@@ -67,7 +67,7 @@ The shortened fixture below shows the shape of one SG Tort run. It is documentat
   },
   "retrieved_grounding": [
     {
-      "source": "corpus/clean/tort/corpus.json",
+      "source": "corpus/labelled/sg_tort/corpus.json",
       "topics": ["negligence", "causation"],
       "jurisdiction": "sg"
     }
@@ -106,7 +106,7 @@ The shortened fixture below shows the shape of one SG Tort run. It is documentat
 * *LLM Provider Layer*: [Ollama](https://ollama.ai/), [OpenAI](https://openai.com/), [Anthropic](https://www.anthropic.com/), [Google Gemini](https://ai.google.dev/), [Local LLM](https://github.com/ggerganov/llama.cpp) via llama.cpp server
 * *ML Foundation*: [scikit-learn](https://scikit-learn.org/), [pandas](https://pandas.pydata.org/), [PyTorch](https://pytorch.org/), [Transformers](https://huggingface.co/docs/transformers/)
 * *Retrieval/Embeddings*: [Sentence Transformers](https://www.sbert.net/), [ChromaDB](https://www.trychroma.com/)
-* *Data/Persistence*: [SQLite](https://www.sqlite.org/) (`data/jikai.db`), JSON corpus (`corpus/clean/tort/corpus.json`), Chroma persistent store (`./chroma_db`)
+* *Data/Persistence*: [SQLite](https://www.sqlite.org/) (`data/jikai.db`), JSON corpus (`corpus/labelled/sg_tort/corpus.json`), Chroma persistent store (`./chroma_db`)
 * *Corpus Ingestion/Export*: [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/), [lxml](https://lxml.de/), [httpx](https://www.python-httpx.org/), [PyMuPDF](https://pymupdf.readthedocs.io/), [python-docx](https://python-docx.readthedocs.io/), [Pillow](https://pillow.readthedocs.io/), [pytesseract](https://pypi.org/project/pytesseract/)
 * *Observability/Logging*: [structlog](https://www.structlog.org/)
 * *Quality Tooling*: [pytest](https://pytest.org/), [pytest-asyncio](https://pytest-asyncio.readthedocs.io/), [pytest-cov](https://pytest-cov.readthedocs.io/), [flake8](https://flake8.pycqa.org/), [mypy](http://mypy-lang.org/), [black](https://black.readthedocs.io/), [isort](https://pycqa.github.io/isort/)
@@ -164,7 +164,10 @@ $ curl -s http://127.0.0.1:8000/jobs/export-anki \
 7. Run data/model utility jobs as needed.
 
 ```console
-$ make preprocess # build corpus/clean/tort/corpus.json from corpus/raw/*
+$ make corpus-bronze # build corpus/manifest.json from corpus/raw/*
+$ make corpus-silver # build corpus/normalized/<pack>/corpus.json
+$ make corpus-gold   # build corpus/labelled/<pack>/corpus.json
+$ make preprocess    # legacy clean-corpus rebuild path
 $ make train      # train required ML models
 $ make warmup     # preload corpus + probe provider health
 $ make label      # append labelled examples to corpus/labelled/sample.csv
@@ -274,7 +277,7 @@ The LLM layer is the **second stage** in generation, after ML scaffolding.
 SG Tort is the current reference corpus. The pivot path is:
 
 1. Add first-class jurisdiction, subject, topic, and subtopic fields.
-2. Convert SG Tort into the reference corpus pack.
+2. Keep SG Tort on the bronze/silver/gold corpus pipeline.
 3. Add UK and US Tort packs only after source terms and redistribution constraints are documented.
 4. Use the blind-evaluation rubric in [`docs/evals/blind-eval-rubric-v1.md`](docs/evals/blind-eval-rubric-v1.md) before generating comparison samples.
 5. Keep public comparison claims out of the README until blind evaluation artifacts support them.

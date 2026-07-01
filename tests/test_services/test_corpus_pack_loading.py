@@ -13,9 +13,9 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
     pack = get_domain_pack("sg_tort")
 
     assert pack.manifest_path == "corpus/packs/sg_tort/manifest.json"
-    assert pack.corpus_path == "corpus/clean/tort/corpus.json"
+    assert pack.corpus_path == "corpus/labelled/sg_tort/corpus.json"
     assert pack.raw_paths == ("corpus/raw/tort",)
-    assert pack.record_format == "legacy_text_topic_v1"
+    assert pack.record_format == "medallion_gold_v1"
     assert "negligence" in pack.topic_keys
     assert pack.canonicalize_topic("duty of care") == "duty_of_care"
     assert pack.topic_definitions["negligence"].label == "Negligence"
@@ -25,7 +25,7 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
 
 @pytest.mark.asyncio
 async def test_sg_tort_pack_load_preserves_all_clean_corpus_records():
-    corpus_path = Path("corpus/clean/tort/corpus.json")
+    corpus_path = Path("corpus/labelled/sg_tort/corpus.json")
     raw_records = json.loads(corpus_path.read_text(encoding="utf-8"))
     service = CorpusService()
 

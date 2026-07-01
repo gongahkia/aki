@@ -13,11 +13,13 @@
     "name": "Tort Law"
   },
   "corpus": {
-    "clean_path": "corpus/clean/tort/corpus.json",
+    "clean_path": "corpus/labelled/sg_tort/corpus.json",
+    "normalized_path": "corpus/normalized/sg_tort/corpus.json",
+    "manifest_path": "corpus/manifest.json",
     "raw_paths": [
       "corpus/raw/tort"
     ],
-    "record_format": "legacy_text_topic_v1",
+    "record_format": "medallion_gold_v1",
     "id_prefix": "sg_tort"
   },
   "sources": [
@@ -397,14 +399,14 @@
     }
   },
   "pipeline": {
-    "ingestion_command": "python -m src.services.corpus_preprocessor",
-    "cleaner_command": "python -m src.services.corpus_preprocessor",
-    "embedding_command": "curl -X POST http://127.0.0.1:8000/jobs/embed -H 'Content-Type: application/json' -d '{\"corpus_path\":\"corpus/clean/tort/corpus.json\"}'",
+    "ingestion_command": "make corpus-bronze CORPUS_PACK=sg_tort",
+    "cleaner_command": "make corpus-silver CORPUS_PACK=sg_tort",
+    "embedding_command": "make corpus-gold CORPUS_PACK=sg_tort",
     "training_command": "python -m src.ml.pipeline --data corpus/labelled/sample.csv"
   },
   "validation": {
     "expected_record_count_min": 41,
-    "required_record_fields": ["text", "topic"],
+    "required_record_fields": ["id", "text", "topics", "source", "provenance"],
     "canonical_record_fields": [
       "id",
       "corpus_pack_key",

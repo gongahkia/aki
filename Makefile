@@ -1,12 +1,13 @@
 # Jikai Makefile
 
-.PHONY: help install dev test lint format clean run api api-build tui tui-build warmup train preprocess eval health health-llm env-setup dev-setup
+.PHONY: help install dev test lint format clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold eval health health-llm env-setup dev-setup
 
 DATASET ?= sg_tort.yaml
 WORKFLOW ?= sg_tort_hypothetical
 EVAL_OUTPUT ?= data/generated/eval_results.json
 EVAL_CONCURRENCY ?= 5
 EVAL_EVALUATORS ?=
+CORPUS_PACK ?= sg_tort
 
 help: ## Show this help message
 	@echo "Jikai - AI-Powered Legal Hypothetical Generator"
@@ -132,6 +133,15 @@ train: ## Train ML models
 
 preprocess: ## Build corpus from raw files
 	python -m src.services.corpus_preprocessor
+
+corpus-bronze: ## Build bronze raw provenance manifest
+	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.services.corpus_medallion bronze --corpus-pack "$(CORPUS_PACK)"
+
+corpus-silver: corpus-bronze ## Build silver normalized corpus
+	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.services.corpus_medallion silver --corpus-pack "$(CORPUS_PACK)"
+
+corpus-gold: corpus-silver ## Build gold labelled corpus
+	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.services.corpus_medallion gold --corpus-pack "$(CORPUS_PACK)"
 
 eval: ## Run SG-LegalBench eval harness
 	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.evals.run \

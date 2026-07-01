@@ -1,0 +1,515 @@
+{
+  "schema_version": "jikai.medallion.v1",
+  "corpus_pack_key": "sg_tort",
+  "generated_at": "2026-07-01T04:36:28+00:00",
+  "layers": {
+    "bronze": {
+      "raw_paths": [
+        "corpus/raw/tort"
+      ]
+    },
+    "silver": {
+      "path": "corpus/normalized/sg_tort/corpus.json"
+    },
+    "gold": {
+      "path": "corpus/labelled/sg_tort/corpus.json"
+    },
+    "active_corpus": {
+      "path": "corpus/labelled/sg_tort/corpus.json"
+    }
+  },
+  "records": [
+    {
+      "id": "sg_tort:tort_1",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/1.txt",
+        "path": "corpus/raw/tort/1.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "5507e58fcb2e23929da1f7f541314c8c3134044b3e3208e58c83da3084d7a424",
+        "byte_size": 2718
+      }
+    },
+    {
+      "id": "sg_tort:tort_2",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/2.txt",
+        "path": "corpus/raw/tort/2.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "00ce8ae860a9b76ee4f3f72ef1840381cfb152299d9710f4e4d6c6dd7b2b46fc",
+        "byte_size": 3334
+      }
+    },
+    {
+      "id": "sg_tort:tort_3",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/3.txt",
+        "path": "corpus/raw/tort/3.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "f6ec6ddea8d04c70327a9421fa2aac5cf9812f37207d12ba24bc4961e7af11e0",
+        "byte_size": 2700
+      }
+    },
+    {
+      "id": "sg_tort:tort_4",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/4.txt",
+        "path": "corpus/raw/tort/4.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "9b640094513389d948bf66ab048bcf46b7d953a91ab833d295d3a5b145835a1f",
+        "byte_size": 3184
+      }
+    },
+    {
+      "id": "sg_tort:tort_5",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/5.txt",
+        "path": "corpus/raw/tort/5.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "a2fd7209bf30a6a5f44ec334e2b1613839b774a98ed16c28301c785e65766011",
+        "byte_size": 2714
+      }
+    },
+    {
+      "id": "sg_tort:tort_6",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/6.txt",
+        "path": "corpus/raw/tort/6.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "3d047c15774100de4903e7a59a383c2292f321d4bf40d4bf4a0f3f2062d60be8",
+        "byte_size": 3123
+      }
+    },
+    {
+      "id": "sg_tort:tort_7",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/7.txt",
+        "path": "corpus/raw/tort/7.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "1184251cd2d41cbb73f6866ddf8f97748ea608cde2cd176b10f82c64d2a6258f",
+        "byte_size": 2835
+      }
+    },
+    {
+      "id": "sg_tort:tort_8",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/8.txt",
+        "path": "corpus/raw/tort/8.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "cccc7c79a80c1ee4b8ce92d08809b1ba043ab703aea344374661e624d60478b5",
+        "byte_size": 3057
+      }
+    },
+    {
+      "id": "sg_tort:tort_9",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/9.txt",
+        "path": "corpus/raw/tort/9.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "3941b45feeb34b99a8ced467dd2d7b0f29db3218aca17d9f15b41c2a4d66c0c7",
+        "byte_size": 3917
+      }
+    },
+    {
+      "id": "sg_tort:tort_10",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/10.txt",
+        "path": "corpus/raw/tort/10.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "35373f9f2adaa77234d0d70ffbd5fafb74064b2a84172040ada3ad5523c429d7",
+        "byte_size": 3822
+      }
+    },
+    {
+      "id": "sg_tort:tort_11",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/11.txt",
+        "path": "corpus/raw/tort/11.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "b509eafc99518c1135c498cae39f379c993ccde6ae01a06c2ae650815c376ea5",
+        "byte_size": 2515
+      }
+    },
+    {
+      "id": "sg_tort:tort_12",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/12.txt",
+        "path": "corpus/raw/tort/12.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "d39cb5b05cc3d15e5add03e467d010e4126a844d2edfcdfe27c0853eca6c0ad3",
+        "byte_size": 3372
+      }
+    },
+    {
+      "id": "sg_tort:tort_13",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/13.txt",
+        "path": "corpus/raw/tort/13.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "69802897464cec004ccd80b8f3ef35e0f63e983797734e4d1cdcfaf615b72a72",
+        "byte_size": 4905
+      }
+    },
+    {
+      "id": "sg_tort:tort_14",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/14.txt",
+        "path": "corpus/raw/tort/14.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "93f38dfe833532948c6afc8dbac9280c8ef8a18c69f076dfeb28f4440b2f1676",
+        "byte_size": 3279
+      }
+    },
+    {
+      "id": "sg_tort:tort_15",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/15.txt",
+        "path": "corpus/raw/tort/15.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "f3050a80cccbfaba19331ba8c38460d1559250537ac203a09a0b072be0d0b67e",
+        "byte_size": 6727
+      }
+    },
+    {
+      "id": "sg_tort:tort_16",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/16.txt",
+        "path": "corpus/raw/tort/16.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "f4400e61e8cac8001e6df834093327e86f1b7c420f453b7ca124dd45ffa7d593",
+        "byte_size": 3177
+      }
+    },
+    {
+      "id": "sg_tort:tort_17",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/17.txt",
+        "path": "corpus/raw/tort/17.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "88370b1f4440045a70102d6b67153a06583dd6e7f679b2b1edb5c6335b0cd3ae",
+        "byte_size": 4855
+      }
+    },
+    {
+      "id": "sg_tort:tort_18",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/18.txt",
+        "path": "corpus/raw/tort/18.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "60334a8c6999583c2277e9f1d3dabbdf17a2cbc9ea2860d08f226938f4d609a4",
+        "byte_size": 3680
+      }
+    },
+    {
+      "id": "sg_tort:tort_19",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/19.txt",
+        "path": "corpus/raw/tort/19.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "21da7228c379b8eb14e94ddf96ff3bbfc8004dd9e56eb5af025b2b8f93c8a7d7",
+        "byte_size": 3467
+      }
+    },
+    {
+      "id": "sg_tort:tort_20",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/20.txt",
+        "path": "corpus/raw/tort/20.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "186fafab9e3a3472163b0387efb92249c3f38636d8ae8ac2ea344262edc3c1c3",
+        "byte_size": 4808
+      }
+    },
+    {
+      "id": "sg_tort:tort_21",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/21.txt",
+        "path": "corpus/raw/tort/21.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "c93669aeb3731758f3c5e9c9663d7d811522e84baf4302c9bcd515c5f2b59a36",
+        "byte_size": 3296
+      }
+    },
+    {
+      "id": "sg_tort:tort_22",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/22.txt",
+        "path": "corpus/raw/tort/22.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "75726a1e8f02ab5776e4812986108920e53b9d7b03770d55959f4b9181260ab3",
+        "byte_size": 4503
+      }
+    },
+    {
+      "id": "sg_tort:tort_23",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/23.txt",
+        "path": "corpus/raw/tort/23.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "af777b4fcd3c7e1a3f67327c3a4b2c15fc7c795f3345be32cff60a56d0c5482d",
+        "byte_size": 4362
+      }
+    },
+    {
+      "id": "sg_tort:tort_24",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/24.txt",
+        "path": "corpus/raw/tort/24.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "f03b484af44b10631d7eecbf490d2866671fe697b886236c7bc7095d8b5fd50e",
+        "byte_size": 3288
+      }
+    },
+    {
+      "id": "sg_tort:tort_25",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/25.txt",
+        "path": "corpus/raw/tort/25.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "5c1a662fe05466b75c6dc814a17d1bdedd5fd1e5b5cdc52cce9ff54b2212d0af",
+        "byte_size": 4920
+      }
+    },
+    {
+      "id": "sg_tort:tort_26",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/26.txt",
+        "path": "corpus/raw/tort/26.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "fd03815fe77a9469a3d165b77655e5433f81e00d803db9eb036fba5244b237bf",
+        "byte_size": 4781
+      }
+    },
+    {
+      "id": "sg_tort:tort_27",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/27.txt",
+        "path": "corpus/raw/tort/27.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "1861e22d2dcc9672991f9692147fca8985b83b2cb218b5cd1f4e40e6966df3fa",
+        "byte_size": 3673
+      }
+    },
+    {
+      "id": "sg_tort:tort_28",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/28.txt",
+        "path": "corpus/raw/tort/28.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "9d47ca49c250bb027227620ad65e6afaee1d7bb683a2fcf22e9984598a93d594",
+        "byte_size": 4196
+      }
+    },
+    {
+      "id": "sg_tort:tort_29",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/29.txt",
+        "path": "corpus/raw/tort/29.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "2cce09471754cfa122fee6b2b6a4a00b5cd46d378228980cde22fac853fb3127",
+        "byte_size": 5461
+      }
+    },
+    {
+      "id": "sg_tort:tort_30",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/30.txt",
+        "path": "corpus/raw/tort/30.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "e7c6b4b1ef2ddc4e6065d4e6fb5dd5750b1ade4370255715adcc5969b4478e60",
+        "byte_size": 4916
+      }
+    },
+    {
+      "id": "sg_tort:tort_31",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/31.txt",
+        "path": "corpus/raw/tort/31.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "56baaeaf65895cc46651e71db00a68a55b37a471951cdce3f2112b43f5f48150",
+        "byte_size": 5712
+      }
+    },
+    {
+      "id": "sg_tort:tort_32",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/32.txt",
+        "path": "corpus/raw/tort/32.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "512522249f728a96b8c9c28955a052cb2aaa516ca5da2f2821d9079507d8fcdb",
+        "byte_size": 5879
+      }
+    },
+    {
+      "id": "sg_tort:tort_33",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/33.txt",
+        "path": "corpus/raw/tort/33.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "cb98a3461b25f2ee0ef8de938c069e3e56d44fe0536d7fbeb8dc3bfa5fd14ca7",
+        "byte_size": 1221
+      }
+    },
+    {
+      "id": "sg_tort:tort_34",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/34.txt",
+        "path": "corpus/raw/tort/34.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "bdffb71a62ef61373a39bd88bf801de5556d69dcd7d2e8dcdc90b0082a1ecf1b",
+        "byte_size": 1448
+      }
+    },
+    {
+      "id": "sg_tort:tort_35",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/35.txt",
+        "path": "corpus/raw/tort/35.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "9901eb0bad0fcfd99ca3d74d6f9492175678d149aa34c7f124f703d53bd0ceb2",
+        "byte_size": 1240
+      }
+    },
+    {
+      "id": "sg_tort:tort_36",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/36.txt",
+        "path": "corpus/raw/tort/36.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "533eca6bd96179d1e66a1c5b1094f80f547d71c8cd5ca1fc9cb2dd780f25a28d",
+        "byte_size": 691
+      }
+    },
+    {
+      "id": "sg_tort:tort_37",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/37.txt",
+        "path": "corpus/raw/tort/37.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "d97ee4d93a916530bc1d51537809454955e12f66359a92d11592f6a93cf444e0",
+        "byte_size": 515
+      }
+    },
+    {
+      "id": "sg_tort:tort_38",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/38.txt",
+        "path": "corpus/raw/tort/38.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "afe79c59a8ecdb4b34e41a1dd9aeb89178d0d22de1fab022940b001bc77d56cc",
+        "byte_size": 667
+      }
+    },
+    {
+      "id": "sg_tort:tort_39",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/39.txt",
+        "path": "corpus/raw/tort/39.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "4c0a45470862905d98b9756257c5c41886b693339fea6a30248fc0a857baaea4",
+        "byte_size": 489
+      }
+    },
+    {
+      "id": "sg_tort:tort_40",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/40.txt",
+        "path": "corpus/raw/tort/40.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "898a7fd0b5fa3fddbadad1cf3b96ce1447ff34ecf058500531f7805801767044",
+        "byte_size": 443
+      }
+    },
+    {
+      "id": "sg_tort:tort_41",
+      "corpus_pack_key": "sg_tort",
+      "source": {
+        "url": "file://corpus/raw/tort/41.txt",
+        "path": "corpus/raw/tort/41.txt",
+        "source_format": "txt",
+        "retrieved_at": "2026-07-01T04:36:28+00:00",
+        "content_hash": "657230880606ee948aac54b3727df0527ad83fa28d686ad209c5336874c0fd57",
+        "byte_size": 451
+      }
+    }
+  ]
+}
