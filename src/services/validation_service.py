@@ -4,11 +4,11 @@ Replaces expensive LLM-based validation with fast, reliable programmatic checks.
 """
 
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Mapping, Tuple
 
 import structlog
 
-from ..domain import all_tort_topic_keys, canonicalize_topic, normalize_scope_token
+from ..domain import canonicalize_topic, normalize_scope_token, resolve_domain_pack
 
 logger = structlog.get_logger(__name__)
 
@@ -24,189 +24,24 @@ class ValidationService:
             r"\b[A-Z][a-z]+\b(?:\s+(?:Pte|Ltd|Inc|Corp|LLC|LLP))",  # Companies
         ]
 
-        # Singapore tort law keywords by topic
-        raw_topic_keywords = {
-            "negligence": [
-                "negligent",
-                "negligence",
-                "duty",
-                "breach",
-                "reasonable person",
-                "standard of care",
-            ],
-            "duty of care": [
-                "duty of care",
-                "duty",
-                "owed",
-                "responsibility",
-                "obligation",
-            ],
-            "standard of care": ["standard", "reasonable", "prudent", "expected"],
-            "causation": ["causation", "caused", "resulting", "consequence", "led to"],
-            "remoteness": ["remote", "foreseeable", "foreseeability", "proximate"],
-            "battery": [
-                "battery",
-                "intentional",
-                "contact",
-                "touching",
-                "physical force",
-            ],
-            "assault": ["assault", "threat", "fear", "apprehension", "imminent"],
-            "false imprisonment": [
-                "imprisonment",
-                "confined",
-                "restrained",
-                "detained",
-                "liberty",
-            ],
-            "defamation": [
-                "defamation",
-                "defamatory",
-                "reputation",
-                "slander",
-                "libel",
-            ],
-            "private nuisance": [
-                "nuisance",
-                "interference",
-                "enjoyment",
-                "land",
-                "property",
-            ],
-            "trespass to land": [
-                "trespass",
-                "entered",
-                "land",
-                "property",
-                "without permission",
-            ],
-            "vicarious liability": [
-                "vicarious",
-                "employer",
-                "employee",
-                "course of employment",
-            ],
-            "strict liability": [
-                "strict liability",
-                "no fault",
-                "absolute",
-                "inherently dangerous",
-            ],
-            "harassment": ["harassment", "harass", "alarm", "distress"],
-            "occupiers_liability": [
-                "occupier",
-                "visitor",
-                "premises",
-                "invitee",
-                "licensee",
-                "trespasser",
-            ],
-            "product_liability": [
-                "manufacturer",
-                "product",
-                "defect",
-                "consumer",
-                "safety",
-            ],
-            "contributory_negligence": [
-                "contributory",
-                "claimant",
-                "own fault",
-                "contributed",
-                "apportionment",
-            ],
-            "economic_loss": [
-                "economic loss",
-                "pure economic",
-                "financial loss",
-                "pecuniary",
-            ],
-            "psychiatric_harm": [
-                "psychiatric",
-                "nervous shock",
-                "mental injury",
-                "ptsd",
-                "psychological",
-            ],
-            "employers_liability": [
-                "employer",
-                "workplace",
-                "occupational",
-                "safe system",
-                "employee injury",
-            ],
-            "breach_of_statutory_duty": [
-                "statutory duty",
-                "statute",
-                "breach of duty",
-                "legislative",
-                "regulation",
-            ],
-            "rylands_v_fletcher": [
-                "rylands",
-                "fletcher",
-                "escape",
-                "non-natural use",
-                "accumulation",
-            ],
-            "consent_defence": [
-                "consent",
-                "volenti",
-                "agreed",
-                "assumption of risk",
-                "willing",
-            ],
-            "illegality_defence": [
-                "illegality",
-                "ex turpi",
-                "illegal act",
-                "unlawful",
-                "criminal",
-            ],
-            "limitation_periods": [
-                "limitation",
-                "time bar",
-                "statute of limitations",
-                "accrual",
-                "prescribed period",
-            ],
-            "res_ipsa_loquitur": [
-                "res ipsa",
-                "speaks for itself",
-                "inference",
-                "control",
-                "without explanation",
-            ],
-            "novus_actus_interveniens": [
-                "novus actus",
-                "intervening",
-                "break in chain",
-                "superseding cause",
-                "new act",
-            ],
-            "volenti_non_fit_injuria": [
-                "volenti",
-                "voluntary assumption",
-                "consent to risk",
-                "willing participant",
-            ],
-        }
-        normalized_keywords = self._normalize_topic_keywords(raw_topic_keywords)
-        canonical_keys = all_tort_topic_keys()
-        self._topic_keywords = {
-            key: normalized_keywords.get(key, [key.replace("_", " ")])
-            for key in canonical_keys
-        }
-
     @staticmethod
     def _normalize_topic_keywords(
-        topic_keywords: Dict[str, List[str]],
+        topic_keywords: Mapping[str, Any],
+        *,
+        corpus_pack: str = "sg_tort",
     ) -> Dict[str, List[str]]:
         """Normalize topic keyword map to canonical topic keys."""
+        try:
+            domain_pack = resolve_domain_pack(corpus_pack)
+            canonicalize = domain_pack.canonicalize_topic
+        except KeyError:
+            canonicalize = canonicalize_topic
         normalized: Dict[str, List[str]] = {}
         for raw_key, raw_keywords in topic_keywords.items():
-            canonical_key = canonicalize_topic(raw_key)
+            canonical_key = canonicalize(str(raw_key))
             existing = normalized.setdefault(canonical_key, [])
+            if not isinstance(raw_keywords, list):
+                raw_keywords = [raw_keywords]
             cleaned_keywords = []
             for keyword in raw_keywords:
                 text = str(keyword).strip().lower()
@@ -217,6 +52,38 @@ class ValidationService:
                 if keyword not in existing:
                     existing.append(keyword)
         return normalized
+
+    @staticmethod
+    def _pack_validation_overlay(corpus_pack: str) -> Dict[str, Any]:
+        try:
+            overlay = resolve_domain_pack(corpus_pack).validation_overlay or {}
+        except KeyError:
+            return {}
+        return dict(overlay) if isinstance(overlay, dict) else {}
+
+    def _topic_keywords_for_pack(self, corpus_pack: str) -> Dict[str, List[str]]:
+        overlay = self._pack_validation_overlay(corpus_pack)
+        raw_keywords = overlay.get("topic_keywords", {})
+        normalized = (
+            self._normalize_topic_keywords(raw_keywords, corpus_pack=corpus_pack)
+            if isinstance(raw_keywords, dict)
+            else {}
+        )
+        try:
+            topic_keys = resolve_domain_pack(corpus_pack).topic_keys
+        except KeyError:
+            topic_keys = tuple(normalized.keys())
+        keywords = {
+            key: normalized.get(key, [key.replace("_", " ")]) for key in topic_keys
+        }
+        return keywords
+
+    @staticmethod
+    def _canonicalize_required_topic(topic: str, corpus_pack: str) -> str:
+        try:
+            return resolve_domain_pack(corpus_pack).canonicalize_topic(topic)
+        except KeyError:
+            return canonicalize_topic(topic)
 
     def validate_party_count(self, text: str, expected_count: int) -> Dict[str, Any]:
         """
@@ -300,7 +167,10 @@ class ValidationService:
             }
 
     def validate_topic_inclusion(
-        self, text: str, required_topics: List[str]
+        self,
+        text: str,
+        required_topics: List[str],
+        corpus_pack: str = "sg_tort",
     ) -> Dict[str, Any]:
         """
         Check if required topics are present in text using keyword matching.
@@ -314,9 +184,10 @@ class ValidationService:
             topic_evidence: Dict[str, List[str]] = {}
             canonical_required_topics: List[str] = []
             seen_topics = set()
+            topic_keywords = self._topic_keywords_for_pack(corpus_pack)
 
             for topic in required_topics:
-                canonical = canonicalize_topic(topic)
+                canonical = self._canonicalize_required_topic(topic, corpus_pack)
                 if canonical not in seen_topics:
                     seen_topics.add(canonical)
                     canonical_required_topics.append(canonical)
@@ -325,7 +196,7 @@ class ValidationService:
                 r"\b(?:no|not|without|lack(?:s|ing)?|absence of|never)\b"
             )
             for canonical_topic in canonical_required_topics:
-                keywords = self._topic_keywords.get(
+                keywords = topic_keywords.get(
                     canonical_topic,
                     [canonical_topic.replace("_", " ")],
                 )
@@ -377,7 +248,8 @@ class ValidationService:
         except Exception as e:
             logger.error("Topic inclusion validation failed", error=str(e))
             canonical_required_topics = [
-                canonicalize_topic(topic) for topic in required_topics
+                self._canonicalize_required_topic(topic, corpus_pack)
+                for topic in required_topics
             ]
             return {
                 "passed": False,
@@ -427,6 +299,24 @@ class ValidationService:
                 "message": f"Validation error: {e}",
             }
 
+    @staticmethod
+    def _validate_context_indicators(
+        text: str,
+        indicators: List[str],
+        *,
+        jurisdiction: str,
+    ) -> Dict[str, Any]:
+        text_lower = text.lower()
+        found_indicators = [ind for ind in indicators if ind in text_lower]
+        passed = bool(found_indicators)
+        return {
+            "passed": passed,
+            "jurisdiction": jurisdiction,
+            "jurisdiction_mentions": len(found_indicators),
+            "evidence": found_indicators,
+            "message": f"Found {len(found_indicators)} jurisdiction context indicators",
+        }
+
     def validate_singapore_context(self, text: str) -> Dict[str, Any]:
         """
         Check if text mentions Singapore legal context.
@@ -435,41 +325,23 @@ class ValidationService:
             Dict with 'passed', 'singapore_mentions', 'evidence'
         """
         try:
-            singapore_indicators = [
-                "singapore",
-                "singaporean",
-                "s$",
-                "sgd",
-                "orchard",
-                "raffles",
-                "marina bay",
-                "changi",
-                "hdb",
-                "condo",
-                "condominium",
-                "high court",
-                "court of appeal",
-                "supreme court",
-            ]
-
-            text_lower = text.lower()
-            found_indicators = [
-                ind for ind in singapore_indicators if ind in text_lower
-            ]
-
-            passed = len(found_indicators) > 0
+            overlay = self._pack_validation_overlay("sg_tort")
+            indicators = overlay.get("jurisdiction_context_indicators", [])
+            if not isinstance(indicators, list):
+                indicators = []
+            result = self._validate_context_indicators(
+                text, [str(ind) for ind in indicators], jurisdiction="sg"
+            )
 
             logger.info(
                 "Singapore context validation",
-                indicators_found=len(found_indicators),
-                passed=passed,
+                indicators_found=result["jurisdiction_mentions"],
+                passed=result["passed"],
             )
 
             return {
-                "passed": passed,
-                "singapore_mentions": len(found_indicators),
-                "evidence": found_indicators,
-                "message": f"Found {len(found_indicators)} Singapore context indicators",
+                **result,
+                "singapore_mentions": result["jurisdiction_mentions"],
             }
 
         except Exception as e:
@@ -482,7 +354,10 @@ class ValidationService:
             }
 
     def validate_jurisdiction_context(
-        self, text: str, jurisdiction: str = "sg"
+        self,
+        text: str,
+        jurisdiction: str = "sg",
+        corpus_pack: str = "sg_tort",
     ) -> Dict[str, Any]:
         """Route jurisdiction-specific context checks."""
         jurisdiction_key = normalize_scope_token(jurisdiction)
@@ -490,6 +365,12 @@ class ValidationService:
             result = self.validate_singapore_context(text)
             result["jurisdiction"] = "sg"
             return result
+        overlay = self._pack_validation_overlay(corpus_pack)
+        indicators = overlay.get("jurisdiction_context_indicators", [])
+        if isinstance(indicators, list) and indicators:
+            return self._validate_context_indicators(
+                text, [str(ind) for ind in indicators], jurisdiction=jurisdiction_key
+            )
         return {
             "passed": True,
             "jurisdiction": jurisdiction_key,
@@ -680,9 +561,12 @@ class ValidationService:
             }
 
     def validate_legal_realism(
-        self, text: str, jurisdiction: str = "sg"
+        self,
+        text: str,
+        jurisdiction: str = "sg",
+        corpus_pack: str = "sg_tort",
     ) -> Dict[str, Any]:
-        """Score legal realism signals: SG venue cues, procedure cues, and timeline coherence."""
+        """Score legal realism signals using shared checks plus pack context cues."""
         try:
             jurisdiction_key = normalize_scope_token(jurisdiction)
             is_sg = jurisdiction_key in {
@@ -692,24 +576,13 @@ class ValidationService:
                 "singapore_tort",
             }
             text_lower = text.lower()
-            singapore_context_cues = [
-                "singapore",
-                "state courts",
-                "high court",
-                "district court",
-                "subordinate courts",
-                "attorney-general",
-                "singapore law reports",
-                "rules of court",
-                "hdb",
-                "mrt",
-                "lta",
-                "mom",
-                "cpf",
-                "orchard road",
-                "jurong",
-                "tampines",
-            ]
+            overlay = self._pack_validation_overlay(corpus_pack)
+            realism_overlay = overlay.get("legal_realism", {})
+            if not isinstance(realism_overlay, dict):
+                realism_overlay = {}
+            context_cues = realism_overlay.get("context_cues", [])
+            if not isinstance(context_cues, list):
+                context_cues = []
             procedure_cues = [
                 "plaintiff",
                 "defendant",
@@ -732,18 +605,14 @@ class ValidationService:
                 "years",
             ]
 
-            found_singapore_context = [
-                cue for cue in singapore_context_cues if cue in text_lower
-            ]
+            found_context = [str(cue) for cue in context_cues if str(cue) in text_lower]
             found_procedure = [cue for cue in procedure_cues if cue in text_lower]
             found_timeline = [cue for cue in timeline_cues if cue in text_lower]
             chronology_result = self.validate_chronology_coherence(text)
             party_role_result = self.validate_party_role_clarity(text)
 
-            singapore_context_score = min(1.0, len(found_singapore_context) / 4.0)
-            jurisdiction_context_score = (
-                singapore_context_score if is_sg else 1.0
-            )
+            context_score = min(1.0, len(found_context) / 4.0) if context_cues else 1.0
+            jurisdiction_context_score = context_score
             procedure_score = min(1.0, len(found_procedure) / 4.0)
             timeline_score = min(1.0, len(found_timeline) / 3.0)
             chronology_score = float(chronology_result.get("coherence_score", 0.0))
@@ -756,7 +625,7 @@ class ValidationService:
                 + (party_role_score * 0.15),
                 3,
             )
-            if is_sg and singapore_context_score == 0.0:
+            if is_sg and context_cues and context_score == 0.0:
                 realism_score = min(realism_score, 0.59)
             passed = realism_score >= 0.6 and (
                 jurisdiction_context_score > 0.0 or not is_sg
@@ -766,7 +635,9 @@ class ValidationService:
                 "passed": passed,
                 "realism_score": realism_score,
                 "components": {
-                    "singapore_context_score": round(singapore_context_score, 3),
+                    "singapore_context_score": round(context_score, 3)
+                    if is_sg
+                    else 1.0,
                     "jurisdiction_context_score": round(
                         jurisdiction_context_score, 3
                     ),
@@ -776,7 +647,8 @@ class ValidationService:
                     "party_role_score": round(party_role_score, 3),
                 },
                 "evidence": {
-                    "singapore_context": found_singapore_context,
+                    "singapore_context": found_context if is_sg else [],
+                    "jurisdiction_context": found_context,
                     "jurisdiction": jurisdiction_key,
                     "procedure": found_procedure,
                     "timeline": found_timeline,
@@ -904,7 +776,9 @@ class ValidationService:
         try:
             # Run all validation checks
             party_result = self.validate_party_count(text, expected_parties)
-            topic_result = self.validate_topic_inclusion(text, required_topics)
+            topic_result = self.validate_topic_inclusion(
+                text, required_topics, corpus_pack=corpus_pack
+            )
             jurisdiction_key = normalize_scope_token(jurisdiction)
 
             if fast_mode:
@@ -934,9 +808,11 @@ class ValidationService:
 
             word_result = self.validate_word_count(text)
             jurisdiction_result = self.validate_jurisdiction_context(
-                text, jurisdiction_key
+                text, jurisdiction_key, corpus_pack=corpus_pack
             )
-            legal_realism_result = self.validate_legal_realism(text, jurisdiction_key)
+            legal_realism_result = self.validate_legal_realism(
+                text, jurisdiction_key, corpus_pack=corpus_pack
+            )
             exam_likeness_result = self.validate_exam_likeness(text)
 
             # Collect all results

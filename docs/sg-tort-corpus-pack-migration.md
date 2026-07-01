@@ -32,6 +32,12 @@ rm -rf chroma_db
 
 SQLite history is migrated in-place at app startup with default `sg_tort`, `sg`, `tort`, and `[]` values for older rows.
 
+## Overlay Fields
+
+`taxonomy.topics` drives `DomainPack.topic_keys`, aliases, and topic validation for this pack. `overlays.prompt.topic_hints` and `overlays.validation` are selected only when `sg_tort` is the active pack.
+
+Packs without prompt or validation overlays fall back to shared common-law prompt text, canonical topic-string matching, and a non-blocking jurisdiction-context check.
+
 ## Future Migration
 
 A later data migration can rewrite `corpus/clean/tort/corpus.json` into canonical records on disk. Until then, the loader is the compatibility boundary and the manifest is the pack source of truth.

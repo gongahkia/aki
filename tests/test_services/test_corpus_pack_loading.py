@@ -16,6 +16,11 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
     assert pack.corpus_path == "corpus/clean/tort/corpus.json"
     assert pack.raw_paths == ("corpus/raw/tort",)
     assert pack.record_format == "legacy_text_topic_v1"
+    assert "negligence" in pack.topic_keys
+    assert pack.canonicalize_topic("duty of care") == "duty_of_care"
+    assert pack.topic_definitions["negligence"].label == "Negligence"
+    assert "limitation_periods" in pack.prompt_overlay["topic_hints"]
+    assert "negligence" in pack.validation_overlay["topic_keywords"]
 
 
 @pytest.mark.asyncio

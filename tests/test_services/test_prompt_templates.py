@@ -66,3 +66,36 @@ def test_prompt_context_uses_registered_jurisdiction_label():
 
     assert "Promptland Tort Law" in prompt["system"]
     assert "Jurisdiction: Promptland" in prompt["user"]
+
+
+def test_prompt_overlay_only_applies_to_selected_pack():
+    register_domain_pack(
+        DomainPack(
+            key="no_overlay_tort",
+            display_name="No Overlay Tort Law",
+            jurisdiction=Jurisdiction(key="none", display_name="NoOverlayLand"),
+            law_domain="tort",
+            canonicalize_topic=canonicalize_topic,
+            is_supported_topic=is_tort_topic,
+            topic_keys=all_tort_topic_keys(),
+            topic_aliases=dict(TOPIC_ALIASES),
+            subject_label="Tort Law",
+        )
+    )
+    manager = PromptTemplateManager()
+
+    sg_prompt = manager.format_prompt(
+        PromptTemplateType.HYPOTHETICAL_GENERATION,
+        PromptContext(topics=["limitation_periods"], corpus_pack="sg_tort"),
+    )
+    fallback_prompt = manager.format_prompt(
+        PromptTemplateType.HYPOTHETICAL_GENERATION,
+        PromptContext(
+            topics=["limitation_periods"],
+            corpus_pack="no_overlay_tort",
+            jurisdiction="none",
+        ),
+    )
+
+    assert "under Singapore law" in sg_prompt["user"]
+    assert "under Singapore law" not in fallback_prompt["user"]

@@ -18,24 +18,6 @@ from pydantic import BaseModel
 
 from ...domain import canonicalize_topic, resolve_domain_pack
 
-# topic-specific prompt hints for expanded subtopics
-TOPIC_HINTS: Dict[str, str] = {
-    "occupiers_liability": "Include premises description, visitor classification (invitee/licensee/trespasser), and state of the premises.",
-    "product_liability": "Include product description, manufacturing process, defect type (design/manufacturing/warning), and supply chain.",
-    "contributory_negligence": "Include claimant's own conduct contributing to their injury, apportionment of fault.",
-    "economic_loss": "Distinguish between pure economic loss and consequential economic loss; include financial impact details.",
-    "psychiatric_harm": "Include proximity to event, relationship to victim, means of perception (sight/hearing/aftermath).",
-    "employers_liability": "Include workplace conditions, safe system of work, training provided, and employer's knowledge.",
-    "breach_of_statutory_duty": "Specify the relevant statute/regulation, the duty imposed, and how it was breached.",
-    "rylands_v_fletcher": "Include non-natural use of land, accumulation of dangerous thing, and escape from defendant's land.",
-    "consent_defence": "Include express or implied consent, scope of consent, and whether risk was voluntarily assumed.",
-    "illegality_defence": "Include the illegal act by the claimant and its connection to the tort claim.",
-    "limitation_periods": "Include timeline of events, date of knowledge, and relevant limitation period under Singapore law.",
-    "res_ipsa_loquitur": "Include facts where the thing causing injury was under defendant's control and the event would not normally occur without negligence.",
-    "novus_actus_interveniens": "Include an intervening act that may break the chain of causation.",
-    "volenti_non_fit_injuria": "Include voluntary participation in activity, awareness and acceptance of specific risks.",
-}
-
 
 class PromptTemplateType(str, Enum):
     """Types of prompt templates available."""
@@ -87,6 +69,21 @@ def _context_labels(context: PromptContext) -> Dict[str, str]:
         "jurisdiction_label": jurisdiction_label,
         "subject_label": subject_label,
     }
+
+
+def _prompt_overlay(context: PromptContext) -> Dict[str, Any]:
+    try:
+        overlay = resolve_domain_pack(context.corpus_pack).prompt_overlay or {}
+    except Exception:
+        return {}
+    return dict(overlay) if isinstance(overlay, dict) else {}
+
+
+def _canonicalize_for_context(context: PromptContext, topic: str) -> str:
+    try:
+        return resolve_domain_pack(context.corpus_pack).canonicalize_topic(topic)
+    except Exception:
+        return canonicalize_topic(topic)
 
 
 class PromptTemplate(BaseModel):
@@ -258,11 +255,19 @@ SCENARIO METADATA:
         if context.reference_hypotheticals:
             for i, hypo in enumerate(context.reference_hypotheticals[:2], 1):
                 reference_examples += f"Example {i}:\n{hypo}\n\n"
+        overlay = _prompt_overlay(context)
+        overlay_hints = overlay.get("topic_hints", {})
+        if not isinstance(overlay_hints, dict):
+            overlay_hints = {}
         hints = []
+        guidance = overlay.get("jurisdiction_guidance", [])
+        if isinstance(guidance, list):
+            guidance_lines = [str(line).strip() for line in guidance if str(line).strip()]
+            hints.extend(f"- {line}" for line in guidance_lines)
         for topic in context.topics:
-            canonical_topic = canonicalize_topic(topic)
-            if canonical_topic in TOPIC_HINTS:
-                hints.append(f"- {canonical_topic}: {TOPIC_HINTS[canonical_topic]}")
+            canonical_topic = _canonicalize_for_context(context, topic)
+            if canonical_topic in overlay_hints:
+                hints.append(f"- {canonical_topic}: {overlay_hints[canonical_topic]}")
         topic_hints = "TOPIC-SPECIFIC GUIDANCE:\n" + "\n".join(hints) if hints else ""
 
         # Inject relevant case citations.

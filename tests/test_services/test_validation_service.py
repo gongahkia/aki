@@ -4,7 +4,51 @@ Tests for ValidationService.
 
 import pytest
 
+from src.domain import DomainPack, Jurisdiction, register_domain_pack
 from src.services.validation_service import ValidationService
+
+
+def _token(value: str) -> str:
+    return "_".join(str(value).strip().lower().replace("-", " ").split())
+
+
+def _register_validation_test_pack(
+    key: str = "validation_test_tort",
+    *,
+    validation_overlay=None,
+) -> None:
+    aliases = {
+        "negligence": "negligence",
+        "duty_of_care": "duty_of_care",
+        "duty care": "duty_of_care",
+        "duty of care": "duty_of_care",
+        "local_duty": "local_duty",
+        "local duty": "local_duty",
+    }
+
+    def canonicalize(topic: str) -> str:
+        normalized = _token(topic)
+        return aliases.get(normalized, normalized)
+
+    register_domain_pack(
+        DomainPack(
+            key=key,
+            display_name="Validation Test Tort Law",
+            jurisdiction=Jurisdiction(
+                key="test",
+                display_name="Testland",
+                aliases=("testland",),
+            ),
+            law_domain="tort",
+            canonicalize_topic=canonicalize,
+            is_supported_topic=lambda topic: canonicalize(topic)
+            in {"negligence", "duty_of_care", "local_duty"},
+            topic_keys=("negligence", "duty_of_care", "local_duty"),
+            topic_aliases={_token(alias): canonical for alias, canonical in aliases.items()},
+            subject_label="Tort Law",
+            validation_overlay=validation_overlay or {},
+        )
+    )
 
 
 class TestValidationService:
@@ -87,6 +131,26 @@ class TestValidationService:
         assert "duty_of_care" in result["topics_found"]
         assert "negligence" in result["topics_found"]
         assert result["topics_missing"] == []
+
+    def test_validate_topic_inclusion_uses_registered_pack_overlay(
+        self, validation_service
+    ):
+        """Custom packs should supply their own topic keyword overlay."""
+        _register_validation_test_pack(
+            "validation_overlay_tort",
+            validation_overlay={
+                "topic_keywords": {"local_duty": ["local duty marker"]}
+            },
+        )
+
+        result = validation_service.validate_topic_inclusion(
+            "The record contains a local duty marker and no SG-specific doctrine.",
+            required_topics=["local duty"],
+            corpus_pack="validation_overlay_tort",
+        )
+
+        assert result["passed"] is True
+        assert result["topics_found"] == ["local_duty"]
 
     def test_validate_word_count_success(self, validation_service):
         """Test word count validation with appropriate length."""
@@ -209,6 +273,7 @@ class TestValidationService:
         self, validation_service
     ):
         """Non-SG validation should carry jurisdiction without SG context gate."""
+        _register_validation_test_pack("test_tort")
         text = """
         Alice Smith sued Bob Jones after a negligent warehouse accident. The defendant
         breached a duty of care and caused the claimant's injury. The parties disputed
