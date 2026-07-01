@@ -93,7 +93,9 @@ class CorpusService:
             self._topics_cache = None
             self._topics_cache_mtime = None
 
-    def _compute_current_corpus_hash(self, corpus_pack: str = "sg_tort") -> Optional[str]:
+    def _compute_current_corpus_hash(
+        self, corpus_pack: str = "sg_tort"
+    ) -> Optional[str]:
         try:
             payload = self._resolve_corpus_path(corpus_pack).read_bytes()
         except OSError:
@@ -140,6 +142,14 @@ class CorpusService:
         token = normalize_scope_token(text)
         if token in {"singapore", "singapore_law", "singapore_tort"}:
             return "sg"
+        if token in {
+            "united_states",
+            "united_states_of_america",
+            "usa",
+            "u.s.",
+            "u.s.a.",
+        }:
+            return "us"
         return token
 
     @staticmethod
@@ -230,6 +240,12 @@ class CorpusService:
             for i, item in enumerate(data):
                 raw_topics = item.get("topics", item.get("topic", []))
                 scope = self._entry_scope_from_item(item)
+                metadata = item.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                for key in ("source", "license"):
+                    if key in item and key not in metadata:
+                        metadata[key] = item[key]
                 entry = HypotheticalEntry(
                     id=str(item.get("id", i)),
                     text=item.get("text", ""),
@@ -238,7 +254,7 @@ class CorpusService:
                     jurisdiction=scope["jurisdiction"],
                     subject=scope["subject"],
                     subtopics=scope["subtopics"],
-                    metadata=item.get("metadata", {}),
+                    metadata=metadata,
                     created_at=item.get("created_at"),
                     updated_at=item.get("updated_at"),
                 )
@@ -492,8 +508,7 @@ class CorpusService:
             async with self._topics_cache_lock:
                 if (
                     use_cache
-                    and
-                    self._topics_cache is not None
+                    and self._topics_cache is not None
                     and current_mtime is not None
                     and self._topics_cache_mtime == current_mtime
                 ):

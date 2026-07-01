@@ -117,6 +117,14 @@ class GenerationRequest(BaseModel):
         token = normalize_scope_token(value)
         if token in {"singapore", "singapore_law", "singapore_tort"}:
             return "sg"
+        if token in {
+            "united_states",
+            "united_states_of_america",
+            "usa",
+            "u.s.",
+            "u.s.a.",
+        }:
+            return "us"
         return token
 
     @field_validator("subtopics")

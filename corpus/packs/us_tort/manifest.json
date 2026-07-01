@@ -1,0 +1,319 @@
+{
+  "schema_version": "1.0",
+  "key": "us_tort",
+  "display_name": "United States Tort Law",
+  "status": "experimental",
+  "jurisdiction": {
+    "code": "us",
+    "name": "United States",
+    "legal_system": "common_law_federalist",
+    "aliases": ["united states", "united_states", "usa", "u.s.", "american tort"]
+  },
+  "subject": {
+    "key": "tort",
+    "name": "Tort Law"
+  },
+  "corpus": {
+    "clean_path": "corpus/clean/us_tort/corpus.json",
+    "raw_paths": [
+      "corpus/raw/us_tort"
+    ],
+    "record_format": "cap_case_json_v1",
+    "id_prefix": "us_tort"
+  },
+  "sources": [
+    {
+      "name": "Caselaw Access Project static case JSON",
+      "url": "https://static.case.law/",
+      "source_format": "json",
+      "access": "bulk_download",
+      "terms_url": "https://case.law/terms/",
+      "notes": "Primary source for committed US Tort sample records. CAP terms mark caselaw data and metadata as CC0 1.0."
+    },
+    {
+      "name": "Caselaw Access Project documentation",
+      "url": "https://case.law/docs/",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": "https://case.law/terms/",
+      "notes": "Documents static downloads and points API access to CourtListener."
+    },
+    {
+      "name": "CourtListener REST API v4",
+      "url": "https://www.courtlistener.com/api/rest/v4/",
+      "source_format": "api_json",
+      "access": "authenticated_api",
+      "terms_url": "https://www.courtlistener.com/terms/",
+      "notes": "Use for discovery, search, or linkout only in this pack. Do not commit full text fetched solely through membership API access without per-record redistribution review."
+    }
+  ],
+  "license": {
+    "name": "CC0-1.0",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "redistribution_status": "allowed",
+    "attribution_required": false,
+    "attribution_requested": true,
+    "commercial_use": "allowed_for_cap_data_under_cc0; courtlistener_membership_api_commercial_use_requires_separate_terms",
+    "terms_notes": "Committed clean records are derived from CAP static case JSON, not from CourtListener membership API output. Preserve CAP source URL and requested attribution metadata on every record."
+  },
+  "taxonomy": {
+    "version": "2026-07-01",
+    "topics": [
+      {
+        "key": "negligence",
+        "label": "Negligence",
+        "category": "Negligence",
+        "description": "Duty, breach, causation, scope of liability, and damages.",
+        "aliases": ["reasonable care", "negligent conduct"],
+        "subtopics": [
+          {"key": "duty", "label": "Duty"},
+          {"key": "breach", "label": "Breach"},
+          {"key": "damages", "label": "Damages"}
+        ]
+      },
+      {
+        "key": "duty_of_care",
+        "label": "Duty Of Care",
+        "category": "Negligence",
+        "description": "Foreseeability, relational duty, special relationships, and policy limits.",
+        "aliases": ["duty of care", "duty", "foreseeability", "special relationship"],
+        "subtopics": [
+          {"key": "foreseeability", "label": "Foreseeability"},
+          {"key": "special_relationship", "label": "Special relationship"}
+        ]
+      },
+      {
+        "key": "standard_of_care",
+        "label": "Standard Of Care",
+        "category": "Negligence",
+        "description": "Reasonable person, custom, statutes, professionals, and children.",
+        "aliases": ["standard of care", "reasonable person", "custom"],
+        "subtopics": [
+          {"key": "reasonable_person", "label": "Reasonable person"},
+          {"key": "negligence_per_se", "label": "Negligence per se"}
+        ]
+      },
+      {
+        "key": "causation",
+        "label": "Causation",
+        "category": "Negligence",
+        "description": "But-for cause, substantial factor, alternative liability, and proximate cause.",
+        "aliases": ["proximate cause", "but for", "substantial factor", "alternative liability"],
+        "subtopics": [
+          {"key": "but_for_cause", "label": "But-for cause"},
+          {"key": "proximate_cause", "label": "Proximate cause"},
+          {"key": "alternative_liability", "label": "Alternative liability"}
+        ]
+      },
+      {
+        "key": "remoteness",
+        "label": "Remoteness",
+        "category": "Negligence",
+        "description": "Scope of liability and foreseeability of harm.",
+        "aliases": ["scope of liability", "foreseeable harm", "remote harm"],
+        "subtopics": []
+      },
+      {
+        "key": "comparative_negligence",
+        "label": "Comparative Negligence",
+        "category": "Defences",
+        "description": "Plaintiff fault, apportionment, and comparative fault regimes.",
+        "aliases": ["comparative negligence", "comparative fault", "plaintiff fault"],
+        "subtopics": []
+      },
+      {
+        "key": "strict_liability",
+        "label": "Strict Liability",
+        "category": "Liability",
+        "description": "Liability without negligence for abnormally dangerous activities or defective products.",
+        "aliases": ["strict liability", "liability without fault"],
+        "subtopics": [
+          {"key": "abnormally_dangerous_activity", "label": "Abnormally dangerous activity"}
+        ]
+      },
+      {
+        "key": "product_liability",
+        "label": "Product Liability",
+        "category": "Liability",
+        "description": "Manufacturing defects, design defects, warning defects, warranty, and privity limits.",
+        "aliases": ["product liability", "defective product", "products liability", "privity"],
+        "subtopics": [
+          {"key": "manufacturing_defect", "label": "Manufacturing defect"},
+          {"key": "design_defect", "label": "Design defect"},
+          {"key": "failure_to_warn", "label": "Failure to warn"}
+        ]
+      },
+      {
+        "key": "battery",
+        "label": "Battery",
+        "category": "Intentional Torts",
+        "description": "Intentional harmful or offensive contact.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "assault",
+        "label": "Assault",
+        "category": "Intentional Torts",
+        "description": "Intentional apprehension of imminent harmful or offensive contact.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "false_imprisonment",
+        "label": "False Imprisonment",
+        "category": "Intentional Torts",
+        "description": "Intentional confinement without lawful privilege.",
+        "aliases": ["false imprisonment"],
+        "subtopics": []
+      },
+      {
+        "key": "trespass_to_land",
+        "label": "Trespass To Land",
+        "category": "Intentional Torts",
+        "description": "Intentional entry onto land possessed by another.",
+        "aliases": ["trespass to land"],
+        "subtopics": []
+      },
+      {
+        "key": "private_nuisance",
+        "label": "Private Nuisance",
+        "category": "Property Torts",
+        "description": "Substantial and unreasonable interference with use and enjoyment of land.",
+        "aliases": ["private nuisance", "nuisance"],
+        "subtopics": []
+      },
+      {
+        "key": "defamation",
+        "label": "Defamation",
+        "category": "Specific Torts",
+        "description": "False statements harming reputation, including public-figure fault rules.",
+        "aliases": ["libel", "slander", "actual malice"],
+        "subtopics": []
+      },
+      {
+        "key": "vicarious_liability",
+        "label": "Vicarious Liability",
+        "category": "Liability",
+        "description": "Respondeat superior and scope-of-employment liability.",
+        "aliases": ["vicarious liability", "respondeat superior", "scope of employment"],
+        "subtopics": []
+      },
+      {
+        "key": "economic_loss",
+        "label": "Economic Loss",
+        "category": "Damages",
+        "description": "Economic loss doctrine and pure financial loss.",
+        "aliases": ["economic loss", "economic loss doctrine", "pure economic loss"],
+        "subtopics": []
+      }
+    ]
+  },
+  "overlays": {
+    "prompt": {
+      "jurisdiction_guidance": [
+        "Use US institutions, state/federal court labels, and US civil litigation terms when this pack is selected.",
+        "Treat tort doctrine as state-law driven unless the source context supports a federal framing."
+      ],
+      "topic_hints": {
+        "duty_of_care": "Include plaintiff-defendant relationship, foreseeability, and policy reasons for recognizing or limiting duty.",
+        "causation": "Include but-for causation, proximate cause, and any multiple-defendant uncertainty.",
+        "product_liability": "Include product, seller/manufacturer role, defect theory, user injury, and privity or warning facts.",
+        "strict_liability": "Include activity/product risk and whether liability turns on fault or inherent danger.",
+        "comparative_negligence": "Include plaintiff conduct and how fault could be apportioned."
+      }
+    },
+    "validation": {
+      "jurisdiction_context_indicators": [
+        "united states",
+        "u.s.",
+        "us",
+        "state court",
+        "supreme court",
+        "court of appeals",
+        "jury",
+        "plaintiff",
+        "defendant",
+        "damages",
+        "$"
+      ],
+      "topic_keywords": {
+        "negligence": ["negligence", "negligent", "reasonable care", "duty", "breach"],
+        "duty_of_care": ["duty", "foreseeable", "foreseeability", "relationship", "owed"],
+        "standard_of_care": ["reasonable person", "custom", "standard", "ordinary care"],
+        "causation": ["cause", "causation", "but for", "proximate", "substantial factor"],
+        "remoteness": ["remote", "foreseeable harm", "scope of liability"],
+        "comparative_negligence": ["comparative", "fault", "apportionment", "plaintiff fault"],
+        "strict_liability": ["strict liability", "without fault", "abnormally dangerous"],
+        "product_liability": ["product", "defect", "manufacturer", "warning", "warranty"],
+        "battery": ["battery", "contact", "offensive", "harmful"],
+        "assault": ["assault", "apprehension", "imminent"],
+        "false_imprisonment": ["imprisonment", "confined", "detained"],
+        "private_nuisance": ["nuisance", "interference", "land", "use and enjoyment"],
+        "defamation": ["defamation", "libel", "slander", "actual malice"],
+        "vicarious_liability": ["vicarious", "respondeat superior", "employee"],
+        "economic_loss": ["economic loss", "financial loss", "contract remedy"]
+      },
+      "legal_realism": {
+        "context_cues": [
+          "new york",
+          "california",
+          "court of appeals",
+          "supreme court",
+          "superior court",
+          "jury",
+          "statute of limitations",
+          "restatement"
+        ]
+      }
+    }
+  },
+  "pipeline": {
+    "ingestion_command": "python3 script/fetch_us_tort_corpus.py --output corpus/clean/us_tort/corpus.json --retrieved-at 2026-07-01",
+    "cleaner_command": "python3 script/fetch_us_tort_corpus.py --output corpus/clean/us_tort/corpus.json --retrieved-at 2026-07-01",
+    "embedding_command": "curl -X POST http://127.0.0.1:8000/jobs/embed -H 'Content-Type: application/json' -d '{\"corpus_pack\":\"us_tort\",\"corpus_path\":\"corpus/clean/us_tort/corpus.json\"}'"
+  },
+  "validation": {
+    "expected_record_count_min": 5,
+    "required_record_fields": [
+      "id",
+      "corpus_pack_key",
+      "jurisdiction",
+      "subject",
+      "topics",
+      "text",
+      "source",
+      "license",
+      "metadata"
+    ],
+    "canonical_record_fields": [
+      "id",
+      "corpus_pack_key",
+      "jurisdiction",
+      "subject",
+      "topics",
+      "subtopics",
+      "text",
+      "source",
+      "license",
+      "metadata"
+    ],
+    "topic_coverage": "Each record maps to at least one US Tort taxonomy topic.",
+    "jurisdiction_expectations": [
+      "US state or federal court metadata",
+      "Case citation and source URL preserved for audit"
+    ],
+    "quality_checks": [
+      "JSON parses",
+      "All records include non-empty opinion text",
+      "All committed full text comes from CAP static JSON",
+      "CourtListener API output is not redistributed unless separately cleared"
+    ]
+  },
+  "artifacts": {
+    "vector_collection": "tort_hypotheticals",
+    "labels_path": "corpus/labelled/us_tort_labels.csv",
+    "models_dir": "models/us_tort"
+  },
+  "notes": "Experimental US Tort pack. Source decision is documented in docs/us-tort-corpus-source-decision.md before committed CAP-derived records."
+}

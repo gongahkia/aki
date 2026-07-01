@@ -3,6 +3,7 @@
 Status: draft v1 for Phase 1.
 Schema version: `1.0`.
 Reference manifest: [corpus/packs/sg_tort/manifest.json](../corpus/packs/sg_tort/manifest.json).
+US expansion manifest: [corpus/packs/us_tort/manifest.json](../corpus/packs/us_tort/manifest.json).
 Validator: [script/validate_corpus_pack.py](../script/validate_corpus_pack.py).
 
 ## Purpose
@@ -15,6 +16,7 @@ Run from the repo root:
 
 ```sh
 python3 script/validate_corpus_pack.py corpus/packs/sg_tort/manifest.json
+python3 script/validate_corpus_pack.py corpus/packs/us_tort/manifest.json
 ```
 
 The validator checks JSON syntax, required fields, topic shape, unique topic keys, non-empty pipeline commands, and local corpus/raw paths.

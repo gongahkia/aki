@@ -85,8 +85,8 @@ def _load_manifest(path: str) -> Dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _manifest_mapping(key: str) -> Dict[str, Any]:
-    value = _SG_TORT_MANIFEST.get(key, {})
+def _manifest_mapping(manifest: Mapping[str, Any], key: str) -> Dict[str, Any]:
+    value = manifest.get(key, {})
     return value if isinstance(value, dict) else {}
 
 
@@ -130,63 +130,130 @@ def _canonicalize_from_aliases(topic: str, aliases: Mapping[str, str]) -> str:
     return aliases.get(token, token)
 
 
-_SG_TORT_MANIFEST_PATH = "corpus/packs/sg_tort/manifest.json"
-_SG_TORT_MANIFEST = _load_manifest(_SG_TORT_MANIFEST_PATH)
-_SG_TORT_CORPUS = _manifest_mapping("corpus")
-_SG_TORT_TAXONOMY = _manifest_mapping("taxonomy")
-_SG_TORT_TOPIC_DEFINITIONS = _build_topic_definitions(_SG_TORT_TAXONOMY)
-if not _SG_TORT_TOPIC_DEFINITIONS:
-    _SG_TORT_TOPIC_DEFINITIONS = {
-        key: TopicDefinition(
-            key=key,
-            label=key.replace("_", " ").title(),
-            category="",
-            description="",
-        )
-        for key in all_tort_topic_keys()
-    }
-_SG_TORT_TOPIC_ALIASES = _build_topic_aliases(_SG_TORT_TOPIC_DEFINITIONS)
-if not _SG_TORT_TOPIC_ALIASES:
-    _SG_TORT_TOPIC_ALIASES = dict(TOPIC_ALIASES)
-_SG_TORT_OVERLAYS = _manifest_mapping("overlays")
-_SG_TORT_PROMPT_OVERLAY = _SG_TORT_OVERLAYS.get("prompt", {})
-if not isinstance(_SG_TORT_PROMPT_OVERLAY, dict):
-    _SG_TORT_PROMPT_OVERLAY = {}
-_SG_TORT_VALIDATION_OVERLAY = _SG_TORT_OVERLAYS.get("validation", {})
-if not isinstance(_SG_TORT_VALIDATION_OVERLAY, dict):
-    _SG_TORT_VALIDATION_OVERLAY = {}
+def _string_tuple(value: Any) -> Tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(str(item) for item in value if str(item).strip())
 
 
-DOMAIN_PACK_REGISTRY: Dict[str, DomainPack] = {
-    "sg_tort": DomainPack(
-        key="sg_tort",
-        display_name="Singapore Tort Law",
+def _overlay_mapping(overlays: Mapping[str, Any], key: str) -> Dict[str, Any]:
+    value = overlays.get(key, {})
+    return value if isinstance(value, dict) else {}
+
+
+def _domain_pack_from_manifest(
+    manifest_path: str,
+    *,
+    fallback_clean_path: str,
+    fallback_raw_paths: Tuple[str, ...],
+    fallback_record_format: str,
+    fallback_topic_definitions: Mapping[str, TopicDefinition] | None = None,
+    fallback_topic_aliases: Mapping[str, str] | None = None,
+    jurisdiction_aliases: Tuple[str, ...] = (),
+) -> DomainPack:
+    manifest = _load_manifest(manifest_path)
+    corpus = _manifest_mapping(manifest, "corpus")
+    taxonomy = _manifest_mapping(manifest, "taxonomy")
+    topic_definitions = _build_topic_definitions(taxonomy)
+    if not topic_definitions and fallback_topic_definitions:
+        topic_definitions = dict(fallback_topic_definitions)
+
+    topic_aliases = _build_topic_aliases(topic_definitions)
+    if not topic_aliases and fallback_topic_aliases:
+        topic_aliases = dict(fallback_topic_aliases)
+
+    overlays = _manifest_mapping(manifest, "overlays")
+    prompt_overlay = _overlay_mapping(overlays, "prompt")
+    validation_overlay = _overlay_mapping(overlays, "validation")
+    jurisdiction = _manifest_mapping(manifest, "jurisdiction")
+    subject = _manifest_mapping(manifest, "subject")
+
+    pack_key = str(manifest.get("key") or Path(manifest_path).parent.name)
+    jurisdiction_key = normalize_scope_token(str(jurisdiction.get("code", "")))
+    subject_key = normalize_scope_token(str(subject.get("key", "tort")))
+    raw_paths = corpus.get("raw_paths", fallback_raw_paths)
+    if not isinstance(raw_paths, (list, tuple)):
+        raw_paths = fallback_raw_paths
+    normalized_raw_paths = tuple(str(path) for path in raw_paths if str(path).strip())
+    if not normalized_raw_paths:
+        normalized_raw_paths = fallback_raw_paths
+
+    return DomainPack(
+        key=pack_key,
+        display_name=str(
+            manifest.get("display_name") or pack_key.replace("_", " ").title()
+        ),
         jurisdiction=Jurisdiction(
-            key="sg",
-            display_name="Singapore",
-            aliases=("singapore_law", "singapore tort", "singapore_tort"),
+            key=jurisdiction_key,
+            display_name=str(jurisdiction.get("name", jurisdiction_key.upper())),
+            legal_system=str(jurisdiction.get("legal_system", "common_law")),
+            aliases=_string_tuple(jurisdiction.get("aliases")) + jurisdiction_aliases,
         ),
-        law_domain="tort",
-        canonicalize_topic=lambda topic: _canonicalize_from_aliases(
-            topic, _SG_TORT_TOPIC_ALIASES
+        law_domain=subject_key,
+        canonicalize_topic=lambda topic, aliases=topic_aliases: (
+            _canonicalize_from_aliases(topic, aliases)
         ),
-        is_supported_topic=lambda topic: _canonicalize_from_aliases(
-            topic, _SG_TORT_TOPIC_ALIASES
-        )
-        in _SG_TORT_TOPIC_DEFINITIONS,
-        topic_keys=tuple(_SG_TORT_TOPIC_DEFINITIONS.keys()),
-        topic_aliases=dict(_SG_TORT_TOPIC_ALIASES),
-        manifest_path=_SG_TORT_MANIFEST_PATH,
-        topic_definitions=dict(_SG_TORT_TOPIC_DEFINITIONS),
-        prompt_overlay=dict(_SG_TORT_PROMPT_OVERLAY),
-        validation_overlay=dict(_SG_TORT_VALIDATION_OVERLAY),
-        corpus_path=str(
-            _SG_TORT_CORPUS.get("clean_path", "corpus/clean/tort/corpus.json")
+        is_supported_topic=lambda topic, aliases=topic_aliases, definitions=topic_definitions: (
+            _canonicalize_from_aliases(topic, aliases) in definitions
         ),
-        raw_paths=tuple(_SG_TORT_CORPUS.get("raw_paths", ("corpus/raw/tort",))),
-        record_format=str(_SG_TORT_CORPUS.get("record_format", "legacy_text_topic_v1")),
+        topic_keys=tuple(topic_definitions.keys()),
+        topic_aliases=dict(topic_aliases),
+        subject_label=str(subject.get("name", "Tort Law")),
+        manifest_path=manifest_path,
+        topic_definitions=dict(topic_definitions),
+        prompt_overlay=dict(prompt_overlay),
+        validation_overlay=dict(validation_overlay),
+        corpus_path=str(corpus.get("clean_path", fallback_clean_path)),
+        raw_paths=normalized_raw_paths,
+        record_format=str(corpus.get("record_format", fallback_record_format)),
     )
+
+
+_SG_TORT_MANIFEST_PATH = "corpus/packs/sg_tort/manifest.json"
+_SG_TORT_FALLBACK_TOPIC_DEFINITIONS = {
+    key: TopicDefinition(
+        key=key,
+        label=key.replace("_", " ").title(),
+        category="",
+        description="",
+    )
+    for key in all_tort_topic_keys()
 }
+_US_TORT_MANIFEST_PATH = "corpus/packs/us_tort/manifest.json"
+
+
+DOMAIN_PACK_REGISTRY: Dict[str, DomainPack] = {}
+for _pack in (
+    _domain_pack_from_manifest(
+        _SG_TORT_MANIFEST_PATH,
+        fallback_clean_path="corpus/clean/tort/corpus.json",
+        fallback_raw_paths=("corpus/raw/tort",),
+        fallback_record_format="legacy_text_topic_v1",
+        fallback_topic_definitions=_SG_TORT_FALLBACK_TOPIC_DEFINITIONS,
+        fallback_topic_aliases=TOPIC_ALIASES,
+        jurisdiction_aliases=(
+            "singapore_law",
+            "singapore tort",
+            "singapore_tort",
+        ),
+    ),
+    _domain_pack_from_manifest(
+        _US_TORT_MANIFEST_PATH,
+        fallback_clean_path="corpus/clean/us_tort/corpus.json",
+        fallback_raw_paths=("corpus/raw/us_tort",),
+        fallback_record_format="cap_case_json_v1",
+        jurisdiction_aliases=(
+            "united states",
+            "united_states",
+            "united states of america",
+            "usa",
+            "u.s.",
+            "u.s.a.",
+            "american tort",
+        ),
+    ),
+):
+    DOMAIN_PACK_REGISTRY[_pack.key] = _pack
 
 
 def register_domain_pack(domain_pack: DomainPack) -> None:
@@ -213,4 +280,5 @@ def default_domain_pack() -> DomainPack:
 
 def resolve_domain_pack(key: str | None = None) -> DomainPack:
     """Fetch requested pack or default to SG Tort."""
-    return get_domain_pack((key or "sg_tort").strip() or "sg_tort")
+    token = normalize_scope_token((key or "sg_tort").strip()) or "sg_tort"
+    return get_domain_pack(token)
