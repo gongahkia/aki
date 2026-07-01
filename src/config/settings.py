@@ -225,6 +225,11 @@ class Settings(BaseSettings):
     use_legal_bert_embeddings: bool = Field(
         default=False, env="USE_LEGAL_BERT_EMBEDDINGS"
     )
+    retrieval_mode: str = Field(default="dense", env="RETRIEVAL_MODE")
+    retrieval_rrf_k: int = Field(default=60, env="RETRIEVAL_RRF_K")
+    retrieval_reranker_model: Optional[str] = Field(
+        default=None, env="RETRIEVAL_RERANKER_MODEL"
+    )
     validation_use_llm: bool = Field(default=False, env="VALIDATION_USE_LLM")
 
     # Sub-configurations
@@ -245,6 +250,14 @@ class Settings(BaseSettings):
         if v.lower() not in valid_envs:
             raise ValueError(f"Environment must be one of {valid_envs}")
         return v.lower()
+
+    @field_validator("retrieval_mode")
+    @classmethod
+    def validate_retrieval_mode(cls, v):
+        mode = str(v).strip().lower()
+        if mode not in {"dense", "hybrid"}:
+            raise ValueError("retrieval_mode must be one of ['dense', 'hybrid']")
+        return mode
 
     @field_validator("allowed_law_domains", mode="before")
     @classmethod

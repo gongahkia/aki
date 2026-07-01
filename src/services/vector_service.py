@@ -4,8 +4,11 @@ Provides semantic similarity search for legal hypotheticals.
 """
 
 import asyncio
+import math
+import re
 import sys
 import threading
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -71,6 +74,8 @@ class VectorService:
         self._fallback_reason: Optional[str] = None
         self._index_lock = asyncio.Lock()
         self._init_lock = threading.Lock()
+        self._reranker_model = None
+        self._reranker_unavailable_reason: Optional[str] = None
 
     @staticmethod
     def _collection_metadata(corpus_hash: Optional[str] = None) -> Dict[str, Any]:
@@ -78,6 +83,114 @@ class VectorService:
         if corpus_hash:
             metadata["corpus_hash"] = corpus_hash
         return metadata
+
+    @staticmethod
+    def _tokenize_legal_text(text: str) -> List[str]:
+        tokens = re.findall(r"[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)?", text.lower())
+        return [token.replace("_", " ") for token in tokens if len(token) > 1]
+
+    @staticmethod
+    def _bm25_rank_documents(
+        query_text: str,
+        documents: List[Dict[str, Any]],
+        *,
+        n_results: int,
+    ) -> List[Dict[str, Any]]:
+        query_tokens = VectorService._tokenize_legal_text(query_text)
+        if not query_tokens or not documents:
+            return []
+
+        tokenized_docs: List[List[str]] = []
+        for document in documents:
+            topics = " ".join(str(topic) for topic in document.get("topics", []))
+            tokenized_docs.append(
+                VectorService._tokenize_legal_text(
+                    f"{topics} {document.get('text', '')}"
+                )
+            )
+
+        doc_count = len(tokenized_docs)
+        avg_doc_len = (
+            sum(len(tokens) for tokens in tokenized_docs) / max(doc_count, 1)
+        ) or 1.0
+        document_frequencies: Counter[str] = Counter()
+        for tokens in tokenized_docs:
+            document_frequencies.update(set(tokens))
+
+        k1 = 1.5
+        b = 0.75
+        ranked: List[Dict[str, Any]] = []
+        for document, tokens in zip(documents, tokenized_docs):
+            term_counts = Counter(tokens)
+            doc_len = len(tokens) or 1
+            score = 0.0
+            for token in query_tokens:
+                tf = term_counts.get(token, 0)
+                if tf == 0:
+                    continue
+                df = document_frequencies.get(token, 0)
+                idf = math.log(1 + ((doc_count - df + 0.5) / (df + 0.5)))
+                denominator = tf + k1 * (1 - b + b * (doc_len / avg_doc_len))
+                score += idf * ((tf * (k1 + 1)) / denominator)
+            if score > 0:
+                ranked.append({**document, "bm25_score": score})
+
+        ranked.sort(key=lambda item: float(item["bm25_score"]), reverse=True)
+        return ranked[:n_results]
+
+    @staticmethod
+    def _reciprocal_rank_fusion(
+        rankings: List[List[str]], *, k: int = 60
+    ) -> Dict[str, float]:
+        scores: Dict[str, float] = {}
+        for ranking in rankings:
+            for rank, document_id in enumerate(ranking, start=1):
+                scores[document_id] = scores.get(document_id, 0.0) + (1 / (k + rank))
+        return scores
+
+    def _get_cross_encoder_reranker(self):
+        model_name = str(
+            getattr(settings, "retrieval_reranker_model", "") or ""
+        ).strip()
+        if not model_name:
+            return None
+        if self._reranker_model is not None:
+            return self._reranker_model
+        try:
+            from sentence_transformers import CrossEncoder
+
+            self._reranker_model = CrossEncoder(model_name)
+            self._reranker_unavailable_reason = None
+            return self._reranker_model
+        except Exception as exc:
+            self._reranker_unavailable_reason = str(exc)
+            logger.warning(
+                "Cross-encoder reranker unavailable; using fused order",
+                model=model_name,
+                error=str(exc),
+            )
+            return None
+
+    def _rerank_with_cross_encoder(
+        self, query_text: str, results: List[Dict[str, Any]], *, n_results: int
+    ) -> List[Dict[str, Any]]:
+        reranker = self._get_cross_encoder_reranker()
+        if reranker is None or not results:
+            return results[:n_results]
+        try:
+            pairs = [(query_text, str(result.get("text", ""))) for result in results]
+            scores = reranker.predict(pairs)
+            reranked = []
+            for result, score in zip(results, scores):
+                reranked.append({**result, "reranker_score": float(score)})
+            reranked.sort(
+                key=lambda item: float(item.get("reranker_score", 0.0)),
+                reverse=True,
+            )
+            return reranked[:n_results]
+        except Exception as exc:
+            logger.warning("Cross-encoder rerank failed", error=str(exc))
+            return results[:n_results]
 
     def _initialize(self):
         """Initialize ChromaDB client and embedding model."""
@@ -221,9 +334,7 @@ class VectorService:
                     metadatas.append(
                         {
                             "topics": ",".join(hypo.get("topics", [])),
-                            "corpus_pack_key": hypo.get(
-                                "corpus_pack_key", "sg_tort"
-                            ),
+                            "corpus_pack_key": hypo.get("corpus_pack_key", "sg_tort"),
                             "jurisdiction": hypo.get("jurisdiction", "sg"),
                             "subject": hypo.get("subject", "tort"),
                             "subtopics": ",".join(hypo.get("subtopics", [])),
@@ -255,6 +366,115 @@ class VectorService:
         except Exception as e:
             logger.error("Failed to index hypotheticals", error=str(e))
             raise VectorServiceError(f"Indexing failed: {e}")
+
+    async def hybrid_search(
+        self,
+        query_topics: List[str],
+        corpus_documents: List[Dict[str, Any]],
+        corpus_pack: str = "sg_tort",
+        jurisdiction: str = "sg",
+        subject: str = "tort",
+        subtopics: Optional[List[str]] = None,
+        n_results: int = 5,
+        exclude_ids: Optional[List[str]] = None,
+        min_similarity: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
+        query_text = (
+            f"Legal hypothetical involving {', '.join(query_topics)} "
+            f"in {jurisdiction} {subject} law"
+        )
+        pool_size = max(n_results * 4, 10)
+        exclude_set = {str(document_id) for document_id in (exclude_ids or [])}
+        filtered_documents = [
+            document
+            for document in corpus_documents
+            if str(document.get("id")) not in exclude_set
+        ]
+        lexical_results = self._bm25_rank_documents(
+            query_text,
+            filtered_documents,
+            n_results=pool_size,
+        )
+
+        dense_results: List[Dict[str, Any]] = []
+        try:
+            dense_results = await self.semantic_search(
+                query_topics=query_topics,
+                corpus_pack=corpus_pack,
+                jurisdiction=jurisdiction,
+                subject=subject,
+                subtopics=subtopics,
+                n_results=pool_size,
+                exclude_ids=exclude_ids,
+                min_similarity=min_similarity,
+            )
+        except Exception as exc:
+            logger.info(
+                "Dense branch unavailable during hybrid search",
+                error=str(exc),
+            )
+
+        rankings = []
+        if dense_results:
+            rankings.append([str(result["id"]) for result in dense_results])
+        if lexical_results:
+            rankings.append([str(result["id"]) for result in lexical_results])
+        if not rankings:
+            return []
+
+        rrf_k = int(getattr(settings, "retrieval_rrf_k", 60))
+        fused_scores = self._reciprocal_rank_fusion(rankings, k=rrf_k)
+        by_id: Dict[str, Dict[str, Any]] = {}
+        for result in dense_results:
+            by_id[str(result["id"])] = {
+                **result,
+                "dense_score": result.get("similarity_score"),
+            }
+        for result in lexical_results:
+            document_id = str(result["id"])
+            by_id[document_id] = {
+                **by_id.get(document_id, result),
+                **result,
+                "lexical_score": result.get("bm25_score"),
+            }
+
+        dense_ids = {str(item["id"]) for item in dense_results}
+        lexical_ids = {str(item["id"]) for item in lexical_results}
+        fused_results = []
+        for document_id, score in fused_scores.items():
+            result = by_id.get(document_id)
+            if not result:
+                continue
+            fused_results.append(
+                {
+                    **result,
+                    "rrf_score": score,
+                    "retrieval_mode": "hybrid",
+                    "retrieval_branches": {
+                        "dense": document_id in dense_ids,
+                        "lexical": document_id in lexical_ids,
+                    },
+                }
+            )
+
+        fused_results.sort(
+            key=lambda item: float(item.get("rrf_score", 0.0)),
+            reverse=True,
+        )
+        reranked = self._rerank_with_cross_encoder(
+            query_text,
+            fused_results,
+            n_results=n_results,
+        )
+        logger.info(
+            "Hybrid search completed",
+            query_topics=query_topics,
+            dense_count=len(dense_results),
+            lexical_count=len(lexical_results),
+            results_count=len(reranked),
+            rrf_k=rrf_k,
+        )
+        return reranked
 
     async def semantic_search(
         self,
@@ -408,6 +628,12 @@ class VectorService:
             "embedding_model_loaded": (self._embedding_model is not None),
             "fallback_mode": self._fallback_mode,
             "fallback_reason": self._fallback_reason,
+            "retrieval_mode": getattr(settings, "retrieval_mode", "dense"),
+            "reranker_configured": bool(
+                getattr(settings, "retrieval_reranker_model", None)
+            ),
+            "reranker_loaded": self._reranker_model is not None,
+            "reranker_unavailable_reason": self._reranker_unavailable_reason,
         }
 
         try:

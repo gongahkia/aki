@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
+from ..config import settings
 from ..domain import canonicalize_topic, normalize_scope_token, resolve_domain_pack
 from .vector_service import VectorServiceError, vector_service
 
@@ -340,6 +341,79 @@ class CorpusService:
                     "Vector index not ready, using fallback search",
                     query_topics=query.topics,
                 )
+
+            if getattr(settings, "retrieval_mode", "dense") == "hybrid":
+                corpus = await self.load_corpus(corpus_pack=query.corpus_pack)
+                available_entries = [
+                    entry
+                    for entry in corpus
+                    if entry.id not in query.exclude_ids
+                    and self._entry_matches_scope(entry, query)
+                ]
+                hybrid_documents = [
+                    {
+                        "id": entry.id,
+                        "text": entry.text,
+                        "topics": entry.topics,
+                        "corpus_pack_key": entry.corpus_pack_key,
+                        "jurisdiction": entry.jurisdiction,
+                        "subject": entry.subject,
+                        "subtopics": entry.subtopics,
+                        "metadata": entry.metadata,
+                    }
+                    for entry in available_entries
+                ]
+                try:
+                    hybrid_results = await self._vector_service.hybrid_search(
+                        query_topics=query.topics,
+                        corpus_documents=hybrid_documents,
+                        corpus_pack=query.corpus_pack,
+                        jurisdiction=query.jurisdiction,
+                        subject=query.subject,
+                        subtopics=query.subtopics,
+                        n_results=query.sample_size,
+                        exclude_ids=query.exclude_ids,
+                    )
+                    if hybrid_results:
+                        relevant_entries = []
+                        for result in hybrid_results:
+                            metadata = result.get("metadata", {})
+                            if not isinstance(metadata, dict):
+                                metadata = {}
+                            metadata = {
+                                **metadata,
+                                "retrieval_mode": result.get("retrieval_mode"),
+                                "rrf_score": result.get("rrf_score"),
+                                "dense_score": result.get("dense_score"),
+                                "lexical_score": result.get("lexical_score"),
+                            }
+                            relevant_entries.append(
+                                HypotheticalEntry(
+                                    id=str(result["id"]),
+                                    text=str(result.get("text", "")),
+                                    topics=list(result.get("topics", [])),
+                                    corpus_pack_key=str(
+                                        result.get("corpus_pack_key", query.corpus_pack)
+                                    ),
+                                    jurisdiction=str(
+                                        result.get("jurisdiction", query.jurisdiction)
+                                    ),
+                                    subject=str(result.get("subject", query.subject)),
+                                    subtopics=list(result.get("subtopics", [])),
+                                    metadata=metadata,
+                                )
+                            )
+                        logger.info(
+                            "Hybrid corpus retrieval completed",
+                            query_topics=query.topics,
+                            results_count=len(relevant_entries),
+                        )
+                        return relevant_entries
+                except Exception as he:
+                    logger.warning(
+                        "Hybrid retrieval failed, falling back",
+                        error=str(he),
+                    )
 
             # Try semantic search first (ChromaDB + embeddings)
             if self._corpus_indexed:
