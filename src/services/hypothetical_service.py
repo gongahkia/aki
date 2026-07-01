@@ -125,6 +125,14 @@ class GenerationRequest(BaseModel):
             "u.s.a.",
         }:
             return "us"
+        if token in {
+            "united_kingdom",
+            "great_britain",
+            "england_and_wales",
+            "england",
+            "wales",
+        }:
+            return "uk"
         return token
 
     @field_validator("subtopics")

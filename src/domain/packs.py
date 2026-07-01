@@ -220,6 +220,7 @@ _SG_TORT_FALLBACK_TOPIC_DEFINITIONS = {
     for key in all_tort_topic_keys()
 }
 _US_TORT_MANIFEST_PATH = "corpus/packs/us_tort/manifest.json"
+_UK_TORT_MANIFEST_PATH = "corpus/packs/uk_tort/manifest.json"
 
 
 DOMAIN_PACK_REGISTRY: Dict[str, DomainPack] = {}
@@ -250,6 +251,21 @@ for _pack in (
             "u.s.",
             "u.s.a.",
             "american tort",
+        ),
+    ),
+    _domain_pack_from_manifest(
+        _UK_TORT_MANIFEST_PATH,
+        fallback_clean_path="corpus/clean/uk_tort/corpus.json",
+        fallback_raw_paths=("corpus/raw/uk_tort",),
+        fallback_record_format="tna_legaldocml_excerpt_v1",
+        jurisdiction_aliases=(
+            "united kingdom",
+            "united_kingdom",
+            "great britain",
+            "england and wales",
+            "england",
+            "wales",
+            "british tort",
         ),
     ),
 ):
