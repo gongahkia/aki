@@ -1,3 +1,11 @@
+# `Jikai`
+
+Open-source infrastructure for AI-generated common-law exam-question practice.
+Jikai generates legal hypotheticals and model answers with an ML foundation stage before LLM drafting, so topic selection, retrieval, quality scoring, and validation constrain the final output instead of leaving generation as a raw prompt.
+It is built for law students, educators, and legal-tech builders who want local-first practice-question generation, corpus-backed retrieval, validation gates, and exportable study artifacts.
+Current corpus: Singapore Tort. Pivot target: SG + UK + US Tort corpus packs, with SG Tort as the reference pack.
+Try it locally with `make env-setup`, `make dev-setup`, and `make run`.
+
 [![](https://img.shields.io/badge/jikai_1.0.0-passing-8BC34A)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
 [![](https://img.shields.io/badge/jikai_2.0.0-passing-4CAF50)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
 [![](https://img.shields.io/badge/jikai_3.0.0-passing-2E7D32)](https://github.com/gongahkia/jikai/releases/tag/3.0.0)
@@ -6,25 +14,29 @@
 > [!IMPORTANT]
 > Please read through [this disclaimer](#disclaimer) before using [Jikai](https://github.com/gongahkia/jikai).
 
-# `Jikai`
+## Why It Exists
 
-[ML](#so-wheres-the-ml-in-this) & [LLM](#so-wheres-the-llm-in-this)-powered [Legal Hypothetical Generator](#architecture) for Singapore [Tort Law](https://www.advlawllc.com/practice/tort-law/#:~:text=Tort%20law%20deals%20with%20civil,defamation%2C%20trespass%2C%20and%20nuisance.).
+Jikai is not a chatbot wrapper. It is a local-first generation pipeline:
 
-## Rationale
+```text
+requested topics
+  -> ML classifier/regressor/clusterer
+  -> structural planning + semantic corpus retrieval
+  -> templated LLM generation
+  -> deterministic validation + optional LLM validation
+  -> model answer, history, reports, DOCX/PDF, Anki TSV
+```
 
-Over the finals season in December 2024, I found myself wishing I had more tort law [hypotheticals](https://successatmls.com/hypos/) to practise on aside from those [my professor](https://www.linkedin.com/in/jerroldsoh/?originalSubdomain=sg) had provided.
+The design goal is reproducible practice volume: generate a grounded fact pattern, inspect whether it covered the requested doctrine, then export it into a study workflow.
 
-A [quick google search](https://www.reddit.com/r/LawSchool/comments/16istgs/where_to_find_hypos/) revealed this sentiment was shared by many studying law, even [outside of Singapore](https://www.reddit.com/r/findareddit/comments/ssr9wk/a_community_for_hypothetical_legal_questions/). Conducting a [Linkedin poll](https://www.linkedin.com/posts/gabriel-zmong_smu-law-linkedin-activity-7269531363463049217-DXUm?utm_source=share&utm_medium=member_desktop) confirmed these results.
+## Feature Surface
 
-<div align="center">
-    <br>
-    <img src="./asset/reference/poll.png" width="50%">
-    <br><br>
-</div>
-
-With these considerations in mind, I created `Jikai`.
-
-`Jikai` generates legal hypotheticals for Singapore Tort Law with a [multi-provider LLM backend](#architecture), [semantic corpus retrieval](#architecture), and an [ML-assisted validation pipeline](#architecture), served through a [Rust TUI](#stack) or [FastAPI REST API](#stack).
+* *ML-before-LLM orchestration*: `src/services/workflow_facade.py` blocks generation until the ML pipeline is trained or bootstrapped.
+* *Common-law corpus direction*: SG Tort ships now; UK and US Tort are planned as first-class corpus packs after source/licensing review.
+* *Local-first LLM path*: Ollama is the default provider, with OpenAI, Anthropic, Gemini, and local llama.cpp-compatible servers available by configuration.
+* *RAG and validation*: Chroma-backed semantic retrieval, deterministic topic/party/realism checks, optional Legal-BERT embeddings, and optional LLM validation.
+* *Study workflow outputs*: model answers, generation reports, batch generation, DOCX/PDF export, and Anki TSV export.
+* *Usable surfaces*: FastAPI REST endpoints, async jobs, and a Rust TUI for power users.
 
 ## Stack
 
@@ -38,14 +50,9 @@ With these considerations in mind, I created `Jikai`.
 * *Observability/Logging*: [structlog](https://www.structlog.org/)
 * *Quality Tooling*: [pytest](https://pytest.org/), [pytest-asyncio](https://pytest-asyncio.readthedocs.io/), [pytest-cov](https://pytest-cov.readthedocs.io/), [flake8](https://flake8.pycqa.org/), [mypy](http://mypy-lang.org/), [black](https://black.readthedocs.io/), [isort](https://pycqa.github.io/isort/)
 
-## Screenshots
+## Quickstart
 
-![](./asset/reference/1.png)
-![](./asset/reference/2.png)
-
-## Usage
-
-The below instructions are for locally running `Jikai`. Requires [Python 3.12+](https://www.python.org/), [Rust/Cargo](https://www.rust-lang.org/tools/install), and [Ollama](https://ollama.ai/).
+Requires [Python 3.12+](https://www.python.org/), [Rust/Cargo](https://www.rust-lang.org/tools/install), and [Ollama](https://ollama.ai/) for the default local model path.
 
 1. Create `.env` off of `env.example` and fill your API keys and configuration.
 
@@ -75,7 +82,25 @@ $ python -m src.api --host 127.0.0.1 --port 8000  # API only (plain uvicorn runn
 $ make tui                                # Rust TUI only (requires API already running)
 ```
 
-5. Run data/model utility jobs as needed.
+5. Generate a local SG Tort hypothetical through the API.
+
+```console
+$ curl -s http://127.0.0.1:8000/workflow/generate \
+  -H 'content-type: application/json' \
+  -d '{"topics":["negligence","causation"],"number_parties":3,"user_preferences":{"include_model_answer":true}}' \
+  | python3 -m json.tool
+```
+
+6. Export recent generations to Anki-compatible TSV.
+
+```console
+$ curl -s http://127.0.0.1:8000/jobs/export-anki \
+  -H 'content-type: application/json' \
+  -d '{"output_path":"data/export/anki_cards.tsv","include_model_answer":true}' \
+  | python3 -m json.tool
+```
+
+7. Run data/model utility jobs as needed.
 
 ```console
 $ make preprocess # build corpus/clean/tort/corpus.json from corpus/raw/*
@@ -84,7 +109,7 @@ $ make warmup     # preload corpus + probe provider health
 $ make label      # append labelled examples to corpus/labelled/sample.csv
 ```
 
-6. Check runtime health and quality gates.
+8. Check runtime health and quality gates.
 
 ```console
 $ make health
@@ -95,6 +120,11 @@ $ make lint
 
 Inside the Rust TUI, `Chat` is the default landing screen with command-driven workflows.
 Use `/menu` to open the multi-screen navigation, and `/help` to list command families (`hypo`, `regenerate`, `report`, `corpus`, `validation`, `jobs`, `providers`, `history`, `stats`, `settings`, `guided`, `label`).
+
+## Screenshots
+
+![](./asset/reference/1.png)
+![](./asset/reference/2.png)
 
 ## So where's the [ML](https://en.wikipedia.org/wiki/Machine_learning) in this?
 
@@ -147,6 +177,7 @@ The LLM layer is the **second stage** in generation, after ML scaffolding.
 | `POST` | `/workflow/regenerate` | Regenerate from a previous generation |
 | `POST` | `/workflow/report` | Submit a quality report for a generation |
 | `GET` | `/workflow/reports/{generation_id}` | List reports for a generation |
+| `POST` | `/workflow/batch-generate` | Generate multiple hypotheticals with topic coverage |
 | `GET` | `/corpus/topics` | List all available tort-law topics |
 | `GET` | `/corpus/entries` | Fetch corpus entries (`topic`, `limit` query params supported) |
 | `POST` | `/corpus/query` | Query corpus by topics with semantic search |
@@ -170,10 +201,21 @@ The LLM layer is the **second stage** in generation, after ML scaffolding.
 | `POST` | `/jobs/train` | Train ML pipeline models (async job) |
 | `POST` | `/jobs/embed` | Embed corpus into vector store (async job) |
 | `POST` | `/jobs/export` | Export a generation artifact (DOCX path by default) |
+| `POST` | `/jobs/export-training-data` | Export approved generations as ML training data |
+| `POST` | `/jobs/export-anki` | Export generations as Anki-compatible TSV |
 | `POST` | `/jobs/cleanup` | Clean up data targets (async job) |
 | `POST` | `/jobs/label` | Append labelled entries to training corpus CSV |
 | `GET` | `/jobs/{job_id}/status` | Poll async job status |
 | `POST` | `/jobs/{job_id}/cancel` | Cancel a running job |
+
+## Corpus Roadmap
+
+SG Tort is the current reference corpus. The pivot path is:
+
+1. Add first-class jurisdiction, subject, topic, and subtopic fields.
+2. Convert SG Tort into the reference corpus pack.
+3. Add UK and US Tort packs only after source terms and redistribution constraints are documented.
+4. Keep public comparison claims out of the README until blind evaluation artifacts support them.
 
 ## Disclaimer
 
@@ -194,6 +236,16 @@ The name `Jikai` is in reference to the sorcery of [Ikuto Hagiwara](https://kagu
 
 <div align="center">
   <img src="https://static.wikia.nocookie.net/kagurabachi/images/f/f7/Ikuto_Hagiwara_Portrait.png/revision/latest?cb=20231206044607" width="25%">
+</div>
+
+## Origin
+
+Jikai started as a Singapore Tort practice tool after the December 2024 finals season, when I wanted more hypotheticals than the assigned practice set. The project is now being reframed as reusable common-law exam-question infrastructure.
+
+<div align="center">
+    <br>
+    <img src="./asset/reference/poll.png" width="50%">
+    <br><br>
 </div>
 
 ## Research
