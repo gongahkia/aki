@@ -231,6 +231,21 @@ class Settings(BaseSettings):
         default=None, env="RETRIEVAL_RERANKER_MODEL"
     )
     validation_use_llm: bool = Field(default=False, env="VALIDATION_USE_LLM")
+    ml_gate_threshold: float = Field(default=0.4, env="ML_GATE_THRESHOLD")
+    ml_gate_blocking: bool = Field(default=True, env="ML_GATE_BLOCKING")
+    nli_verifier_enabled: bool = Field(default=True, env="NLI_VERIFIER_ENABLED")
+    nli_verifier_model: str = Field(
+        default="cross-encoder/nli-deberta-v3-base", env="NLI_VERIFIER_MODEL"
+    )
+    faithfulness_min_score: float = Field(default=0.7, env="FAITHFULNESS_MIN_SCORE")
+    citation_min_accuracy: float = Field(default=0.6, env="CITATION_MIN_ACCURACY")
+    refine_max_iterations: int = Field(default=2, env="REFINE_MAX_ITERATIONS")
+    structured_generation_enabled: bool = Field(
+        default=True, env="STRUCTURED_GENERATION_ENABLED"
+    )
+    refine_trace_dir: str = Field(
+        default="data/generated/refine_traces", env="REFINE_TRACE_DIR"
+    )
 
     # Sub-configurations
     database: DatabaseSettings = DatabaseSettings()

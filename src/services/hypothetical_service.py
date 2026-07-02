@@ -371,6 +371,37 @@ class HypotheticalService:
         )
 
     @staticmethod
+    def _build_ml_gate_retry_request(
+        request: GenerationRequest, ml_gate_report: Dict[str, Any]
+    ) -> GenerationRequest:
+        """Compose a retry request with a topic-specific critique from the ML gate."""
+        per_topic = ml_gate_report.get("per_topic", {}) or {}
+        threshold = float(ml_gate_report.get("threshold", 0.4))
+        weak = [t for t, conf in per_topic.items() if float(conf) < threshold]
+        if not weak and request.topics:
+            weak = list(request.topics)
+        feedback_reasons = [
+            "The prior draft did not confidently cover the requested topics.",
+            "Increase explicit doctrinal treatment for: " + ", ".join(weak) + ".",
+            "Name the legal issue, apply the rule to the facts, and reach a reasoned conclusion for each topic.",
+        ]
+        feedback_message = " ".join(feedback_reasons).strip()
+        preferences = dict(request.user_preferences or {})
+        existing_feedback = str(preferences.get("feedback", "")).strip()
+        preferences["feedback"] = (
+            f"{existing_feedback} {feedback_message}".strip()
+            if existing_feedback
+            else feedback_message
+        )
+        return request.model_copy(
+            update={
+                "retry_attempt": max(1, int(request.retry_attempt) + 1),
+                "retry_reason": "ml_gate",
+                "user_preferences": preferences,
+            }
+        )
+
+    @staticmethod
     def _cache_key(request: GenerationRequest) -> str:
         payload = {
             "topics": sorted(request.topics),
@@ -566,6 +597,41 @@ class HypotheticalService:
             # Step 2.5: ML-assisted post-processing
             if request.method in ("ml_assisted", "hybrid"):
                 hypothetical = await self._ml_post_process(request, hypothetical)
+            # Step 2.6: Blocking ML gate — if the drafted hypothetical does not
+            # confidently cover the requested topics, regenerate once with a
+            # topic-specific critique. See src/ml/pipeline.py::gate_confidence.
+            ml_gate_report: Dict[str, Any] = {}
+            if (
+                getattr(settings, "ml_gate_blocking", True)
+                and request.method in ("ml_assisted", "hybrid")
+                and int(getattr(request, "retry_attempt", 0)) == 0
+            ):
+                ml_gate_report = self._ml_gate_check(request, hypothetical)
+                if not ml_gate_report.get("passed", True):
+                    gated_request = self._build_ml_gate_retry_request(
+                        request, ml_gate_report
+                    )
+                    try:
+                        gated_hypothetical = await self._generate_hypothetical_text(
+                            gated_request, context_entries
+                        )
+                        gated_hypothetical = await self._ml_post_process(
+                            gated_request, gated_hypothetical
+                        )
+                        second_pass = self._ml_gate_check(
+                            gated_request, gated_hypothetical
+                        )
+                        # Adopt retry output regardless — the report will show
+                        # whether the second pass met the threshold.
+                        request = gated_request
+                        hypothetical = gated_hypothetical
+                        ml_gate_report = second_pass
+                    except Exception as gate_error:
+                        logger.warning(
+                            "ML-gate retry failed",
+                            error=str(gate_error),
+                            correlation_id=request.correlation_id,
+                        )
             generation_time_ms = round(
                 (time.perf_counter() - generation_started) * 1000, 2
             )
@@ -688,6 +754,7 @@ class HypotheticalService:
                     "latency_metrics": latency_metrics,
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
+                    "ml_gate": ml_gate_report,
                 },
                 generation_time=generation_time,
                 validation_results=validation_results.dict(),
@@ -779,6 +846,67 @@ class HypotheticalService:
         except Exception as e:
             logger.warning("ML post-processing failed (non-fatal)", error=str(e))
         return hypothetical
+
+    def _ml_gate_check(
+        self, request: GenerationRequest, hypothetical: str
+    ) -> dict[str, Any]:
+        """Blocking ML gate: verify the drafted hypothetical actually covers the requested topics.
+
+        Returns a report consumed by the refine loop. The gate is *blocking*
+        only when the ML pipeline is available and the requested topics are
+        non-empty; otherwise it degrades gracefully to ``passed=True``.
+
+        Threshold source (in order of precedence):
+        1. ``request.user_preferences.ml_gate_threshold``
+        2. ``settings.ml_gate_threshold`` if defined
+        3. Default 0.4
+        """
+        pipeline = self._get_ml_pipeline()
+        if not pipeline:
+            return {"passed": True, "reason": "ml_unavailable", "per_topic": {}}
+        try:
+            trained = pipeline.classifier.is_trained or bool(
+                getattr(pipeline, "setfit_classifier", None)
+                and pipeline.setfit_classifier.is_trained
+            )
+        except Exception:
+            trained = pipeline.classifier.is_trained
+        if not trained:
+            return {"passed": True, "reason": "ml_untrained", "per_topic": {}}
+        requested = list(request.topics or [])
+        if not requested:
+            return {"passed": True, "reason": "no_topics_requested", "per_topic": {}}
+        prefs = getattr(request, "user_preferences", None) or {}
+        override = None
+        if isinstance(prefs, dict):
+            override = prefs.get("ml_gate_threshold")
+        threshold = float(
+            override
+            if override is not None
+            else getattr(settings, "ml_gate_threshold", 0.4)
+        )
+        try:
+            report = pipeline.gate_confidence(hypothetical, requested)
+        except Exception as exc:
+            logger.warning("ML gate confidence call failed", error=str(exc))
+            return {
+                "passed": True,
+                "reason": "gate_failed_open",
+                "error": str(exc),
+                "per_topic": {},
+            }
+        min_conf = float(report.get("min_confidence", 0.0))
+        passed = min_conf >= threshold
+        report.update({"passed": passed, "threshold": threshold})
+        if not passed:
+            logger.warning(
+                "ML gate blocked draft",
+                requested=requested,
+                min_confidence=min_conf,
+                threshold=threshold,
+                backend=report.get("backend"),
+            )
+        return report
 
     async def _get_relevant_context(
         self, request: GenerationRequest

@@ -62,8 +62,34 @@
       "access": "public_web",
       "terms_url": null,
       "notes": "Existing scraper source used by SG scraping code."
+    },
+    {
+      "name": "SAL Journals Online (Annual Review of Singapore Cases, Tort chapters 2014-2024)",
+      "url": "https://journalsonline.academypublishing.org.sg",
+      "source_format": "pdf",
+      "access": "public_web",
+      "terms_url": "https://sal.org.sg/research/",
+      "notes": "Open-access SAL publications. Used for eval set doctrinal framing (corpus/eval/sg_tort_v1.jsonl). Full text not committed; only case selections and doctrinal keywords."
+    },
+    {
+      "name": "Singapore Law Watch Ch. 20 Law of Negligence",
+      "url": "https://www.singaporelawwatch.sg/About-Singapore-Law/Commercial-Law/ch-20-the-law-of-negligence",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": null,
+      "notes": "SAL's official negligence commentary; open access. Used to source authorities and headnotes in corpus/packs/sg_tort/authorities.json."
+    },
+    {
+      "name": "eLitigation.sg",
+      "url": "https://www.elitigation.sg",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": null,
+      "notes": "Official SG case-law portal. Used for citation grounding via case identifiers only; no full text redistributed."
     }
   ],
+  "authorities_path": "corpus/packs/sg_tort/authorities.json",
+  "eval_dataset_path": "corpus/eval/sg_tort_v1.jsonl",
   "license": {
     "name": "repository_fixture",
     "url": null,
