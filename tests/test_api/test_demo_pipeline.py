@@ -7,23 +7,32 @@ def test_generation_page_serves_public_demo_shell():
     client = TestClient(create_app())
 
     response = client.get("/demo")
+    script = client.get("/demo/static/app.js")
+    css = client.get("/demo/static/app.css")
 
     assert response.status_code == 200
-    assert "Jikai Practice" in response.text
-    assert "/workflow/generate" in response.text
+    assert "Ask for a Singapore tort hypothetical" in response.text
+    assert "/demo/static/app.css" in response.text
+    assert "/demo/static/app.js" in response.text
     assert "Load sample" in response.text
-    assert "Question setup" in response.text
-    assert "server-side provider" in response.text
+    assert "Local run history" in response.text
+    assert script.status_code == 200
+    assert "indexedDB.open" in script.text
+    assert "/workflow/generate" in script.text
+    assert "/demo/pipeline/trace" in script.text
+    assert css.status_code == 200
+    assert ".trace-panel" in css.text
+    assert ".factory-line" in css.text
+    assert "crate-run" in css.text
 
 
-def test_pipeline_page_serves_visual_shell():
+def test_pipeline_page_redirects_to_chat_shell():
     client = TestClient(create_app())
 
-    response = client.get("/demo/pipeline")
+    response = client.get("/demo/pipeline", follow_redirects=False)
 
-    assert response.status_code == 200
-    assert "Jikai Trace" in response.text
-    assert "/demo/pipeline/trace" in response.text
+    assert response.status_code == 307
+    assert response.headers["location"] == "/demo"
 
 
 def test_pipeline_trace_endpoint_returns_stage_json():

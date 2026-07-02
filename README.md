@@ -100,6 +100,20 @@ The shortened fixture below shows the shape of one SG Tort run. It is documentat
 * *Study workflow outputs*: model answers, generation reports, batch generation, DOCX/PDF export, and Anki TSV export.
 * *Usable surfaces*: FastAPI REST endpoints, async jobs, and a Rust TUI for power users.
 
+## How To Read This Repo
+
+Jikai now separates product UI from backend orchestration.
+
+| Area | Path | Audience |
+|------|------|----------|
+| Browser frontend | `frontend/demo/` | students, educators, HN/portfolio reviewers |
+| FastAPI backend | `src/api/` | API users, deployers |
+| Generation pipeline | `src/services/`, `src/ml/`, `src/domain/` | legal-tech builders, maintainers |
+| Corpus and eval docs | `docs/`, `corpus/`, `src/evals/` | contributors, researchers |
+| Rust TUI | `tui/` | terminal-first power users |
+
+Product-surface guidance lives in [`docs/product-surfaces.md`](docs/product-surfaces.md). The short version: lead with `/demo`, show trust and traceability inside the chat run, treat the REST API as the builder surface, and keep the TUI as a power-user surface rather than the first-run experience.
+
 ## Stack
 
 * *Backend/API*: [Python 3.12+](https://www.python.org/), [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/), [Pydantic](https://docs.pydantic.dev/), [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)

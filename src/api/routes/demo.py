@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-from .. import demo_ui
+from ..frontend import demo_page_path
 from ...services.hypothetical_service import GenerationRequest
 from ...services.pipeline_trace_service import (
     default_pipeline_trace_request,
@@ -39,18 +39,18 @@ def _topics_from_query(raw_topics: str) -> List[str]:
 
 
 @router.get("/pipeline", response_class=HTMLResponse)
-async def pipeline_page() -> HTMLResponse:
-    return HTMLResponse(demo_ui.PIPELINE_PAGE_HTML)
+async def pipeline_page() -> RedirectResponse:
+    return RedirectResponse(url="/demo", status_code=307)
 
 
 @router.get("", response_class=HTMLResponse)
-async def generation_page() -> HTMLResponse:
-    return HTMLResponse(demo_ui.GENERATION_PAGE_HTML)
+async def generation_page() -> FileResponse:
+    return FileResponse(demo_page_path("index.html"))
 
 
 @router.get("/generate", response_class=HTMLResponse)
-async def generation_page_alias() -> HTMLResponse:
-    return HTMLResponse(demo_ui.GENERATION_PAGE_HTML)
+async def generation_page_alias() -> FileResponse:
+    return FileResponse(demo_page_path("index.html"))
 
 
 @router.get("/pipeline/trace")

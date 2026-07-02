@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Jikai</title>
+  <link rel="stylesheet" href="/demo/static/app.css">
+</head>
+<body>
+  <div class="storage-modal" id="storage-modal" role="dialog" aria-modal="true" aria-labelledby="storage-title">
+    <div class="storage-card">
+      <h2 id="storage-title">Local run history</h2>
+      <p>Jikai stores user-created generation runs in this browser's IndexedDB, including prompts, retrieved trace data, generated answers, and failures. Records are compressed when the browser supports it.</p>
+      <p>Do not enter privileged, personal, or exam-confidential facts. Clearing site data removes this local history.</p>
+      <button id="storage-accept" type="button">Continue</button>
+    </div>
+  </div>
+  <div class="app">
+    <aside class="sidebar" aria-label="workspace">
+      <div class="brand-row">
+        <div class="mark">J</div>
+        <button class="icon-btn" id="new-run" type="button" title="New chat">+</button>
+      </div>
+      <div>
+        <div class="side-section">Runs</div>
+        <div class="history" id="history-list">
+          <div class="history-empty">No saved runs yet.</div>
+        </div>
+      </div>
+    </aside>
+    <section class="shell">
+      <header class="topbar">
+        <div class="top-actions">
+          <button class="status-icon" id="top-status" type="button" aria-label="Status" title="Status">i</button>
+        </div>
+      </header>
+      <main class="main">
+        <section class="hero" id="hero">
+          <div class="hero-inner">
+            <h1>jikai</h1>
+            <form class="composer" id="hero-form">
+              <textarea class="prompt" id="prompt" placeholder="Ask for a Singapore tort hypothetical...">Generate an exam-style SG tort hypothetical on negligence and causation.</textarea>
+              <div class="composer-row">
+                <div class="tool-row">
+                  <button class="round-tool" id="clear-prompt" type="button" title="Clear prompt">+</button>
+                </div>
+                <div class="submit-row">
+                  <button class="sample" id="sample" type="button">Load sample</button>
+                  <button class="send" type="submit">Generate</button>
+                </div>
+              </div>
+            </form>
+            <div class="fine-print">Jikai shows retrieval, validation, and status detail inside the chat. Do not enter sensitive facts.</div>
+          </div>
+        </section>
+        <section class="conversation hidden" id="conversation">
+          <div class="messages" id="messages"></div>
+          <form class="composer compact" id="chat-form">
+            <textarea class="prompt" id="chat-prompt" placeholder="Ask another SG tort question..."></textarea>
+            <div class="composer-row">
+              <div class="tool-row"></div>
+              <div class="submit-row">
+                <button class="sample" id="chat-sample" type="button">Load sample</button>
+                <button class="send" type="submit">Generate</button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </main>
+    </section>
+  </div>
+  <script src="/demo/static/app.js" defer></script>
+</body>
+</html>
