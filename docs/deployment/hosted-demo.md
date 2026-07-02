@@ -31,7 +31,8 @@ Use the existing Dockerized FastAPI service on Render first. `render.yaml` targe
 5. Deploy.
 6. Verify `/health`.
 7. Verify `/demo` can generate an SG Tort hypothetical with model answer.
-8. Replace any placeholder URL in README with the live public `/demo` URL.
+8. Run `python3 script/validate_hosted_demo.py https://YOUR_HOST --generate`.
+9. Replace any placeholder URL in README with the live public `/demo` URL.
 
 ## Local Container Smoke
 
@@ -39,6 +40,7 @@ Use the existing Dockerized FastAPI service on Render first. `render.yaml` targe
 $ docker build -t jikai-demo .
 $ docker run --rm -p 8000:8000 -e PORT=8000 -e ENVIRONMENT=production -e API_DEBUG=false -e API_RATE_LIMIT=30 -e OPENAI_API_KEY="$OPENAI_API_KEY" jikai-demo
 $ curl -sf http://127.0.0.1:8000/health | python3 -m json.tool
+$ python3 script/validate_hosted_demo.py http://127.0.0.1:8000
 ```
 
 ## Abuse Controls
