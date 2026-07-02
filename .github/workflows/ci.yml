@@ -72,3 +72,29 @@ jobs:
           cache: pip
       - run: pip install bandit
       - run: bandit -r src/ -ll -ii --skip B101
+
+  benchmarks-dry-run:
+    name: Benchmarks Dry Run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+      - run: pip install -r requirements.txt
+      - name: Run dry-run benchmark
+        run: python3 script/run_jikai_eval.py --dry-run --providers ollama
+      - name: Validate benchmark schema
+        run: jq -e '.schema_version == "jikai.results.v1"' docs/evals/results_v1.json
+      - name: Upload dry-run results
+        uses: actions/upload-artifact@v4
+        with:
+          name: jikai-benchmarks-dry-run
+          path: |
+            docs/evals/results_v1.json
+            docs/evals/leaderboard.md

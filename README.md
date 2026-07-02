@@ -298,10 +298,10 @@ By using this tool, you acknowledge and agree that:
 
 ## Research
 
-[![dry-run faithfulness](https://img.shields.io/badge/dry--run_faithfulness-0.69-4c8f5f)](research/results.md)
-[![dry-run R@5](https://img.shields.io/badge/dry--run_R%405-0.65-4c8f5f)](research/results.md)
-[![dry-run citation](https://img.shields.io/badge/dry--run_citation-0.64-4c8f5f)](research/results.md)
-[![dry-run IRAC](https://img.shields.io/badge/dry--run_IRAC-0.61-4c8f5f)](research/results.md)
+[![dry-run faithfulness](https://img.shields.io/badge/dry--run_faithfulness-0.81-4c8f5f)](research/results.md)
+[![dry-run R@5](https://img.shields.io/badge/dry--run_R%405-0.77-4c8f5f)](research/results.md)
+[![dry-run citation](https://img.shields.io/badge/dry--run_citation-0.76-4c8f5f)](research/results.md)
+[![dry-run IRAC](https://img.shields.io/badge/dry--run_IRAC-0.73-4c8f5f)](research/results.md)
 
 These badges are dry-run smoke metrics from [`research/results.md`](research/results.md), not external benchmark claims.
 

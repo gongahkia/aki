@@ -4,7 +4,7 @@
 
 Jikai is a staged SG tort hypothetical generator: retrieval and ML topic gating prepare the problem, structured LLM generation drafts the hypothetical and IRAC answer, then enabled validators check topic coverage, faithfulness, and citation grounding.
 
-The current benchmark artifacts are dry-run smoke outputs, not external benchmark claims. The strongest recorded dry-run signal is the `+all` ablation at `0.78` RAGAS-style faithfulness, sourced from [`docs/evals/ablations_v1.json`](../docs/evals/ablations_v1.json) and summarized in [`results.md`](results.md).
+The current benchmark artifacts are dry-run smoke outputs, not external benchmark claims. The strongest recorded dry-run signal is `ollama` + `hybrid` + `refine` at `0.81` RAGAS-style faithfulness, sourced from [`docs/evals/results_v1.json`](../docs/evals/results_v1.json) and summarized in [`results.md`](results.md).
 
 ## Research Map
 
