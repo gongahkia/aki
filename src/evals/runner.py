@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,6 +23,7 @@ from .models import (
 from .tasks import TASKS
 
 DATASETS_DIR = Path(__file__).parent / "datasets"
+CORPUS_EVAL_DIR = Path(__file__).resolve().parents[2] / "corpus" / "eval"
 
 
 def resolve_dataset_path(dataset: str) -> Path:
@@ -29,10 +31,15 @@ def resolve_dataset_path(dataset: str) -> Path:
     candidates = [raw_path]
     if not raw_path.suffix:
         candidates.append(raw_path.with_suffix(".yaml"))
+        candidates.append(raw_path.with_suffix(".jsonl"))
     candidates.extend(
         [
             DATASETS_DIR / dataset,
             DATASETS_DIR / raw_path.with_suffix(".yaml").name,
+            DATASETS_DIR / raw_path.with_suffix(".jsonl").name,
+            CORPUS_EVAL_DIR / dataset,
+            CORPUS_EVAL_DIR / raw_path.with_suffix(".yaml").name,
+            CORPUS_EVAL_DIR / raw_path.with_suffix(".jsonl").name,
         ]
     )
     for candidate in candidates:
@@ -43,6 +50,15 @@ def resolve_dataset_path(dataset: str) -> Path:
 
 def load_dataset(dataset: str) -> list[EvalCase]:
     path = resolve_dataset_path(dataset)
+    if path.suffix == ".jsonl":
+        cases: list[EvalCase] = []
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                cases.append(EvalCase.model_validate(json.loads(line)))
+        return cases
     payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     cases = payload.get("cases")
     if not isinstance(cases, list):

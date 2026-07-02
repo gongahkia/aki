@@ -67,106 +67,6 @@ installed.
 
 ---
 
-## Task 12 — JSONL loader + jikai_eval_v1 task (upgrade #4b)
-
-**Goal.** Make `src/evals/runner.py` load `corpus/eval/sg_tort_v1.jsonl`
-and add a `jikai_eval_v1` task in `src/evals/tasks.py` that runs the full
-generation pipeline (retrieval + generation + validation + faithfulness +
-citation) and populates `case.metadata` for the new evaluators.
-
-### Files to edit
-
-- **EDIT** `src/evals/runner.py::resolve_dataset_path` and `load_dataset` —
-  accept `.jsonl`. For JSONL, iterate lines with `json.loads`; for YAML keep
-  existing path.
-- **EDIT** `src/evals/tasks.py` — add `jikai_eval_v1_task`.
-- **EDIT** `src/evals/tasks.py::TASKS` — register.
-- **NEW** `tests/test_evals/test_jikai_eval_v1.py`.
-
-### Loader patch
-
-```python
-def load_dataset(dataset: str) -> list[EvalCase]:
-    path = resolve_dataset_path(dataset)
-    if path.suffix == ".jsonl":
-        cases = []
-        with path.open(encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                cases.append(EvalCase.model_validate(json.loads(line)))
-        return cases
-    # existing YAML path
-    ...
-```
-
-Also extend `resolve_dataset_path` candidates with `.jsonl` and search
-`corpus/eval/` as a candidate root.
-
-### `jikai_eval_v1_task`
-
-```python
-async def jikai_eval_v1_task(case: EvalCase) -> str:
-    from src.services.corpus_service import corpus_service
-    from src.services.vector_service import vector_service
-    from src.services.hypothetical_service import hypothetical_service
-    from src.services.verification.nli_verifier import nli_verifier
-    from src.services.verification.citation_verifier import citation_verifier
-    from src.services.llm_service import llm_service
-
-    topics = _topics(case)
-    query = str(case.inputs.get("query", " ".join(topics)))
-
-    # 1. retrieval
-    retrieved = await vector_service.hybrid_search(
-        query=query,
-        corpus_pack=case.metadata.get("corpus_pack", "sg_tort"),
-        n_results=int(case.inputs.get("top_k", 5)),
-    )
-    case.metadata["retrieved_ids"] = [r.get("id") for r in retrieved if r.get("id")]
-
-    # 2. generation
-    async with _HYPO_GENERATOR_LOCK:
-        result = await hypothetical_service.generate_hypothetical(
-            _build_request_from_case(case)
-        )
-    case.metadata["model_answer"] = (result.model_answer.model_dump()
-                                     if getattr(result, "model_answer", None) else None)
-
-    # 3. NLI faithfulness
-    contexts = [{"corpus_id": r.get("id",""), "text": r.get("text","")} for r in retrieved]
-    claims = await nli_verifier.extract_claims(result.hypothetical, llm_service)
-    case.metadata["faithfulness_report"] = nli_verifier.verify(claims, contexts).model_dump()
-
-    # 4. citation
-    if result.model_answer:
-        case.metadata["citation_report"] = (
-            await citation_verifier.verify_model_answer(result.model_answer)
-        ).model_dump()
-
-    return result.hypothetical
-```
-
-Add `TASKS["jikai_eval_v1"] = jikai_eval_v1_task`.
-
-### Verification
-
-```
-pytest -q tests/test_evals/test_jikai_eval_v1.py
-python -m src.evals.run --workflow jikai_eval_v1 --dataset corpus/eval/sg_tort_v1.jsonl \
-  --evaluator retrieval_recall_at_k --evaluator retrieval_mrr \
-  --evaluator ragas_faithfulness --evaluator citation_accuracy \
-  --evaluator hallucination_profile --evaluator irac_completeness \
-  --output docs/evals/results_v1.json
-```
-
-### Dependencies
-
-- Tasks 7, 8, 9, 10, 11.
-
----
-
 ## Task 13 — Benchmark runner + ablation script (upgrade #4c)
 
 **Goal.** Two CLI scripts that produce publishable numbers.
@@ -251,8 +151,8 @@ the pipeline exercises without cost.
 
 ### Dependencies
 
-- Task 12 (needs the `jikai_eval_v1` task registered and the JSONL loader).
-- Tasks 7–11 (metrics have to be real).
+- `jikai_eval_v1` task registered and JSONL loader available.
+- Metrics from structured generation, verifiers, refine loop, and evaluators.
 
 ---
 
@@ -341,10 +241,9 @@ print(d['runs'][0]['metrics']['ragas_faithfulness'])"
 
 ## Build order (for the agent)
 
-1. **Task 12** — JSONL loader + `jikai_eval_v1` task.
-2. **Task 13** — benchmark runner + ablation script.
-3. **Task 14** — research writeup + README rewrite.
-4. **CI/reqs** — cross-cutting; last (after real deps are settled).
+1. **Task 13** — benchmark runner + ablation script.
+2. **Task 14** — research writeup + README rewrite.
+3. **CI/reqs** — cross-cutting; last (after real deps are settled).
 
 Each task's `Verification` section is intentionally executable. When a task's
 verification fails, do not proceed to the next task.
