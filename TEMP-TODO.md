@@ -67,117 +67,6 @@ installed.
 
 ---
 
-## Task 11 — Extend evaluators (upgrade #4a)
-
-**Goal.** Add 7 new evaluators to `src/evals/evaluators.py`. Keep existing
-evaluators (`contains`, `has_citation`, `min_length`, `is_string`,
-`has_sg_citation`, `cites_sg_statute`, `uses_sal_style`,
-`tort_element_coverage`) unchanged.
-
-### New evaluators to add
-
-Every new evaluator lives in `src/evals/evaluators.py` and is registered in
-the `EVALUATORS` dict at the bottom of that file. Each subclasses
-`BaseEvaluator` and implements `async def evaluate(ctx: EvaluatorContext) -> EvaluatorResult`.
-
-1. `RetrievalRecallAtK` — name = `"retrieval_recall_at_k"`.
-   - `ctx.case.expected_output["relevant_corpus_ids"]` = gold list
-   - `ctx.case.metadata["retrieved_ids"]` (populated by task runner) = top-k retrieved
-   - `k = ctx.case.expected_output.get("recall_k", 5)`
-   - score = `|gold ∩ top_k| / |gold|`
-
-2. `RetrievalMRR` — name = `"retrieval_mrr"`.
-   - Reciprocal rank of first gold id in retrieved list, or 0 if none.
-
-3. `RetrievalNDCG` — name = `"retrieval_ndcg"`.
-   - Binary relevance: `rel[i] = 1 if retrieved[i] in gold else 0`
-   - `DCG = Σ rel[i] / log2(i+2)` for i in [0, k)
-   - `IDCG` = same formula with `min(k, len(gold))` ones at the top
-   - `nDCG = DCG / IDCG` (0.0 if IDCG == 0)
-
-4. `RAGASFaithfulness` — name = `"ragas_faithfulness"`.
-   - Consumes `ctx.case.metadata["faithfulness_report"]` (populated by the
-     runner via the NLI verifier).
-   - `score = faithfulness_score` from the report; passed at ≥ 0.7.
-
-5. `CitationAccuracy` — name = `"citation_accuracy"`.
-   - Consumes `ctx.case.metadata["citation_report"]`.
-   - `score = citation_accuracy`; passed at ≥ 0.6.
-
-6. `HallucinationProfile` — name = `"hallucination_profile"`.
-   - Dahl-style: from the faithfulness report, compute
-     `unverifiable_fraction = unverifiable / total_claims`. Score is
-     `1.0 - unverifiable_fraction`. Passed at ≥ 0.7.
-
-7. `IRACCompleteness` — name = `"irac_completeness"`.
-   - Consumes `ctx.case.metadata["model_answer"]` (structured `ModelAnswer`
-     dict).
-   - `score = fraction of steps that have non-empty issue+rule+application+
-     conclusion AND at least one citation`. Passed at ≥ 0.8.
-
-### Reference code excerpt
-
-```python
-class RetrievalRecallAtK(BaseEvaluator):
-    name = "retrieval_recall_at_k"
-
-    async def evaluate(self, ctx: EvaluatorContext) -> EvaluatorResult:
-        gold = set(ctx.case.expected_output.get("relevant_corpus_ids", []))
-        retrieved = list(ctx.case.metadata.get("retrieved_ids", []))
-        k = int(ctx.case.expected_output.get("recall_k", 5))
-        if not gold:
-            return self.result(1.0, details={"reason": "no_gold"})
-        top_k = retrieved[:k]
-        hit = len(gold & set(top_k))
-        return self.result(
-            hit / len(gold),
-            details={"k": k, "hit": hit, "gold_size": len(gold),
-                     "retrieved_top_k": top_k},
-        )
-```
-
-### Register + export
-
-At the bottom of `src/evals/evaluators.py`:
-
-```python
-EVALUATORS.update({
-    "retrieval_recall_at_k": RetrievalRecallAtK(),
-    "retrieval_mrr": RetrievalMRR(),
-    "retrieval_ndcg": RetrievalNDCG(),
-    "ragas_faithfulness": RAGASFaithfulness(),
-    "citation_accuracy": CitationAccuracy(),
-    "hallucination_profile": HallucinationProfile(),
-    "irac_completeness": IRACCompleteness(),
-})
-__all__ = list(EVALUATORS.keys()) + ["BaseEvaluator", "EvaluatorContext"]
-```
-
-### Runner side-channel
-
-The evaluator loop in `src/evals/runner.py` currently only sees
-`(case, output)`. To feed retrieval/faithfulness/citation info into evaluators,
-extend `_run_case` to populate `case.metadata` **in place** before evaluators
-run, based on task-produced side-channel data. The task functions in `tasks.py`
-should be extended (task 12 below) to attach these to `case.metadata` when the
-task type is `jikai_eval_v1`.
-
-### Verification
-
-```
-pytest -q tests/test_evals/
-```
-
-Add fixture cases in `tests/test_evals/test_evaluators_new.py` that provide
-canned retrieved_ids / faithfulness_report / citation_report and assert
-expected scores.
-
-### Dependencies
-
-- Tasks 8, 9 for the runtime hooks that populate metadata.
-
----
-
 ## Task 12 — JSONL loader + jikai_eval_v1 task (upgrade #4b)
 
 **Goal.** Make `src/evals/runner.py` load `corpus/eval/sg_tort_v1.jsonl`
@@ -452,11 +341,10 @@ print(d['runs'][0]['metrics']['ragas_faithfulness'])"
 
 ## Build order (for the agent)
 
-1. **Task 11** — extend evaluators.
-2. **Task 12** — JSONL loader + `jikai_eval_v1` task.
-3. **Task 13** — benchmark runner + ablation script.
-4. **Task 14** — research writeup + README rewrite.
-5. **CI/reqs** — cross-cutting; last (after real deps are settled).
+1. **Task 12** — JSONL loader + `jikai_eval_v1` task.
+2. **Task 13** — benchmark runner + ablation script.
+3. **Task 14** — research writeup + README rewrite.
+4. **CI/reqs** — cross-cutting; last (after real deps are settled).
 
 Each task's `Verification` section is intentionally executable. When a task's
 verification fails, do not proceed to the next task.
