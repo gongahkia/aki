@@ -47,6 +47,7 @@ Use one of these alternatives for the first pilot:
 - Randomize A/B order per packet.
 - Recruit at least three eligible raters.
 - Collect ratings using `blind-eval-rater-sheet.csv`.
+- Summarize completed ratings with `python3 script/summarize_blind_eval_results.py docs/evals/blind-eval-rater-sheet.csv --manifest docs/evals/blind-eval-sample-manifest.json --output docs/evals/blind-eval-summary.json --markdown docs/evals/blind-eval-summary.md --require-publishable`.
 - Publish aggregate results, failure modes, and claim limits.
 
 ## Blocker
