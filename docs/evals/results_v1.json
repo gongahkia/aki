@@ -1,0 +1,54 @@
+{
+  "schema_version": "jikai.results.v1",
+  "generated_at": "2026-07-02T06:18:50.286811Z",
+  "corpus_pack": "sg_tort",
+  "eval_dataset": "corpus/eval/sg_tort_v1.jsonl",
+  "dry_run": true,
+  "runs": [
+    {
+      "provider": "ollama",
+      "retrieval": "hybrid",
+      "backend": "baseline",
+      "n_cases": 50,
+      "metrics": {
+        "retrieval_recall_at_k": 0.65,
+        "retrieval_mrr": 0.53,
+        "retrieval_ndcg": 0.57,
+        "ragas_faithfulness": 0.69,
+        "citation_accuracy": 0.64,
+        "hallucination_profile": 0.73,
+        "irac_completeness": 0.61
+      }
+    },
+    {
+      "provider": "ollama",
+      "retrieval": "dense",
+      "backend": "baseline",
+      "n_cases": 50,
+      "metrics": {
+        "retrieval_recall_at_k": 0.61,
+        "retrieval_mrr": 0.49,
+        "retrieval_ndcg": 0.53,
+        "ragas_faithfulness": 0.65,
+        "citation_accuracy": 0.6,
+        "hallucination_profile": 0.69,
+        "irac_completeness": 0.57
+      }
+    },
+    {
+      "provider": "ollama",
+      "retrieval": "bm25",
+      "backend": "baseline",
+      "n_cases": 50,
+      "metrics": {
+        "retrieval_recall_at_k": 0.58,
+        "retrieval_mrr": 0.46,
+        "retrieval_ndcg": 0.5,
+        "ragas_faithfulness": 0.62,
+        "citation_accuracy": 0.57,
+        "hallucination_profile": 0.66,
+        "irac_completeness": 0.54
+      }
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "schema_version": "jikai.ablations.v1",
+  "generated_at": "2026-07-02T06:17:58.576046Z",
+  "provider": "ollama",
+  "retrieval": "hybrid",
+  "eval_dataset": "corpus/eval/sg_tort_v1.jsonl",
+  "n_cases": 50,
+  "dry_run": true,
+  "scenarios": [
+    {
+      "name": "baseline",
+      "metrics": {
+        "retrieval_recall_at_k": 0.58,
+        "retrieval_mrr": 0.46,
+        "retrieval_ndcg": 0.5,
+        "ragas_faithfulness": 0.62,
+        "citation_accuracy": 0.57,
+        "hallucination_profile": 0.66,
+        "irac_completeness": 0.54
+      },
+      "delta_vs_baseline": {
+        "retrieval_recall_at_k": 0.0,
+        "retrieval_mrr": 0.0,
+        "retrieval_ndcg": 0.0,
+        "ragas_faithfulness": 0.0,
+        "citation_accuracy": 0.0,
+        "hallucination_profile": 0.0,
+        "irac_completeness": 0.0
+      }
+    },
+    {
+      "name": "+structured",
+      "metrics": {
+        "retrieval_recall_at_k": 0.64,
+        "retrieval_mrr": 0.52,
+        "retrieval_ndcg": 0.56,
+        "ragas_faithfulness": 0.68,
+        "citation_accuracy": 0.63,
+        "hallucination_profile": 0.72,
+        "irac_completeness": 0.6
+      },
+      "delta_vs_baseline": {
+        "retrieval_recall_at_k": 0.06,
+        "retrieval_mrr": 0.06,
+        "retrieval_ndcg": 0.06,
+        "ragas_faithfulness": 0.06,
+        "citation_accuracy": 0.06,
+        "hallucination_profile": 0.06,
+        "irac_completeness": 0.06
+      }
+    },
+    {
+      "name": "+refine",
+      "metrics": {
+        "retrieval_recall_at_k": 0.69,
+        "retrieval_mrr": 0.57,
+        "retrieval_ndcg": 0.61,
+        "ragas_faithfulness": 0.73,
+        "citation_accuracy": 0.68,
+        "hallucination_profile": 0.77,
+        "irac_completeness": 0.65
+      },
+      "delta_vs_baseline": {
+        "retrieval_recall_at_k": 0.11,
+        "retrieval_mrr": 0.11,
+        "retrieval_ndcg": 0.11,
+        "ragas_faithfulness": 0.11,
+        "citation_accuracy": 0.11,
+        "hallucination_profile": 0.11,
+        "irac_completeness": 0.11
+      }
+    },
+    {
+      "name": "+setfit",
+      "metrics": {
+        "retrieval_recall_at_k": 0.63,
+        "retrieval_mrr": 0.51,
+        "retrieval_ndcg": 0.55,
+        "ragas_faithfulness": 0.67,
+        "citation_accuracy": 0.62,
+        "hallucination_profile": 0.71,
+        "irac_completeness": 0.59
+      },
+      "delta_vs_baseline": {
+        "retrieval_recall_at_k": 0.05,
+        "retrieval_mrr": 0.05,
+        "retrieval_ndcg": 0.05,
+        "ragas_faithfulness": 0.05,
+        "citation_accuracy": 0.05,
+        "hallucination_profile": 0.05,
+        "irac_completeness": 0.05
+      }
+    },
+    {
+      "name": "+all",
+      "metrics": {
+        "retrieval_recall_at_k": 0.74,
+        "retrieval_mrr": 0.62,
+        "retrieval_ndcg": 0.66,
+        "ragas_faithfulness": 0.78,
+        "citation_accuracy": 0.73,
+        "hallucination_profile": 0.82,
+        "irac_completeness": 0.7
+      },
+      "delta_vs_baseline": {
+        "retrieval_recall_at_k": 0.16,
+        "retrieval_mrr": 0.16,
+        "retrieval_ndcg": 0.16,
+        "ragas_faithfulness": 0.16,
+        "citation_accuracy": 0.16,
+        "hallucination_profile": 0.16,
+        "irac_completeness": 0.16
+      }
+    }
+  ]
+}

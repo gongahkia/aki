@@ -171,6 +171,7 @@ async def sg_factual_reasoning_task(case: EvalCase) -> str:
 
 
 async def jikai_eval_v1_task(case: EvalCase) -> str:
+    from src.config import settings
     from src.services.corpus_service import corpus_service
     from src.services.hypothetical_service import hypothetical_service
     from src.services.llm_service import llm_service
@@ -186,15 +187,42 @@ async def jikai_eval_v1_task(case: EvalCase) -> str:
     corpus = await corpus_service.load_corpus(corpus_pack=corpus_pack)
     documents = [_entry_to_document(entry) for entry in corpus]
     query_terms = topics + ([query] if query and query not in topics else [])
-    retrieved = await vector_service.hybrid_search(
-        query_topics=query_terms,
-        corpus_documents=documents,
-        corpus_pack=corpus_pack,
-        jurisdiction=jurisdiction,
-        subject=subject,
-        subtopics=list(case.metadata.get("subtopics", []) or []),
-        n_results=top_k,
-    )
+    retrieval_mode = str(
+        case.inputs.get(
+            "retrieval_mode",
+            case.metadata.get(
+                "retrieval_mode", getattr(settings, "retrieval_mode", "hybrid")
+            ),
+        )
+    ).lower()
+    if retrieval_mode == "bm25":
+        retrieved = vector_service._bm25_rank_documents(
+            " ".join(query_terms),
+            documents,
+            n_results=top_k,
+        )
+    elif retrieval_mode == "dense":
+        retrieved = await vector_service.semantic_search(
+            query_topics=query_terms,
+            corpus_pack=corpus_pack,
+            jurisdiction=jurisdiction,
+            subject=subject,
+            subtopics=list(case.metadata.get("subtopics", []) or []),
+            n_results=top_k,
+            min_similarity=0.0,
+        )
+    else:
+        retrieval_mode = "hybrid"
+        retrieved = await vector_service.hybrid_search(
+            query_topics=query_terms,
+            corpus_documents=documents,
+            corpus_pack=corpus_pack,
+            jurisdiction=jurisdiction,
+            subject=subject,
+            subtopics=list(case.metadata.get("subtopics", []) or []),
+            n_results=top_k,
+        )
+    case.metadata["retrieval_mode"] = retrieval_mode
     case.metadata["retrieved_ids"] = [
         str(result.get("id")) for result in retrieved if result.get("id")
     ]

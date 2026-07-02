@@ -18,6 +18,7 @@ def _case() -> EvalCase:
             "complexity": 2,
             "query": "delivery rider pedestrian",
             "top_k": 2,
+            "retrieval_mode": "hybrid",
         },
         expected_output={"relevant_corpus_ids": ["c1"], "recall_k": 2},
         metadata={"jurisdiction": "sg"},

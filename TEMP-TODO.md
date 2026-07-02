@@ -67,95 +67,6 @@ installed.
 
 ---
 
-## Task 13 — Benchmark runner + ablation script (upgrade #4c)
-
-**Goal.** Two CLI scripts that produce publishable numbers.
-
-### Files to create
-
-- **NEW** `script/run_jikai_eval.py`
-- **NEW** `script/run_ablations.py`
-- **NEW** `docs/evals/leaderboard.md` (generated markdown)
-- **NEW** `docs/evals/results_v1.json` (generated)
-- **NEW** `docs/evals/ablations_v1.json` (generated)
-
-### `script/run_jikai_eval.py`
-
-CLI shape:
-
-```
-python script/run_jikai_eval.py \
-  --providers ollama,openai,anthropic \
-  --retrieval hybrid,dense,bm25 \
-  --backends baseline,structured,refine \
-  --output docs/evals/results_v1.json
-```
-
-Behaviour:
-
-1. For each combination `(provider, retrieval, backend)`:
-   - Set `settings.llm.provider = provider`, `settings.retrieval_mode = retrieval`,
-     `settings.structured_generation_enabled = (backend != "baseline")`,
-     `settings.refine_max_iterations = (2 if backend == "refine" else 0)`.
-   - Run `src.evals.run_eval(EvalRequest(workflow="jikai_eval_v1",
-     dataset="corpus/eval/sg_tort_v1.jsonl", evaluators=<all seven>))`.
-   - Collect `EvalReport.summary.evaluator_means` under a `(provider, retrieval, backend)` key.
-2. Merge all reports into `results_v1.json` with shape:
-
-```json
-{
-  "schema_version": "jikai.results.v1",
-  "generated_at": "2026-07-02T...",
-  "corpus_pack": "sg_tort",
-  "eval_dataset": "corpus/eval/sg_tort_v1.jsonl",
-  "runs": [
-    {
-      "provider": "openai",
-      "retrieval": "hybrid",
-      "backend": "refine",
-      "n_cases": 50,
-      "metrics": {
-        "retrieval_recall_at_k": 0.86,
-        "retrieval_mrr": 0.72,
-        "ragas_faithfulness": 0.81,
-        ...
-      }
-    }, ...
-  ]
-}
-```
-
-3. Emit `docs/evals/leaderboard.md` — a table sorted by faithfulness
-   descending, with columns `Provider | Retrieval | Backend | R@5 | MRR |
-   Faithfulness | Citation | IRAC | Hallucination`.
-
-### `script/run_ablations.py`
-
-Runs `baseline` vs `+structured` vs `+refine` vs `+setfit` vs `+all`, using a
-fixed provider (default `ollama` for cheap iteration), and writes per-metric
-deltas to `docs/evals/ablations_v1.json`. Also emits a markdown appendix
-`docs/evals/ablations.md`.
-
-### Verification
-
-```
-python script/run_jikai_eval.py --providers ollama --backends baseline
-cat docs/evals/results_v1.json | jq '.runs[0].metrics'
-cat docs/evals/leaderboard.md
-```
-
-Expected: `metrics` dict with 7 keys, all floats in [0,1]. Leaderboard renders.
-
-For CI, add a `--dry-run` flag that stubs the LLM calls with fixed strings so
-the pipeline exercises without cost.
-
-### Dependencies
-
-- `jikai_eval_v1` task registered and JSONL loader available.
-- Metrics from structured generation, verifiers, refine loop, and evaluators.
-
----
-
 ## Task 14 — Research writeup + README rewrite (upgrade #5)
 
 **Goal.** Ship a marketing-first research section that turns Jikai from
@@ -209,7 +120,7 @@ print(d['runs'][0]['metrics']['ragas_faithfulness'])"
 
 ### Dependencies
 
-- Task 13 (needs `docs/evals/results_v1.json` to exist).
+- `docs/evals/results_v1.json` exists.
 
 ---
 
@@ -241,9 +152,8 @@ print(d['runs'][0]['metrics']['ragas_faithfulness'])"
 
 ## Build order (for the agent)
 
-1. **Task 13** — benchmark runner + ablation script.
-2. **Task 14** — research writeup + README rewrite.
-3. **CI/reqs** — cross-cutting; last (after real deps are settled).
+1. **Task 14** — research writeup + README rewrite.
+2. **CI/reqs** — cross-cutting; last (after real deps are settled).
 
 Each task's `Verification` section is intentionally executable. When a task's
 verification fails, do not proceed to the next task.
