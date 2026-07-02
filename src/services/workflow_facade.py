@@ -679,9 +679,9 @@ class WorkflowFacade:
                 ):
                     self._database_service = stream_database_service
                     return await self._database_service.save_generation_report(report)
-                if "demo_smoke" in issue_types:
+                if "pipeline_smoke" in issue_types:
                     logger.warning(
-                        "Demo smoke report fallback triggered",
+                        "Pipeline smoke report fallback triggered",
                         generation_id=generation_id,
                     )
                     return int(generation_id)

@@ -1,4 +1,4 @@
-"""Pipeline trace assembly for demo and screenshot surfaces."""
+"""Pipeline trace assembly for generation diagnostics."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from .workflow_facade import WorkflowFacade, workflow_facade
 
 logger = structlog.get_logger(__name__)
 
-DEFAULT_DEMO_HYPOTHETICAL = (
+DEFAULT_TRACE_HYPOTHETICAL = (
     "Tan Wei Ming is a delivery rider in Singapore. Bright Services Pte Ltd asks him "
     "to use a company e-bike after several riders report that its brake lever sticks. "
     "Lim Shu Fen, a pedestrian at Marina Bay, is crossing a service road when the "
@@ -32,7 +32,7 @@ DEFAULT_DEMO_HYPOTHETICAL = (
     "brake defect caused Lim's physical injury and consequential loss."
 )
 
-DEFAULT_DEMO_MODEL_ANSWER = (
+DEFAULT_TRACE_MODEL_ANSWER = (
     "A strong answer would identify a duty of care owed by Bright Services and Tan "
     "to road users near the delivery route. Bright Services likely breached that "
     "duty by continuing to deploy an e-bike with a known brake defect after reports "
@@ -66,7 +66,7 @@ class PipelineTraceService:
         expose_prompt: bool = False,
         expose_provider: bool = False,
     ) -> Dict[str, Any]:
-        """Return one end-to-end trace for demo UI and launch screenshots."""
+        """Return one end-to-end generation trace."""
         retrieved = await self._retrieve_cases(request)
         prompt_snapshot = self._prompt_snapshot(
             request, retrieved, expose_prompt=expose_prompt
@@ -287,16 +287,16 @@ class PipelineTraceService:
             return {
                 "status": "complete",
                 "source": "deterministic_fixture",
-                "output": DEFAULT_DEMO_HYPOTHETICAL,
-                "model_answer": DEFAULT_DEMO_MODEL_ANSWER,
-                "output_chars": len(DEFAULT_DEMO_HYPOTHETICAL),
+                "output": DEFAULT_TRACE_HYPOTHETICAL,
+                "model_answer": DEFAULT_TRACE_MODEL_ANSWER,
+                "output_chars": len(DEFAULT_TRACE_HYPOTHETICAL),
                 "provider": "redacted",
                 "validation_results": None,
                 "ml_foundation": {
                     "topics": request.topics,
                     "quality_score": 0.82,
                     "is_diverse": True,
-                    "generation_id": "demo-fixture",
+                    "generation_id": "trace-fixture",
                 },
             }
 
@@ -329,9 +329,9 @@ class PipelineTraceService:
     ) -> Dict[str, Any]:
         tags = " ".join(f"tort::{topic}" for topic in request.topics)
         front = self._clip(generated_text, 420)
-        back = self._clip(DEFAULT_DEMO_MODEL_ANSWER, 420)
+        back = self._clip(DEFAULT_TRACE_MODEL_ANSWER, 420)
         return {
-            "model_answer": DEFAULT_DEMO_MODEL_ANSWER,
+            "model_answer": DEFAULT_TRACE_MODEL_ANSWER,
             "anki_tsv_preview": f"{front}\t{back}\t{tags}",
             "export_formats": ["anki_tsv", "generation_report"],
             "tags": tags,

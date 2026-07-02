@@ -5,7 +5,6 @@ Jikai generates legal hypotheticals and model answers with an ML foundation stag
 It is built for law students, educators, and legal-tech builders who want local-first practice-question generation, corpus-backed retrieval, validation gates, and exportable study artifacts.
 Current corpus: Singapore Tort. Pivot target: SG + UK + US Tort corpus packs, with SG Tort as the reference pack.
 Try it locally with `make env-setup`, `make dev-setup`, and `make run`.
-Public demo: stable URL pending [issue #13](https://github.com/gongahkia/jikai/issues/13); local browser demo at `/demo`; deployment runbook at [`docs/deployment/hosted-demo.md`](docs/deployment/hosted-demo.md).
 
 [![](https://img.shields.io/badge/jikai_1.0.0-passing-8BC34A)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
 [![](https://img.shields.io/badge/jikai_2.0.0-passing-4CAF50)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
@@ -34,8 +33,6 @@ flowchart LR
 ```
 
 The diagram is maintained directly in this README. Update it with the stage owners below when the code path changes.
-
-![Jikai pipeline trace](./asset/reference/pipeline-trace.png)
 
 | Stage | What It Constrains | Code |
 |-------|--------------------|------|
@@ -98,21 +95,18 @@ The shortened fixture below shows the shape of one SG Tort run. It is documentat
 * *Local-first LLM path*: Ollama is the default provider, with OpenAI, Anthropic, Gemini, and local llama.cpp-compatible servers available by configuration.
 * *RAG and validation*: Chroma-backed semantic retrieval, deterministic topic/party/realism checks, optional Legal-BERT embeddings, and optional LLM validation.
 * *Study workflow outputs*: model answers, generation reports, batch generation, DOCX/PDF export, and Anki TSV export.
-* *Usable surfaces*: FastAPI REST endpoints, async jobs, and a Rust TUI for power users.
+* *Usable surfaces*: FastAPI REST endpoints, async jobs, and a Rust TUI for local operators.
 
 ## How To Read This Repo
 
-Jikai now separates product UI from backend orchestration.
+Jikai is organized around the generation pipeline and the supporting corpus/runtime layers.
 
 | Area | Path | Audience |
 |------|------|----------|
-| Browser frontend | `frontend/demo/` | students, educators, HN/portfolio reviewers |
+| Generation pipeline | `src/services/`, `src/ml/`, `src/domain/` | maintainers, legal-tech builders |
 | FastAPI backend | `src/api/` | API users, deployers |
-| Generation pipeline | `src/services/`, `src/ml/`, `src/domain/` | legal-tech builders, maintainers |
-| Corpus and eval docs | `docs/`, `corpus/`, `src/evals/` | contributors, researchers |
-| Rust TUI | `tui/` | terminal-first power users |
-
-Product-surface guidance lives in [`docs/product-surfaces.md`](docs/product-surfaces.md). The short version: lead with `/demo`, show trust and traceability inside the chat run, treat the REST API as the builder surface, and keep the TUI as a power-user surface rather than the first-run experience.
+| Corpus and evals | `docs/`, `corpus/`, `src/evals/` | contributors, researchers |
+| Rust TUI | `tui/` | terminal-first local operators |
 
 ## Stack
 
@@ -158,11 +152,7 @@ $ python -m src.api --host 127.0.0.1 --port 8000  # API only (plain uvicorn runn
 $ make tui                                # Rust TUI only (requires API already running)
 ```
 
-5. Open the local browser demo or generate an SG Tort hypothetical through the API.
-
-```console
-$ open http://127.0.0.1:8000/demo
-```
+5. Generate an SG Tort hypothetical through the API.
 
 ```console
 $ curl -s http://127.0.0.1:8000/workflow/generate \
@@ -203,11 +193,6 @@ $ make lint
 
 Inside the Rust TUI, `Chat` is the default landing screen with command-driven workflows.
 Use `/menu` to open the multi-screen navigation, and `/help` to list command families (`hypo`, `regenerate`, `report`, `corpus`, `validation`, `jobs`, `providers`, `history`, `stats`, `settings`, `guided`, `label`).
-
-## Screenshots
-
-![](./asset/reference/1.png)
-![](./asset/reference/2.png)
 
 ## So where's the [ML](https://en.wikipedia.org/wiki/Machine_learning) in this?
 
@@ -313,24 +298,6 @@ By using this tool, you acknowledge and agree that:
 2. Any reliance on the information provided by this tool is at your own risk. The creators make no representations or warranties regarding the accuracy, reliability, or completeness of any content generated.
 3. The content produced may not reflect current legal standards or interpretations and should not be used as a substitute for professional legal advice.
 4. You are encouraged to consult with a qualified legal professional regarding any specific legal questions or concerns you may have. Use of this tool signifies your acceptance of these terms.
-
-## References
-
-The name `Jikai` is in reference to the sorcery of [Ikuto Hagiwara](https://kagurabachi.fandom.com/wiki/Ikuto_Hagiwara) (萩原 幾兎), the commander of the [Kamunabi's](https://kagurabachi.fandom.com/wiki/Kamunabi) [anti-cloud gouger special forces](https://kagurabachi.fandom.com/wiki/Kamunabi#Anti-Cloud_Gouger_Special_Forces), who opposed [Genichi Sojo](https://kagurabachi.fandom.com/wiki/Genichi_Sojo) in the [Vs. Sojo arc](https://kagurabachi.fandom.com/wiki/Vs._Sojo_Arc) of the manga series [Kagurabachi](https://kagurabachi.fandom.com/wiki/Kagurabachi_Wiki).
-
-<div align="center">
-  <img src="https://static.wikia.nocookie.net/kagurabachi/images/f/f7/Ikuto_Hagiwara_Portrait.png/revision/latest?cb=20231206044607" width="25%">
-</div>
-
-## Origin
-
-Jikai started as a Singapore Tort practice tool after the December 2024 finals season, when I wanted more hypotheticals than the assigned practice set. The project is now being reframed as reusable common-law exam-question infrastructure.
-
-<div align="center">
-    <br>
-    <img src="./asset/reference/poll.png" width="50%">
-    <br><br>
-</div>
 
 ## Research
 

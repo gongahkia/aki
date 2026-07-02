@@ -940,7 +940,7 @@ class HypotheticalService:
             seed = self._resolve_deterministic_seed(request)
             if seed is not None:
                 user_prompt += (
-                    "\n\nDETERMINISTIC DEMO MODE:\n"
+                    "\n\nDETERMINISTIC FIXTURE MODE:\n"
                     f"- Use deterministic reasoning seed: {seed}\n"
                     "- Keep structure and party chronology stable.\n"
                     "- Avoid random alternative phrasings.\n"

@@ -1,7 +1,7 @@
 services:
   - type: web
     runtime: docker
-    name: jikai-demo
+    name: jikai-api
     plan: starter
     region: oregon
     dockerfilePath: ./Dockerfile
@@ -16,7 +16,7 @@ services:
       - key: API_DEBUG
         value: "false"
       - key: API_CORS_ORIGINS
-        value: '["https://jikai-demo.onrender.com"]'
+        value: '["https://jikai-api.onrender.com"]'
       - key: API_RATE_LIMIT
         value: "30"
       - key: API_RATE_LIMITER_BUCKET_TTL_SECONDS

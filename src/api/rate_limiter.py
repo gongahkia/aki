@@ -1,4 +1,4 @@
-"""Small in-process rate limiter for public demo deployments."""
+"""Small in-process rate limiter for API deployments."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class InMemoryRateLimitMiddleware(BaseHTTPMiddleware):
                     content={
                         "detail": {
                             "code": "rate_limit_capacity",
-                            "message": "Demo is busy. Wait briefly, then retry.",
+                            "message": "API is busy. Wait briefly, then retry.",
                             "retryable": True,
                         }
                     },

@@ -3,10 +3,8 @@
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from ..config import settings
-from .frontend import DEMO_FRONTEND_ROOT
 from .rate_limiter import InMemoryRateLimitMiddleware
 
 logger = structlog.get_logger(__name__)
@@ -32,16 +30,10 @@ def create_app() -> FastAPI:
         max_buckets=settings.api.rate_limiter_max_buckets,
         cleanup_interval_seconds=settings.api.rate_limiter_cleanup_interval_seconds,
     )
-    app.mount(
-        "/demo/static",
-        StaticFiles(directory=DEMO_FRONTEND_ROOT),
-        name="demo-static",
-    )
     from .routes import (
         chat,
         corpus,
         database,
-        demo,
         health,
         jobs,
         llm,
@@ -57,7 +49,6 @@ def create_app() -> FastAPI:
     app.include_router(validation.router, prefix="/validation", tags=["validation"])
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
     app.include_router(chat.router, prefix="/chat", tags=["chat"])
-    app.include_router(demo.router, prefix="/demo", tags=["demo"])
     return app
 
 
