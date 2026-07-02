@@ -1,7 +1,8 @@
 # Jikai Makefile
 
-.PHONY: help install dev test lint format clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold eval health health-llm env-setup dev-setup
+.PHONY: help install dev check-python test lint format clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold eval health health-llm env-setup dev-setup
 
+PYTHON ?= python3
 DATASET ?= sg_tort.yaml
 WORKFLOW ?= sg_tort_hypothetical
 EVAL_OUTPUT ?= data/generated/eval_results.json
@@ -18,18 +19,21 @@ help: ## Show this help message
 
 # -- setup --
 
-install: ## Install Python dependencies
-	pip install -r requirements.txt
+check-python:
+	@$(PYTHON) -c 'import sys; v=sys.version_info[:2]; ok=(3, 12) <= v < (3, 14); print("ERROR: Python 3.12 or 3.13 required; got " + sys.version.split()[0] + ". Recreate .venv with python3.13.", file=sys.stderr) if not ok else None; raise SystemExit(0 if ok else 1)'
 
-dev: ## Install dev dependencies
-	pip install -e ".[dev]"
+install: check-python ## Install Python dependencies
+	$(PYTHON) -m pip install -r requirements.txt
+
+dev: check-python ## Install dev dependencies
+	$(PYTHON) -m pip install -e ".[dev]"
 
 # -- run --
 
 api-build: ## Build API monitor TUI binary (release)
 	cd tui && cargo build --release --bin api_monitor
 
-api: api-build ## Start FastAPI backend on :8000 with TUI monitor
+api: check-python api-build ## Start FastAPI backend on :8000 with TUI monitor
 	./tui/target/release/api_monitor
 
 tui-build: ## Build Rust TUI (release)
@@ -39,7 +43,7 @@ tui: tui-build ## Run Rust TUI (connects to API on :8000)
 	@curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1 || { echo "ERROR: API server not running. Start it first with 'make api' or use 'make run' for both."; exit 1; }
 	./tui/target/release/jikai-tui
 
-run: tui-build ## Start API + TUI together
+run: check-python tui-build ## Start API + TUI together
 	@set -e; \
 	pids="$$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true)"; \
 	if [ -n "$$pids" ]; then \
