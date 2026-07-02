@@ -99,9 +99,25 @@ class LLMServiceError(Exception):
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
 
+    supports_json_schema: bool = False
+
     @abstractmethod
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate a response from the LLM."""
+
+    @abstractmethod
+    async def generate_structured(
+        self,
+        schema: type[BaseModel],
+        prompt: str,
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        model: Optional[str] = None,
+        **kwargs: Any,
+    ) -> BaseModel:
+        """Generate and validate a response against a Pydantic schema."""
 
     @abstractmethod
     async def list_models(self) -> List[str]:

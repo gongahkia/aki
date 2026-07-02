@@ -86,6 +86,29 @@ def _canonicalize_for_context(context: PromptContext, topic: str) -> str:
         return canonicalize_topic(topic)
 
 
+def format_structured_prompt(context: PromptContext, schema_name: str) -> str:
+    """Format the hypothetical prompt with a JSON schema directive."""
+    prompt = HypotheticalGenerationTemplate().format_prompt(context)["user"]
+    schema_obj = None
+    try:
+        from . import schemas
+
+        candidate = getattr(schemas, schema_name, None)
+        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
+            schema_obj = candidate.model_json_schema()
+    except Exception:
+        schema_obj = None
+    schema_text = (
+        json.dumps(schema_obj, indent=2, sort_keys=True) if schema_obj else schema_name
+    )
+    return (
+        prompt
+        + "\n\nSTRUCTURED OUTPUT:\n"
+        + "You MUST return valid JSON matching the schema below.\n"
+        + schema_text
+    )
+
+
 class PromptTemplate(BaseModel):
     """Base class for prompt templates."""
 

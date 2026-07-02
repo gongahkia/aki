@@ -5,6 +5,7 @@ from typing import Any, AsyncIterator, Dict, List
 
 import httpx
 import structlog
+from pydantic import BaseModel, ValidationError
 
 from .base import (
     LLMProvider,
@@ -19,6 +20,8 @@ logger = structlog.get_logger(__name__)
 
 class LocalLLMProvider(LLMProvider):
     """Local LLM provider via llama.cpp server HTTP API."""
+
+    supports_json_schema = True
 
     def __init__(
         self,
@@ -75,6 +78,49 @@ class LocalLLMProvider(LLMProvider):
             return [m["id"] for m in data.get("data", [])]
         except Exception:
             return [self.default_model]
+
+    @retry_on_failure(max_attempts=2, delay=1.0, backoff=2.0)
+    async def generate_structured(
+        self,
+        schema: type[BaseModel],
+        prompt: str,
+        *,
+        system_prompt: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        model: str | None = None,
+        **kwargs: Any,
+    ) -> BaseModel:
+        model_name = model or self.default_model
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        try:
+            import instructor
+
+            base_url = self.base_url.rstrip("/")
+            openai_base_url = base_url if base_url.endswith("/v1") else f"{base_url}/v1"
+            client = instructor.from_provider(
+                f"openai/{model_name}",
+                api_key="local",
+                base_url=openai_base_url,
+                async_client=True,
+            )
+            result = await client.create(
+                response_model=schema,
+                messages=messages,
+                max_retries=2,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return schema.model_validate(result)
+        except ValidationError:
+            raise
+        except ImportError as e:
+            raise LLMServiceError("instructor package not installed") from e
+        except Exception as e:
+            raise LLMServiceError(f"Local LLM structured error: {e}") from e
 
     async def health_check(self) -> Dict[str, Any]:
         try:

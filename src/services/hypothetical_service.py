@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Dict, List, Optional, cast
 
 import structlog
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from ..config import settings
 from ..domain import normalize_scope_token, resolve_domain_pack
@@ -30,8 +30,14 @@ except (ImportError, ModuleNotFoundError):
     HypotheticalEntry = Any  # type: ignore[misc,assignment]
     corpus_service = None  # type: ignore[assignment]
 from .database_service import database_service
-from .llm_service import LLMRequest, llm_service
-from .prompt_engineering import PromptContext, PromptTemplateManager, PromptTemplateType
+from .llm_service import LLMRequest, LLMServiceError, llm_service
+from .prompt_engineering import (
+    PromptContext,
+    PromptTemplateManager,
+    PromptTemplateType,
+    format_structured_prompt,
+)
+from .prompt_engineering.schemas import HypotheticalDraft
 from .validation_service import validation_service
 
 logger = structlog.get_logger(__name__)
@@ -590,7 +596,7 @@ class HypotheticalService:
 
             # Step 2: Generate the hypothetical
             generation_started = time.perf_counter()
-            hypothetical = await self._generate_hypothetical_text(
+            hypothetical, request_extras = await self._generate_hypothetical_draft(
                 request, context_entries
             )
 
@@ -612,7 +618,10 @@ class HypotheticalService:
                         request, ml_gate_report
                     )
                     try:
-                        gated_hypothetical = await self._generate_hypothetical_text(
+                        (
+                            gated_hypothetical,
+                            gated_request_extras,
+                        ) = await self._generate_hypothetical_draft(
                             gated_request, context_entries
                         )
                         gated_hypothetical = await self._ml_post_process(
@@ -625,6 +634,7 @@ class HypotheticalService:
                         # whether the second pass met the threshold.
                         request = gated_request
                         hypothetical = gated_hypothetical
+                        request_extras = gated_request_extras
                         ml_gate_report = second_pass
                     except Exception as gate_error:
                         logger.warning(
@@ -653,7 +663,10 @@ class HypotheticalService:
                 )
                 try:
                     retry_generation_started = time.perf_counter()
-                    retry_hypothetical = await self._generate_hypothetical_text(
+                    (
+                        retry_hypothetical,
+                        retry_request_extras,
+                    ) = await self._generate_hypothetical_draft(
                         retry_request, context_entries
                     )
                     if retry_request.method in ("ml_assisted", "hybrid"):
@@ -674,6 +687,7 @@ class HypotheticalService:
 
                     request = retry_request
                     hypothetical = retry_hypothetical
+                    request_extras = retry_request_extras
                     validation_results = retry_validation_results
                     auto_regeneration_successful = validation_results.passed
                 except Exception as retry_error:
@@ -755,6 +769,7 @@ class HypotheticalService:
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
                     "ml_gate": ml_gate_report,
+                    **request_extras,
                 },
                 generation_time=generation_time,
                 validation_results=validation_results.dict(),
@@ -1022,65 +1037,143 @@ class HypotheticalService:
             ) + "NOTE: No reference examples available in corpus for these topics."
         return context_entries
 
+    def _build_hypothetical_prompt_data(
+        self,
+        request: GenerationRequest,
+        context_entries: List[HypotheticalEntry],
+        *,
+        structured: bool = False,
+    ) -> tuple[Dict[str, str], str, Optional[int], float]:
+        context = PromptContext(
+            topics=request.topics,
+            corpus_pack=request.corpus_pack,
+            jurisdiction=request.jurisdiction,
+            subject=request.subject,
+            subtopics=request.subtopics,
+            law_domain=request.law_domain,
+            number_parties=request.number_parties,
+            reference_hypotheticals=[entry.text for entry in context_entries],
+            user_preferences=request.user_preferences,
+            complexity_level=request.complexity_level,
+        )
+        prompt_data = self.prompt_manager.format_prompt(
+            PromptTemplateType.HYPOTHETICAL_GENERATION, context
+        )
+        if structured:
+            prompt_data = {
+                "system": prompt_data["system"],
+                "user": format_structured_prompt(context, HypotheticalDraft.__name__),
+            }
+
+        user_prompt = prompt_data["user"]
+        if request.user_preferences and request.user_preferences.get("red_herrings"):
+            user_prompt += (
+                "\n\nADDITIONAL INSTRUCTION: Include 1-2 legally irrelevant but "
+                "plausible facts as red herrings. These should be realistic details "
+                "that seem relevant but do not actually give rise to legal liability. "
+                "The red herrings must not dominate the scenario."
+            )
+
+        if request.user_preferences and request.user_preferences.get("feedback"):
+            user_prompt += (
+                f"\n\nFEEDBACK FROM PREVIOUS ATTEMPT: "
+                f"{request.user_preferences['feedback']}"
+            )
+
+        seed = self._resolve_deterministic_seed(request)
+        if seed is not None:
+            user_prompt += (
+                "\n\nDETERMINISTIC FIXTURE MODE:\n"
+                f"- Use deterministic reasoning seed: {seed}\n"
+                "- Keep structure and party chronology stable.\n"
+                "- Avoid random alternative phrasings.\n"
+            )
+
+        temp = 0.7
+        if request.user_preferences and "temperature" in request.user_preferences:
+            temp = float(request.user_preferences["temperature"])
+        if seed is not None:
+            temp = 0.0
+        return prompt_data, user_prompt, seed, max(0.0, min(2.0, temp))
+
+    async def _generate_hypothetical_draft(
+        self, request: GenerationRequest, context_entries: List[HypotheticalEntry]
+    ) -> tuple[str, Dict[str, Any]]:
+        if getattr(settings, "structured_generation_enabled", True):
+            try:
+                draft = await self._generate_structured_draft(request, context_entries)
+                return draft.text, {"structured_draft": draft.model_dump()}
+            except (
+                ValidationError,
+                NotImplementedError,
+                LLMServiceError,
+                HypotheticalServiceError,
+            ) as exc:
+                logger.warning(
+                    "Structured generation fell back to text path",
+                    error=str(exc),
+                    correlation_id=request.correlation_id,
+                )
+        hypothetical = await self._generate_hypothetical_text(request, context_entries)
+        return hypothetical, {}
+
+    async def _generate_structured_draft(
+        self, request: GenerationRequest, context_entries: List[HypotheticalEntry]
+    ) -> HypotheticalDraft:
+        try:
+            prompt_data, user_prompt, _seed, temp = (
+                self._build_hypothetical_prompt_data(
+                    request, context_entries, structured=True
+                )
+            )
+            timeout_seconds = self._resolve_provider_timeout(request)
+            draft = await self._await_provider_operation(
+                self.llm_service.generate_structured(
+                    HypotheticalDraft,
+                    user_prompt,
+                    system_prompt=prompt_data["system"],
+                    temperature=temp,
+                    max_tokens=2048,
+                    provider=request.provider,
+                    model=request.model,
+                    correlation_id=request.correlation_id,
+                    timeout_seconds=timeout_seconds,
+                ),
+                operation_name="structured hypothetical generation",
+                timeout_seconds=timeout_seconds,
+                correlation_id=request.correlation_id,
+            )
+            validated = HypotheticalDraft.model_validate(draft)
+            if not validated.text or len(validated.text) < 50:
+                raise HypotheticalServiceError(
+                    "Structured LLM returned empty/too-short draft text"
+                )
+            logger.info(
+                "Structured hypothetical generated",
+                length=len(validated.text),
+                correlation_id=request.correlation_id,
+            )
+            return validated
+        except asyncio.CancelledError:
+            logger.info(
+                "Structured hypothetical generation cancelled",
+                correlation_id=request.correlation_id,
+            )
+            raise
+        except (ValidationError, NotImplementedError, LLMServiceError):
+            raise
+        except Exception as e:
+            raise HypotheticalServiceError(f"Structured generation failed: {e}") from e
+
     async def _generate_hypothetical_text(
         self, request: GenerationRequest, context_entries: List[HypotheticalEntry]
     ) -> str:
         """Generate the hypothetical text using LLM."""
         try:
-            # Create prompt context
-            context = PromptContext(
-                topics=request.topics,
-                corpus_pack=request.corpus_pack,
-                jurisdiction=request.jurisdiction,
-                subject=request.subject,
-                subtopics=request.subtopics,
-                law_domain=request.law_domain,
-                number_parties=request.number_parties,
-                reference_hypotheticals=[entry.text for entry in context_entries],
-                user_preferences=request.user_preferences,
-                complexity_level=request.complexity_level,
-            )
-
-            # Get formatted prompt
-            prompt_data = self.prompt_manager.format_prompt(
-                PromptTemplateType.HYPOTHETICAL_GENERATION, context
-            )
-
-            # Append red herring instruction if enabled
-            user_prompt = prompt_data["user"]
-            if request.user_preferences and request.user_preferences.get(
-                "red_herrings"
-            ):
-                user_prompt += (
-                    "\n\nADDITIONAL INSTRUCTION: Include 1-2 legally irrelevant but "
-                    "plausible facts as red herrings. These should be realistic details "
-                    "that seem relevant but do not actually give rise to legal liability. "
-                    "The red herrings must not dominate the scenario."
-                )
-
-            # Append feedback from retry loop if present
-            if request.user_preferences and request.user_preferences.get("feedback"):
-                user_prompt += (
-                    f"\n\nFEEDBACK FROM PREVIOUS ATTEMPT: "
-                    f"{request.user_preferences['feedback']}"
-                )
-
-            seed = self._resolve_deterministic_seed(request)
-            if seed is not None:
-                user_prompt += (
-                    "\n\nDETERMINISTIC FIXTURE MODE:\n"
-                    f"- Use deterministic reasoning seed: {seed}\n"
-                    "- Keep structure and party chronology stable.\n"
-                    "- Avoid random alternative phrasings.\n"
-                )
-
             # Create LLM request
-            temp = 0.7
-            if request.user_preferences and "temperature" in request.user_preferences:
-                temp = float(request.user_preferences["temperature"])
-            if seed is not None:
-                temp = 0.0
-            temp = max(0.0, min(2.0, temp))  # clamp temperature
+            prompt_data, user_prompt, _seed, temp = (
+                self._build_hypothetical_prompt_data(request, context_entries)
+            )
             timeout_seconds = self._resolve_provider_timeout(request)
             llm_request = LLMRequest(
                 prompt=user_prompt,

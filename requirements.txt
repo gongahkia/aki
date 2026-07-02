@@ -2,3 +2,5 @@
 # Do not edit manually; update [project.dependencies] instead.
 # API/runtime server dependencies were retired with API removal.
 -e .
+instructor>=1.6.0
+outlines>=0.1.0

@@ -4,6 +4,7 @@ import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 import structlog
+from pydantic import BaseModel, ValidationError
 
 from .base import (
     LLMProvider,
@@ -24,6 +25,8 @@ GEMINI_MODELS = [
 class GoogleGeminiProvider(LLMProvider):
     """Google Gemini provider implementation."""
 
+    supports_json_schema = True
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -36,6 +39,7 @@ class GoogleGeminiProvider(LLMProvider):
             import google.generativeai as genai
 
             self._genai = genai
+            self._api_key = api_key
             if api_key:
                 genai.configure(api_key=api_key)
         except ImportError:
@@ -105,6 +109,48 @@ class GoogleGeminiProvider(LLMProvider):
 
     async def list_models(self) -> List[str]:
         return GEMINI_MODELS
+
+    @retry_on_failure(max_attempts=2, delay=1.0, backoff=2.0)
+    async def generate_structured(
+        self,
+        schema: type[BaseModel],
+        prompt: str,
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        model: Optional[str] = None,
+        **kwargs: Any,
+    ) -> BaseModel:
+        model_name = model or self.default_model
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        try:
+            import instructor
+
+            client_kwargs: Dict[str, Any] = {"async_client": True}
+            api_key = getattr(self, "_api_key", None)
+            if api_key:
+                client_kwargs["api_key"] = api_key
+            client = instructor.from_provider(f"google/{model_name}", **client_kwargs)
+            result = await client.create(
+                response_model=schema,
+                messages=messages,
+                max_retries=2,
+                generation_config={
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                },
+            )
+            return schema.model_validate(result)
+        except ValidationError:
+            raise
+        except ImportError as e:
+            raise LLMServiceError("instructor package not installed") from e
+        except Exception as e:
+            raise LLMServiceError(f"Google Gemini structured error: {e}") from e
 
     async def health_check(self) -> Dict[str, Any]:
         try:

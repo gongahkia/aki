@@ -67,124 +67,6 @@ installed.
 
 ---
 
-## Task 7 — Structured decoding adapter (upgrade #2)
-
-**Goal.** Every provider adapter gains a `supports_json_schema: bool` flag and a
-`generate_structured(schema: type[BaseModel], prompt: str, ...) -> BaseModel`
-method. `HypotheticalService` prefers this path when the schema fits and the
-provider supports it; existing text-only path stays as fallback.
-
-### Files to create/edit
-
-- **NEW** `src/services/prompt_engineering/structured.py` — the unified adapter
-  factory. Exports `generate_structured(provider, schema, prompt, **kwargs)`.
-- **EDIT** `src/services/llm_providers/base.py` — add abstract fields
-  `supports_json_schema: bool = False` and abstract method
-  `async def generate_structured(...) -> BaseModel`.
-- **EDIT** each of
-  `src/services/llm_providers/{openai,anthropic,google,ollama,local}_provider.py`
-  — implement `supports_json_schema` and `generate_structured`.
-- **EDIT** `src/services/prompt_engineering/templates.py` — add
-  `format_structured_prompt(context: PromptContext, schema_name: str) -> str`
-  that emits the same content as `format_prompt` but with a trailing
-  "You MUST return valid JSON matching the schema below" directive.
-- **EDIT** `src/services/hypothetical_service.py::generate_hypothetical` — try
-  structured path first; on `pydantic.ValidationError` or unsupported provider,
-  fall through to the existing text path.
-- **EDIT** `requirements.txt` — add `instructor` and `outlines`.
-- **NEW** `tests/test_services/test_structured_generation.py` — mock providers,
-  assert schema validation triggers retry, and assert fallback path fires when
-  `supports_json_schema=False`.
-
-### Reference APIs
-
-- **Instructor** (OpenAI/Anthropic/Gemini):
-  ```python
-  import instructor
-  from openai import OpenAI
-
-  client = instructor.from_openai(OpenAI())
-  draft: HypotheticalDraft = client.chat.completions.create(
-      model="gpt-4o-mini",
-      response_model=HypotheticalDraft,
-      messages=[{"role": "user", "content": prompt}],
-      max_retries=2,
-  )
-  ```
-  Anthropic: `instructor.from_anthropic(Anthropic())`.
-  Gemini: `instructor.from_gemini(client)`.
-
-- **Ollama** (native JSON schema via `format` field, no Outlines FSM needed):
-  ```python
-  response = client.chat(
-      model="llama3.1",
-      messages=[{"role": "user", "content": prompt}],
-      format=HypotheticalDraft.model_json_schema(),
-  )
-  draft = HypotheticalDraft.model_validate_json(response.message.content)
-  ```
-
-- **Local (llama.cpp OpenAI-compatible)**: same shape as OpenAI via Instructor
-  or Outlines. Use `instructor.from_openai(OpenAI(base_url=LOCAL_LLM_HOST))`.
-
-### Provider-by-provider `supports_json_schema` policy
-
-| Provider | supports_json_schema | Backend |
-|----------|----------------------|---------|
-| openai | True | Instructor |
-| anthropic | True | Instructor |
-| google | True | Instructor |
-| ollama | True | native `format` field |
-| local | True (if base_url is OpenAI-compat) | Instructor |
-
-### Integration in `generate_hypothetical`
-
-Around `src/services/hypothetical_service.py:562` (existing call to
-`_generate_hypothetical_text`), do:
-
-```python
-if settings.structured_generation_enabled and provider.supports_json_schema:
-    try:
-        draft: HypotheticalDraft = await self._generate_structured_draft(
-            request, context_entries
-        )
-        hypothetical = draft.text  # keep backward compatibility with the API contract
-        request_extras = {"structured_draft": draft.model_dump()}
-    except (pydantic.ValidationError, NotImplementedError) as exc:
-        logger.warning("Structured generation fell back to text path", error=str(exc))
-        hypothetical = await self._generate_hypothetical_text(request, context_entries)
-        request_extras = {}
-else:
-    hypothetical = await self._generate_hypothetical_text(request, context_entries)
-    request_extras = {}
-```
-
-Attach `request_extras["structured_draft"]` to `response.metadata` so downstream
-verifiers can consume the typed structure.
-
-### Verification
-
-```
-pytest -q tests/test_services/test_structured_generation.py
-python -c "from src.services.prompt_engineering.schemas import HypotheticalDraft; import json; print(list(HypotheticalDraft.model_json_schema()['properties'].keys()))"
-```
-
-Manual E2E (needs an OpenAI or Ollama key):
-
-```
-curl -s http://127.0.0.1:8000/workflow/generate -H 'content-type: application/json' \
-  -d '{"topics":["negligence"],"number_parties":3,"user_preferences":{"structured":true,"include_model_answer":true}}' \
-  | jq '.metadata.structured_draft.facts.narrative | length'
-```
-
-Expected: an integer ≥ 100 (schema enforces `narrative` min_length).
-
-### Dependencies
-
-None. First task to run. Enables tasks 8/9 to consume typed drafts.
-
----
-
 ## Task 8 — NLI faithfulness verifier (upgrade #3a)
 
 **Goal.** For each generated hypothetical, extract discrete factual claims,
@@ -414,11 +296,6 @@ print(v.verify(claims, ctx).model_dump_json(indent=2))
 
 Expected: `entailed >= 1`, `faithfulness_score == 1.0`.
 
-### Dependencies
-
-- Task 7 (uses typed drafts) is recommended before this but not strict — a
-  plain-text hypothetical still works as input.
-
 ---
 
 ## Task 9 — Citation verifier (upgrade #3b)
@@ -578,7 +455,7 @@ ids from `corpus/labelled/sg_tort/corpus.json` for the test).
 
 ### Dependencies
 
-- Task 7 (structured `ModelAnswer` shape).
+- Structured `ModelAnswer` shape from the completed structured decoding adapter.
 - Existing `corpus_service.load_corpus()` returns `HypotheticalEntry` with
   `.id` and `.topics` — no changes needed there.
 
@@ -1176,16 +1053,14 @@ print(d['runs'][0]['metrics']['ragas_faithfulness'])"
 
 ## Build order (for the agent)
 
-1. **Task 7** — structured decoding adapter. Everything else depends on the
-   typed shape.
-2. **Task 8** — NLI faithfulness verifier.
-3. **Task 9** — citation verifier.
-4. **Task 10** — refine loop (composes 7+8+9).
-5. **Task 11** — extend evaluators.
-6. **Task 12** — JSONL loader + `jikai_eval_v1` task.
-7. **Task 13** — benchmark runner + ablation script.
-8. **Task 14** — research writeup + README rewrite.
-9. **CI/reqs** — cross-cutting; last (after real deps are settled).
+1. **Task 8** — NLI faithfulness verifier.
+2. **Task 9** — citation verifier.
+3. **Task 10** — refine loop (composes structured drafts + 8 + 9).
+4. **Task 11** — extend evaluators.
+5. **Task 12** — JSONL loader + `jikai_eval_v1` task.
+6. **Task 13** — benchmark runner + ablation script.
+7. **Task 14** — research writeup + README rewrite.
+8. **CI/reqs** — cross-cutting; last (after real deps are settled).
 
 Each task's `Verification` section is intentionally executable. When a task's
 verification fails, do not proceed to the next task.

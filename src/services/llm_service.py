@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 import structlog
+from pydantic import BaseModel
 
 from ..config import settings
 from .llm_providers import LLMRequest, LLMResponse, LLMServiceError, registry
@@ -461,6 +462,86 @@ class LLMService:
                 "LLM generation failed",
                 provider=provider_name,
                 failure_kind=failure_kind,
+                error=str(e),
+                correlation_id=correlation_id,
+            )
+            raise
+
+    async def generate_structured(
+        self,
+        schema: type[BaseModel],
+        prompt: str,
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+    ) -> BaseModel:
+        """Generate structured output using the selected provider."""
+        from .prompt_engineering.structured import generate_structured
+
+        request = LLMRequest(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+            correlation_id=correlation_id,
+            timeout_seconds=timeout_seconds,
+        )
+        provider_name = provider or self._default_provider
+        if not provider_name or provider_name not in registry.list_instances():
+            raise LLMServiceError(f"Provider '{provider_name}' not available")
+        if not self._is_provider_healthy(provider_name):
+            fallback = self._get_fallback_provider(provider_name)
+            if fallback:
+                logger.warning(
+                    "Provider unhealthy, falling back for structured generation",
+                    unhealthy=provider_name,
+                    fallback=fallback,
+                    correlation_id=correlation_id,
+                )
+                provider_name = fallback
+            else:
+                raise LLMServiceError(
+                    f"Provider '{provider_name}' is circuit-broken and no fallback available"
+                )
+        if self._default_model and not request.model:
+            request = request.model_copy(update={"model": self._default_model})
+        self._validate_generation_config(provider_name, request)
+        provider_instance = registry.get(provider_name)
+        try:
+            result = await generate_structured(
+                provider_instance,
+                schema,
+                request.prompt,
+                system_prompt=request.system_prompt,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                model=request.model,
+                correlation_id=request.correlation_id,
+            )
+            self._record_success(provider_name)
+            logger.info(
+                "LLM structured generation completed",
+                provider=provider_name,
+                model=request.model,
+                schema=schema.__name__,
+                correlation_id=correlation_id,
+            )
+            return result
+        except Exception as e:
+            failure_kind = self._classify_failure(e)
+            if self._should_trip_circuit(e):
+                self._record_failure(provider_name, failure_kind=failure_kind)
+            logger.error(
+                "LLM structured generation failed",
+                provider=provider_name,
+                failure_kind=failure_kind,
+                schema=schema.__name__,
                 error=str(e),
                 correlation_id=correlation_id,
             )

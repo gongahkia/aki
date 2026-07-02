@@ -6,6 +6,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 import structlog
+from pydantic import BaseModel, ValidationError
 
 from .base import (
     LLMProvider,
@@ -20,6 +21,8 @@ logger = structlog.get_logger(__name__)
 
 class OllamaProvider(LLMProvider):
     """Ollama LLM provider with dynamic model listing."""
+
+    supports_json_schema = True
 
     def __init__(
         self,
@@ -118,6 +121,62 @@ class OllamaProvider(LLMProvider):
         except Exception as e:
             logger.warning("Ollama list_models failed", error=str(e))
             return []
+
+    @retry_on_failure(max_attempts=2, delay=1.0, backoff=2.0)
+    async def generate_structured(
+        self,
+        schema: type[BaseModel],
+        prompt: str,
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        model: Optional[str] = None,
+        **kwargs: Any,
+    ) -> BaseModel:
+        model_name = model or self.default_model
+        await self._validate_model(model_name)
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        payload = {
+            "model": model_name,
+            "messages": messages,
+            "stream": False,
+            "format": schema.model_json_schema(),
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+            },
+        }
+        try:
+            resp = await self.client.post(f"{self.base_url}/api/chat", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            content = data.get("message", {}).get("content", "")
+            return schema.model_validate_json(content)
+        except ValidationError:
+            raise
+        except httpx.TimeoutException as e:
+            raise LLMServiceError(
+                "Ollama timeout while generating structured output "
+                f"({type(e).__name__}, read_timeout={self.read_timeout}s)"
+            ) from e
+        except httpx.HTTPStatusError as e:
+            body = (e.response.text or "").strip()
+            if len(body) > 180:
+                body = f"{body[:177]}..."
+            detail = f" body={body!r}" if body else ""
+            raise LLMServiceError(
+                f"Ollama structured HTTP status error {e.response.status_code}.{detail}"
+            ) from e
+        except httpx.HTTPError as e:
+            raise LLMServiceError(
+                f"Ollama structured transport error ({type(e).__name__}): {e}"
+            ) from e
+        except Exception as e:
+            raise LLMServiceError(f"Ollama structured error: {e}") from e
 
     async def health_check(self) -> Dict[str, Any]:
         try:

@@ -10,6 +10,7 @@ from .templates import (
     PromptTemplateManager,
     PromptTemplateType,
     SimilarityCheckTemplate,
+    format_structured_prompt,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "SimilarityCheckTemplate",
     "LegalAnalysisTemplate",
     "PromptTemplateManager",
+    "format_structured_prompt",
 ]
