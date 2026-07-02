@@ -196,6 +196,7 @@ class ValidationResult(BaseModel):
 
     adherence_check: Dict[str, Any] = Field(default_factory=dict)
     similarity_check: Dict[str, Any] = Field(default_factory=dict)
+    faithfulness: Optional[Dict[str, Any]] = None
     quality_score: float = Field(default=0.0, ge=0.0, le=10.0)
     legal_realism_score: float = Field(default=0.0, ge=0.0, le=1.0)
     exam_likeness_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -1227,6 +1228,35 @@ class HypotheticalService:
             )
             raise HypotheticalServiceError(f"Text generation failed: {e}")
 
+    async def _verify_faithfulness(
+        self,
+        hypothetical: str,
+        context_entries: List[HypotheticalEntry],
+        correlation_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        if not getattr(settings, "nli_verifier_enabled", False):
+            return None
+        try:
+            from .verification.nli_verifier import nli_verifier
+
+            claims = await nli_verifier.extract_claims(hypothetical, self.llm_service)
+            contexts = [
+                {
+                    "corpus_id": str(getattr(entry, "id", "") or entry.text[:32]),
+                    "text": str(entry.text),
+                }
+                for entry in (context_entries or [])
+                if str(getattr(entry, "text", "")).strip()
+            ]
+            return nli_verifier.verify(claims, contexts).model_dump()
+        except Exception as exc:
+            logger.warning(
+                "NLI verifier failed (non-fatal)",
+                error=str(exc),
+                correlation_id=correlation_id,
+            )
+            return None
+
     async def _validate_hypothetical(
         self,
         request: GenerationRequest,
@@ -1309,9 +1339,14 @@ class HypotheticalService:
             except Exception:
                 pass  # LLM validation is optional
 
+            faithfulness_report = await self._verify_faithfulness(
+                hypothetical, context_entries, request.correlation_id
+            )
+
             result = ValidationResult(
                 adherence_check=validation_result,
                 similarity_check=similarity_result,
+                faithfulness=faithfulness_report,
                 quality_score=quality_score,
                 legal_realism_score=legal_realism_score,
                 exam_likeness_score=exam_likeness_score,
