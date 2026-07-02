@@ -12,11 +12,14 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
 from ...domain import canonicalize_topic, resolve_domain_pack
+
+if TYPE_CHECKING:
+    from .schemas import RefineCritique
 
 
 class PromptTemplateType(str, Enum):
@@ -107,6 +110,67 @@ def format_structured_prompt(context: PromptContext, schema_name: str) -> str:
         + "You MUST return valid JSON matching the schema below.\n"
         + schema_text
     )
+
+
+def format_revise_prompt(
+    context: PromptContext,
+    prior_draft: str,
+    critique: "RefineCritique",
+) -> str:
+    feedback: list[str] = []
+    if critique.missing_topics:
+        feedback.append(
+            "Ensure these topics are explicitly addressed: "
+            + ", ".join(critique.missing_topics)
+            + "."
+        )
+    if critique.faithfulness and critique.faithfulness.faithfulness_score < 0.7:
+        unsupported = [
+            verdict.claim.text
+            for verdict in critique.faithfulness.verdicts
+            if verdict.verdict != "entailment"
+        ][:5]
+        if unsupported:
+            feedback.append(
+                "Remove or ground these unsupported claims: " + " | ".join(unsupported)
+            )
+    if critique.citation and critique.citation.citation_accuracy < 0.6:
+        feedback.append(
+            "Fix invalid citations: unknown corpus IDs "
+            + str(critique.citation.unknown_corpus_ids)
+            + "."
+        )
+    if critique.ml_gate and not critique.ml_gate.get("passed", True):
+        threshold = _safe_float(critique.ml_gate.get("threshold"), 0.4)
+        low_topics = [
+            topic
+            for topic, confidence in (critique.ml_gate.get("per_topic") or {}).items()
+            if _safe_float(confidence, 0.0) < threshold
+        ]
+        if low_topics:
+            feedback.append(
+                "Increase explicit treatment of: " + ", ".join(low_topics) + "."
+            )
+    if critique.rule_based and critique.rule_based.get("passed") is False:
+        feedback.append("Address the failed validation checks in the prior draft.")
+    if not feedback:
+        feedback.append("Preserve legal realism, topic coverage, and exam clarity.")
+    base = HypotheticalGenerationTemplate().format_prompt(context)["user"]
+    return (
+        base
+        + "\n\n---\nPrior draft:\n"
+        + prior_draft
+        + "\n\n---\nCritique to address:\n"
+        + "\n".join(f"- {line}" for line in feedback)
+        + "\n\nProduce a revised hypothetical that addresses every point above."
+    )
+
+
+def _safe_float(value: Any, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
 
 
 class PromptTemplate(BaseModel):

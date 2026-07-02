@@ -35,9 +35,15 @@ from .prompt_engineering import (
     PromptContext,
     PromptTemplateManager,
     PromptTemplateType,
+    format_revise_prompt,
     format_structured_prompt,
 )
-from .prompt_engineering.schemas import HypotheticalDraft, ModelAnswer
+from .prompt_engineering.schemas import (
+    FaithfulnessReport,
+    HypotheticalDraft,
+    ModelAnswer,
+)
+from .refine_loop import RefineLoop, RefineResult
 from .validation_service import validation_service
 
 logger = structlog.get_logger(__name__)
@@ -605,45 +611,31 @@ class HypotheticalService:
             # Step 2.5: ML-assisted post-processing
             if request.method in ("ml_assisted", "hybrid"):
                 hypothetical = await self._ml_post_process(request, hypothetical)
-            # Step 2.6: Blocking ML gate — if the drafted hypothetical does not
-            # confidently cover the requested topics, regenerate once with a
-            # topic-specific critique. See src/ml/pipeline.py::gate_confidence.
-            ml_gate_report: Dict[str, Any] = {}
-            if (
-                getattr(settings, "ml_gate_blocking", True)
-                and request.method in ("ml_assisted", "hybrid")
-                and int(getattr(request, "retry_attempt", 0)) == 0
-            ):
-                ml_gate_report = self._ml_gate_check(request, hypothetical)
-                if not ml_gate_report.get("passed", True):
-                    gated_request = self._build_ml_gate_retry_request(
-                        request, ml_gate_report
-                    )
-                    try:
-                        (
-                            gated_hypothetical,
-                            gated_request_extras,
-                        ) = await self._generate_hypothetical_draft(
-                            gated_request, context_entries
-                        )
-                        gated_hypothetical = await self._ml_post_process(
-                            gated_request, gated_hypothetical
-                        )
-                        second_pass = self._ml_gate_check(
-                            gated_request, gated_hypothetical
-                        )
-                        # Adopt retry output regardless — the report will show
-                        # whether the second pass met the threshold.
-                        request = gated_request
-                        hypothetical = gated_hypothetical
-                        request_extras = gated_request_extras
-                        ml_gate_report = second_pass
-                    except Exception as gate_error:
-                        logger.warning(
-                            "ML-gate retry failed",
-                            error=str(gate_error),
-                            correlation_id=request.correlation_id,
-                        )
+
+            # Step 2.6: Bounded self-refine loop
+            refine_result = await self._run_refine_loop(
+                request, hypothetical, context_entries
+            )
+            hypothetical = refine_result.hypothetical
+            if refine_result.iterations > 0 and "structured_draft" in request_extras:
+                request_extras = dict(request_extras)
+                request_extras.pop("structured_draft", None)
+            final_refine_blocking = refine_result.final_critique.is_blocking()
+            ml_gate_report: Dict[str, Any] = dict(
+                refine_result.final_critique.ml_gate or {}
+            )
+            auto_regeneration_attempted = refine_result.iterations > 0
+            auto_regeneration_successful = (
+                auto_regeneration_attempted and not final_refine_blocking
+            )
+            refine_metadata = {
+                "iterations": refine_result.iterations,
+                "trace_path": str(
+                    Path(settings.refine_trace_dir) / f"{request.correlation_id}.jsonl"
+                ),
+                "final_critique": refine_result.final_critique.model_dump(),
+                "exhausted": final_refine_blocking,
+            }
             generation_time_ms = round(
                 (time.perf_counter() - generation_started) * 1000, 2
             )
@@ -653,51 +645,13 @@ class HypotheticalService:
             validation_results = await self._validate_hypothetical(
                 request, hypothetical, context_entries
             )
+            if final_refine_blocking:
+                validation_results = validation_results.model_copy(
+                    update={"passed": False}
+                )
             validation_time_ms = round(
                 (time.perf_counter() - validation_started) * 1000, 2
             )
-            auto_regeneration_attempted = False
-            auto_regeneration_successful = False
-            if self._should_retry_for_realism_gate(request, validation_results):
-                auto_regeneration_attempted = True
-                retry_request = self._build_realism_retry_request(
-                    request, validation_results
-                )
-                try:
-                    retry_generation_started = time.perf_counter()
-                    (
-                        retry_hypothetical,
-                        retry_request_extras,
-                    ) = await self._generate_hypothetical_draft(
-                        retry_request, context_entries
-                    )
-                    if retry_request.method in ("ml_assisted", "hybrid"):
-                        retry_hypothetical = await self._ml_post_process(
-                            retry_request, retry_hypothetical
-                        )
-                    generation_time_ms += round(
-                        (time.perf_counter() - retry_generation_started) * 1000, 2
-                    )
-
-                    retry_validation_started = time.perf_counter()
-                    retry_validation_results = await self._validate_hypothetical(
-                        retry_request, retry_hypothetical, context_entries
-                    )
-                    validation_time_ms += round(
-                        (time.perf_counter() - retry_validation_started) * 1000, 2
-                    )
-
-                    request = retry_request
-                    hypothetical = retry_hypothetical
-                    request_extras = retry_request_extras
-                    validation_results = retry_validation_results
-                    auto_regeneration_successful = validation_results.passed
-                except Exception as retry_error:
-                    logger.warning(
-                        "Auto regeneration retry failed",
-                        error=str(retry_error),
-                        correlation_id=request.correlation_id,
-                    )
 
             # Step 4: Generate legal analysis
             analysis_skipped = self._should_skip_analysis(request)
@@ -771,6 +725,7 @@ class HypotheticalService:
                     "context_entries_used": len(context_entries),
                     "generation_timestamp": start_time.isoformat(),
                     "ml_gate": ml_gate_report,
+                    "refine": refine_metadata,
                     **request_extras,
                 },
                 generation_time=generation_time,
@@ -925,6 +880,95 @@ class HypotheticalService:
             )
         return report
 
+    async def _run_refine_loop(
+        self,
+        request: GenerationRequest,
+        initial_draft: str,
+        context_entries: List[HypotheticalEntry],
+    ) -> RefineResult:
+        prompt_context = self._build_prompt_context(request, context_entries)
+        trace_path = Path(settings.refine_trace_dir) / f"{request.correlation_id}.jsonl"
+
+        async def generate_revised(prompt: str) -> str:
+            revised = await self._generate_hypothetical_text_from_prompt(
+                request, prompt, context_entries
+            )
+            if request.method in ("ml_assisted", "hybrid"):
+                revised = await self._ml_post_process(request, revised)
+            return revised
+
+        async def nli_verify(text: str) -> FaithfulnessReport | None:
+            return await self._refine_faithfulness_report(
+                text, context_entries, request.correlation_id
+            )
+
+        ml_gate_check = None
+        if getattr(settings, "ml_gate_blocking", True) and request.method in (
+            "ml_assisted",
+            "hybrid",
+        ):
+            ml_gate_check = lambda text: self._ml_gate_check(request, text)
+
+        loop = RefineLoop(
+            generate=generate_revised,
+            rule_based_validate=lambda text: self._rule_based_validate_dict(
+                request, text, context_entries
+            ),
+            nli_verify=(
+                nli_verify
+                if getattr(settings, "nli_verifier_enabled", False) and context_entries
+                else None
+            ),
+            citation_verify=None,
+            ml_gate_check=ml_gate_check,
+            max_iterations=int(getattr(settings, "refine_max_iterations", 2)),
+            trace_path=trace_path,
+        )
+        return await loop.run(
+            initial_draft=initial_draft,
+            revise_prompt_builder=lambda draft, critique: format_revise_prompt(
+                prompt_context, draft, critique
+            ),
+        )
+
+    async def _rule_based_validate_dict(
+        self,
+        request: GenerationRequest,
+        hypothetical: str,
+        context_entries: List[HypotheticalEntry],
+    ) -> dict[str, Any]:
+        result = await self._validate_hypothetical(
+            request, hypothetical, context_entries, include_faithfulness=False
+        )
+        data = result.model_dump()
+        topic_check = (
+            result.adherence_check.get("checks", {}).get("topic_inclusion", {})
+            if isinstance(result.adherence_check, dict)
+            else {}
+        )
+        data["missing_topics"] = list(topic_check.get("topics_missing", []))
+        return data
+
+    async def _refine_faithfulness_report(
+        self,
+        hypothetical: str,
+        context_entries: List[HypotheticalEntry],
+        correlation_id: Optional[str],
+    ) -> FaithfulnessReport | None:
+        report = await self._verify_faithfulness(
+            hypothetical, context_entries, correlation_id
+        )
+        if not report:
+            return None
+        try:
+            from .verification.nli_verifier import nli_verifier
+
+            if getattr(nli_verifier, "_model", None) is False:
+                return None
+        except Exception:
+            return None
+        return FaithfulnessReport.model_validate(report)
+
     async def _get_relevant_context(
         self, request: GenerationRequest
     ) -> List[HypotheticalEntry]:
@@ -1039,14 +1083,12 @@ class HypotheticalService:
             ) + "NOTE: No reference examples available in corpus for these topics."
         return context_entries
 
-    def _build_hypothetical_prompt_data(
+    def _build_prompt_context(
         self,
         request: GenerationRequest,
         context_entries: List[HypotheticalEntry],
-        *,
-        structured: bool = False,
-    ) -> tuple[Dict[str, str], str, Optional[int], float]:
-        context = PromptContext(
+    ) -> PromptContext:
+        return PromptContext(
             topics=request.topics,
             corpus_pack=request.corpus_pack,
             jurisdiction=request.jurisdiction,
@@ -1058,6 +1100,15 @@ class HypotheticalService:
             user_preferences=request.user_preferences,
             complexity_level=request.complexity_level,
         )
+
+    def _build_hypothetical_prompt_data(
+        self,
+        request: GenerationRequest,
+        context_entries: List[HypotheticalEntry],
+        *,
+        structured: bool = False,
+    ) -> tuple[Dict[str, str], str, Optional[int], float]:
+        context = self._build_prompt_context(request, context_entries)
         prompt_data = self.prompt_manager.format_prompt(
             PromptTemplateType.HYPOTHETICAL_GENERATION, context
         )
@@ -1229,6 +1280,55 @@ class HypotheticalService:
             )
             raise HypotheticalServiceError(f"Text generation failed: {e}")
 
+    async def _generate_hypothetical_text_from_prompt(
+        self,
+        request: GenerationRequest,
+        prompt: str,
+        context_entries: List[HypotheticalEntry],
+    ) -> str:
+        try:
+            prompt_data, _user_prompt, _seed, temp = (
+                self._build_hypothetical_prompt_data(request, context_entries)
+            )
+            timeout_seconds = self._resolve_provider_timeout(request)
+            llm_request = LLMRequest(
+                prompt=prompt,
+                system_prompt=prompt_data["system"],
+                temperature=temp,
+                max_tokens=2048,
+                correlation_id=request.correlation_id,
+                timeout_seconds=timeout_seconds,
+            )
+            llm_response = await self._await_provider_operation(
+                self.llm_service.generate(
+                    llm_request,
+                    provider=request.provider,
+                    model=request.model,
+                ),
+                operation_name="hypothetical revision",
+                timeout_seconds=timeout_seconds,
+                correlation_id=request.correlation_id,
+            )
+            hypothetical = self._extract_hypothetical_from_response(
+                llm_response.content
+            )
+            if not hypothetical or len(hypothetical) < 50:
+                raise HypotheticalServiceError("LLM returned empty/too-short revision")
+            return hypothetical
+        except asyncio.CancelledError:
+            logger.info(
+                "Hypothetical revision cancelled",
+                correlation_id=request.correlation_id,
+            )
+            raise
+        except Exception as exc:
+            logger.error(
+                "Failed to revise hypothetical text",
+                error=str(exc),
+                correlation_id=request.correlation_id,
+            )
+            raise HypotheticalServiceError(f"Text revision failed: {exc}") from exc
+
     async def _verify_faithfulness(
         self,
         hypothetical: str,
@@ -1263,6 +1363,8 @@ class HypotheticalService:
         request: GenerationRequest,
         hypothetical: str,
         context_entries: List[HypotheticalEntry],
+        *,
+        include_faithfulness: bool = True,
     ) -> ValidationResult:
         """
         Validate the generated hypothetical using deterministic checks.
@@ -1340,9 +1442,11 @@ class HypotheticalService:
             except Exception:
                 pass  # LLM validation is optional
 
-            faithfulness_report = await self._verify_faithfulness(
-                hypothetical, context_entries, request.correlation_id
-            )
+            faithfulness_report = None
+            if include_faithfulness:
+                faithfulness_report = await self._verify_faithfulness(
+                    hypothetical, context_entries, request.correlation_id
+                )
 
             result = ValidationResult(
                 adherence_check=validation_result,
