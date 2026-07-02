@@ -67,169 +67,6 @@ installed.
 
 ---
 
-## Task 9 — Citation verifier (upgrade #3b)
-
-**Goal.** Given a `ModelAnswer`, check every `IRACStep.citations[].corpus_id`
-exists in the corpus and its topic tags overlap the step's issue. Produce a
-`CitationReport`.
-
-### Files to create/edit
-
-- **NEW** `src/services/verification/citation_verifier.py`
-- **EDIT** `src/services/verification/__init__.py` — export
-  `CitationVerifier`, `citation_verifier`.
-- **EDIT** `src/services/hypothetical_service.py::_generate_model_answer` — when
-  the model answer is structured (`ModelAnswer`), call the verifier and attach
-  the result to `response.validation_results["citation"]`.
-- **NEW** `tests/test_services/test_citation_verifier.py`.
-
-### Module skeleton
-
-```python
-# src/services/verification/citation_verifier.py
-from __future__ import annotations
-
-from typing import Any, Iterable
-
-import structlog
-
-from ..prompt_engineering.schemas import (
-    CitationReport, CorpusRef, IRACStep, ModelAnswer,
-)
-
-logger = structlog.get_logger(__name__)
-
-
-class CitationVerifier:
-    def __init__(self) -> None:
-        self._corpus_index: dict[str, dict[str, Any]] | None = None
-        self._authorities_index: dict[str, dict[str, Any]] | None = None
-
-    async def _ensure_index(self, corpus_pack: str = "sg_tort") -> None:
-        if self._corpus_index is not None:
-            return
-        from ..corpus_service import corpus_service
-        entries = await corpus_service.load_corpus(corpus_pack=corpus_pack)
-        self._corpus_index = {
-            e.id: {"topics": set(e.topics), "text": e.text}
-            for e in entries if e.id
-        }
-        import json, pathlib
-        auth_path = pathlib.Path(
-            f"corpus/packs/{corpus_pack}/authorities.json"
-        )
-        if auth_path.exists():
-            data = json.loads(auth_path.read_text(encoding="utf-8"))
-            self._authorities_index = {
-                a["id"]: {"topics": set(a.get("topics", [])),
-                          "citation": a.get("citation", "")}
-                for a in data.get("authorities", [])
-            }
-        else:
-            self._authorities_index = {}
-
-    async def verify_model_answer(
-        self, answer: ModelAnswer, corpus_pack: str = "sg_tort"
-    ) -> CitationReport:
-        await self._ensure_index(corpus_pack)
-        total = verified = 0
-        unknown: list[str] = []
-        topic_mismatch: list[dict[str, Any]] = []
-        for step in answer.steps:
-            step_topic = _issue_to_topic(step.issue)
-            for ref in step.citations:
-                total += 1
-                if ref.corpus_id in (self._corpus_index or {}):
-                    entry_topics = self._corpus_index[ref.corpus_id]["topics"]
-                    if not step_topic or step_topic in entry_topics:
-                        verified += 1
-                    else:
-                        topic_mismatch.append({
-                            "corpus_id": ref.corpus_id,
-                            "step_topic": step_topic,
-                            "corpus_topics": sorted(entry_topics),
-                        })
-                elif ref.authority_id and ref.authority_id in (
-                    self._authorities_index or {}
-                ):
-                    verified += 1
-                else:
-                    unknown.append(ref.corpus_id)
-        accuracy = verified / total if total else 1.0
-        return CitationReport(
-            citation_accuracy=accuracy,
-            total_citations=total,
-            verified=verified,
-            unknown_corpus_ids=unknown,
-            topic_mismatch=topic_mismatch,
-        )
-
-
-def _issue_to_topic(issue: str) -> str | None:
-    # Heuristic: match against the SG-tort taxonomy topic keys.
-    from ...domain import get_topic_keys
-    topics = get_topic_keys("sg_tort")
-    lowered = issue.lower()
-    for topic in topics:
-        alias = topic.replace("_", " ")
-        if alias in lowered or topic in lowered:
-            return topic
-    return None
-
-
-citation_verifier = CitationVerifier()
-__all__ = ["CitationVerifier", "citation_verifier"]
-```
-
-(If `src.domain.get_topic_keys` doesn't exist, resolve topics via
-`corpus/packs/{pack}/manifest.json['taxonomy']['topics'][*].key`.)
-
-### Verification
-
-```
-pytest -q tests/test_services/test_citation_verifier.py
-```
-
-Manual:
-
-```
-python -c "
-import asyncio, json
-from src.services.verification.citation_verifier import citation_verifier
-from src.services.prompt_engineering.schemas import (
-    ModelAnswer, IRACStep, CorpusRef)
-
-async def main():
-    answer = ModelAnswer(
-        steps=[IRACStep(
-            issue='Did the defendant owe a duty of care?',
-            rule='Applying Spandeck two-stage test...',
-            application='Facts show foreseeability and proximity...',
-            conclusion='A duty of care was owed.',
-            citations=[CorpusRef(corpus_id='sg_tort_neg_001',
-                                 authority_id='spandeck_2007')],
-        )],
-        overall_conclusion='The defendant is liable in negligence.',
-    )
-    report = await citation_verifier.verify_model_answer(answer)
-    print(report.model_dump_json(indent=2))
-
-asyncio.run(main())
-"
-```
-
-Expected: `citation_accuracy >= 0.5` (depends on corpus_id presence — the
-`sg_tort_neg_001` etc. ids are placeholders in the eval JSONL; use real corpus
-ids from `corpus/labelled/sg_tort/corpus.json` for the test).
-
-### Dependencies
-
-- Structured `ModelAnswer` shape from the completed structured decoding adapter.
-- Existing `corpus_service.load_corpus()` returns `HypotheticalEntry` with
-  `.id` and `.topics` — no changes needed there.
-
----
-
 ## Task 10 — Self-refine loop (upgrade #3c)
 
 **Goal.** Bounded (default 2 iterations) refine loop that consumes rule-based
@@ -822,13 +659,12 @@ print(d['runs'][0]['metrics']['ragas_faithfulness'])"
 
 ## Build order (for the agent)
 
-1. **Task 9** — citation verifier.
-2. **Task 10** — refine loop (composes structured drafts + verifier reports).
-3. **Task 11** — extend evaluators.
-4. **Task 12** — JSONL loader + `jikai_eval_v1` task.
-5. **Task 13** — benchmark runner + ablation script.
-6. **Task 14** — research writeup + README rewrite.
-7. **CI/reqs** — cross-cutting; last (after real deps are settled).
+1. **Task 10** — refine loop (composes structured drafts + verifier reports).
+2. **Task 11** — extend evaluators.
+3. **Task 12** — JSONL loader + `jikai_eval_v1` task.
+4. **Task 13** — benchmark runner + ablation script.
+5. **Task 14** — research writeup + README rewrite.
+6. **CI/reqs** — cross-cutting; last (after real deps are settled).
 
 Each task's `Verification` section is intentionally executable. When a task's
 verification fails, do not proceed to the next task.

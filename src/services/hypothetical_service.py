@@ -37,7 +37,7 @@ from .prompt_engineering import (
     PromptTemplateType,
     format_structured_prompt,
 )
-from .prompt_engineering.schemas import HypotheticalDraft
+from .prompt_engineering.schemas import HypotheticalDraft, ModelAnswer
 from .validation_service import validation_service
 
 logger = structlog.get_logger(__name__)
@@ -197,6 +197,7 @@ class ValidationResult(BaseModel):
     adherence_check: Dict[str, Any] = Field(default_factory=dict)
     similarity_check: Dict[str, Any] = Field(default_factory=dict)
     faithfulness: Optional[Dict[str, Any]] = None
+    citation: Optional[Dict[str, Any]] = None
     quality_score: float = Field(default=0.0, ge=0.0, le=10.0)
     legal_realism_score: float = Field(default=0.0, ge=0.0, le=1.0)
     exam_likeness_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -719,7 +720,7 @@ class HypotheticalService:
                 try:
                     ma_started = time.perf_counter()
                     model_answer = await self._generate_model_answer(
-                        request, hypothetical
+                        request, hypothetical, validation_results, context_entries
                     )
                     model_answer_time_ms = round(
                         (time.perf_counter() - ma_started) * 1000, 2
@@ -1511,7 +1512,11 @@ class HypotheticalService:
             return f"Legal analysis generation failed: {e}"
 
     async def _generate_model_answer(
-        self, request: GenerationRequest, hypothetical: str
+        self,
+        request: GenerationRequest,
+        hypothetical: str,
+        validation_results: Optional[ValidationResult] = None,
+        context_entries: Optional[List[HypotheticalEntry]] = None,
     ) -> str:
         """Generate a model answer walking through the legal analysis of the hypothetical."""
         domain_pack = resolve_domain_pack(request.corpus_pack)
@@ -1530,6 +1535,49 @@ class HypotheticalService:
             "Structure your answer with IRAC for each issue. Be thorough but concise."
         )
         timeout_seconds = self._resolve_provider_timeout(request)
+        if getattr(settings, "structured_generation_enabled", True):
+            structured_prompt = self._format_model_answer_prompt(
+                user_prompt, context_entries or []
+            )
+            try:
+                structured_answer = await self._await_provider_operation(
+                    self.llm_service.generate_structured(
+                        ModelAnswer,
+                        structured_prompt,
+                        system_prompt=system_prompt,
+                        temperature=0.4,
+                        max_tokens=3000,
+                        provider=request.provider,
+                        model=request.model,
+                        correlation_id=request.correlation_id,
+                        timeout_seconds=timeout_seconds,
+                    ),
+                    operation_name="structured model answer generation",
+                    timeout_seconds=timeout_seconds,
+                    correlation_id=request.correlation_id,
+                )
+                answer = (
+                    structured_answer
+                    if isinstance(structured_answer, ModelAnswer)
+                    else ModelAnswer.model_validate(structured_answer)
+                )
+                citation_report = await self._verify_model_answer_citations(
+                    answer, request.corpus_pack, request.correlation_id
+                )
+                if validation_results is not None:
+                    validation_results.citation = citation_report
+                logger.info(
+                    "Structured model answer generated",
+                    steps=len(answer.steps),
+                    correlation_id=request.correlation_id,
+                )
+                return _render_model_answer(answer)
+            except Exception as exc:
+                logger.info(
+                    "Structured model answer generation failed; falling back to text",
+                    error=str(exc),
+                    correlation_id=request.correlation_id,
+                )
         llm_request = LLMRequest(
             prompt=user_prompt,
             system_prompt=system_prompt,
@@ -1550,6 +1598,53 @@ class HypotheticalService:
             correlation_id=request.correlation_id,
         )
         return llm_response.content
+
+    def _format_model_answer_prompt(
+        self, user_prompt: str, context_entries: List[HypotheticalEntry]
+    ) -> str:
+        if not context_entries:
+            return (
+                user_prompt
+                + "\n\nReturn a structured ModelAnswer. Include citations with corpus_id and optional authority_id where available."
+            )
+        references: list[str] = []
+        for entry in context_entries[:8]:
+            text = " ".join(str(entry.text).split())
+            references.append(
+                "- corpus_id: "
+                + str(entry.id or "")
+                + "; topics: "
+                + ", ".join(entry.topics)
+                + "; excerpt: "
+                + text[:700]
+            )
+        return (
+            user_prompt
+            + "\n\nUse these retrieved corpus references for citations:\n"
+            + "\n".join(references)
+            + "\n\nReturn a structured ModelAnswer. Cite only corpus_id values from the reference list unless using a known authority_id."
+        )
+
+    async def _verify_model_answer_citations(
+        self,
+        answer: ModelAnswer,
+        corpus_pack: str,
+        correlation_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            from .verification.citation_verifier import citation_verifier
+
+            report = await citation_verifier.verify_model_answer(
+                answer, corpus_pack=corpus_pack
+            )
+            return report.model_dump()
+        except Exception as exc:
+            logger.warning(
+                "Citation verifier failed (non-fatal)",
+                error=str(exc),
+                correlation_id=correlation_id,
+            )
+            return None
 
     def _extract_hypothetical_from_response(self, response_content: str) -> str:
         """
@@ -1689,6 +1784,24 @@ class HypotheticalService:
             health_status["error"] = str(e)
 
         return health_status
+
+
+def _render_model_answer(answer: ModelAnswer) -> str:
+    sections: list[str] = []
+    for index, step in enumerate(answer.steps, start=1):
+        citations = ", ".join(
+            ref.citation or ref.authority_id or ref.corpus_id for ref in step.citations
+        )
+        citation_line = f"\nCitations: {citations}" if citations else ""
+        sections.append(
+            f"Issue {index}: {step.issue}\n"
+            f"Rule: {step.rule}\n"
+            f"Application: {step.application}\n"
+            f"Conclusion: {step.conclusion}"
+            f"{citation_line}"
+        )
+    sections.append(f"Overall conclusion: {answer.overall_conclusion}")
+    return "\n\n".join(sections)
 
 
 # Global hypothetical service instance
