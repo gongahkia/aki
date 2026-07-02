@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
         chat,
         corpus,
         database,
+        demo,
         health,
         jobs,
         llm,
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(demo.router, prefix="/demo", tags=["demo"])
     app.include_router(llm.router, prefix="/llm", tags=["llm"])
     app.include_router(corpus.router, prefix="/corpus", tags=["corpus"])
     app.include_router(workflow.router, prefix="/workflow", tags=["workflow"])
