@@ -9,8 +9,10 @@ def test_generation_page_serves_public_demo_shell():
     response = client.get("/demo")
 
     assert response.status_code == 200
-    assert "Jikai Demo" in response.text
+    assert "Jikai Practice" in response.text
     assert "/workflow/generate" in response.text
+    assert "Load sample" in response.text
+    assert "Question setup" in response.text
     assert "server-side provider" in response.text
 
 
@@ -20,7 +22,7 @@ def test_pipeline_page_serves_visual_shell():
     response = client.get("/demo/pipeline")
 
     assert response.status_code == 200
-    assert "Jikai Pipeline Trace" in response.text
+    assert "Jikai Trace" in response.text
     assert "/demo/pipeline/trace" in response.text
 
 
