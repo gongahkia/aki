@@ -196,25 +196,22 @@ Use `/menu` to open the multi-screen navigation, and `/help` to list command fam
 
 ## So where's the [ML](https://en.wikipedia.org/wiki/Machine_learning) in this?
 
-`Jikai` uses ML as a **required foundation stage** before LLM generation.
+`Jikai` uses ML for training/inference and post-draft topic gating.
 
-* *ML training/inference pipeline*: `src/ml/pipeline.py` orchestrates the classifier (`src/ml/classifier.py`), regressor (`src/ml/regressor.py`), and clusterer (`src/ml/clustering.py`).
-* *Generation-time ML foundation*: `src/services/workflow_facade.py` calls `src/services/hypo_generator.py` first (`_prepare_combined_request`), and blocks generation if required ML models are unavailable.
-* *Topic and structure heuristics*: `src/ml/topic_selector.py` and `src/ml/structural_planner.py` provide retrieval/planning support to compose realistic fact patterns.
-* *Quality scoring signals*: the regressor and confidence values are attached into generation metadata and used in orchestration/feedback context.
-* *Corpus and model lifecycle jobs*: `/jobs/train`, `/jobs/label`, and `make train`/`make label` keep ML artifacts and labelled data current (`models/*`, `corpus/labelled/*.csv`).
-* *Retrieval ML layer*: `src/services/vector_service.py` uses `sentence-transformers` embeddings + Chroma for semantic search; `src/services/corpus_service.py` falls back to overlap matching if vector search is unavailable.
+* *Pipeline*: [`src/ml/pipeline.py`](src/ml/pipeline.py#L20) coordinates classifier, regressor, and clusterer training/inference.
+* *SetFit gate*: [`src/ml/pipeline.py`](src/ml/pipeline.py#L44) can dispatch to the optional [`SetFitTopicClassifier`](src/ml/setfit_classifier.py#L23), then [`gate_confidence`](src/ml/pipeline.py#L187) scores requested-topic coverage.
+* *Generation gate*: [`_ml_gate_check`](src/services/hypothetical_service.py#L824) feeds topic confidence into the refine loop when `ml_assisted` or `hybrid` generation is active.
+* *Retrieval eval*: LegalBench-RAG-style recall, MRR, and NDCG metrics are implemented in [`src/evals/evaluators.py`](src/evals/evaluators.py#L228) and reported as dry-run smoke metrics in [`research/results.md`](research/results.md).
 
 ## So where's the [LLM](https://en.wikipedia.org/wiki/Large_language_model) in this?
 
-The LLM layer is the **second stage** in generation, after ML scaffolding.
+The LLM is the drafting and revision stage.
 
-* *Provider abstraction/routing*: `src/services/llm_service.py` handles provider initialization, health checks, fallback/circuit-breaker logic, model selection, streaming, and session cost tracking.
-* *Provider adapters*: `src/services/llm_providers/` contains implementations for Ollama, OpenAI, Anthropic, Google Gemini, and local llama.cpp-compatible servers.
-* *Prompted generation path*: `src/services/hypothetical_service.py` builds prompt context (`src/services/prompt_engineering/templates.py`) and calls `llm_service` to generate the final hypothetical/analysis output.
-* *Direct LLM API surface*: `/llm/generate`, `/llm/stream`, `/llm/models`, `/llm/health`, `/llm/select-provider`, `/llm/select-model` in `src/api/routes/llm.py`.
-* *LLM-assisted NLU path*: chat intent parsing in `src/services/chat_nlu.py` can optionally use an LLM (`/chat/interpret` endpoint).
-* *Config-driven provider enablement*: API keys/hosts in `.env` (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OLLAMA_HOST`, `LOCAL_LLM_HOST`) decide which providers are active at runtime.
+* *Provider routing*: [`LLMService.generate`](src/services/llm_service.py#L389) handles provider/model selection, timeout handling, circuit-breaker fallback, and cost tracking.
+* *Structured drafts*: [`HypotheticalDraft`](src/services/prompt_engineering/schemas.py#L87) is produced through [`generate_structured`](src/services/llm_service.py#L470) and [`_generate_structured_draft`](src/services/hypothetical_service.py#L1173).
+* *IRAC model answers*: [`ModelAnswer`](src/services/prompt_engineering/schemas.py#L107) is generated in [`_generate_model_answer`](src/services/hypothetical_service.py#L1618).
+* *Refine loop*: [`RefineLoop`](src/services/refine_loop.py#L31) retries drafts when [`RefineCritique.is_blocking`](src/services/prompt_engineering/schemas.py#L166) flags topic, Faithfulness, citation, or rule-based failures.
+* *Verification*: NLI Faithfulness and citation grounding live in [`nli_verifier.py`](src/services/verification/nli_verifier.py#L21) and [`citation_verifier.py`](src/services/verification/citation_verifier.py#L18).
 
 ## Architecture
 
@@ -301,11 +298,11 @@ By using this tool, you acknowledge and agree that:
 
 ## Research
 
-`Jikai` would not be where it is today without existing academia.
+[![dry-run faithfulness](https://img.shields.io/badge/dry--run_faithfulness-0.69-4c8f5f)](research/results.md)
+[![dry-run R@5](https://img.shields.io/badge/dry--run_R%405-0.65-4c8f5f)](research/results.md)
+[![dry-run citation](https://img.shields.io/badge/dry--run_citation-0.64-4c8f5f)](research/results.md)
+[![dry-run IRAC](https://img.shields.io/badge/dry--run_IRAC-0.61-4c8f5f)](research/results.md)
 
-* [*Focused and Fun: A How-to Guide for Creating Hypotheticals for Law Students*](https://scribes.org/wp-content/uploads/2022/10/Simon-8.23.21.pdf) by Diana J. Simon
-* [*Reactive Hypotheticals in Legal Education: Leveraging AI to Create Interactive Fact Patterns*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4763738) by Sean Steward
-* [*Legal Theory Lexicon: Hypotheticals*](https://lsolum.typepad.com/legaltheory/2023/01/legal-theory-lexicon-hypotheticals.html) by Legal Theory Blog
-* [*The Case Method*](https://jle.aals.org/cgi/viewcontent.cgi?article=1920&context=home) by E.M. Morgan
-* [*A Process Model of Legal Argument with Hypotheticals*](https://publications.informatik.hu-berlin.de/archive/cses/publications/a_process_model_of_legal_argument_with_hypotheticals.pdf) by Kevin Ashley, Collin Lynchb, Niels Pinkwartc, Vincent Alevend
-* [*The Case Study Teaching Method*](https://casestudies.law.harvard.edu/the-case-study-teaching-method/) by Havard Law School
+These badges are dry-run smoke metrics from [`research/results.md`](research/results.md), not external benchmark claims.
+
+The research notes cover [`methodology`](research/methodology.md), [`results`](research/results.md), [`related work`](research/related_work.md), and [`roadmap`](research/roadmap.md). The methodology links each architecture claim to concrete source anchors and covers the ML gate, LegalBench-RAG-style retrieval metrics, structured IRAC generation, NLI Faithfulness, citation grounding, and the refine loop.
