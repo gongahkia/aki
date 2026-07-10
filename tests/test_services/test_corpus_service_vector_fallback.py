@@ -40,7 +40,8 @@ async def test_keyword_fallback_used_when_index_not_ready(monkeypatch):
     service._vector_service.semantic_search.assert_not_called()
 
 
-def test_background_indexing_guard_avoids_duplicate_tasks(monkeypatch):
+@pytest.mark.asyncio
+async def test_background_indexing_guard_avoids_duplicate_tasks(monkeypatch):
     service = CorpusService()
     service._corpus_indexed = False
 
@@ -53,7 +54,7 @@ def test_background_indexing_guard_avoids_duplicate_tasks(monkeypatch):
     create_task = MagicMock()
     monkeypatch.setattr(asyncio, "create_task", create_task)
 
-    service._ensure_background_indexing()
+    await service._ensure_background_indexing()
 
     create_task.assert_not_called()
 
