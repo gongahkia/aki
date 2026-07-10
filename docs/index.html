@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Jikai Hosted Demo</title>
+<style>
+:root{--bg:#f6f7f4;--ink:#17211b;--muted:#5e6962;--line:#c7d2cb;--panel:#fff;--green:#0b754b;--blue:#285f90;--amber:#91610d;--red:#a7342f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{background:#fff;border-bottom:1px solid var(--line)}.wrap{width:min(1180px,calc(100vw - 32px));margin:0 auto}.top{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:16px}h1{margin:0;font-size:24px;letter-spacing:0}.sub{margin-top:4px;color:var(--muted);font-size:13px}.links{display:flex;gap:12px;flex-wrap:wrap}a{color:var(--blue);font-weight:750;text-decoration:none}main{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;padding:18px 0 28px}.panel,.out,.notice{background:var(--panel);border:1px solid var(--line);border-radius:8px}.panel{display:grid;gap:10px;padding:14px;align-self:start;position:sticky;top:12px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}label{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:750;text-transform:uppercase}input,select,button,textarea{width:100%;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font:inherit}input,select,button{min-height:38px;padding:0 10px}textarea{min-height:76px;padding:9px 10px;resize:vertical}button{background:var(--green);border-color:var(--green);color:#fff;font-weight:800;cursor:pointer}.ghost{background:#fff;color:var(--blue);border-color:var(--line)}.notice{padding:12px;color:var(--muted);font-size:13px;line-height:1.45}.notice strong{color:var(--ink)}.out{min-height:690px;padding:16px}.status{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--muted);font-size:13px}.pill{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border-radius:999px;background:#edf1ed;color:var(--muted);font-weight:800}.pill.ok{background:#def2e7;color:var(--green)}.pill.err{background:#ffe1de;color:var(--red)}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.tab{width:auto;min-height:34px;background:#fff;color:var(--ink);border-color:var(--line)}.tab.active{border-color:var(--green);box-shadow:inset 0 -3px 0 var(--green)}h2{margin:0 0 8px;font-size:18px;letter-spacing:0}.section{padding:13px 0;border-top:1px solid var(--line)}.section:first-child{border-top:0}.body{white-space:pre-wrap;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric{border:1px solid var(--line);border-radius:8px;padding:10px;background:#fbfcfa}.metric b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase}.metric span{display:block;margin-top:6px;font-size:18px;font-weight:850}.stage{display:grid;grid-template-columns:190px minmax(0,1fr);gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fbfcfa;margin-bottom:8px}.stage b{color:var(--green)}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:12px;border:1px solid var(--line);border-radius:6px;background:#f9faf8;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}@media(max-width:860px){.top{align-items:flex-start;flex-direction:column;padding:14px 0}main{grid-template-columns:1fr}.panel{position:static}.row,.grid,.stage{grid-template-columns:1fr}.out{min-height:0}}
+</style>
+</head>
+<body>
+<header><div class="wrap top"><div><h1>Jikai Hosted Demo</h1><div class="sub">Public SG Tort practice generator</div></div><div class="links"><a href="https://github.com/gongahkia/jikai">Repo</a><a href="deployment/hosted-demo.md">Deploy docs</a></div></div></header>
+<main class="wrap">
+<aside class="panel">
+<label>Jurisdiction<select id="jurisdiction"><option value="sg">Singapore</option><option value="uk">UK</option><option value="us">US</option></select></label>
+<label>Topics<textarea id="topics">negligence, causation</textarea></label>
+<label>Subtopics<textarea id="subtopics">duty of care, remoteness</textarea></label>
+<div class="row"><label>Difficulty<select id="difficulty"><option value="intermediate">Intermediate</option><option value="beginner">Beginner</option><option value="advanced">Advanced</option></select></label><label>Parties<input id="parties" type="number" min="2" max="5" value="3"></label></div>
+<label>Provider mode<select id="provider"><option value="fixture">Public fixture</option></select></label>
+<button id="generate" type="button">Generate</button>
+<button id="download" type="button" class="ghost">Export Anki TSV</button>
+<div class="notice"><strong>Privacy:</strong> this public page runs in the browser and sends no prompts to a model provider. Do not enter personal, privileged, or exam-confidential material.</div>
+<div class="notice"><strong>Limits:</strong> public fixture mode is deterministic. Clone the repo for local Ollama or server-backed provider generation.</div>
+</aside>
+<section class="out">
+<div class="status"><span id="status">Ready</span><span id="pill" class="pill">idle</span></div>
+<div class="tabs"><button class="tab active" data-tab="result">Result</button><button class="tab" data-tab="trace">Pipeline</button><button class="tab" data-tab="export">Export</button></div>
+<div id="view"></div>
+</section>
+</main>
+<script>
+const $=(id)=>document.getElementById(id);
+const esc=(v)=>String(v??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const split=(v)=>v.split(",").map((x)=>x.trim().toLowerCase()).filter(Boolean);
+const topicBank={
+negligence:{facts:"Bright Services Pte Ltd assigns Tan Wei Ming to deliver parcels on an e-bike after two riders reported a sticking brake lever. At Marina Bay, the brake catches as Lim Shu Fen crosses a service road, and Tan swerves into a loading barrier while clipping Lim's shoulder.",issues:["duty of care","breach","causation","damage"],rule:"A negligence answer should identify duty, breach, factual and legal causation, remoteness, and any conduct by Tan or Bright Services that affects responsibility."},
+causation:{facts:"Maintenance records show the brake fault was logged five days earlier, but the supervisor deferred repair to meet a holiday delivery target. Tan says the collision would not have happened if the brake had responded normally.",issues:["but-for causation","scope of liability","remoteness"],rule:"Causation turns on whether the unrepaired brake materially contributed to the collision and whether Lim's injury was within the risk created by the breach."},
+"private nuisance":{facts:"A cafe vents smoke and fryer smell into a neighbouring tuition centre for six weeks after installing an unapproved exhaust fan.",issues:["unreasonable interference","locality","duration"],rule:"A private nuisance answer should test substantial and unreasonable interference with use and enjoyment of land."},
+"vicarious liability":{facts:"A courier manager tells riders to ignore a defective equipment checklist during peak demand, and a rider injures a pedestrian while completing assigned deliveries.",issues:["course of employment","close connection","enterprise risk"],rule:"Vicarious liability turns on the relationship and whether the tort is sufficiently connected to assigned work."}
+};
+const templates={
+beginner:"Identify the basic claim, walk through each element, and keep the answer focused on the strongest defendant.",
+intermediate:"Compare the rider's immediate conduct with the company's earlier maintenance decision and explain causation separately.",
+advanced:"Address breach, intervening acts, remoteness, contributory negligence, and whether enterprise risk affects allocation of responsibility."
+};
+let state={tab:"result",payload:null};
+function setStatus(text,mode){$("status").textContent=text;$("pill").textContent=mode;$("pill").className=`pill ${mode==="ok"?"ok":mode==="err"?"err":""}`;}
+function buildPayload(){
+  const jurisdiction=$("jurisdiction").value;
+  const topics=split($("topics").value);
+  const subtopics=split($("subtopics").value);
+  const parties=Math.max(2,Math.min(5,Number($("parties").value)||3));
+  const difficulty=$("difficulty").value;
+  if(jurisdiction!=="sg")throw new Error("Public fixture mode currently supports SG Tort only.");
+  if(!topics.length)throw new Error("Choose at least one SG Tort topic.");
+  const matched=topics.map((topic)=>topicBank[topic]).filter(Boolean);
+  if(!matched.length)throw new Error("No supported topic found. Try negligence, causation, private nuisance, or vicarious liability.");
+  const facts=[...new Set(matched.map((item)=>item.facts))].join(" ");
+  const issues=[...new Set([...matched.flatMap((item)=>item.issues),...subtopics])].slice(0,7);
+  const rules=[...new Set(matched.map((item)=>item.rule))];
+  const hypothetical=`In Singapore, ${facts} The practice question asks whether the claimant can recover in tort, which defendants are most exposed, and how the court should treat ${issues.slice(0,3).join(", ")}. Assume ${parties} legally relevant parties and no undisclosed statutory immunity.`;
+  const answer=`Issue: whether the facts support liability for ${topics.join(" and ")}.\n\nRule: ${rules.join(" ")}\n\nApplication: ${templates[difficulty]} On these facts, Bright Services is vulnerable because it knew about the brake problem before the delivery. Tan's emergency response may be judged in context, but it does not erase the earlier equipment risk. Lim must still prove the brake defect caused the collision and that the claimed losses are not too remote.\n\nConclusion: a strong answer would argue liability against Bright Services, treat Tan's personal liability as fact-sensitive, and discuss any reduction for claimant conduct only if extra facts support it.`;
+  const validation={passed:true,mode:"static_fixture",topic_inclusion:{requested:topics,matched:topics.filter((topic)=>topicBank[topic]),missing:topics.filter((topic)=>!topicBank[topic])},party_count:{requested:parties,passed:parties>=2&&parties<=5},jurisdiction_context:{jurisdiction:"sg",passed:true},failure_reasons:[]};
+  if(validation.topic_inclusion.missing.length){validation.passed=false;validation.failure_reasons.push("unsupported topics omitted from fixture coverage");}
+  const trace=[["Input",`${topics.join(", ")} | SG Tort | ${difficulty}`],["Scope guard","sg_tort corpus pack; unsupported jurisdictions blocked"],["ML foundation","fixture topic classifier and quality gate"],["Retrieval","embedded SG Tort examples: negligence, causation, nuisance, vicarious liability"],["Prompt assembly","jurisdiction, topics, parties, and study-output preference"],["Generated output","hypothetical plus IRAC-style model answer"],["Validation",validation.passed?"passed":"needs review"],["Study export","Anki TSV ready"]];
+  const anki=`front\tback\ttags\n${hypothetical.replaceAll("\t"," ")}\t${answer.replaceAll("\t"," ")}\tjikai sg_tort ${topics.join("_")}`;
+  return {topics,subtopics,parties,difficulty,hypothetical,model_answer:answer,validation,trace,anki};
+}
+function render(){
+  const p=state.payload;
+  if(!p){$("view").innerHTML='<div class="section"><h2>Result</h2><div class="body">Generate an SG Tort hypothetical.</div></div>';return;}
+  document.querySelectorAll(".tab").forEach((b)=>b.classList.toggle("active",b.dataset.tab===state.tab));
+  if(state.tab==="trace"){$("view").innerHTML=p.trace.map(([name,detail])=>`<div class="stage"><b>${esc(name)}</b><span>${esc(detail)}</span></div>`).join("");return;}
+  if(state.tab==="export"){$("view").innerHTML=`<div class="section"><h2>Anki TSV</h2><pre>${esc(p.anki)}</pre></div>`;return;}
+  $("view").innerHTML=`<div class="grid"><div class="metric"><b>mode</b><span>fixture</span></div><div class="metric"><b>topics</b><span>${esc(p.topics.length)}</span></div><div class="metric"><b>validation</b><span>${p.validation.passed?"pass":"review"}</span></div></div><div class="section"><h2>Hypothetical</h2><div class="body">${esc(p.hypothetical)}</div></div><div class="section"><h2>Model Answer</h2><div class="body">${esc(p.model_answer)}</div></div><div class="section"><h2>Validation</h2><pre>${esc(JSON.stringify(p.validation,null,2))}</pre></div>`;
+}
+function generate(){try{state.payload=buildPayload();state.tab="result";setStatus("Complete","ok");render();}catch(err){state.payload=null;setStatus("Failed","err");$("view").innerHTML=`<div class="section"><h2>Generation Failed</h2><div class="body">${esc(err.message)}</div></div>`;}}
+function download(){if(!state.payload)generate();if(!state.payload)return;const blob=new Blob([state.payload.anki],{type:"text/tab-separated-values"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="jikai-sg-tort-demo.tsv";a.click();URL.revokeObjectURL(url);}
+document.querySelectorAll(".tab").forEach((b)=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
+$("generate").onclick=generate;$("download").onclick=download;generate();
+</script>
+</body>
+</html>

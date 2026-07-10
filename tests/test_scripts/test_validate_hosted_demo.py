@@ -70,3 +70,22 @@ def test_validate_demo_reports_unreachable_host():
     errors = validate_demo("https://example.test", fetch=fetch)
 
     assert "/health returned 0" in errors
+
+
+def test_validate_static_demo_page():
+    def fetch(method, url, payload, timeout):
+        return Response(
+            200,
+            "Jikai Hosted Demo Generate Model Answer Export Anki TSV Public fixture Generation Failed",
+        )
+
+    assert validate_demo("https://example.test/jikai/", fetch=fetch, static=True) == []
+
+
+def test_validate_static_demo_reports_missing_marker():
+    def fetch(method, url, payload, timeout):
+        return Response(200, "Jikai Hosted Demo")
+
+    errors = validate_demo("https://example.test/jikai/", fetch=fetch, static=True)
+
+    assert "/ missing Model Answer" in errors

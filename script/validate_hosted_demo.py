@@ -57,8 +57,27 @@ def validate_demo(
     fetch: Fetch = _default_fetch,
     timeout: int = 30,
     generate: bool = False,
+    static: bool = False,
 ) -> list[str]:
     errors: list[str] = []
+
+    if static:
+        page = fetch("GET", _url(base_url, "/"), None, timeout)
+        if page.status != 200:
+            errors.append(f"/ returned {page.status}")
+            return errors
+        markers = [
+            "Jikai Hosted Demo",
+            "Generate",
+            "Model Answer",
+            "Export Anki TSV",
+            "Public fixture",
+            "Generation Failed",
+        ]
+        for marker in markers:
+            if marker not in page.body:
+                errors.append(f"/ missing {marker}")
+        return errors
 
     health = fetch("GET", _url(base_url, "/health"), None, timeout)
     if health.status != 200:
@@ -136,9 +155,15 @@ def main() -> int:
     parser.add_argument("base_url")
     parser.add_argument("--timeout", type=int, default=30)
     parser.add_argument("--generate", action="store_true")
+    parser.add_argument("--static", action="store_true")
     args = parser.parse_args()
 
-    errors = validate_demo(args.base_url, timeout=args.timeout, generate=args.generate)
+    errors = validate_demo(
+        args.base_url,
+        timeout=args.timeout,
+        generate=args.generate,
+        static=args.static,
+    )
     if errors:
         for item in errors:
             print(f"ERROR: {item}", file=sys.stderr)

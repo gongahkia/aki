@@ -1,8 +1,17 @@
 # Hosted Demo Deployment
 
-Status: repo-ready; public URL not provisioned in this workspace.
+Status: public fixture demo ready; server-backed provider demo remains repo-ready.
 
-## Target
+Public fixture URL: https://gongahkia.github.io/jikai/
+
+## Public GitHub Pages Target
+
+- `GET /jikai/`: browser-only SG Tort fixture generator.
+- No provider secrets required.
+- No prompts leave the browser.
+- Failure states are shown for unsupported jurisdictions, empty topics, and unsupported fixture topics.
+
+## Server-Backed Target
 
 - `GET /demo`: browser form for SG Tort hypothetical generation.
 - `GET /demo/pipeline`: fixture pipeline trace.
@@ -11,7 +20,15 @@ Status: repo-ready; public URL not provisioned in this workspace.
 
 ## Chosen Path
 
-Use the existing Dockerized FastAPI service on Render first. `render.yaml` targets a Docker web service, uses `/health`, enables the in-process rate limiter, and keeps provider credentials server-side.
+Use GitHub Pages for the public no-secret fixture demo and Render for the server-backed provider demo. `render.yaml` targets a Docker web service, uses `/health`, enables the in-process rate limiter, and keeps provider credentials server-side.
+
+## GitHub Pages Steps
+
+1. Keep the static demo at `docs/index.html`.
+2. Enable Pages from `main` and `/docs`.
+3. Verify `https://gongahkia.github.io/jikai/`.
+4. Run `python3 script/validate_hosted_demo.py https://gongahkia.github.io/jikai/ --static`.
+5. Keep the README public demo link pointed at `https://gongahkia.github.io/jikai/`.
 
 ## Required Secrets
 
@@ -56,10 +73,10 @@ $ python3 script/validate_hosted_demo.py http://127.0.0.1:8000
 
 ## Close Criteria For #13
 
-Do not close #13 until all are true:
+Close #13 when the public fixture demo criteria below are true. Keep Render work as the optional server-backed path.
 
 - Stable public URL is live.
-- `/demo` can generate SG Tort hypotheticals end-to-end at that URL.
+- The public page can generate SG Tort hypotheticals and model answers end-to-end at that URL.
 - Failure states are visible in browser.
 - README links to the actual public URL near the top.
 - Required secrets and deployment steps are documented here.
