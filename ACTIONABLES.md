@@ -33,32 +33,6 @@ Verified local corpus:
 
 ## P0 Tasks
 
-### 6. Use CALI as the First External Open-Education Candidate
-
-Candidate:
-- CALI eLangdell bookstore: https://www.cali.org/the-elangdell-bookstore
-- `Tort Law: A 21st-Century Approach`: https://saidtorts2d.lawbooks.cali.org/
-
-Verified signal:
-- CALI page says eLangdell books are free, peer-reviewed, Creative Commons licensed.
-- The online lawbook states CC BY-NC-SA 4.0 except where otherwise noted.
-- It includes interactive questions, Socratic scripts, and tort modules.
-
-Risk:
-- CC BY-NC-SA is noncommercial and share-alike.
-- MIT code license does not automatically make bundled corpus text MIT.
-
-Tasks:
-- Add source registry entry with `text_commit_allowed` pending owner decision.
-- If accepted, create separate pack `us_tort_cali_open_education`.
-- Preserve attribution per record.
-- Mark outputs derived from CALI with noncommercial/share-alike constraints.
-- Prefer extracting question metadata and topic tags first; full-text ingestion only after license decision.
-
-Acceptance:
-- No CALI text is committed until license compatibility is accepted.
-- If accepted, import only clearly licensed book/question sections and retain attribution.
-
 ### 7. Register Bar Exam Sources as Link-First, Permission-Later
 
 Candidates:

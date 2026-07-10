@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0",
+  "key": "us_tort_cali_open_education",
+  "display_name": "US Tort CALI Open Education",
+  "status": "draft_metadata_only",
+  "jurisdiction": {
+    "code": "us",
+    "name": "United States",
+    "legal_system": "common_law"
+  },
+  "subject": {
+    "key": "tort",
+    "name": "Tort Law"
+  },
+  "corpus": {
+    "clean_path": "corpus/metadata/us_tort_cali_open_education/metadata.json",
+    "raw_paths": [
+      "corpus/raw/us_tort_cali_open_education"
+    ],
+    "record_format": "link_metadata_v1",
+    "id_prefix": "us_tort_cali"
+  },
+  "sources": [
+    {
+      "name": "CALI Tort Law: A 21st-Century Approach",
+      "registry_source_id": "cali_tort_21st_century",
+      "url": "https://saidtorts2d.lawbooks.cali.org/",
+      "source_format": "html",
+      "access": "public_web",
+      "terms_url": "https://saidtorts2d.lawbooks.cali.org/front-matter/notices/",
+      "notes": "Metadata-only candidate. Full text stays blocked until owner accepts CC BY-NC-SA noncommercial/share-alike constraints."
+    }
+  ],
+  "license": {
+    "name": "CC BY-NC-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "redistribution_status": "restricted",
+    "attribution_required": true,
+    "commercial_use": "not_allowed",
+    "terms_notes": "CALI text is not committed. Metadata may point to sections and topic tags; full-text ingestion requires owner approval of noncommercial/share-alike obligations."
+  },
+  "taxonomy": {
+    "version": "2026-07-10",
+    "topics": [
+      {
+        "key": "negligence",
+        "label": "Negligence",
+        "category": "Negligence",
+        "description": "Duty, breach, causation, and scope of liability.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "duty_of_care",
+        "label": "Duty Of Care",
+        "category": "Negligence",
+        "description": "Duty and no-duty rules.",
+        "aliases": ["duty"],
+        "subtopics": []
+      },
+      {
+        "key": "standard_of_care",
+        "label": "Standard Of Care",
+        "category": "Negligence",
+        "description": "Breach and reasonable-care standards.",
+        "aliases": ["breach"],
+        "subtopics": []
+      },
+      {
+        "key": "causation",
+        "label": "Causation",
+        "category": "Negligence",
+        "description": "Factual causation and proximate cause.",
+        "aliases": ["proximate_cause"],
+        "subtopics": []
+      },
+      {
+        "key": "remoteness",
+        "label": "Remoteness",
+        "category": "Negligence",
+        "description": "Scope-of-liability and foreseeability limits.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "assault",
+        "label": "Assault",
+        "category": "Intentional Torts",
+        "description": "Intentional apprehension of imminent contact.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "battery",
+        "label": "Battery",
+        "category": "Intentional Torts",
+        "description": "Intentional harmful or offensive contact.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "false_imprisonment",
+        "label": "False Imprisonment",
+        "category": "Intentional Torts",
+        "description": "Unlawful confinement.",
+        "aliases": ["false imprisonment"],
+        "subtopics": []
+      },
+      {
+        "key": "intentional_infliction_of_mental_harm",
+        "label": "Intentional Infliction Of Mental Harm",
+        "category": "Intentional Torts",
+        "description": "Intentional or reckless emotional distress.",
+        "aliases": ["iied"],
+        "subtopics": []
+      },
+      {
+        "key": "consent_defence",
+        "label": "Consent Defence",
+        "category": "Defences",
+        "description": "Consent and other intentional-tort defences.",
+        "aliases": ["consent"],
+        "subtopics": []
+      },
+      {
+        "key": "contributory_negligence",
+        "label": "Contributory Negligence",
+        "category": "Defences",
+        "description": "Plaintiff conduct and comparative fault.",
+        "aliases": ["comparative fault"],
+        "subtopics": []
+      },
+      {
+        "key": "product_liability",
+        "label": "Product Liability",
+        "category": "Strict Liability",
+        "description": "Products liability and defective products.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "strict_liability",
+        "label": "Strict Liability",
+        "category": "Strict Liability",
+        "description": "Liability without proof of negligence.",
+        "aliases": [],
+        "subtopics": []
+      },
+      {
+        "key": "defamation",
+        "label": "Defamation",
+        "category": "Reputation",
+        "description": "Common-law and constitutional defamation topics.",
+        "aliases": [],
+        "subtopics": []
+      }
+    ]
+  },
+  "pipeline": {
+    "ingestion_command": "python3 script/validate_cali_metadata.py",
+    "cleaner_command": "python3 script/validate_cali_metadata.py"
+  },
+  "validation": {
+    "expected_record_count_min": 10,
+    "required_record_fields": ["id", "source_id", "title", "url", "topics", "license", "attribution", "constraints"],
+    "canonical_record_fields": [
+      "id",
+      "source_id",
+      "title",
+      "url",
+      "topics",
+      "license",
+      "attribution",
+      "constraints",
+      "metadata"
+    ],
+    "topic_coverage": "Metadata records should tag candidate CALI sections without copying section text.",
+    "jurisdiction_expectations": [
+      "United States tort law context",
+      "CALI attribution preserved"
+    ],
+    "quality_checks": [
+      "JSON parses",
+      "No text, fact_pattern, question_prompt, model_answer, or marking_rubric is committed",
+      "CALI source registry text_commit_allowed remains false",
+      "Noncommercial and share-alike constraints are explicit"
+    ]
+  },
+  "notes": "This is a metadata-only candidate pack. It is not registered for runtime retrieval until license compatibility is accepted."
+}

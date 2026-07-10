@@ -96,6 +96,9 @@ def test_text_commit_gate_allows_only_cleared_sources():
     with pytest.raises(SourceRegistryError, match="not cleared"):
         assert_text_commit_allowed("commonlii_sg")
 
+    with pytest.raises(SourceRegistryError, match="not cleared"):
+        assert_text_commit_allowed("cali_tort_21st_century")
+
     with pytest.raises(SourceRegistryError, match="not registered"):
         assert_text_commit_allowed("missing_source")
 
