@@ -13,6 +13,7 @@ from ...services.pipeline_trace_service import (
     default_pipeline_trace_request,
     pipeline_trace_service,
 )
+from ..security import is_hosted_api
 
 router = APIRouter()
 
@@ -54,7 +55,6 @@ DEMO_HTML = """<!doctype html>
 <label>Topics<input id="topics" value="negligence, causation"></label>
 <label>Subtopics<input id="subtopics" value="duty of care, remoteness"></label>
 <div class="row"><label>Complexity<select id="complexity"><option value="intermediate">Intermediate</option><option value="beginner">Beginner</option><option value="advanced">Advanced</option></select></label><label>Parties<input id="parties" type="number" min="2" max="5" value="3"></label></div>
-<label>Provider mode<select id="provider"><option value="">Host default</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></label>
 <label class="check"><input id="answer" type="checkbox" checked>Include model answer</label>
 <button id="submit" type="submit">Generate</button>
 </form>
@@ -70,7 +70,7 @@ const list=(v)=>v.split(",").map((x)=>x.trim()).filter(Boolean);
 function setStatus(text,mode){$("status-text").textContent=text;$("status-pill").textContent=mode;$("status-pill").className=`pill ${mode==="ok"?"ok":mode==="err"?"err":""}`}
 function render(payload){$("result").innerHTML=`<div class="section"><h2>Hypothetical</h2><div class="body">${esc(payload.hypothetical)}</div></div><div class="section"><h2>Model Answer</h2><div class="body">${esc(payload.model_answer||"Not returned.")}</div></div><div class="section"><h2>Validation</h2><pre>${esc(JSON.stringify(payload.validation_results||{},null,2))}</pre></div>`}
 function renderError(status,payload){const detail=payload.detail||payload;const message=detail.message||detail.code||JSON.stringify(detail);$("result").innerHTML=`<div class="section"><h2>Generation Failed</h2><div class="body">${esc(message)}</div></div><div class="section"><h2>Details</h2><pre>${esc(JSON.stringify({status,detail},null,2))}</pre></div>`}
-async function generate(event){event.preventDefault();setStatus("Generating","run");$("submit").disabled=true;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),95000);const jurisdiction=$("jurisdiction").value;const body={topics:list($("topics").value),corpus_pack:jurisdiction==="sg"?"sg_tort":`${jurisdiction}_tort`,jurisdiction,subject:"tort",law_domain:"tort",subtopics:list($("subtopics").value),number_parties:Number($("parties").value),complexity_level:$("complexity").value,sample_size:3,user_preferences:{timeout_seconds:90},include_analysis:$("answer").checked};if($("provider").value)body.provider=$("provider").value;try{const res=await fetch("/workflow/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body),signal:controller.signal});const payload=await res.json();if(!res.ok){setStatus("Failed","err");renderError(res.status,payload);return}setStatus("Complete","ok");render(payload)}catch(error){setStatus("Failed","err");renderError(0,{detail:{code:error.name==="AbortError"?"client_timeout":"request_failed",message:error.name==="AbortError"?"Browser request timed out.":error.message}})}finally{clearTimeout(timer);$("submit").disabled=false}}
+async function generate(event){event.preventDefault();setStatus("Generating","run");$("submit").disabled=true;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),95000);const jurisdiction=$("jurisdiction").value;const body={topics:list($("topics").value),corpus_pack:jurisdiction==="sg"?"sg_tort":`${jurisdiction}_tort`,jurisdiction,subject:"tort",law_domain:"tort",subtopics:list($("subtopics").value),number_parties:Number($("parties").value),complexity_level:$("complexity").value,sample_size:3,user_preferences:{timeout_seconds:90},include_analysis:$("answer").checked};try{const res=await fetch("/workflow/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body),signal:controller.signal});const payload=await res.json();if(!res.ok){setStatus("Failed","err");renderError(res.status,payload);return}setStatus("Complete","ok");render(payload)}catch(error){setStatus("Failed","err");renderError(0,{detail:{code:error.name==="AbortError"?"client_timeout":"request_failed",message:error.name==="AbortError"?"Browser request timed out.":error.message}})}finally{clearTimeout(timer);$("submit").disabled=false}}
 $("demo-form").addEventListener("submit",generate);
 </script>
 </body>
@@ -123,6 +123,10 @@ async def pipeline_trace(
     expose_prompt: bool = False,
     expose_provider: bool = False,
 ):
+    if is_hosted_api():
+        live = False
+        expose_prompt = False
+        expose_provider = False
     base = default_pipeline_trace_request().model_copy(
         update={
             "topics": _topics_from_query(topics),
@@ -143,6 +147,13 @@ async def pipeline_trace(
 
 @router.post("/pipeline/trace")
 async def pipeline_trace_post(req: PipelineTraceRequest):
+    live = req.live
+    expose_prompt = req.expose_prompt
+    expose_provider = req.expose_provider
+    if is_hosted_api():
+        live = False
+        expose_prompt = False
+        expose_provider = False
     request = GenerationRequest(
         topics=req.topics,
         corpus_pack=req.corpus_pack,
@@ -157,7 +168,7 @@ async def pipeline_trace_post(req: PipelineTraceRequest):
     )
     return await pipeline_trace_service.build_trace(
         request,
-        live=req.live,
-        expose_prompt=req.expose_prompt,
-        expose_provider=req.expose_provider,
+        live=live,
+        expose_prompt=expose_prompt,
+        expose_provider=expose_provider,
     )

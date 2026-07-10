@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional, Tuple
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -27,22 +27,29 @@ class InMemoryRateLimitMiddleware(BaseHTTPMiddleware):
         window_seconds: int,
         max_buckets: int,
         cleanup_interval_seconds: int,
+        route_limits: Optional[Dict[str, int]] = None,
     ):
         super().__init__(app)
         self.requests_per_window = max(0, int(requests_per_window))
         self.window_seconds = max(1, int(window_seconds))
         self.max_buckets = max(1, int(max_buckets))
         self.cleanup_interval_seconds = max(1, int(cleanup_interval_seconds))
+        self.route_limits = {
+            prefix: max(0, int(limit))
+            for prefix, limit in (route_limits or {}).items()
+            if prefix
+        }
         self._buckets: Dict[str, _Bucket] = {}
         self._last_cleanup = time.monotonic()
 
     async def dispatch(self, request: Request, call_next):
-        if self.requests_per_window == 0:
+        route_key, limit = self._route_policy(request.url.path)
+        if limit == 0:
             return await call_next(request)
 
         now = time.monotonic()
         self._cleanup(now)
-        key = self._client_key(request)
+        key = f"{self._client_key(request)}:{route_key}"
         bucket = self._buckets.get(key)
         if bucket is None:
             if len(self._buckets) >= self.max_buckets:
@@ -66,7 +73,7 @@ class InMemoryRateLimitMiddleware(BaseHTTPMiddleware):
 
         bucket.count += 1
         bucket.last_seen = now
-        if bucket.count > self.requests_per_window:
+        if bucket.count > limit:
             retry_after = max(1, int(self.window_seconds - (now - bucket.window_start)))
             return JSONResponse(
                 status_code=429,
@@ -102,3 +109,12 @@ class InMemoryRateLimitMiddleware(BaseHTTPMiddleware):
                 return value.split(",", 1)[0].strip()
         client = request.client
         return client.host if client else "unknown"
+
+    def _route_policy(self, path: str) -> Tuple[str, int]:
+        matched = ""
+        limit = self.requests_per_window
+        for prefix, route_limit in self.route_limits.items():
+            if path.startswith(prefix) and len(prefix) > len(matched):
+                matched = prefix
+                limit = route_limit
+        return matched or "*", limit

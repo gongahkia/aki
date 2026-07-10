@@ -6,6 +6,8 @@ import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from ..security import is_hosted_api
+
 router = APIRouter()
 logger = structlog.get_logger(__name__)
 
@@ -78,6 +80,8 @@ async def generate(req: GenerateRequest):
     from ...services import workflow_facade
     from ...services.hypothetical_service import GenerationRequest
 
+    provider = None if is_hosted_api() else req.provider
+    model = None if is_hosted_api() else req.model
     gen_req = GenerationRequest(
         topics=req.topics,
         corpus_pack=req.corpus_pack,
@@ -90,8 +94,8 @@ async def generate(req: GenerateRequest):
         sample_size=req.sample_size,
         user_preferences=req.user_preferences,
         method="hybrid",
-        provider=req.provider,
-        model=req.model,
+        provider=provider,
+        model=model,
         include_analysis=req.include_analysis,
         correlation_id=req.correlation_id,
         practice_mode=req.practice_mode,

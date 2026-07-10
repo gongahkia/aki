@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import settings
 from .rate_limiter import InMemoryRateLimitMiddleware
+from .security import HostedAdminAuthMiddleware, RequestBodySizeLimitMiddleware
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +30,27 @@ def create_app() -> FastAPI:
         window_seconds=settings.api.rate_limiter_bucket_ttl_seconds,
         max_buckets=settings.api.rate_limiter_max_buckets,
         cleanup_interval_seconds=settings.api.rate_limiter_cleanup_interval_seconds,
+        route_limits={
+            "/demo": settings.api.demo_rate_limit,
+            "/workflow/generate": settings.api.generate_rate_limit,
+            "/jobs": settings.api.admin_rate_limit,
+            "/corpus/add": settings.api.admin_rate_limit,
+            "/llm/select-provider": settings.api.admin_rate_limit,
+            "/llm/select-model": settings.api.admin_rate_limit,
+        },
     )
+    app.add_middleware(
+        RequestBodySizeLimitMiddleware,
+        max_body_bytes=settings.api.max_body_bytes,
+        route_body_limits={
+            "/workflow/generate": settings.api.generate_max_body_bytes,
+            "/llm/generate": settings.api.generate_max_body_bytes,
+            "/llm/stream": settings.api.generate_max_body_bytes,
+            "/jobs": settings.api.admin_max_body_bytes,
+            "/corpus/add": settings.api.admin_max_body_bytes,
+        },
+    )
+    app.add_middleware(HostedAdminAuthMiddleware)
     from .routes import (
         chat,
         corpus,

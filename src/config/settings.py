@@ -59,7 +59,12 @@ class APISettings(BaseSettings):
     cors_origins: List[str] = Field(
         default=["http://127.0.0.1:8000"], env="API_CORS_ORIGINS"
     )
+    hosted_mode: bool = Field(default=False, env="API_HOSTED_MODE")
+    admin_api_key: Optional[str] = Field(default=None, env="API_ADMIN_KEY")
     rate_limit: int = Field(default=100, env="API_RATE_LIMIT")
+    demo_rate_limit: int = Field(default=60, env="API_DEMO_RATE_LIMIT")
+    generate_rate_limit: int = Field(default=10, env="API_GENERATE_RATE_LIMIT")
+    admin_rate_limit: int = Field(default=30, env="API_ADMIN_RATE_LIMIT")
     rate_limiter_max_buckets: int = Field(
         default=10000, env="API_RATE_LIMITER_MAX_BUCKETS"
     )
@@ -69,8 +74,16 @@ class APISettings(BaseSettings):
     rate_limiter_cleanup_interval_seconds: int = Field(
         default=60, env="API_RATE_LIMITER_CLEANUP_INTERVAL_SECONDS"
     )
+    max_body_bytes: int = Field(default=262144, env="API_MAX_BODY_BYTES")
+    generate_max_body_bytes: int = Field(
+        default=65536, env="API_GENERATE_MAX_BODY_BYTES"
+    )
+    admin_max_body_bytes: int = Field(default=1048576, env="API_ADMIN_MAX_BODY_BYTES")
 
     @field_validator(
+        "demo_rate_limit",
+        "generate_rate_limit",
+        "admin_rate_limit",
         "rate_limiter_max_buckets",
         "rate_limiter_bucket_ttl_seconds",
         "rate_limiter_cleanup_interval_seconds",
@@ -79,6 +92,15 @@ class APISettings(BaseSettings):
     def validate_rate_limiter_values(cls, v):
         if int(v) < 1:
             raise ValueError("Rate limiter values must be >= 1")
+        return int(v)
+
+    @field_validator(
+        "max_body_bytes", "generate_max_body_bytes", "admin_max_body_bytes"
+    )
+    @classmethod
+    def validate_body_limit_values(cls, v):
+        if int(v) < 0:
+            raise ValueError("Body size limits must be >= 0")
         return int(v)
 
     class Config:

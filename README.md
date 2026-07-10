@@ -190,6 +190,7 @@ $ make label      # append labelled examples to corpus/labelled/sample.csv
 ```console
 $ make health
 $ make health-llm
+$ make verify
 $ make test
 $ make lint
 ```
@@ -235,6 +236,8 @@ The LLM is the drafting and revision stage.
 ## API
 
 `Jikai`'s REST API is served at `http://localhost:8000`. Interactive docs are available at `/docs` when `API_DEBUG=true`.
+
+Hosted mode (`API_HOSTED_MODE=true` or `ENVIRONMENT=production`) keeps only `/health`, `/version`, `/demo/*`, and `POST /workflow/generate` public. Other API routes require `x-api-key: $API_ADMIN_KEY` or `Authorization: Bearer $API_ADMIN_KEY`; without `API_ADMIN_KEY`, those routes are disabled.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|

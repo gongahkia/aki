@@ -15,9 +15,19 @@ services:
         value: production
       - key: API_DEBUG
         value: "false"
+      - key: API_HOSTED_MODE
+        value: "true"
+      - key: API_ADMIN_KEY
+        sync: false
       - key: API_CORS_ORIGINS
         value: '["https://jikai-api.onrender.com"]'
       - key: API_RATE_LIMIT
+        value: "30"
+      - key: API_DEMO_RATE_LIMIT
+        value: "60"
+      - key: API_GENERATE_RATE_LIMIT
+        value: "10"
+      - key: API_ADMIN_RATE_LIMIT
         value: "30"
       - key: API_RATE_LIMITER_BUCKET_TTL_SECONDS
         value: "60"
@@ -25,6 +35,12 @@ services:
         value: "2000"
       - key: API_RATE_LIMITER_CLEANUP_INTERVAL_SECONDS
         value: "30"
+      - key: API_MAX_BODY_BYTES
+        value: "262144"
+      - key: API_GENERATE_MAX_BODY_BYTES
+        value: "65536"
+      - key: API_ADMIN_MAX_BODY_BYTES
+        value: "1048576"
       - key: LLM_TIMEOUT
         value: "90"
       - key: LLM_PROVIDER

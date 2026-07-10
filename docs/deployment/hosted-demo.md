@@ -1,6 +1,6 @@
 # Hosted Demo Deployment
 
-Status: public fixture demo ready; server-backed provider demo remains private/repo-ready until API hardening is complete.
+Status: public fixture demo ready; server-backed provider demo is repo-hardened but not advertised as the public URL.
 Decision issue: #32.
 
 Public fixture URL: https://gabrielongzm.com/jikai/
@@ -21,9 +21,9 @@ Public fixture URL: https://gabrielongzm.com/jikai/
 
 ## Chosen Path
 
-Keep only the GitHub Pages no-secret fixture demo public. The server-backed provider demo may be deployed for controlled review, but it must not be advertised or treated as a public student surface until mutating/admin endpoints, provider selection, corpus writes, job/export paths, request size, and route-level rate limits are locked down.
+Keep only the GitHub Pages no-secret fixture demo as the advertised public link. The server-backed provider demo may be deployed for controlled review or approved public use after the deployment owner sets provider credentials, route/body limits, and cost monitoring.
 
-`render.yaml` targets a Docker web service, uses `/health`, enables the in-process rate limiter, and keeps provider credentials server-side.
+`render.yaml` targets a Docker web service, uses `/health`, enables hosted mode, enables the in-process rate limiter, and keeps provider credentials server-side.
 
 ## GitHub Pages Steps
 
@@ -38,29 +38,31 @@ Keep only the GitHub Pages no-secret fixture demo public. The server-backed prov
 | Secret | Required | Notes |
 |---|---:|---|
 | `OPENAI_API_KEY` | yes for current Render default | Visitors do not provide keys. |
+| `API_ADMIN_KEY` | optional for private admin access | If unset in hosted mode, admin routes are disabled instead of public. |
 | `ANTHROPIC_API_KEY` | optional | Enables Anthropic provider if selected. |
 | `GOOGLE_API_KEY` | optional | Enables Gemini provider for API use. |
 | `LOCAL_LLM_HOST` | optional | Only for a reachable OpenAI-compatible host. |
 
 ## Render Steps
 
-Do this only for private review until the hosted API hardening issue closes.
+Use these steps for private review or a controlled hardened deployment.
 
 1. Connect this GitHub repo to Render.
 2. Create the web service from `render.yaml`.
 3. Set `OPENAI_API_KEY` in Render env vars.
-4. Keep `LLM_PROVIDER=openai`, `DEFAULT_PROVIDER=openai`, and `DEFAULT_MODEL=gpt-4o-mini` unless another server-side model is approved.
-5. Deploy.
-6. Verify `/health`.
-7. Verify `/demo` can generate an SG Tort hypothetical with model answer.
-8. Run `python3 script/validate_hosted_demo.py https://YOUR_HOST --generate`.
-9. Do not replace the README public demo URL with a server-backed `/demo` URL until hardening is complete.
+4. Set `API_ADMIN_KEY` only if authenticated admin/API access is needed.
+5. Keep `LLM_PROVIDER=openai`, `DEFAULT_PROVIDER=openai`, and `DEFAULT_MODEL=gpt-4o-mini` unless another server-side model is approved.
+6. Deploy.
+7. Verify `/health`.
+8. Verify `/demo` can generate an SG Tort hypothetical with model answer.
+9. Run `python3 script/validate_hosted_demo.py https://YOUR_HOST --generate`.
+10. Verify `/jobs/cleanup` and `/corpus/add` return `401` with a wrong key or `403` when `API_ADMIN_KEY` is unset.
 
 ## Local Container Smoke
 
 ```console
 $ docker build -t jikai-demo .
-$ docker run --rm -p 8000:8000 -e PORT=8000 -e ENVIRONMENT=production -e API_DEBUG=false -e API_RATE_LIMIT=30 -e OPENAI_API_KEY="$OPENAI_API_KEY" jikai-demo
+$ docker run --rm -p 8000:8000 -e PORT=8000 -e ENVIRONMENT=production -e API_HOSTED_MODE=true -e API_DEBUG=false -e API_RATE_LIMIT=30 -e OPENAI_API_KEY="$OPENAI_API_KEY" jikai-demo
 $ curl -sf http://127.0.0.1:8000/health | python3 -m json.tool
 $ python3 script/validate_hosted_demo.py http://127.0.0.1:8000
 ```
@@ -68,11 +70,14 @@ $ python3 script/validate_hosted_demo.py http://127.0.0.1:8000
 ## Abuse Controls
 
 - IP bucket limiter: `API_RATE_LIMIT` per `API_RATE_LIMITER_BUCKET_TTL_SECONDS`.
+- Route buckets: `API_DEMO_RATE_LIMIT`, `API_GENERATE_RATE_LIMIT`, and `API_ADMIN_RATE_LIMIT`.
+- Body limits: `API_MAX_BODY_BYTES`, `API_GENERATE_MAX_BODY_BYTES`, and `API_ADMIN_MAX_BODY_BYTES`.
+- Hosted admin gate: `API_HOSTED_MODE=true` or `ENVIRONMENT=production` requires `API_ADMIN_KEY` for non-public routes.
 - Browser abort: 95 seconds.
 - Provider timeout: `LLM_TIMEOUT`.
 - Provider circuit breaker and mapped JSON errors are handled in the LLM/API service layer.
 
-These controls are necessary but not sufficient for a public server-backed student demo. Public server-backed exposure requires authenticated or disabled mutating/admin routes, request-scoped or admin-only provider selection, locked export paths, and route/body limits.
+Hosted public routes are `/health`, `/version`, `/demo/*`, and `POST /workflow/generate`. Mutating/admin routes such as `/jobs/*`, `/corpus/add`, `/llm/select-provider`, and `/llm/select-model` require `x-api-key: $API_ADMIN_KEY` or `Authorization: Bearer $API_ADMIN_KEY`; if no key is configured, they are disabled.
 
 ## Cost And Privacy Copy
 
