@@ -304,6 +304,29 @@ class CorpusService:
             return False
         return True
 
+    @staticmethod
+    def _entry_is_default_retrievable(entry: HypotheticalEntry) -> bool:
+        metadata = entry.metadata if isinstance(entry.metadata, dict) else {}
+        context = (
+            entry.source_exam_context
+            if isinstance(entry.source_exam_context, dict)
+            else {}
+        )
+        synthetic_marker = (
+            metadata.get("synthetic_status")
+            or context.get("synthetic_status")
+            or metadata.get("generator")
+        )
+        if not synthetic_marker:
+            return True
+        context_reviewed = context.get("generated_reviewed")
+        return (
+            metadata.get("synthetic_status") == "generated_reviewed"
+            and metadata.get("generated_reviewed") is True
+            and metadata.get("review_status") == "reviewed"
+            and (context_reviewed is True or "generated_reviewed" not in context)
+        )
+
     async def load_corpus(
         self, source: str = "local", corpus_pack: str = "sg_tort"
     ) -> List[HypotheticalEntry]:
@@ -457,6 +480,7 @@ class CorpusService:
                     for entry in corpus
                     if entry.id not in query.exclude_ids
                     and self._entry_matches_scope(entry, query)
+                    and self._entry_is_default_retrievable(entry)
                 ]
                 hybrid_documents = [
                     {
@@ -554,6 +578,8 @@ class CorpusService:
                                 subtopics=result.get("subtopics", []),
                                 metadata=result["metadata"],
                             )
+                            if not self._entry_is_default_retrievable(entry):
+                                continue
                             relevant_entries.append(entry)
 
                         logger.info(
@@ -576,6 +602,7 @@ class CorpusService:
                 for entry in corpus
                 if entry.id not in query.exclude_ids
                 and self._entry_matches_scope(entry, query)
+                and self._entry_is_default_retrievable(entry)
             ]
 
             scored_entries = []
@@ -624,6 +651,8 @@ class CorpusService:
             # Convert to format expected by vector service
             hypotheticals_data = []
             for entry in corpus:
+                if not self._entry_is_default_retrievable(entry):
+                    continue
                 hypotheticals_data.append(
                     {
                         "id": entry.id,
@@ -714,7 +743,9 @@ class CorpusService:
             )
 
             for entry in corpus:
-                if self._entry_matches_scope(entry, query):
+                if self._entry_matches_scope(
+                    entry, query
+                ) and self._entry_is_default_retrievable(entry):
                     all_topics.update(entry.topics)
 
             topics_list = sorted(list(all_topics))

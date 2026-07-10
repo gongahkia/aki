@@ -179,6 +179,7 @@ $ curl -s http://127.0.0.1:8000/jobs/export-anki \
 $ make corpus-bronze # build corpus/manifest.json from corpus/raw/*
 $ make corpus-silver # build corpus/normalized/<pack>/corpus.json
 $ make corpus-gold   # build corpus/labelled/<pack>/corpus.json
+$ make corpus-synthetic SYNTHETIC_TOPICS="negligence defamation" # write review queue only
 $ make preprocess    # legacy clean-corpus rebuild path
 $ make train      # train required ML models
 $ make warmup     # preload corpus + probe provider health
@@ -288,6 +289,8 @@ SG Tort is the current reference corpus. The pivot path is:
 3. Add UK and US Tort packs only after source terms and redistribution constraints are documented.
 4. Use the blind-evaluation rubric in [`docs/evals/blind-eval-rubric-v1.md`](docs/evals/blind-eval-rubric-v1.md) before generating comparison samples.
 5. Keep public comparison claims out of the README until blind evaluation artifacts support them.
+
+Synthetic expansion uses repo-authored topic templates plus `corpus/packs/sg_tort/authorities.json` and writes to `corpus/generated/<pack>/review_queue.json`. Generated records stay out of default retrieval until a human marks them `generated_reviewed` and promotes them to gold.
 
 ## Disclaimer
 

@@ -1,6 +1,6 @@
 # Jikai Makefile
 
-.PHONY: help install dev check-python test lint format verify clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold corpus-contrib-validate cali-metadata-validate eval health health-llm env-setup dev-setup
+.PHONY: help install dev check-python test lint format verify clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold corpus-synthetic corpus-contrib-validate cali-metadata-validate eval health health-llm env-setup dev-setup
 
 PYTHON ?= python3
 DATASET ?= sg_tort.yaml
@@ -9,6 +9,8 @@ EVAL_OUTPUT ?= data/generated/eval_results.json
 EVAL_CONCURRENCY ?= 5
 EVAL_EVALUATORS ?=
 CORPUS_PACK ?= sg_tort
+SYNTHETIC_OUTPUT ?= corpus/generated/$(CORPUS_PACK)/review_queue.json
+SYNTHETIC_TOPICS ?=
 API_BASE_URL ?= http://localhost:8000
 
 help: ## Show this help message
@@ -155,6 +157,9 @@ corpus-silver: corpus-bronze ## Build silver normalized corpus
 
 corpus-gold: corpus-silver ## Build gold labelled corpus
 	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.services.corpus_medallion gold --corpus-pack "$(CORPUS_PACK)"
+
+corpus-synthetic: ## Build synthetic corpus review queue
+	PYTHONPATH=. uv run --python 3.13 python script/build_synthetic_review_queue.py generate --corpus-pack "$(CORPUS_PACK)" --output-path "$(SYNTHETIC_OUTPUT)" $(foreach topic,$(SYNTHETIC_TOPICS),--topic "$(topic)")
 
 corpus-contrib-validate: ## Validate authored corpus contributions
 	python3 script/validate_contrib_corpus.py
