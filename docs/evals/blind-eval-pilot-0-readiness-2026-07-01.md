@@ -45,6 +45,7 @@ Use one of these alternatives for the first pilot:
 - Select 10 legally cleared baseline samples.
 - Build packet manifest from `blind-eval-sample-manifest.template.json`.
 - Randomize A/B order per packet.
+- Build blinded rater packets with `python3 script/build_blind_eval_packets.py docs/evals/blind-eval-sample-manifest.json --output-dir docs/evals/blind-packets`.
 - Recruit at least three eligible raters.
 - Collect ratings using `blind-eval-rater-sheet.csv`.
 - Summarize completed ratings with `python3 script/summarize_blind_eval_results.py docs/evals/blind-eval-rater-sheet.csv --manifest docs/evals/blind-eval-sample-manifest.json --output docs/evals/blind-eval-summary.json --markdown docs/evals/blind-eval-summary.md --require-publishable`.
