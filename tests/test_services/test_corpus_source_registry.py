@@ -82,6 +82,10 @@ def test_registry_covers_source_decision_sources():
         "University of Washington Street Law tort hypotheticals",
         "Quimbee",
         "Studicata",
+        "California past exams",
+        "New York BOLE past questions/sample answers",
+        "Texas BLE questions/selected answers",
+        "NCBE official study aids",
     }
 
     assert expected <= names
