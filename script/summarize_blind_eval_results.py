@@ -58,6 +58,7 @@ LAW_TRAINED_PROFILES = {
 }
 DEFAULT_MIN_SAMPLES = 30
 DEFAULT_MIN_RATERS_PER_ITEM = 2
+EVAL_MODES = {"dry-run", "internal", "external-human"}
 
 
 def _read_ratings(path: Path) -> list[dict[str, str]]:
@@ -165,12 +166,15 @@ def summarize(
         min_samples=min_samples,
         min_raters_per_item=min_raters_per_item,
     )
+    eval_mode = str(manifest.get("eval_mode", "")).strip()
+    publishability_errors.extend(_mode_publishability_errors(eval_mode))
     if require_publishable and publishability_errors:
         raise ValueError("; ".join(publishability_errors))
 
     return {
         "schema_version": "jikai.blind_eval.summary.v1",
         "rubric_version": manifest.get("rubric_version", "1.0"),
+        "eval_mode": eval_mode or "unspecified",
         "sample_size": len(packet_ids),
         "rating_rows": len(rows),
         "rater_count": len(raters),
@@ -261,8 +265,20 @@ def _publishability_errors(
     return errors
 
 
+def _mode_publishability_errors(eval_mode: str) -> list[str]:
+    if not eval_mode:
+        return []
+    if eval_mode not in EVAL_MODES:
+        return [f"unknown eval_mode: {eval_mode}"]
+    if eval_mode == "dry-run":
+        return ["dry-run eval mode cannot support external quality claims"]
+    if eval_mode == "internal":
+        return ["internal eval mode cannot support external quality claims"]
+    return []
+
+
 def _inter_rater_agreement(
-    sample_dimension_scores: dict[str, dict[str, list[int]]]
+    sample_dimension_scores: dict[str, dict[str, list[int]]],
 ) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for field in DIMENSION_WEIGHTS:
@@ -298,6 +314,7 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
         "# Blind Evaluation Summary",
         "",
         f"Rubric version: {summary['rubric_version']}",
+        f"Eval mode: {summary.get('eval_mode', 'unspecified')}",
         f"Sample size: {summary['sample_size']}",
         f"Rater count: {summary['rater_count']}",
         f"Publishable: {str(summary['publishable']).lower()}",

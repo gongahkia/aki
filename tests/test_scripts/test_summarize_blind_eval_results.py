@@ -91,6 +91,31 @@ def test_summarize_completed_sheet(tmp_path):
     )
 
 
+def test_summarize_distinguishes_dry_run_mode(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    manifest = tmp_path / "manifest.json"
+    _write_rows(
+        ratings,
+        [
+            _row("p1", "p1-a", "r1"),
+            _row("p1", "p1-a", "r2"),
+        ],
+    )
+    manifest.write_text(
+        json.dumps({"rubric_version": "1.0", "eval_mode": "dry-run", "packets": []}),
+        encoding="utf-8",
+    )
+
+    summary = summarize(ratings, manifest_path=manifest, min_samples=1)
+
+    assert summary["eval_mode"] == "dry-run"
+    assert summary["publishable"] is False
+    assert summary["claims_permitted"] == []
+    assert summary["claims_blocked"] == [
+        "dry-run eval mode cannot support external quality claims"
+    ]
+
+
 def test_empty_sheet_fails_fast(tmp_path):
     ratings = tmp_path / "ratings.csv"
     _write_rows(ratings, [])
@@ -126,6 +151,7 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
     write_markdown(
         {
             "rubric_version": "1.0",
+            "eval_mode": "external-human",
             "sample_size": 1,
             "rater_count": 3,
             "publishable": True,
@@ -152,6 +178,7 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
 
     text = md.read_text(encoding="utf-8")
     assert "## Publishability Gates" in text
+    assert "Eval mode: external-human" in text
     assert "## Inter-Rater Agreement" in text
     assert "## Weighted Scores" in text
     assert "| p1-a | jikai | 90 | 85 | 95 | 3 |" in text
