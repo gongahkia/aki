@@ -58,6 +58,15 @@ CANONICAL_COMPLEXITY_LEVELS = [
     "advanced",
     "expert",
 ]
+PRACTICE_MODES = [
+    "issue_spotting",
+    "progressive_hints",
+    "timed_exam",
+    "model_answer_review",
+    "spaced_topic_drill",
+    "difficulty_ladder",
+]
+DEFAULT_PRACTICE_MODE = "issue_spotting"
 COMPLEXITY_LEVEL_MAP: Dict[str, str] = {
     "1": "beginner",
     "beginner": "beginner",
@@ -88,6 +97,16 @@ def normalize_complexity_level(value: Any) -> str:
     )
 
 
+def normalize_practice_mode(value: Any) -> str:
+    normalized = str(value).strip().lower().replace("-", "_")
+    if normalized in PRACTICE_MODES:
+        return normalized
+    raise ValueError(
+        "Unsupported practice_mode "
+        f"'{value}'. Allowed values: {', '.join(PRACTICE_MODES)}"
+    )
+
+
 class GenerationRequest(BaseModel):
     """Request model for hypothetical generation."""
 
@@ -110,6 +129,7 @@ class GenerationRequest(BaseModel):
     correlation_id: Optional[str] = None
     topic_extraction_time_ms: Optional[float] = Field(default=None, ge=0.0)
     include_analysis: bool = True
+    practice_mode: str = Field(default=DEFAULT_PRACTICE_MODE)
 
     @field_validator("law_domain")
     @classmethod
@@ -184,6 +204,11 @@ class GenerationRequest(BaseModel):
     @classmethod
     def validate_complexity_level(cls, value: str) -> str:
         return normalize_complexity_level(value)
+
+    @field_validator("practice_mode")
+    @classmethod
+    def validate_practice_mode(cls, value: str) -> str:
+        return normalize_practice_mode(value)
 
 
 class GenerationResponse(BaseModel):
