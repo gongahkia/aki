@@ -14,6 +14,9 @@
   },
   "corpus": {
     "clean_path": "corpus/labelled/sg_tort/corpus.json",
+    "supplemental_paths": [
+      "corpus/contrib/sg_tort/corpus.json"
+    ],
     "normalized_path": "corpus/normalized/sg_tort/corpus.json",
     "manifest_path": "corpus/manifest.json",
     "raw_paths": [
@@ -31,6 +34,15 @@
       "access": "local_repo",
       "terms_url": null,
       "notes": "Current preprocessor input path for the bundled reference corpus."
+    },
+    {
+      "name": "Repository-authored SG Tort contributed practice hypos",
+      "registry_source_id": "sg_tort_authored_contrib",
+      "url": "file://corpus/contrib/sg_tort/corpus.json",
+      "source_format": "json",
+      "access": "local_repo",
+      "terms_url": null,
+      "notes": "Authored or permission-certified student-practice records validated by script/validate_contrib_corpus.py."
     },
     {
       "name": "CommonLII Singapore cases",
@@ -468,7 +480,7 @@
     "training_command": "python -m src.ml.pipeline --data corpus/labelled/sample.csv"
   },
   "validation": {
-    "expected_record_count_min": 41,
+    "expected_record_count_min": 121,
     "required_record_fields": ["id", "text", "topics", "source", "provenance"],
     "canonical_record_fields": [
       "id",
@@ -491,7 +503,8 @@
       "JSON parses",
       "All records include non-empty text",
       "All topic values canonicalize through the SG Tort taxonomy",
-      "No source with restricted or unknown terms is redistributed as full text"
+      "No source with restricted or unknown terms is redistributed as full text",
+      "Contributed practice records include hidden answers and issues or model answers"
     ]
   },
   "artifacts": {

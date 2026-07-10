@@ -77,6 +77,7 @@ def test_registry_covers_source_decision_sources():
         "Supreme Court of Western Australia",
         "CALI Tort Law: A 21st-Century Approach",
         "Singapore Law Watch, Ch. 20 The Law of Negligence",
+        "Repository-authored SG Tort contributed practice hypos",
         "2Civility JumpStart sample Torts exam Q&A",
         "University of Washington Street Law tort hypotheticals",
         "Quimbee",
@@ -89,6 +90,7 @@ def test_registry_covers_source_decision_sources():
 def test_text_commit_gate_allows_only_cleared_sources():
     assert_text_commit_allowed("cap_static_case_json")
     assert_text_commit_allowed("tna_find_case_law_xml")
+    assert_text_commit_allowed("sg_tort_authored_contrib")
     assert_derived_metadata_allowed("commonlii_sg")
 
     with pytest.raises(SourceRegistryError, match="not cleared"):

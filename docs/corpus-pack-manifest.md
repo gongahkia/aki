@@ -39,6 +39,7 @@ The validator checks JSON syntax, required fields, topic shape, unique topic key
 | `subject.key` | string | Subject key. Example: `tort`. |
 | `subject.name` | string | Human-readable subject name. |
 | `corpus.clean_path` | string | Clean corpus artifact path, repo-root relative. |
+| `corpus.supplemental_paths` | string array | Optional extra clean corpus files loaded after `clean_path`. |
 | `corpus.raw_paths` | string array | Raw source directories, repo-root relative. |
 | `corpus.record_format` | string | Current clean record format. |
 | `corpus.id_prefix` | string | Prefix used for canonical record IDs. |
@@ -97,6 +98,7 @@ Readers must preserve legacy `text` while treating `fact_pattern` as the student
 |---|---|---|
 | `pipeline.embedding_command` | string | Command to rebuild vector indexes. |
 | `pipeline.training_command` | string | Command to train pack-specific ML artifacts. |
+| `corpus.supplemental_paths` | string array | Authored or permissioned add-on corpus files. |
 | `validation.canonical_record_fields` | string array | Target schema fields after migration. |
 | `validation.topic_coverage` | string | Topic coverage expectation. |
 | `validation.jurisdiction_expectations` | string array | Jurisdiction-specific validation cues. |

@@ -14,6 +14,7 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
 
     assert pack.manifest_path == "corpus/packs/sg_tort/manifest.json"
     assert pack.corpus_path == "corpus/labelled/sg_tort/corpus.json"
+    assert pack.supplemental_corpus_paths == ("corpus/contrib/sg_tort/corpus.json",)
     assert pack.raw_paths == ("corpus/raw/tort",)
     assert pack.record_format == "medallion_gold_v1"
     assert "negligence" in pack.topic_keys
@@ -26,17 +27,35 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
 @pytest.mark.asyncio
 async def test_sg_tort_pack_load_preserves_all_clean_corpus_records():
     corpus_path = Path("corpus/labelled/sg_tort/corpus.json")
+    contrib_path = Path("corpus/contrib/sg_tort/corpus.json")
     raw_records = json.loads(corpus_path.read_text(encoding="utf-8"))
+    contrib_records = json.loads(contrib_path.read_text(encoding="utf-8"))
     service = CorpusService()
 
     entries = await service.load_corpus(corpus_pack="sg_tort")
 
-    assert len(entries) == len(raw_records) == 41
+    assert len(entries) == len(raw_records) + len(contrib_records) == 121
     assert all(entry.corpus_pack_key == "sg_tort" for entry in entries)
     assert all(entry.jurisdiction == "sg" for entry in entries)
     assert all(entry.subject == "tort" for entry in entries)
     assert all(entry.text for entry in entries)
-    assert all(entry.fact_pattern == entry.text for entry in entries)
+    seed_entries = [
+        entry
+        for entry in entries
+        if entry.metadata.get("corpus_file") == str(corpus_path)
+    ]
+    contrib_entries = [
+        entry
+        for entry in entries
+        if entry.metadata.get("corpus_file") == str(contrib_path)
+    ]
+    assert len(seed_entries) == 41
+    assert len(contrib_entries) == 80
+    assert all(entry.fact_pattern == entry.text for entry in seed_entries)
+    assert all(entry.fact_pattern != entry.model_answer for entry in contrib_entries)
+    assert all(entry.issues_expected or entry.model_answer for entry in contrib_entries)
+    assert all(entry.answer_visibility == "hidden" for entry in contrib_entries)
+    assert all("model_answer" not in entry.student_view() for entry in contrib_entries)
 
 
 @pytest.mark.asyncio
@@ -78,6 +97,7 @@ async def test_legacy_record_loads_into_student_schema_without_data_loss(tmp_pat
     )
     service = CorpusService()
     service._resolve_corpus_path = lambda _corpus_pack="sg_tort": corpus_path
+    service._resolve_corpus_paths = lambda _corpus_pack="sg_tort": [corpus_path]
 
     entries = await service.load_corpus(corpus_pack="sg_tort")
     entry = entries[0]

@@ -1,6 +1,6 @@
 # Jikai Makefile
 
-.PHONY: help install dev check-python test lint format clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold eval health health-llm env-setup dev-setup
+.PHONY: help install dev check-python test lint format clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold corpus-contrib-validate eval health health-llm env-setup dev-setup
 
 PYTHON ?= python3
 DATASET ?= sg_tort.yaml
@@ -147,6 +147,9 @@ corpus-silver: corpus-bronze ## Build silver normalized corpus
 
 corpus-gold: corpus-silver ## Build gold labelled corpus
 	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.services.corpus_medallion gold --corpus-pack "$(CORPUS_PACK)"
+
+corpus-contrib-validate: ## Validate authored corpus contributions
+	python3 script/validate_contrib_corpus.py
 
 eval: ## Run SG-LegalBench eval harness
 	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" python3 -m src.evals.run \

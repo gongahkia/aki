@@ -59,6 +59,7 @@ class DomainPack:
     validation_overlay: Mapping[str, Any] | None = None
     manifest_path: str = ""
     corpus_path: str = ""
+    supplemental_corpus_paths: Tuple[str, ...] = ()
     raw_paths: Tuple[str, ...] = ()
     record_format: str = ""
 
@@ -177,6 +178,9 @@ def _domain_pack_from_manifest(
     normalized_raw_paths = tuple(str(path) for path in raw_paths if str(path).strip())
     if not normalized_raw_paths:
         normalized_raw_paths = fallback_raw_paths
+    supplemental_paths = corpus.get("supplemental_paths", [])
+    if not isinstance(supplemental_paths, (list, tuple)):
+        supplemental_paths = []
 
     return DomainPack(
         key=pack_key,
@@ -204,6 +208,9 @@ def _domain_pack_from_manifest(
         prompt_overlay=dict(prompt_overlay),
         validation_overlay=dict(validation_overlay),
         corpus_path=str(corpus.get("clean_path", fallback_clean_path)),
+        supplemental_corpus_paths=tuple(
+            str(path) for path in supplemental_paths if str(path).strip()
+        ),
         raw_paths=normalized_raw_paths,
         record_format=str(corpus.get("record_format", fallback_record_format)),
     )

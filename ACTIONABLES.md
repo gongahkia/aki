@@ -33,21 +33,6 @@ Verified local corpus:
 
 ## P0 Tasks
 
-### 5. Expand SG Tort via Authored and Consented Hypos
-
-Web scan did not verify an extensive reusable SG tort hypo corpus. Treat SG expansion as authored/permission-based.
-
-Tasks:
-- Add `corpus/contrib/` workflow for student/lecturer/authored submissions.
-- Add contributor license agreement or DCO-style certification for hypo text.
-- Add anonymization rules: no real exam paper text unless permission is explicit.
-- Add review checklist: topic coverage, SG law fit, answer quality, source originality.
-
-Acceptance:
-- 80+ SG tort practice hypos with clean authorship/permission.
-- At least 5 records per canonical core topic: negligence, duty, breach/standard, causation, remoteness, contributory negligence, consent/volenti, illegality, vicarious liability, nuisance, trespass, defamation, intentional torts.
-- Every record has a model answer or issue list.
-
 ### 6. Use CALI as the First External Open-Education Candidate
 
 Candidate:

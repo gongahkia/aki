@@ -116,11 +116,29 @@ class CorpusService:
             return Path(domain_pack.corpus_path)
         return self._local_corpus_path
 
-    def _get_local_corpus_mtime(self, corpus_pack: str = "sg_tort") -> Optional[float]:
+    def _resolve_corpus_paths(self, corpus_pack: str = "sg_tort") -> List[Path]:
+        primary_path = self._resolve_corpus_path(corpus_pack)
         try:
-            return self._resolve_corpus_path(corpus_pack).stat().st_mtime
-        except OSError:
-            return None
+            domain_pack = resolve_domain_pack(corpus_pack)
+        except KeyError:
+            return [primary_path]
+        paths = [primary_path]
+        for path_text in domain_pack.supplemental_corpus_paths:
+            path = Path(path_text)
+            if path not in paths:
+                paths.append(path)
+        return paths
+
+    def _get_local_corpus_mtime(self, corpus_pack: str = "sg_tort") -> Optional[float]:
+        mtimes = []
+        for corpus_path in self._resolve_corpus_paths(corpus_pack):
+            try:
+                mtimes.append(corpus_path.stat().st_mtime)
+            except OSError:
+                continue
+        if mtimes:
+            return max(mtimes)
+        return None
 
     async def _invalidate_topic_cache(self):
         async with self._topics_cache_lock:
@@ -130,11 +148,21 @@ class CorpusService:
     def _compute_current_corpus_hash(
         self, corpus_pack: str = "sg_tort"
     ) -> Optional[str]:
-        try:
-            payload = self._resolve_corpus_path(corpus_pack).read_bytes()
-        except OSError:
-            return None
-        return hashlib.sha256(payload).hexdigest()
+        digest = hashlib.sha256()
+        saw_file = False
+        for corpus_path in self._resolve_corpus_paths(corpus_pack):
+            try:
+                payload = corpus_path.read_bytes()
+            except OSError:
+                continue
+            saw_file = True
+            digest.update(str(corpus_path).encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(payload)
+            digest.update(b"\0")
+        if saw_file:
+            return digest.hexdigest()
+        return None
 
     @staticmethod
     def _compute_entries_hash(entries: List[HypotheticalEntry]) -> str:
@@ -290,70 +318,79 @@ class CorpusService:
         self, *, corpus_pack: str = "sg_tort"
     ) -> List[HypotheticalEntry]:
         """Load corpus from local JSON file."""
-        corpus_path = self._resolve_corpus_path(corpus_pack)
-        if not corpus_path.exists():
-            raise CorpusServiceError(f"Local corpus file not found: {corpus_path}")
+        corpus_paths = self._resolve_corpus_paths(corpus_pack)
+        for corpus_path in corpus_paths:
+            if not corpus_path.exists():
+                raise CorpusServiceError(f"Local corpus file not found: {corpus_path}")
 
         try:
-            with open(corpus_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
             entries = []
-            for i, item in enumerate(data):
-                raw_topics = item.get("topics", item.get("topic", []))
-                scope = self._entry_scope_from_item(item)
-                metadata = item.get("metadata", {})
-                if not isinstance(metadata, dict):
-                    metadata = {}
-                for key in ("source", "license"):
-                    if key in item and key not in metadata:
-                        metadata[key] = item[key]
-                text = str(item.get("text", ""))
-                source_exam_context = self._entry_value(
-                    item, metadata, "source_exam_context", {}
-                )
-                if not isinstance(source_exam_context, dict):
-                    source_exam_context = {}
-                entry = HypotheticalEntry(
-                    id=str(item.get("id", i)),
-                    text=text,
-                    topics=self._normalize_topics(raw_topics),
-                    question_prompt=self._entry_value(
-                        item, metadata, "question_prompt"
-                    ),
-                    fact_pattern=self._entry_value(
-                        item, metadata, "fact_pattern", text
-                    ),
-                    issues_expected=self._preserve_string_list(
-                        self._entry_value(item, metadata, "issues_expected", [])
-                    ),
-                    model_answer=self._entry_value(item, metadata, "model_answer"),
-                    marking_rubric=self._entry_value(item, metadata, "marking_rubric"),
-                    difficulty=self._entry_value(item, metadata, "difficulty"),
-                    time_limit_minutes=self._entry_value(
-                        item, metadata, "time_limit_minutes"
-                    ),
-                    jurisdiction_notes=self._entry_value(
-                        item, metadata, "jurisdiction_notes"
-                    ),
-                    answer_visibility=self._entry_value(
-                        item, metadata, "answer_visibility", "hidden"
-                    ),
-                    source_exam_context=source_exam_context,
-                    corpus_pack_key=scope["corpus_pack_key"],
-                    jurisdiction=scope["jurisdiction"],
-                    subject=scope["subject"],
-                    subtopics=scope["subtopics"],
-                    metadata=metadata,
-                    created_at=item.get("created_at"),
-                    updated_at=item.get("updated_at"),
-                )
-                entries.append(entry)
+            for corpus_path in corpus_paths:
+                with open(corpus_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if not isinstance(data, list):
+                    raise CorpusServiceError(
+                        f"Corpus root must be a list: {corpus_path}"
+                    )
+
+                for i, item in enumerate(data):
+                    raw_topics = item.get("topics", item.get("topic", []))
+                    scope = self._entry_scope_from_item(item)
+                    metadata = item.get("metadata", {})
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    metadata.setdefault("corpus_file", str(corpus_path))
+                    for key in ("source", "license"):
+                        if key in item and key not in metadata:
+                            metadata[key] = item[key]
+                    text = str(item.get("text", ""))
+                    source_exam_context = self._entry_value(
+                        item, metadata, "source_exam_context", {}
+                    )
+                    if not isinstance(source_exam_context, dict):
+                        source_exam_context = {}
+                    entry = HypotheticalEntry(
+                        id=str(item.get("id", len(entries) + i)),
+                        text=text,
+                        topics=self._normalize_topics(raw_topics),
+                        question_prompt=self._entry_value(
+                            item, metadata, "question_prompt"
+                        ),
+                        fact_pattern=self._entry_value(
+                            item, metadata, "fact_pattern", text
+                        ),
+                        issues_expected=self._preserve_string_list(
+                            self._entry_value(item, metadata, "issues_expected", [])
+                        ),
+                        model_answer=self._entry_value(item, metadata, "model_answer"),
+                        marking_rubric=self._entry_value(
+                            item, metadata, "marking_rubric"
+                        ),
+                        difficulty=self._entry_value(item, metadata, "difficulty"),
+                        time_limit_minutes=self._entry_value(
+                            item, metadata, "time_limit_minutes"
+                        ),
+                        jurisdiction_notes=self._entry_value(
+                            item, metadata, "jurisdiction_notes"
+                        ),
+                        answer_visibility=self._entry_value(
+                            item, metadata, "answer_visibility", "hidden"
+                        ),
+                        source_exam_context=source_exam_context,
+                        corpus_pack_key=scope["corpus_pack_key"],
+                        jurisdiction=scope["jurisdiction"],
+                        subject=scope["subject"],
+                        subtopics=scope["subtopics"],
+                        metadata=metadata,
+                        created_at=item.get("created_at"),
+                        updated_at=item.get("updated_at"),
+                    )
+                    entries.append(entry)
 
             logger.info(
                 "Corpus loaded from local file",
                 corpus_pack=corpus_pack,
-                corpus_path=str(corpus_path),
+                corpus_paths=[str(path) for path in corpus_paths],
                 entries_count=len(entries),
             )
             return entries

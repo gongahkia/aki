@@ -21,6 +21,8 @@ Good first issues use `good-first-corpus` or `good-first-jurisdiction`. A good f
 
 Do not commit third-party legal text unless the source terms permit redistribution. This includes paid outlines, casebooks, commercial bar-prep material, proprietary summaries, and scraped full text from sources with restricted or unknown terms.
 
+For authored SG practice hypos, use `corpus/contrib/sg_tort/`. Each contribution must include the certification, anonymization, and review fields in `corpus/contrib/sg_tort/submission_template.json`, then pass `python3 script/validate_contrib_corpus.py`.
+
 For restricted or unknown sources, contribute only:
 
 - Manifest metadata.

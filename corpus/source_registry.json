@@ -18,6 +18,24 @@
     "notes": "Repository-authored fixture corpus documented by the SG Tort manifest."
   },
   {
+    "source_id": "sg_tort_authored_contrib",
+    "name": "Repository-authored SG Tort contributed practice hypos",
+    "aliases": ["SG Tort authored contribution workflow"],
+    "url": "file://corpus/contrib/sg_tort/corpus.json",
+    "jurisdiction": "sg",
+    "subject": "tort",
+    "source_kind": "local_authored_practice_json",
+    "license_name": "repository_authored_contribution",
+    "license_url": null,
+    "redistribution_status": "bundled_fixture",
+    "commercial_use": "allowed_by_project_contribution_certification",
+    "text_commit_allowed": true,
+    "derived_metadata_allowed": true,
+    "attribution_required": false,
+    "terms_checked_at": "2026-07-10",
+    "notes": "Original or permission-certified SG Tort practice hypotheticals under corpus/contrib review workflow."
+  },
+  {
     "source_id": "sg_contract_seed_fixture",
     "name": "Bundled SG Contract seed fixtures",
     "aliases": [],
