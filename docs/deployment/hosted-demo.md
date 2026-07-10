@@ -1,6 +1,7 @@
 # Hosted Demo Deployment
 
-Status: public fixture demo ready; server-backed provider demo remains repo-ready.
+Status: public fixture demo ready; server-backed provider demo remains private/repo-ready until API hardening is complete.
+Decision issue: #32.
 
 Public fixture URL: https://gabrielongzm.com/jikai/
 
@@ -20,7 +21,9 @@ Public fixture URL: https://gabrielongzm.com/jikai/
 
 ## Chosen Path
 
-Use GitHub Pages for the public no-secret fixture demo and Render for the server-backed provider demo. `render.yaml` targets a Docker web service, uses `/health`, enables the in-process rate limiter, and keeps provider credentials server-side.
+Keep only the GitHub Pages no-secret fixture demo public. The server-backed provider demo may be deployed for controlled review, but it must not be advertised or treated as a public student surface until mutating/admin endpoints, provider selection, corpus writes, job/export paths, request size, and route-level rate limits are locked down.
+
+`render.yaml` targets a Docker web service, uses `/health`, enables the in-process rate limiter, and keeps provider credentials server-side.
 
 ## GitHub Pages Steps
 
@@ -41,6 +44,8 @@ Use GitHub Pages for the public no-secret fixture demo and Render for the server
 
 ## Render Steps
 
+Do this only for private review until the hosted API hardening issue closes.
+
 1. Connect this GitHub repo to Render.
 2. Create the web service from `render.yaml`.
 3. Set `OPENAI_API_KEY` in Render env vars.
@@ -49,7 +54,7 @@ Use GitHub Pages for the public no-secret fixture demo and Render for the server
 6. Verify `/health`.
 7. Verify `/demo` can generate an SG Tort hypothetical with model answer.
 8. Run `python3 script/validate_hosted_demo.py https://YOUR_HOST --generate`.
-9. Replace any placeholder URL in README with the live public `/demo` URL.
+9. Do not replace the README public demo URL with a server-backed `/demo` URL until hardening is complete.
 
 ## Local Container Smoke
 
@@ -66,6 +71,8 @@ $ python3 script/validate_hosted_demo.py http://127.0.0.1:8000
 - Browser abort: 95 seconds.
 - Provider timeout: `LLM_TIMEOUT`.
 - Provider circuit breaker and mapped JSON errors are handled in the LLM/API service layer.
+
+These controls are necessary but not sufficient for a public server-backed student demo. Public server-backed exposure requires authenticated or disabled mutating/admin routes, request-scoped or admin-only provider selection, locked export paths, and route/body limits.
 
 ## Cost And Privacy Copy
 
