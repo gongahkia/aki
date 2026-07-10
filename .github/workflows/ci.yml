@@ -61,6 +61,28 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
+  sg-legalbench-eval:
+    name: SG-LegalBench Eval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Run SG-LegalBench smoke eval
+        env:
+          KMP_DUPLICATE_LIB_OK: "TRUE"
+        run: make eval DATASET=sg_tort.yaml EVAL_OUTPUT=data/generated/sg_legalbench_ci.json EVAL_CONCURRENCY=2
+      - name: Validate eval result schema
+        run: python3 -c 'import json, pathlib; data=json.loads(pathlib.Path("data/generated/sg_legalbench_ci.json").read_text()); assert data["schema_version"] == "jikai.eval.v1"; assert data["summary"]["total_cases"] > 0; assert data["cases"]'
+      - name: Upload SG-LegalBench results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sg-legalbench-eval-results
+          path: data/generated/sg_legalbench_ci.json
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest
