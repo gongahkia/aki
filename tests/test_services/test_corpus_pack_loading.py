@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.domain import get_domain_pack
-from src.services.corpus_service import CorpusQuery, CorpusService
+from src.services.corpus_service import CorpusQuery, CorpusService, HypotheticalEntry
 
 
 def test_sg_tort_domain_pack_uses_reference_manifest():
@@ -36,6 +36,7 @@ async def test_sg_tort_pack_load_preserves_all_clean_corpus_records():
     assert all(entry.jurisdiction == "sg" for entry in entries)
     assert all(entry.subject == "tort" for entry in entries)
     assert all(entry.text for entry in entries)
+    assert all(entry.fact_pattern == entry.text for entry in entries)
 
 
 @pytest.mark.asyncio
@@ -56,3 +57,68 @@ async def test_sg_tort_pack_can_be_queried_by_runtime_scope(monkeypatch):
 
     assert results
     assert all(entry.corpus_pack_key == "sg_tort" for entry in results)
+
+
+@pytest.mark.asyncio
+async def test_legacy_record_loads_into_student_schema_without_data_loss(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    corpus_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "legacy-1",
+                    "text": "Advise A on negligence.",
+                    "topic": ["negligence"],
+                    "model_answer": "A should discuss duty, breach, and causation.",
+                    "marking_rubric": {"issues": ["duty", "breach"]},
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    service = CorpusService()
+    service._resolve_corpus_path = lambda _corpus_pack="sg_tort": corpus_path
+
+    entries = await service.load_corpus(corpus_pack="sg_tort")
+    entry = entries[0]
+
+    assert entry.text == "Advise A on negligence."
+    assert entry.fact_pattern == entry.text
+    assert entry.issues_expected == []
+    assert entry.model_answer == "A should discuss duty, breach, and causation."
+    assert "model_answer" not in entry.student_view()
+    assert entry.student_view(include_model_answer=True)["model_answer"] == (
+        "A should discuss duty, breach, and causation."
+    )
+
+
+@pytest.mark.asyncio
+async def test_save_corpus_preserves_student_schema_fields(tmp_path):
+    service = CorpusService()
+    service._local_corpus_path = tmp_path / "corpus.json"
+    entry = HypotheticalEntry(
+        id="practice-1",
+        text="Prompt plus facts",
+        topics=["negligence"],
+        question_prompt="Advise A.",
+        fact_pattern="A slipped on wet stairs.",
+        issues_expected=["duty", "breach", "causation"],
+        model_answer="Discuss occupier negligence.",
+        marking_rubric={"duty": 2},
+        difficulty="medium",
+        time_limit_minutes=30,
+        jurisdiction_notes="SG law.",
+        source_exam_context={"source_type": "authored"},
+    )
+
+    await service.save_corpus([entry])
+    payload = json.loads(service._local_corpus_path.read_text(encoding="utf-8"))
+
+    assert payload[0]["id"] == "practice-1"
+    assert payload[0]["text"] == "Prompt plus facts"
+    assert payload[0]["question_prompt"] == "Advise A."
+    assert payload[0]["fact_pattern"] == "A slipped on wet stairs."
+    assert payload[0]["issues_expected"] == ["duty", "breach", "causation"]
+    assert payload[0]["model_answer"] == "Discuss occupier negligence."
+    assert payload[0]["marking_rubric"] == {"duty": 2}
+    assert payload[0]["answer_visibility"] == "hidden"

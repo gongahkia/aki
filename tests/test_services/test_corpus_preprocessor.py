@@ -77,6 +77,8 @@ def test_scan_raw_directory_skips_oversized_entries(tmp_path):
 
     assert len(entries) == 1
     assert entries[0]["metadata"]["source_file"] == "tort/ok.txt"
+    assert entries[0]["fact_pattern"] == entries[0]["text"]
+    assert entries[0]["answer_visibility"] == "hidden"
 
 
 def test_build_corpus_skips_oversized_entries(tmp_path):
@@ -90,3 +92,4 @@ def test_build_corpus_skips_oversized_entries(tmp_path):
     assert count == 1
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload[0]["metadata"]["source_file"] == "tort/ok.txt"
+    assert payload[0]["fact_pattern"] == payload[0]["text"]

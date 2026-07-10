@@ -33,27 +33,6 @@ Verified local corpus:
 
 ## P0 Tasks
 
-### 4. Build a Student-Useful Record Schema
-
-Current records mostly store fact pattern + topics. Active students need more.
-
-Add optional fields:
-- `question_prompt`
-- `fact_pattern`
-- `issues_expected`
-- `model_answer`
-- `marking_rubric`
-- `difficulty`
-- `time_limit_minutes`
-- `jurisdiction_notes`
-- `answer_visibility`
-- `source_exam_context`
-
-Acceptance:
-- Existing records migrate without data loss.
-- New generation/eval can distinguish fact pattern from model answer.
-- Export/TUI can hide model answer until requested.
-
 ### 5. Expand SG Tort via Authored and Consented Hypos
 
 Web scan did not verify an extensive reusable SG tort hypo corpus. Treat SG expansion as authored/permission-based.

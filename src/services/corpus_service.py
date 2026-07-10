@@ -23,6 +23,16 @@ class HypotheticalEntry(BaseModel):
     id: Optional[str] = None
     text: str
     topics: List[str]
+    question_prompt: Optional[str] = None
+    fact_pattern: Optional[str] = None
+    issues_expected: List[str] = Field(default_factory=list)
+    model_answer: Optional[str] = None
+    marking_rubric: Any = None
+    difficulty: Optional[str] = None
+    time_limit_minutes: Optional[int] = None
+    jurisdiction_notes: Optional[str] = None
+    answer_visibility: str = "hidden"
+    source_exam_context: Dict[str, Any] = Field(default_factory=dict)
     corpus_pack_key: str = "sg_tort"
     jurisdiction: str = "sg"
     subject: str = "tort"
@@ -30,6 +40,27 @@ class HypotheticalEntry(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+    @field_validator("answer_visibility")
+    @classmethod
+    def validate_answer_visibility(cls, value: str) -> str:
+        allowed = {"hidden", "visible", "after_attempt"}
+        normalized = str(value or "hidden").strip().lower()
+        if normalized not in allowed:
+            raise ValueError(f"answer_visibility must be one of {sorted(allowed)}")
+        return normalized
+
+    @property
+    def practice_fact_pattern(self) -> str:
+        return self.fact_pattern or self.text
+
+    def student_view(self, *, include_model_answer: bool = False) -> Dict[str, Any]:
+        payload = self.model_dump(mode="json", exclude_none=True)
+        payload["fact_pattern"] = self.practice_fact_pattern
+        if not include_model_answer:
+            payload.pop("model_answer", None)
+            payload.pop("marking_rubric", None)
+        return payload
 
 
 class CorpusQuery(BaseModel):
@@ -178,6 +209,26 @@ class CorpusService:
                 normalized.append(token)
         return normalized
 
+    @staticmethod
+    def _preserve_string_list(raw_values: Any) -> List[str]:
+        if raw_values is None:
+            return []
+        if isinstance(raw_values, list):
+            values = raw_values
+        else:
+            values = [raw_values]
+        return [str(value).strip() for value in values if str(value).strip()]
+
+    @staticmethod
+    def _entry_value(
+        item: Dict[str, Any], metadata: Dict[str, Any], key: str, default: Any = None
+    ) -> Any:
+        if key in item:
+            return item[key]
+        if key in metadata:
+            return metadata[key]
+        return default
+
     @classmethod
     def _entry_scope_from_item(cls, item: Dict[str, Any]) -> Dict[str, Any]:
         default_pack = resolve_domain_pack("sg_tort")
@@ -257,10 +308,38 @@ class CorpusService:
                 for key in ("source", "license"):
                     if key in item and key not in metadata:
                         metadata[key] = item[key]
+                text = str(item.get("text", ""))
+                source_exam_context = self._entry_value(
+                    item, metadata, "source_exam_context", {}
+                )
+                if not isinstance(source_exam_context, dict):
+                    source_exam_context = {}
                 entry = HypotheticalEntry(
                     id=str(item.get("id", i)),
-                    text=item.get("text", ""),
+                    text=text,
                     topics=self._normalize_topics(raw_topics),
+                    question_prompt=self._entry_value(
+                        item, metadata, "question_prompt"
+                    ),
+                    fact_pattern=self._entry_value(
+                        item, metadata, "fact_pattern", text
+                    ),
+                    issues_expected=self._preserve_string_list(
+                        self._entry_value(item, metadata, "issues_expected", [])
+                    ),
+                    model_answer=self._entry_value(item, metadata, "model_answer"),
+                    marking_rubric=self._entry_value(item, metadata, "marking_rubric"),
+                    difficulty=self._entry_value(item, metadata, "difficulty"),
+                    time_limit_minutes=self._entry_value(
+                        item, metadata, "time_limit_minutes"
+                    ),
+                    jurisdiction_notes=self._entry_value(
+                        item, metadata, "jurisdiction_notes"
+                    ),
+                    answer_visibility=self._entry_value(
+                        item, metadata, "answer_visibility", "hidden"
+                    ),
+                    source_exam_context=source_exam_context,
                     corpus_pack_key=scope["corpus_pack_key"],
                     jurisdiction=scope["jurisdiction"],
                     subject=scope["subject"],
@@ -303,19 +382,9 @@ class CorpusService:
             # Convert to JSON-serializable format
             data = []
             for entry in entries:
-                data.append(
-                    {
-                        "text": entry.text,
-                        "topic": self._normalize_topics(entry.topics),
-                        "corpus_pack_key": entry.corpus_pack_key,
-                        "jurisdiction": entry.jurisdiction,
-                        "subject": entry.subject,
-                        "subtopics": entry.subtopics,
-                        "metadata": entry.metadata,
-                        "created_at": entry.created_at,
-                        "updated_at": entry.updated_at,
-                    }
-                )
+                entry.fact_pattern = entry.practice_fact_pattern
+                entry.topics = self._normalize_topics(entry.topics)
+                data.append(entry.model_dump(mode="json", exclude_none=True))
 
             with open(self._local_corpus_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -645,6 +714,7 @@ class CorpusService:
             entry.created_at = now
             entry.updated_at = now
             entry.topics = self._normalize_topics(entry.topics)
+            entry.fact_pattern = entry.practice_fact_pattern
 
             corpus.append(entry)
 

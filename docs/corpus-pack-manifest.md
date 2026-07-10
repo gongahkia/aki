@@ -76,6 +76,21 @@ Each `taxonomy.topics[]` item requires:
 | `aliases` | string array | Accepted input aliases. |
 | `subtopics` | array | Optional finer-grained topics. Use `[]` if none yet. |
 
+Clean corpus records may include student-practice fields:
+
+- `question_prompt`
+- `fact_pattern`
+- `issues_expected`
+- `model_answer`
+- `marking_rubric`
+- `difficulty`
+- `time_limit_minutes`
+- `jurisdiction_notes`
+- `answer_visibility`
+- `source_exam_context`
+
+Readers must preserve legacy `text` while treating `fact_pattern` as the student-facing facts when present. Model answers and rubrics should stay hidden unless a caller explicitly requests them.
+
 ## Optional Fields
 
 | Field | Type | Meaning |

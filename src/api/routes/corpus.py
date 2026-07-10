@@ -17,11 +17,22 @@ class CorpusQueryRequest(BaseModel):
     sample_size: int = Field(default=5, ge=1, le=50)
     exclude_ids: List[str] = Field(default_factory=list)
     min_topic_overlap: int = Field(default=1, ge=1)
+    include_model_answer: bool = False
 
 
 class AddEntryRequest(BaseModel):
     text: str
     topics: List[str]
+    question_prompt: Optional[str] = None
+    fact_pattern: Optional[str] = None
+    issues_expected: List[str] = Field(default_factory=list)
+    model_answer: Optional[str] = None
+    marking_rubric: Any = None
+    difficulty: Optional[str] = None
+    time_limit_minutes: Optional[int] = None
+    jurisdiction_notes: Optional[str] = None
+    answer_visibility: str = "hidden"
+    source_exam_context: Dict[str, Any] = Field(default_factory=dict)
     corpus_pack: str = "sg_tort"
     jurisdiction: str = "sg"
     subject: str = "tort"
@@ -44,10 +55,11 @@ async def list_entries(
     corpus_pack: str = "sg_tort",
     jurisdiction: str = "sg",
     subject: str = "tort",
+    include_model_answer: bool = False,
 ):
     from ...services import corpus_service
 
-    entries = await corpus_service.load_corpus()
+    entries = await corpus_service.load_corpus(corpus_pack=corpus_pack)
     entries = [
         e
         for e in entries
@@ -63,7 +75,14 @@ async def list_entries(
         ]
     entries = entries[:limit]
     return {
-        "entries": [e.model_dump() if hasattr(e, "model_dump") else e for e in entries],
+        "entries": [
+            (
+                e.student_view(include_model_answer=include_model_answer)
+                if hasattr(e, "student_view")
+                else e
+            )
+            for e in entries
+        ],
         "count": len(entries),
     }
 
@@ -85,7 +104,14 @@ async def query_corpus(req: CorpusQueryRequest):
     )
     results = await corpus_service.query_relevant_hypotheticals(query)
     return {
-        "entries": [r.model_dump() if hasattr(r, "model_dump") else r for r in results],
+        "entries": [
+            (
+                r.student_view(include_model_answer=req.include_model_answer)
+                if hasattr(r, "student_view")
+                else r
+            )
+            for r in results
+        ],
         "count": len(results),
     }
 
@@ -98,6 +124,16 @@ async def add_entry(req: AddEntryRequest):
     entry = HypotheticalEntry(
         text=req.text,
         topics=req.topics,
+        question_prompt=req.question_prompt,
+        fact_pattern=req.fact_pattern,
+        issues_expected=req.issues_expected,
+        model_answer=req.model_answer,
+        marking_rubric=req.marking_rubric,
+        difficulty=req.difficulty,
+        time_limit_minutes=req.time_limit_minutes,
+        jurisdiction_notes=req.jurisdiction_notes,
+        answer_visibility=req.answer_visibility,
+        source_exam_context=req.source_exam_context,
         corpus_pack_key=req.corpus_pack,
         jurisdiction=req.jurisdiction,
         subject=req.subject,

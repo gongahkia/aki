@@ -176,7 +176,12 @@ def scan_raw_directory(
             entries.append(
                 {
                     "text": text,
+                    "fact_pattern": text,
                     "topic": base_topics,
+                    "issues_expected": [],
+                    "model_answer": None,
+                    "marking_rubric": None,
+                    "answer_visibility": "hidden",
                     "metadata": {
                         "source_file": str(fpath.relative_to(raw_dir)),
                         "source_dir": subdir.name,
