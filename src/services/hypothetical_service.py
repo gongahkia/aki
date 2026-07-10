@@ -693,9 +693,10 @@ class HypotheticalService:
             # Step 4.5: Generate model answer if requested
             model_answer = ""
             model_answer_time_ms = 0.0
-            if request.user_preferences and request.user_preferences.get(
-                "include_model_answer"
-            ):
+            if (
+                request.user_preferences
+                and request.user_preferences.get("include_model_answer")
+            ) or request.practice_mode == "model_answer_review":
                 try:
                     ma_started = time.perf_counter()
                     model_answer = await self._generate_model_answer(
@@ -720,6 +721,12 @@ class HypotheticalService:
                 "analysis_time_ms": analysis_time_ms,
                 "model_answer_time_ms": model_answer_time_ms,
             }
+            practice_artifact = self._build_practice_artifact(
+                request=request,
+                hypothetical=hypothetical,
+                validation_results=validation_results,
+                model_answer=model_answer,
+            )
 
             # Create response
             response = GenerationResponse(
@@ -739,6 +746,8 @@ class HypotheticalService:
                     "retry_reason": request.retry_reason,
                     "retry_attempt": request.retry_attempt,
                     "include_analysis": request.include_analysis,
+                    "practice_mode": request.practice_mode,
+                    "practice": practice_artifact,
                     "timeout_seconds": self._resolve_timeout_override(request),
                     "correlation_id": correlation_id,
                     "analysis_skipped": analysis_skipped,
@@ -805,6 +814,151 @@ class HypotheticalService:
                 correlation_id=(request.correlation_id or None),
             )
             raise HypotheticalServiceError(f"Generation failed: {e}")
+
+    @staticmethod
+    def _topic_label(topic: str) -> str:
+        return str(topic).replace("_", " ").strip().title()
+
+    @classmethod
+    def _practice_issue_checklist(cls, topics: List[str]) -> List[Dict[str, Any]]:
+        return [
+            {
+                "topic": topic,
+                "label": cls._topic_label(topic),
+                "student_task": f"Identify whether the facts raise {cls._topic_label(topic)}.",
+                "expected_analysis": (
+                    "state the rule, apply specific facts, address ambiguity, and "
+                    "reach a claimant/defendant-specific conclusion"
+                ),
+            }
+            for topic in topics
+        ]
+
+    @staticmethod
+    def _practice_rubric() -> List[Dict[str, Any]]:
+        return [
+            {
+                "criterion": "issue_spotting",
+                "points": 30,
+                "description": "spots all requested issues and any material adjacent issues",
+            },
+            {
+                "criterion": "rule_accuracy",
+                "points": 25,
+                "description": "states the controlling SG Tort rule with needed limits",
+            },
+            {
+                "criterion": "fact_application",
+                "points": 25,
+                "description": "uses concrete facts before reaching conclusions",
+            },
+            {
+                "criterion": "ambiguity_and_defences",
+                "points": 10,
+                "description": "flags missing facts, competing inferences, and defences",
+            },
+            {
+                "criterion": "answer_structure",
+                "points": 10,
+                "description": "uses issue-first or IRAC-style organization",
+            },
+        ]
+
+    @classmethod
+    def _build_practice_artifact(
+        cls,
+        *,
+        request: GenerationRequest,
+        hypothetical: str,
+        validation_results: ValidationResult,
+        model_answer: str,
+    ) -> Dict[str, Any]:
+        topics = list(request.topics or [])
+        labels = [cls._topic_label(topic) for topic in topics]
+        prefs = request.user_preferences or {}
+        artifact: Dict[str, Any] = {
+            "mode": request.practice_mode,
+            "answer_visibility": "hidden_until_attempt",
+            "student_view": {
+                "fact_pattern": hypothetical,
+                "answer_box": True,
+                "instructions": "Attempt the question before opening the reveal section.",
+            },
+            "issue_checklist": cls._practice_issue_checklist(topics),
+            "rubric": cls._practice_rubric(),
+            "post_attempt_reveal": {
+                "trigger": "submit_attempt",
+                "includes": [
+                    "issue_checklist",
+                    "rubric",
+                    "analysis",
+                    *([] if not model_answer else ["model_answer"]),
+                ],
+            },
+            "validation_summary": {
+                "passed": validation_results.passed,
+                "quality_score": validation_results.quality_score,
+                "legal_realism_score": validation_results.legal_realism_score,
+                "exam_likeness_score": validation_results.exam_likeness_score,
+            },
+        }
+
+        if request.practice_mode == "progressive_hints":
+            primary = labels[0] if labels else "the primary tort issue"
+            artifact["hints"] = [
+                {"level": 1, "type": "topic", "text": f"Start with {primary}."},
+                {
+                    "level": 2,
+                    "type": "rule",
+                    "text": "State the SG Tort rule before applying disputed facts.",
+                },
+                {
+                    "level": 3,
+                    "type": "structure",
+                    "text": "Use claimant v defendant, then issue, rule, application, conclusion.",
+                },
+            ]
+        elif request.practice_mode == "timed_exam":
+            raw_timer = prefs.get("timer_seconds", prefs.get("exam_timer_seconds", 1800))
+            try:
+                timer_seconds = max(300, min(int(raw_timer), 10800))
+            except (TypeError, ValueError):
+                timer_seconds = 1800
+            artifact["timer"] = {
+                "seconds": timer_seconds,
+                "post_attempt_reveal": "enabled_after_submit_or_timer",
+            }
+        elif request.practice_mode == "model_answer_review":
+            artifact["review"] = {
+                "student_answer_required": True,
+                "compare_against": ["issue_checklist", "rubric", "model_answer"],
+                "feedback_prompt": "Mark missing issues, inaccurate rules, and unsupported conclusions.",
+            }
+        elif request.practice_mode == "spaced_topic_drill":
+            weak_topics = prefs.get("weak_topics")
+            if not isinstance(weak_topics, list) or not weak_topics:
+                weak_topics = topics
+            artifact["spaced_repetition"] = {
+                "weak_topics": weak_topics,
+                "review_after_days": [1, 3, 7],
+                "promotion_rule": "advance after two consecutive rubric passes",
+            }
+        elif request.practice_mode == "difficulty_ladder":
+            artifact["difficulty_ladder"] = [
+                {"level": "easy", "complexity_level": "beginner", "issue_count": 1},
+                {
+                    "level": "medium",
+                    "complexity_level": "intermediate",
+                    "issue_count": max(2, min(len(topics), 3)),
+                },
+                {
+                    "level": "hard",
+                    "complexity_level": "advanced",
+                    "issue_count": max(3, len(topics)),
+                },
+            ]
+
+        return artifact
 
     async def _ml_post_process(
         self, request: GenerationRequest, hypothetical: str
@@ -932,7 +1086,10 @@ class HypotheticalService:
             "ml_assisted",
             "hybrid",
         ):
-            ml_gate_check = lambda text: self._ml_gate_check(request, text)
+            def run_ml_gate_check(text: str):
+                return self._ml_gate_check(request, text)
+
+            ml_gate_check = run_ml_gate_check
 
         loop = RefineLoop(
             generate=generate_revised,

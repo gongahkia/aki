@@ -78,6 +78,7 @@ impl ExportScreen {
                 hypothetical: Some("(last generated)".into()),
                 analysis: None,
                 model_answer: None,
+                practice: None,
                 format: fmt,
                 output_path: None,
             };

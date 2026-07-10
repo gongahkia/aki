@@ -135,6 +135,41 @@ class TestDatabaseService:
         assert "response" in recent[0]
 
     @pytest.mark.asyncio
+    async def test_history_records_include_practice_mode_and_artifact(
+        self, database_service
+    ):
+        """Practice payloads should survive the SQLite history path."""
+        await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+                "practice_mode": "progressive_hints",
+            },
+            response_data={
+                "hypothetical": "Hypothetical",
+                "analysis": "Analysis",
+                "generation_time": 5.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {
+                    "generation_timestamp": "2025-01-01T00:00:00",
+                    "practice": {
+                        "mode": "progressive_hints",
+                        "issue_checklist": [{"topic": "negligence"}],
+                        "rubric": [{"criterion": "issue_spotting", "points": 30}],
+                    },
+                },
+            },
+        )
+
+        records = await database_service.get_history_records(limit=1)
+
+        assert records[0]["config"]["practice_mode"] == "progressive_hints"
+        assert records[0]["practice"]["mode"] == "progressive_hints"
+        assert records[0]["practice"]["issue_checklist"][0]["topic"] == "negligence"
+
+    @pytest.mark.asyncio
     async def test_save_generation_concurrently(self, database_service):
         """Concurrent save_generation calls should all persist without collisions."""
 

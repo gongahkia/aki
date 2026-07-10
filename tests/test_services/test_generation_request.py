@@ -39,6 +39,23 @@ def test_generation_request_include_analysis_defaults_true():
     assert request.include_analysis is True
 
 
+def test_generation_request_defaults_to_issue_spotting_mode():
+    request = GenerationRequest(topics=["negligence"])
+    assert request.practice_mode == "issue_spotting"
+
+
+def test_generation_request_normalizes_practice_mode():
+    request = GenerationRequest(
+        topics=["negligence"], practice_mode="progressive-hints"
+    )
+    assert request.practice_mode == "progressive_hints"
+
+
+def test_generation_request_rejects_unknown_practice_mode():
+    with pytest.raises(ValueError):
+        GenerationRequest(topics=["negligence"], practice_mode="flashcards")
+
+
 def test_generation_request_defaults_to_sg_tort_pack():
     request = GenerationRequest(topics=["negligence"])
 

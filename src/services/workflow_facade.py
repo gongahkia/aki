@@ -18,6 +18,7 @@ from .corpus_service import corpus_service
 from .database_service import GenerationReport, database_service
 from .hypo_generator import hypo_generator as default_hypo_generator
 from .hypothetical_service import (
+    DEFAULT_PRACTICE_MODE,
     GenerationRequest,
     GenerationResponse,
     hypothetical_service,
@@ -807,6 +808,9 @@ class WorkflowFacade:
             retry_reason=retry_reason,
             retry_attempt=retry_attempt,
             correlation_id=correlation_id or str(uuid.uuid4()),
+            practice_mode=request_data.get(
+                "practice_mode", fallback.get("practice_mode", DEFAULT_PRACTICE_MODE)
+            ),
         )
 
         combined_request, ml_result = await self._prepare_combined_request(

@@ -65,7 +65,7 @@ struct ResultView {
 pub struct GenerateScreen {
     phase: Phase,
     config: GenerateConfig,
-    mode: String, // quick, exam, custom
+    mode: String,
     pending_response: Option<tokio::task::JoinHandle<Result<GenerationResponse, anyhow::Error>>>,
     sse_reader: SseReader,
 }
@@ -88,15 +88,10 @@ fn error_menu(msg: &str) -> MenuState {
 
 impl GenerateScreen {
     pub fn new() -> Self {
-        let items = vec![
-            MenuItem::new("Quick Generate", "topic only, use saved defaults"),
-            MenuItem::new("Exam Practice", "realism-first preset"),
-            MenuItem::new("Custom", "full configuration"),
-        ];
         Self {
-            phase: Phase::ModeSelect(MenuState::new("Generation Mode", items)),
+            phase: Phase::ModeSelect(Self::mode_select_menu()),
             config: GenerateConfig::default(),
-            mode: String::new(),
+            mode: "issue_spotting".into(),
             pending_response: None,
             sse_reader: SseReader::new(),
         }
@@ -111,7 +106,8 @@ impl GenerateScreen {
 
     fn show_config_confirm(&self) -> Confirm {
         let summary = format!(
-            "Topics: {}  Provider: {}  Temp: {:.1}  Complexity: {}  Parties: {}  Analysis: {}  ML Training: required",
+            "Mode: {}  Topics: {}  Provider: {}  Temp: {:.1}  Complexity: {}  Parties: {}  Analysis: {}  ML Training: required",
+            self.mode,
             if self.config.topics.is_empty() { "--".into() } else { self.config.topics.join(", ") },
             self.config.provider, self.config.temperature, self.config.complexity,
             self.config.parties,
@@ -148,6 +144,9 @@ impl GenerateScreen {
                     "red_herrings".into(),
                     serde_json::json!(self.config.red_herrings),
                 );
+                if self.mode == "model_answer_review" {
+                    m.insert("include_model_answer".into(), serde_json::json!(true));
+                }
                 m.insert("provider_timeout_seconds".into(), serde_json::json!(180));
                 m
             }),
@@ -156,6 +155,7 @@ impl GenerateScreen {
             model: self.config.model.clone(),
             include_analysis: self.config.include_analysis,
             correlation_id: None,
+            practice_mode: self.mode.clone(),
         };
         self.phase = Phase::Generating(Spinner::new(
             "Step 1/2: Ensuring required ML training, then generating hypothetical...",
@@ -169,13 +169,25 @@ impl GenerateScreen {
     }
 
     fn show_result(&mut self, resp: GenerationResponse) {
-        let analysis = if resp.analysis.is_empty() {
+        let mut hypothetical = resp.hypothetical.clone();
+        if let Some(practice) = resp.metadata.get("practice") {
+            hypothetical.push_str(&Self::format_practice_summary(practice));
+        }
+        let mut analysis_text = resp.analysis.clone();
+        if !resp.model_answer.trim().is_empty() {
+            if !analysis_text.trim().is_empty() {
+                analysis_text.push_str("\n\n");
+            }
+            analysis_text.push_str("Model Answer:\n\n");
+            analysis_text.push_str(resp.model_answer.trim());
+        }
+        let analysis = if analysis_text.is_empty() {
             None
         } else {
-            Some(Panel::new("Legal Analysis", &resp.analysis))
+            Some(Panel::new("Legal Analysis", &analysis_text))
         };
         self.phase = Phase::Result(ResultView {
-            hypothetical: Panel::new("Generated Hypothetical", &resp.hypothetical),
+            hypothetical: Panel::new("Generated Hypothetical", &hypothetical),
             analysis,
             focus: 0,
         });
@@ -187,6 +199,29 @@ impl GenerateScreen {
         state.last_config.parties = self.config.parties.to_string();
         state.last_config.include_analysis = self.config.include_analysis;
         state.save();
+    }
+
+    fn format_practice_summary(value: &serde_json::Value) -> String {
+        let Some(obj) = value.as_object() else {
+            return String::new();
+        };
+        let mode = obj
+            .get("mode")
+            .and_then(|v| v.as_str())
+            .unwrap_or("issue_spotting");
+        let visibility = obj
+            .get("answer_visibility")
+            .and_then(|v| v.as_str())
+            .unwrap_or("hidden_until_attempt");
+        let checklist_count = obj
+            .get("issue_checklist")
+            .and_then(|v| v.as_array())
+            .map(|v| v.len())
+            .unwrap_or(0);
+        format!(
+            "\n\nPractice:\n- mode: {}\n- answer: {}\n- checklist items: {}",
+            mode, visibility, checklist_count
+        )
     }
 
     fn post_gen_menu(&self) -> MenuState {
@@ -205,9 +240,12 @@ impl GenerateScreen {
         MenuState::new(
             "Generation Mode",
             vec![
-                MenuItem::new("Quick Generate", "topic only, use saved defaults"),
-                MenuItem::new("Exam Practice", "realism-first preset"),
-                MenuItem::new("Custom", "full configuration"),
+                MenuItem::new("Issue Spotting", "fact pattern only; answer hidden"),
+                MenuItem::new("Progressive Hints", "topic, rule, structure hints"),
+                MenuItem::new("Timed Exam", "timer + answer box + reveal"),
+                MenuItem::new("Model Answer Review", "compare answer to checklist"),
+                MenuItem::new("Spaced Topic Drill", "repeat weak topics"),
+                MenuItem::new("Difficulty Ladder", "easy, medium, hard sequence"),
             ],
         )
     }
@@ -238,12 +276,15 @@ impl Screen for GenerateScreen {
             Phase::ModeSelect(menu) => {
                 if let Some(idx) = menu.handle_key(key) {
                     self.mode = match idx {
-                        0 => "quick",
-                        1 => "exam",
-                        _ => "custom",
+                        0 => "issue_spotting",
+                        1 => "progressive_hints",
+                        2 => "timed_exam",
+                        3 => "model_answer_review",
+                        4 => "spaced_topic_drill",
+                        _ => "difficulty_ladder",
                     }
                     .into();
-                    if self.mode == "exam" {
+                    if self.mode == "timed_exam" {
                         self.config.temperature = 0.2;
                         self.config.complexity = 5;
                         self.config.parties = 4;
@@ -347,7 +388,8 @@ impl Screen for GenerateScreen {
                     .constraints([Constraint::Min(3), Constraint::Length(3)])
                     .split(area);
                 let summary = format!(
-                    "Topics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nAnalysis: {}\nML Training: required before generation",
+                    "Mode: {}\nTopics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nAnalysis: {}\nML Training: required before generation",
+                    self.mode,
                     self.config.topics.join(", "), self.config.provider,
                     self.config.temperature, self.config.complexity,
                     self.config.parties,

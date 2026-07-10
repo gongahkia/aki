@@ -79,6 +79,8 @@ pub struct GenerationRequest {
     pub include_analysis: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<String>,
+    #[serde(default = "default_practice_mode")]
+    pub practice_mode: String,
 }
 fn default_corpus_pack() -> String {
     "sg_tort".into()
@@ -104,12 +106,17 @@ fn default_method() -> String {
 fn default_true() -> bool {
     true
 }
+fn default_practice_mode() -> String {
+    "issue_spotting".into()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerationResponse {
     pub hypothetical: String,
     #[serde(default)]
     pub analysis: String,
+    #[serde(default)]
+    pub model_answer: String,
     #[serde(default)]
     pub generation_time: f64,
     #[serde(default)]
@@ -301,6 +308,8 @@ pub struct ExportRequest {
     pub analysis: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_answer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub practice: Option<serde_json::Value>,
     #[serde(default = "default_format")]
     pub format: String,
     #[serde(skip_serializing_if = "Option::is_none")]

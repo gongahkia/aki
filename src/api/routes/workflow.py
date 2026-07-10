@@ -26,6 +26,7 @@ class GenerateRequest(BaseModel):
     model: Optional[str] = None
     include_analysis: bool = True
     correlation_id: Optional[str] = None
+    practice_mode: str = "issue_spotting"
 
 
 class RegenerateRequest(BaseModel):
@@ -93,6 +94,7 @@ async def generate(req: GenerateRequest):
         model=req.model,
         include_analysis=req.include_analysis,
         correlation_id=req.correlation_id,
+        practice_mode=req.practice_mode,
     )
     try:
         result = await workflow_facade.generate_generation(
@@ -105,6 +107,8 @@ async def generate(req: GenerateRequest):
             "generation_time": result.response.generation_time,
             "validation_results": result.response.validation_results,
             "metadata": result.response.metadata,
+            "practice_mode": result.request.practice_mode,
+            "practice": result.response.metadata.get("practice", {}),
         }
     except Exception as e:
         _raise_mapped_http_exception(e, operation="generate")

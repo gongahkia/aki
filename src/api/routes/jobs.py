@@ -55,6 +55,7 @@ class ExportRequest(BaseModel):
     hypothetical: Optional[str] = None
     analysis: Optional[str] = None
     model_answer: Optional[str] = None
+    practice: Optional[Dict[str, Any]] = None
     format: str = "docx"  # docx or pdf
     output_path: Optional[str] = None
 
@@ -201,6 +202,7 @@ async def export(req: ExportRequest):
         try:
             output = req.output_path or f"data/export_{job_id}.{req.format}"
             model_answer = req.model_answer or ""
+            practice = req.practice or {}
             if req.generation_id:
                 from ...services import database_service
 
@@ -214,6 +216,7 @@ async def export(req: ExportRequest):
                         "analysis", gen.get("analysis", req.analysis or "")
                     )
                     model_answer = model_answer or resp.get("model_answer", "")
+                    practice = practice or resp.get("metadata", {}).get("practice", {})
                 else:
                     hypo = req.hypothetical or ""
                     analysis = req.analysis or ""
@@ -234,6 +237,12 @@ async def export(req: ExportRequest):
                 if model_answer:
                     doc.add_heading("Model Answer", level=1)
                     doc.add_paragraph(model_answer)
+                if practice:
+                    from ...services.export_service import format_practice_artifact
+
+                    doc.add_heading("Practice Artifacts", level=1)
+                    for line in format_practice_artifact(practice):
+                        doc.add_paragraph(line)
                 Path(output).parent.mkdir(parents=True, exist_ok=True)
                 doc.save(output)
                 _jobs[job_id]["status"] = "completed"
@@ -290,6 +299,7 @@ async def export_anki(req: AnkiExportRequest):
                             "hypothetical": resp.get("hypothetical", ""),
                             "analysis": resp.get("analysis", ""),
                             "model_answer": resp.get("model_answer", ""),
+                            "practice": resp.get("metadata", {}).get("practice", {}),
                             "topics": gen.get("request", {}).get("topics", []),
                         }
                     )
@@ -304,6 +314,7 @@ async def export_anki(req: AnkiExportRequest):
                         ),
                         "analysis": resp.get("analysis", gen.get("analysis", "")),
                         "model_answer": resp.get("model_answer", ""),
+                        "practice": resp.get("metadata", {}).get("practice", {}),
                         "topics": gen.get("request", {}).get(
                             "topics", gen.get("topics", [])
                         ),

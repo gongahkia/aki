@@ -1062,6 +1062,7 @@ impl ChatScreen {
                         hypothetical: None,
                         analysis: None,
                         model_answer: None,
+                        practice: None,
                         format,
                         output_path,
                     }
@@ -1075,6 +1076,7 @@ impl ChatScreen {
                         hypothetical: Some(hypothetical),
                         analysis: None,
                         model_answer: None,
+                        practice: None,
                         format,
                         output_path,
                     }
@@ -1568,6 +1570,13 @@ impl ChatScreen {
         } else {
             state.last_config.include_analysis
         };
+        let practice_mode = args
+            .get("mode")
+            .or(args.get("practice_mode"))
+            .or(args.get("practice"))
+            .map(|raw| Self::normalize_practice_mode(raw))
+            .transpose()?
+            .unwrap_or_else(|| "issue_spotting".into());
 
         let mut user_preferences = HashMap::new();
         user_preferences.insert(
@@ -1575,6 +1584,13 @@ impl ChatScreen {
             serde_json::json!(self.config.temperature),
         );
         user_preferences.insert("provider_timeout_seconds".into(), serde_json::json!(180));
+        if practice_mode == "model_answer_review" {
+            user_preferences.insert("include_model_answer".into(), serde_json::json!(true));
+        }
+        if let Some(raw) = args.get("timer_seconds").or(args.get("timer")) {
+            let timer = self.parse_u32(raw, "timer_seconds")?;
+            user_preferences.insert("timer_seconds".into(), serde_json::json!(timer));
+        }
 
         let request = GenerationRequest {
             topics: topics.clone(),
@@ -1592,6 +1608,7 @@ impl ChatScreen {
             model: self.config.model.clone(),
             include_analysis,
             correlation_id: None,
+            practice_mode,
         };
 
         Ok((request, topics))
@@ -1940,9 +1957,16 @@ impl ChatScreen {
             }
             (TaskKind::Hypo, TaskPayload::Generation(response)) => {
                 let mut content = format!("Hypothetical:\n\n{}", response.hypothetical);
+                if let Some(practice) = response.metadata.get("practice") {
+                    content.push_str(&Self::format_practice_summary(practice));
+                }
                 if !response.analysis.trim().is_empty() {
                     content.push_str("\n\nAnalysis:\n\n");
                     content.push_str(response.analysis.trim());
+                }
+                if !response.model_answer.trim().is_empty() {
+                    content.push_str("\n\nModel Answer:\n\n");
+                    content.push_str(response.model_answer.trim());
                 }
                 // display ML confidence scores if present
                 let scores: Vec<String> =
@@ -1982,9 +2006,16 @@ impl ChatScreen {
                     "Regenerated (source generation {}):\n\n{}",
                     response.source_generation_id, response.regenerated.hypothetical
                 );
+                if let Some(practice) = response.regenerated.metadata.get("practice") {
+                    content.push_str(&Self::format_practice_summary(practice));
+                }
                 if !response.regenerated.analysis.trim().is_empty() {
                     content.push_str("\n\nAnalysis:\n\n");
                     content.push_str(response.regenerated.analysis.trim());
+                }
+                if !response.regenerated.model_answer.trim().is_empty() {
+                    content.push_str("\n\nModel Answer:\n\n");
+                    content.push_str(response.regenerated.model_answer.trim());
                 }
                 if !response.feedback_context.trim().is_empty() {
                     content.push_str("\n\nFeedback context used:\n");
@@ -2910,6 +2941,43 @@ impl ChatScreen {
         serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
     }
 
+    fn format_practice_summary(value: &serde_json::Value) -> String {
+        let Some(obj) = value.as_object() else {
+            return String::new();
+        };
+        let mode = obj
+            .get("mode")
+            .and_then(|v| v.as_str())
+            .unwrap_or("issue_spotting");
+        let visibility = obj
+            .get("answer_visibility")
+            .and_then(|v| v.as_str())
+            .unwrap_or("hidden_until_attempt");
+        let checklist_count = obj
+            .get("issue_checklist")
+            .and_then(|v| v.as_array())
+            .map(|v| v.len())
+            .unwrap_or(0);
+        let mut lines = vec![
+            String::new(),
+            "Practice:".into(),
+            format!("- mode: {}", mode),
+            format!("- answer: {}", visibility),
+            format!("- checklist items: {}", checklist_count),
+        ];
+        if let Some(hints) = obj.get("hints").and_then(|v| v.as_array()) {
+            lines.push(format!("- hints: {}", hints.len()));
+        }
+        if let Some(seconds) = obj
+            .get("timer")
+            .and_then(|v| v.get("seconds"))
+            .and_then(|v| v.as_i64())
+        {
+            lines.push(format!("- timer: {}s", seconds));
+        }
+        lines.join("\n")
+    }
+
     fn format_anyhow(err: &anyhow::Error) -> String {
         let mut message = err.to_string();
         if let Some(pos) = message.find("\n") {
@@ -3010,6 +3078,22 @@ impl ChatScreen {
         )
     }
 
+    fn normalize_practice_mode(value: &str) -> std::result::Result<String, String> {
+        let normalized = value.trim().to_ascii_lowercase().replace('-', "_");
+        match normalized.as_str() {
+            "issue" | "issue_spotting" => Ok("issue_spotting".into()),
+            "hints" | "progressive_hints" => Ok("progressive_hints".into()),
+            "exam" | "timed" | "timed_exam" => Ok("timed_exam".into()),
+            "review" | "model_answer_review" => Ok("model_answer_review".into()),
+            "spaced" | "spaced_topic_drill" => Ok("spaced_topic_drill".into()),
+            "ladder" | "difficulty_ladder" => Ok("difficulty_ladder".into()),
+            _ => Err(
+                "Invalid practice mode. Use issue_spotting, progressive_hints, timed_exam, model_answer_review, spaced_topic_drill, or difficulty_ladder."
+                    .into(),
+            ),
+        }
+    }
+
     fn help_text() -> &'static str {
         "Commands:
 /core
@@ -3033,7 +3117,7 @@ impl ChatScreen {
 /providers
 
 /generation
-/hypo <topic1,topic2,...> [complexity=1-5|level] [parties=<n>] [analysis=true|false]
+/hypo <topic1,topic2,...> [mode=issue_spotting|progressive_hints|timed_exam|model_answer_review|spaced_topic_drill|difficulty_ladder] [complexity=1-5|level] [parties=<n>] [analysis=true|false] [timer_seconds=<n>]
 /regenerate <generation_id|last>
 /report <generation_id|last> issue=<csv> [comment=\"...\"]
 /reports <generation_id|last>
