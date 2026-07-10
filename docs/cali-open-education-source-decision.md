@@ -2,10 +2,11 @@
 
 Date: 2026-07-10
 Status: metadata-only candidate
+Issue: #30
 
 ## Decision
 
-CALI `Tort Law: A 21st-Century Approach` is registered as the first external open-education tort candidate, but full text remains blocked until the project owner accepts CC BY-NC-SA 4.0 noncommercial and share-alike constraints.
+Do not bundle CC BY-NC-SA practice text by default. CALI `Tort Law: A 21st-Century Approach` is registered as the first external open-education tort candidate, but full text remains blocked until the project owner explicitly accepts CC BY-NC-SA 4.0 noncommercial and share-alike constraints and the export path preserves attribution, noncommercial, and share-alike metadata.
 
 Committed artifacts may include:
 - source URLs
@@ -30,4 +31,4 @@ The book page identifies the title, author, subject, publication date, and CC BY
 
 ## Gate
 
-If the owner accepts the license constraints, import only clearly licensed sections and keep per-record attribution, noncommercial, and share-alike metadata. Until then, `corpus/metadata/us_tort_cali_open_education/metadata.json` remains link-only metadata.
+If the owner accepts the license constraints, import only clearly licensed sections and keep per-record attribution, noncommercial, and share-alike metadata. Until then, `corpus/metadata/us_tort_cali_open_education/metadata.json` remains link-only metadata and `cali_tort_21st_century` keeps `text_commit_allowed=false`.
