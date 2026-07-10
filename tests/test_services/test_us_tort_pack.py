@@ -19,6 +19,8 @@ def test_us_tort_domain_pack_uses_manifest():
     assert pack.jurisdiction.matches("USA")
     assert pack.canonicalize_topic("proximate cause") == "causation"
     assert pack.is_supported_topic("comparative fault")
+    assert pack.prompt_overlay is not None
+    assert pack.validation_overlay is not None
     assert "product_liability" in pack.prompt_overlay["topic_hints"]
     assert "causation" in pack.validation_overlay["topic_keywords"]
 

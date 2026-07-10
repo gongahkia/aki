@@ -18,7 +18,9 @@ from pydantic import BaseModel, Field, field_validator
 class CorpusRef(BaseModel):
     """Reference to a corpus entry used to ground a claim or citation."""
 
-    corpus_id: str = Field(description="Canonical corpus entry id, e.g. sg_tort_neg_001")
+    corpus_id: str = Field(
+        description="Canonical corpus entry id, e.g. sg_tort_neg_001"
+    )
     authority_id: str | None = Field(
         default=None,
         description="Optional authorities.json id, e.g. spandeck_2007",
@@ -37,16 +39,22 @@ class Party(BaseModel):
     """A named actor in the fact pattern."""
 
     name: str
-    role: str = Field(description="claimant | defendant | third party | witness | context")
+    role: str = Field(
+        description="claimant | defendant | third party | witness | context"
+    )
     description: str | None = None
 
 
 class FactPattern(BaseModel):
     """The narrative fact pattern for the hypothetical."""
 
-    setting: str = Field(description="Location, time, context (e.g., Marina Bay Sands, 2024)")
+    setting: str = Field(
+        description="Location, time, context (e.g., Marina Bay Sands, 2024)"
+    )
     narrative: str = Field(min_length=100, description="The fact pattern body")
-    key_events: list[str] = Field(default_factory=list, description="Bulleted key events in order")
+    key_events: list[str] = Field(
+        default_factory=list, description="Bulleted key events in order"
+    )
 
 
 class Issue(BaseModel):
@@ -127,7 +135,9 @@ class ClaimVerdict(BaseModel):
     """Per-claim NLI result against retrieved context."""
 
     claim: Claim
-    verdict: str = Field(description="entailment | neutral | contradiction | unverifiable")
+    verdict: str = Field(
+        description="entailment | neutral | contradiction | unverifiable"
+    )
     confidence: float = Field(ge=0.0, le=1.0)
     supporting_corpus_id: str | None = None
 
@@ -135,7 +145,9 @@ class ClaimVerdict(BaseModel):
 class FaithfulnessReport(BaseModel):
     """Aggregate NLI faithfulness result for a generated draft."""
 
-    faithfulness_score: float = Field(ge=0.0, le=1.0, description="Fraction of claims entailed")
+    faithfulness_score: float = Field(
+        ge=0.0, le=1.0, description="Fraction of claims entailed"
+    )
     total_claims: int = Field(ge=0)
     entailed: int = Field(ge=0)
     contradicted: int = Field(ge=0)

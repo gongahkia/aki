@@ -144,6 +144,7 @@ async def test_generate_model_answer_attaches_citation_report(monkeypatch):
     )
 
     assert "Issue 1:" in model_answer
+    assert validation.citation is not None
     assert validation.citation["verified"] == 1
 
 

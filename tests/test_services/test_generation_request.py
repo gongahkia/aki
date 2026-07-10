@@ -2,7 +2,6 @@
 
 import pytest
 
-from src.services.hypothetical_service import GenerationRequest
 from src.domain import (
     TOPIC_ALIASES,
     DomainPack,
@@ -12,6 +11,7 @@ from src.domain import (
     is_tort_topic,
     register_domain_pack,
 )
+from src.services.hypothetical_service import GenerationRequest
 
 
 def test_generation_request_allows_configured_law_domain():

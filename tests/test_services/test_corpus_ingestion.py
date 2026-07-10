@@ -54,11 +54,11 @@ class _FakeClient:
 
 
 def test_retry_sync_survives_thirty_percent_transient_failures(tmp_path):
-    attempts = {}
+    attempts: dict[int, int] = {}
     transient_failure_indexes = {0, 3, 6}
     policy = RetryPolicy(max_attempts=3, base_delay=0, jitter=0)
 
-    results = []
+    results: list[int] = []
     for index in range(10):
 
         def operation(i=index):

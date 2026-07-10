@@ -40,7 +40,7 @@ class SetFitTopicClassifier:
 
     def _require_setfit(self) -> Any:
         try:
-            from setfit import SetFitModel, Trainer, TrainingArguments  # type: ignore
+            from setfit import SetFitModel, Trainer, TrainingArguments
 
             return SetFitModel, Trainer, TrainingArguments
         except ImportError as exc:
@@ -89,7 +89,7 @@ class SetFitTopicClassifier:
             progress_callback(0.25, "Building contrastive dataset")
 
         try:
-            from datasets import Dataset  # type: ignore
+            from datasets import Dataset
         except ImportError as exc:
             raise ImportError(
                 "The `datasets` package is required by SetFit. Install with `pip install datasets`."
@@ -132,7 +132,7 @@ class SetFitTopicClassifier:
 
     def _binarize(self, topic_lists: list[list[str]], labels: list[str]) -> np.ndarray:
         idx = {lbl: i for i, lbl in enumerate(labels)}
-        y = np.zeros((len(topic_lists), len(labels)), dtype=np.int64)
+        y: np.ndarray = np.zeros((len(topic_lists), len(labels)), dtype=np.int64)
         for i, row in enumerate(topic_lists):
             for t in row:
                 j = idx.get(str(t))
@@ -155,7 +155,9 @@ class SetFitTopicClassifier:
         proba = np.asarray(proba)
         out: list[list[str]] = []
         for row in proba:
-            active = [self.labels[i] for i, p in enumerate(row) if float(p) >= threshold]
+            active = [
+                self.labels[i] for i, p in enumerate(row) if float(p) >= threshold
+            ]
             out.append(active)
         return out
 
@@ -215,7 +217,11 @@ class SetFitTopicClassifier:
 
         with open(os.path.join(path, "jikai_setfit_meta.json"), "w") as f:
             json.dump(
-                {"labels": self.labels, "base_model": self.base_model, "metrics": self._metrics},
+                {
+                    "labels": self.labels,
+                    "base_model": self.base_model,
+                    "metrics": self._metrics,
+                },
                 f,
                 indent=2,
             )

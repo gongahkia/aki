@@ -1,6 +1,6 @@
 # Jikai Makefile
 
-.PHONY: help install dev check-python test lint format clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold corpus-contrib-validate cali-metadata-validate eval health health-llm env-setup dev-setup
+.PHONY: help install dev check-python test lint format verify clean run api api-build tui tui-build warmup train preprocess corpus-bronze corpus-silver corpus-gold corpus-contrib-validate cali-metadata-validate eval health health-llm env-setup dev-setup
 
 PYTHON ?= python3
 DATASET ?= sg_tort.yaml
@@ -124,6 +124,14 @@ lint: ## Run linting
 format: ## Format code
 	black src/ tests/
 	isort src/ tests/
+
+verify: ## Run Python and Rust quality gates
+	KMP_DUPLICATE_LIB_OK="$${KMP_DUPLICATE_LIB_OK:-TRUE}" PYTHONPATH=. uv run --python 3.13 python -m pytest tests/ -q
+	PYTHONPATH=. uv run --python 3.13 python -m flake8 src tests
+	PYTHONPATH=. uv run --python 3.13 python -m black --check src tests
+	PYTHONPATH=. uv run --python 3.13 python -m isort --check-only src tests
+	PYTHONPATH=. uv run --python 3.13 python -m mypy src tests --ignore-missing-imports --follow-imports=skip
+	cd tui && cargo test
 
 # -- ml/corpus --
 

@@ -635,12 +635,10 @@ class ValidationService:
                 "passed": passed,
                 "realism_score": realism_score,
                 "components": {
-                    "singapore_context_score": round(context_score, 3)
-                    if is_sg
-                    else 1.0,
-                    "jurisdiction_context_score": round(
-                        jurisdiction_context_score, 3
+                    "singapore_context_score": (
+                        round(context_score, 3) if is_sg else 1.0
                     ),
+                    "jurisdiction_context_score": round(jurisdiction_context_score, 3),
                     "procedure_score": round(procedure_score, 3),
                     "timeline_score": round(timeline_score, 3),
                     "chronology_score": round(chronology_score, 3),
@@ -849,9 +847,11 @@ class ValidationService:
                     "subject": subject,
                     "subtopics": subtopics or [],
                     "jurisdiction_context": jurisdiction_result["passed"],
-                    "singapore_context": jurisdiction_result["passed"]
-                    if jurisdiction_key == "sg"
-                    else None,
+                    "singapore_context": (
+                        jurisdiction_result["passed"]
+                        if jurisdiction_key == "sg"
+                        else None
+                    ),
                     "legal_realism": legal_realism_result["realism_score"],
                     "exam_likeness": exam_likeness_result["exam_likeness_score"],
                 },

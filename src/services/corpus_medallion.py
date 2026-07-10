@@ -19,6 +19,7 @@ from src.corpus_ingestion import (
     record_source_failure,
     record_source_success,
 )
+
 from ..domain import resolve_domain_pack
 from .corpus_preprocessor import (
     MIN_ENTRY_CHARS,

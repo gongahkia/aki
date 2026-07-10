@@ -112,6 +112,7 @@ async def test_jikai_eval_v1_task_populates_metadata(monkeypatch):
     assert case.metadata["model_answer"]["steps"][0]["citations"] == [
         {"corpus_id": "c1"}
     ]
+    assert generate.await_args is not None
     request = generate.await_args.args[0]
     assert request.user_preferences["include_model_answer"] is True
 

@@ -16,6 +16,7 @@ from ..config import settings
 from ..domain import canonicalize_topic
 from .corpus_service import corpus_service
 from .database_service import GenerationReport, database_service
+from .entity_validator import entity_consistency_validator
 from .hypo_generator import hypo_generator as default_hypo_generator
 from .hypothetical_service import (
     DEFAULT_PRACTICE_MODE,
@@ -23,7 +24,6 @@ from .hypothetical_service import (
     GenerationResponse,
     hypothetical_service,
 )
-from .entity_validator import entity_consistency_validator
 from .topic_guard import canonicalize_and_validate_topics
 
 logger = structlog.get_logger(__name__)

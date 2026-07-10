@@ -130,10 +130,14 @@ async def test_validate_hypothetical_attaches_faithfulness(monkeypatch):
     result = await service._validate_hypothetical(
         GenerationRequest(topics=["negligence"]),
         "The rider hit a pedestrian.",
-        [SimpleNamespace(id="c1", text="A rider hit a pedestrian.", topics=[])],
+        cast(
+            Any,
+            [SimpleNamespace(id="c1", text="A rider hit a pedestrian.", topics=[])],
+        ),
     )
 
     assert isinstance(result, ValidationResult)
+    assert result.faithfulness is not None
     assert result.faithfulness["entailed"] == 1
 
 

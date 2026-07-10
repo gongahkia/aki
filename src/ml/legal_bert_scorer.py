@@ -44,8 +44,8 @@ class LegalBertScorer:
     # ---- deps -----------------------------------------------------------
     def _require_transformers(self) -> Any:
         try:
-            import torch  # type: ignore
-            from transformers import (  # type: ignore
+            import torch
+            from transformers import (
                 AutoModelForSequenceClassification,
                 AutoTokenizer,
             )
@@ -58,7 +58,9 @@ class LegalBertScorer:
             ) from exc
 
     def _load_base(self) -> None:
-        torch, AutoModelForSequenceClassification, AutoTokenizer = self._require_transformers()
+        torch, AutoModelForSequenceClassification, AutoTokenizer = (
+            self._require_transformers()
+        )
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(self.base_model)
             self.model = AutoModelForSequenceClassification.from_pretrained(
@@ -90,7 +92,7 @@ class LegalBertScorer:
         learning_rate: float = 2e-5,
     ) -> dict[str, Any]:
         torch, _, _ = self._require_transformers()
-        from torch.utils.data import DataLoader, Dataset  # type: ignore
+        from torch.utils.data import DataLoader, Dataset
 
         if self.model is None:
             self._load_base()
@@ -104,7 +106,9 @@ class LegalBertScorer:
         tokenizer = self.tokenizer
 
         class _RegressionDataset(Dataset):
-            def __init__(self, texts: list[str], targets: np.ndarray, max_length: int) -> None:
+            def __init__(
+                self, texts: list[str], targets: np.ndarray, max_length: int
+            ) -> None:
                 enc = tokenizer(
                     texts,
                     truncation=True,
@@ -146,7 +150,11 @@ class LegalBertScorer:
                 loss.backward()
                 optim.step()
                 epoch_loss += float(loss.item())
-            logger.info("LegalBertScorer epoch", epoch=epoch, loss=epoch_loss / max(len(loader), 1))
+            logger.info(
+                "LegalBertScorer epoch",
+                epoch=epoch,
+                loss=epoch_loss / max(len(loader), 1),
+            )
         self.model.eval()
         self.is_trained = True
         self._metrics = {
@@ -220,7 +228,9 @@ class LegalBertScorer:
         logger.info("LegalBertScorer saved", path=path)
 
     def load_model(self, path: str) -> None:
-        _, AutoModelForSequenceClassification, AutoTokenizer = self._require_transformers()
+        _, AutoModelForSequenceClassification, AutoTokenizer = (
+            self._require_transformers()
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(path)
         self.model = AutoModelForSequenceClassification.from_pretrained(path)
         meta_path = os.path.join(path, "jikai_scorer_meta.json")
@@ -230,7 +240,7 @@ class LegalBertScorer:
             self.base_model = meta.get("base_model", self.base_model)
             self.max_length = int(meta.get("max_length", self.max_length))
             self._metrics = meta.get("metrics", {})
-        import torch  # type: ignore
+        import torch
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self._device)

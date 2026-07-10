@@ -12,7 +12,7 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from pydantic import BaseModel
 
@@ -60,6 +60,7 @@ class PromptContext:
     user_preferences: Optional[Dict[str, Any]] = None
     complexity_level: str = "intermediate"  # beginner, intermediate, advanced
 
+
 def _context_labels(context: PromptContext) -> Dict[str, str]:
     try:
         pack = resolve_domain_pack(context.corpus_pack)
@@ -98,7 +99,7 @@ def format_structured_prompt(context: PromptContext, schema_name: str) -> str:
 
         candidate = getattr(schemas, schema_name, None)
         if isinstance(candidate, type) and issubclass(candidate, BaseModel):
-            schema_obj = candidate.model_json_schema()
+            schema_obj = cast(type[BaseModel], candidate).model_json_schema()
     except Exception:
         schema_obj = None
     schema_text = (
@@ -346,10 +347,12 @@ SCENARIO METADATA:
         overlay_hints = overlay.get("topic_hints", {})
         if not isinstance(overlay_hints, dict):
             overlay_hints = {}
-        hints = []
+        hints: List[str] = []
         guidance = overlay.get("jurisdiction_guidance", [])
         if isinstance(guidance, list):
-            guidance_lines = [str(line).strip() for line in guidance if str(line).strip()]
+            guidance_lines = [
+                str(line).strip() for line in guidance if str(line).strip()
+            ]
             hints.extend(f"- {line}" for line in guidance_lines)
         for topic in context.topics:
             canonical_topic = _canonicalize_for_context(context, topic)
@@ -373,7 +376,9 @@ SCENARIO METADATA:
                 + "\n"
             )
         labels = _context_labels(context)
-        output_format = self.output_format.format(**labels)
+        output_format = (self.output_format or self._get_output_format()).format(
+            **labels
+        )
 
         user_prompt = self.user_prompt_template.format(
             corpus_pack=context.corpus_pack,

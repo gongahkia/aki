@@ -8,7 +8,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 KNOWN_SG_COURTS = {
     "SGCA",
     "SGHC",
@@ -217,7 +216,9 @@ class EntityConsistencyValidator:
 
         citations = self._extract_citations(text)
         statutes = self._extract_statutes(text, jurisdiction=jurisdiction)
-        monetary = [ExtractedMonetaryAmount(raw=m.group(0)) for m in MONEY_RE.finditer(text)]
+        monetary = [
+            ExtractedMonetaryAmount(raw=m.group(0)) for m in MONEY_RE.finditer(text)
+        ]
         dates = [ExtractedDateReference(raw=m.group(0)) for m in DATE_RE.finditer(text)]
         locations = [
             ExtractedLocation(name=cue)

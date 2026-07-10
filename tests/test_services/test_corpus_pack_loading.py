@@ -19,6 +19,9 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
     assert pack.record_format == "medallion_gold_v1"
     assert "negligence" in pack.topic_keys
     assert pack.canonicalize_topic("duty of care") == "duty_of_care"
+    assert pack.topic_definitions is not None
+    assert pack.prompt_overlay is not None
+    assert pack.validation_overlay is not None
     assert pack.topic_definitions["negligence"].label == "Negligence"
     assert "limitation_periods" in pack.prompt_overlay["topic_hints"]
     assert "negligence" in pack.validation_overlay["topic_keywords"]
@@ -96,8 +99,8 @@ async def test_legacy_record_loads_into_student_schema_without_data_loss(tmp_pat
         encoding="utf-8",
     )
     service = CorpusService()
-    service._resolve_corpus_path = lambda _corpus_pack="sg_tort": corpus_path
-    service._resolve_corpus_paths = lambda _corpus_pack="sg_tort": [corpus_path]
+    service._resolve_corpus_path = lambda _corpus_pack="sg_tort": corpus_path  # type: ignore[method-assign, assignment]
+    service._resolve_corpus_paths = lambda _corpus_pack="sg_tort": [corpus_path]  # type: ignore[method-assign, assignment]
 
     entries = await service.load_corpus(corpus_pack="sg_tort")
     entry = entries[0]

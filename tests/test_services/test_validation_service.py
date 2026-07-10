@@ -44,7 +44,9 @@ def _register_validation_test_pack(
             is_supported_topic=lambda topic: canonicalize(topic)
             in {"negligence", "duty_of_care", "local_duty"},
             topic_keys=("negligence", "duty_of_care", "local_duty"),
-            topic_aliases={_token(alias): canonical for alias, canonical in aliases.items()},
+            topic_aliases={
+                _token(alias): canonical for alias, canonical in aliases.items()
+            },
             subject_label="Tort Law",
             validation_overlay=validation_overlay or {},
         )

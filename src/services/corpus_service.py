@@ -324,7 +324,7 @@ class CorpusService:
                 raise CorpusServiceError(f"Local corpus file not found: {corpus_path}")
 
         try:
-            entries = []
+            entries: List[HypotheticalEntry] = []
             for corpus_path in corpus_paths:
                 with open(corpus_path, "r", encoding="utf-8") as f:
                     data = json.load(f)

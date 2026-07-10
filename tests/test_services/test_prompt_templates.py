@@ -1,10 +1,5 @@
 """Tests for prompt template topic hint normalization."""
 
-from src.services.prompt_engineering import (
-    PromptContext,
-    PromptTemplateManager,
-    PromptTemplateType,
-)
 from src.domain import (
     TOPIC_ALIASES,
     DomainPack,
@@ -13,6 +8,11 @@ from src.domain import (
     canonicalize_topic,
     is_tort_topic,
     register_domain_pack,
+)
+from src.services.prompt_engineering import (
+    PromptContext,
+    PromptTemplateManager,
+    PromptTemplateType,
 )
 
 

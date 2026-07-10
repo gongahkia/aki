@@ -75,7 +75,9 @@ def export_to_anki_tsv(
             if isinstance(topics, str):
                 topics = [topics]
             tags = " ".join(f"tort::{t}" for t in topics)
-            practice = gen.get("practice") or gen.get("metadata", {}).get("practice", {})
+            practice = gen.get("practice") or gen.get("metadata", {}).get(
+                "practice", {}
+            )
             practice_lines = format_practice_artifact(practice)
             if practice_lines:
                 back_parts.append(
@@ -112,7 +114,9 @@ def export_to_csv(
         writer.writeheader()
         for gen in generations:
             topics = gen.get("topics", [])
-            practice = gen.get("practice") or gen.get("metadata", {}).get("practice", {})
+            practice = gen.get("practice") or gen.get("metadata", {}).get(
+                "practice", {}
+            )
             writer.writerow(
                 {
                     "id": gen.get("id", ""),
@@ -123,9 +127,7 @@ def export_to_csv(
                     "analysis": gen.get("analysis", ""),
                     "model_answer": gen.get("model_answer", ""),
                     "practice_mode": practice.get("mode", ""),
-                    "issue_checklist": json.dumps(
-                        practice.get("issue_checklist", [])
-                    ),
+                    "issue_checklist": json.dumps(practice.get("issue_checklist", [])),
                     "rubric": json.dumps(practice.get("rubric", [])),
                     "quality_score": gen.get("quality_score", ""),
                 }

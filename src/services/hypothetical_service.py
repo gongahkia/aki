@@ -919,7 +919,9 @@ class HypotheticalService:
                 },
             ]
         elif request.practice_mode == "timed_exam":
-            raw_timer = prefs.get("timer_seconds", prefs.get("exam_timer_seconds", 1800))
+            raw_timer = prefs.get(
+                "timer_seconds", prefs.get("exam_timer_seconds", 1800)
+            )
             try:
                 timer_seconds = max(300, min(int(raw_timer), 10800))
             except (TypeError, ValueError):
@@ -1086,6 +1088,7 @@ class HypotheticalService:
             "ml_assisted",
             "hybrid",
         ):
+
             def run_ml_gate_check(text: str):
                 return self._ml_gate_check(request, text)
 

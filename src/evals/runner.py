@@ -7,9 +7,9 @@ import json
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from .evaluators import EVALUATORS, EvaluatorContext
 from .models import (
@@ -59,11 +59,13 @@ def load_dataset(dataset: str) -> list[EvalCase]:
                     continue
                 cases.append(EvalCase.model_validate(json.loads(line)))
         return cases
-    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    cases = payload.get("cases")
-    if not isinstance(cases, list):
+    payload = cast(
+        dict[str, Any], yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    )
+    case_items = payload.get("cases")
+    if not isinstance(case_items, list):
         raise ValueError("Eval dataset must contain a cases array")
-    return [EvalCase.model_validate(case) for case in cases]
+    return [EvalCase.model_validate(case) for case in case_items]
 
 
 def _utc_now() -> datetime:

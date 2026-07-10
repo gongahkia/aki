@@ -201,7 +201,9 @@ class MLPipeline:
             and self.setfit_classifier is not None
             and self.setfit_classifier.is_trained
         ):
-            per_topic = self.setfit_classifier.predict_confidence(text, requested_topics)
+            per_topic = self.setfit_classifier.predict_confidence(
+                text, requested_topics
+            )
         elif self.classifier.is_trained and self._binarizer is not None:
             X = self._vectorizer.transform([text])
             preds = self.classifier.predict_topics(X, list(self._binarizer.classes_))[0]

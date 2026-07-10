@@ -19,6 +19,8 @@ def test_uk_tort_domain_pack_uses_manifest():
     assert pack.jurisdiction.matches("England and Wales")
     assert pack.canonicalize_topic("assumption of responsibility") == "duty_of_care"
     assert pack.is_supported_topic("occupier's liability")
+    assert pack.prompt_overlay is not None
+    assert pack.validation_overlay is not None
     assert "duty_of_care" in pack.prompt_overlay["topic_hints"]
     assert "vicarious_liability" in pack.validation_overlay["topic_keywords"]
 

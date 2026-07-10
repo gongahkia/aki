@@ -442,12 +442,12 @@ class VectorService:
         lexical_ids = {str(item["id"]) for item in lexical_results}
         fused_results = []
         for document_id, score in fused_scores.items():
-            result = by_id.get(document_id)
-            if not result:
+            fused_result = by_id.get(document_id)
+            if not fused_result:
                 continue
             fused_results.append(
                 {
-                    **result,
+                    **fused_result,
                     "rrf_score": score,
                     "retrieval_mode": "hybrid",
                     "retrieval_branches": {

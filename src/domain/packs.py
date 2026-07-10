@@ -182,6 +182,12 @@ def _domain_pack_from_manifest(
     if not isinstance(supplemental_paths, (list, tuple)):
         supplemental_paths = []
 
+    def canonicalize_manifest_topic(topic: str) -> str:
+        return _canonicalize_from_aliases(topic, topic_aliases)
+
+    def is_supported_manifest_topic(topic: str) -> bool:
+        return _canonicalize_from_aliases(topic, topic_aliases) in topic_definitions
+
     return DomainPack(
         key=pack_key,
         display_name=str(
@@ -194,12 +200,8 @@ def _domain_pack_from_manifest(
             aliases=_string_tuple(jurisdiction.get("aliases")) + jurisdiction_aliases,
         ),
         law_domain=subject_key,
-        canonicalize_topic=lambda topic, aliases=topic_aliases: (
-            _canonicalize_from_aliases(topic, aliases)
-        ),
-        is_supported_topic=lambda topic, aliases=topic_aliases, definitions=topic_definitions: (
-            _canonicalize_from_aliases(topic, aliases) in definitions
-        ),
+        canonicalize_topic=canonicalize_manifest_topic,
+        is_supported_topic=is_supported_manifest_topic,
         topic_keys=tuple(topic_definitions.keys()),
         topic_aliases=dict(topic_aliases),
         subject_label=str(subject.get("name", "Tort Law")),
