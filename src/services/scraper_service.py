@@ -15,7 +15,10 @@ from typing import Dict, List, Optional, Tuple
 
 import httpx
 
-from src.corpus_source_registry import assert_text_commit_allowed
+from src.corpus_source_registry import (
+    assert_derived_metadata_allowed,
+    assert_text_commit_allowed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -193,16 +196,48 @@ def _entry_from_case(title: str, text: str, meta: Dict) -> Dict:
     }
 
 
+def _source_id_from_entry(entry: Dict) -> str:
+    metadata = entry.get("metadata", {})
+    if not isinstance(metadata, dict):
+        return ""
+    source_id = metadata.get("source_id")
+    if isinstance(source_id, str) and source_id.strip():
+        return source_id
+    source_name = str(metadata.get("source", ""))
+    return _SCRAPER_SOURCE_IDS.get(source_name, source_name)
+
+
 def _assert_scraped_text_commit_allowed(entries: List[Dict]) -> None:
     for entry in entries:
-        metadata = entry.get("metadata", {})
-        if not isinstance(metadata, dict):
-            assert_text_commit_allowed("")
-        source_id = metadata.get("source_id")
-        if not isinstance(source_id, str) or not source_id.strip():
-            source_name = str(metadata.get("source", ""))
-            source_id = _SCRAPER_SOURCE_IDS.get(source_name, source_name)
-        assert_text_commit_allowed(source_id)
+        assert_text_commit_allowed(_source_id_from_entry(entry))
+
+
+def metadata_record_from_scraped(entry: Dict, notes: str = "") -> Dict:
+    if len(notes) > 280:
+        raise ValueError("metadata notes must be 280 characters or fewer")
+    source_id = _source_id_from_entry(entry)
+    assert_derived_metadata_allowed(source_id)
+    metadata = entry.get("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    topics = entry.get("topic", [])
+    if not isinstance(topics, list):
+        topics = []
+    date_value = (
+        metadata.get("date")
+        or metadata.get("decision_date")
+        or metadata.get("year")
+        or ""
+    )
+    return {
+        "source_id": source_id,
+        "url": metadata.get("source_url", ""),
+        "title": metadata.get("title", ""),
+        "date": str(date_value),
+        "jurisdiction": metadata.get("jurisdiction", "Singapore"),
+        "topics": [str(topic) for topic in topics],
+        "repo_authored_notes": notes,
+    }
 
 
 class CommonLIIScraper:
@@ -486,6 +521,21 @@ def save_scraped(
         path.write_text(header + entry["text"], encoding="utf-8")
         written.append(path)
     return written
+
+
+def save_scraped_metadata(
+    entries: List[Dict],
+    output_path: str = "corpus/raw/scraped_metadata.json",
+    notes: str = "",
+) -> Path:
+    records = [metadata_record_from_scraped(entry, notes=notes) for entry in entries]
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(records, indent=2, sort_keys=True, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+    return output
 
 
 def merge_into_corpus(

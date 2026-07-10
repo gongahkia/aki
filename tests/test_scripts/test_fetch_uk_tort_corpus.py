@@ -89,7 +89,7 @@ def test_record_from_tna_xml_tags_source_license_and_metadata():
     assert record["source"]["data_url"].endswith("/uksc/2018/4/data.xml")
     assert record["source"]["source_id"] == "tna_find_case_law_xml"
     assert record["license"]["name"] == "Open Justice Licence v2.0"
-    assert record["license"]["redistribution_status"] == "restricted"
+    assert record["license"]["redistribution_status"] == "allowed"
     assert record["provenance"]["source_id"] == "tna_find_case_law_xml"
     assert record["provenance"]["content_hash"] == "abc123"
     assert record["metadata"]["neutral_citation"] == "[2018] UKSC 4"

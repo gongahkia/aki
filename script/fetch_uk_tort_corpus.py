@@ -171,7 +171,7 @@ def record_from_tna_xml(
     license_data = {
         "name": "Open Justice Licence v2.0",
         "url": OJL_URL,
-        "redistribution_status": "restricted",
+        "redistribution_status": "allowed",
         "attribution_required": True,
         "computational_analysis_requires_permission": True,
         "terms_url": OJL_URL,

@@ -24,6 +24,7 @@
   "sources": [
     {
       "name": "The National Archives Find Case Law XML",
+      "registry_source_id": "tna_find_case_law_xml",
       "url": "https://caselaw.nationalarchives.gov.uk/",
       "source_format": "xml",
       "access": "public_api",
@@ -32,6 +33,7 @@
     },
     {
       "name": "Find Case Law public API documentation",
+      "registry_source_id": "tna_find_case_law_docs",
       "url": "https://nationalarchives.github.io/ds-find-caselaw-docs/public",
       "source_format": "html",
       "access": "public_web",
@@ -40,6 +42,7 @@
     },
     {
       "name": "BAILII copyright page",
+      "registry_source_id": "bailii_copyright",
       "url": "https://www.bailii.org/bailii/copyright.html",
       "source_format": "html",
       "access": "blocked_from_current_environment",
@@ -50,10 +53,10 @@
   "license": {
     "name": "Open Justice Licence v2.0",
     "url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
-    "redistribution_status": "restricted",
+    "redistribution_status": "allowed",
     "attribution_required": true,
     "commercial_use": "allowed_with_conditions; computational_analysis_requires_separate_permission",
-    "terms_notes": "Committed records are capped excerpts from current Find Case Law XML. Preserve source URL, content hash, retrieved date, and attribution. Do not perform broad ingestion, embedding, search indexing, enrichment, or other computational analysis without separate permission."
+    "terms_notes": "Committed records are capped excerpts from current Find Case Law XML. Preserve source URL, content hash, retrieved date, and attribution. Full-text ingestion is controlled by corpus/source_registry.json; restricted or unknown sources are metadata-only. Do not perform broad ingestion, embedding, search indexing, enrichment, or other computational analysis without separate permission."
   },
   "taxonomy": {
     "version": "2026-07-01",

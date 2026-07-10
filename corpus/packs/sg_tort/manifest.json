@@ -25,6 +25,7 @@
   "sources": [
     {
       "name": "Bundled SG Tort seed corpus",
+      "registry_source_id": "sg_tort_seed_fixture",
       "url": "file://corpus/raw/tort",
       "source_format": "txt",
       "access": "local_repo",
@@ -33,6 +34,7 @@
     },
     {
       "name": "CommonLII Singapore cases",
+      "registry_source_id": "commonlii_sg",
       "url": "http://www.commonlii.org/sg/",
       "source_format": "html",
       "access": "public_web",
@@ -41,6 +43,7 @@
     },
     {
       "name": "Singapore Judiciary judgments",
+      "registry_source_id": "sg_judiciary_judgments",
       "url": "https://www.judiciary.gov.sg/judgments",
       "source_format": "html",
       "access": "public_web",
@@ -49,6 +52,7 @@
     },
     {
       "name": "Singapore International Commercial Court judgments",
+      "registry_source_id": "sg_sicc_judgments",
       "url": "https://www.sicc.gov.sg",
       "source_format": "html",
       "access": "public_web",
@@ -57,6 +61,7 @@
     },
     {
       "name": "Singapore Law Gazette",
+      "registry_source_id": "sg_law_gazette",
       "url": "https://lawgazette.com.sg",
       "source_format": "html",
       "access": "public_web",
@@ -65,6 +70,7 @@
     },
     {
       "name": "SAL Journals Online (Annual Review of Singapore Cases, Tort chapters 2014-2024)",
+      "registry_source_id": "sg_sal_journals",
       "url": "https://journalsonline.academypublishing.org.sg",
       "source_format": "pdf",
       "access": "public_web",
@@ -73,6 +79,7 @@
     },
     {
       "name": "Singapore Law Watch Ch. 20 Law of Negligence",
+      "registry_source_id": "sg_law_watch_negligence",
       "url": "https://www.singaporelawwatch.sg/About-Singapore-Law/Commercial-Law/ch-20-the-law-of-negligence",
       "source_format": "html",
       "access": "public_web",
@@ -81,6 +88,7 @@
     },
     {
       "name": "eLitigation.sg",
+      "registry_source_id": "sg_elitigation",
       "url": "https://www.elitigation.sg",
       "source_format": "html",
       "access": "public_web",
@@ -96,7 +104,7 @@
     "redistribution_status": "bundled_fixture",
     "attribution_required": false,
     "commercial_use": "unverified_for_external_sources",
-    "terms_notes": "The current bundled corpus is a repository fixture. This manifest does not clear redistribution of future scraped CommonLII, Judiciary, SICC, or Law Gazette full text."
+    "terms_notes": "The current bundled corpus is a repository fixture. Full-text ingestion is controlled by corpus/source_registry.json; restricted or unknown sources are metadata-only."
   },
   "taxonomy": {
     "version": "2026-07-01",

@@ -24,6 +24,7 @@
   "sources": [
     {
       "name": "Caselaw Access Project static case JSON",
+      "registry_source_id": "cap_static_case_json",
       "url": "https://static.case.law/",
       "source_format": "json",
       "access": "bulk_download",
@@ -32,6 +33,7 @@
     },
     {
       "name": "Caselaw Access Project documentation",
+      "registry_source_id": "cap_docs",
       "url": "https://case.law/docs/",
       "source_format": "html",
       "access": "public_web",
@@ -40,6 +42,7 @@
     },
     {
       "name": "CourtListener REST API v4",
+      "registry_source_id": "courtlistener_api_v4",
       "url": "https://www.courtlistener.com/api/rest/v4/",
       "source_format": "api_json",
       "access": "authenticated_api",
@@ -54,7 +57,7 @@
     "attribution_required": false,
     "attribution_requested": true,
     "commercial_use": "allowed_for_cap_data_under_cc0; courtlistener_membership_api_commercial_use_requires_separate_terms",
-    "terms_notes": "Committed clean records are derived from CAP static case JSON, not from CourtListener membership API output. Preserve CAP source URL and requested attribution metadata on every record."
+    "terms_notes": "Committed clean records are derived from CAP static case JSON, not from CourtListener membership API output. Full-text ingestion is controlled by corpus/source_registry.json; restricted or unknown sources are metadata-only."
   },
   "taxonomy": {
     "version": "2026-07-01",

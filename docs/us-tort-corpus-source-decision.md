@@ -20,6 +20,8 @@ Use Caselaw Access Project static case JSON as the first US Tort corpus source. 
 
 ## Redistribution Rule
 
+Public URL does not imply permission to commit full text. Full-text writes must pass `corpus/source_registry.json` with `text_commit_allowed=true` and `redistribution_status=allowed` or `bundled_fixture`. Sources with `restricted` or `unknown` status may commit only URL, title, date, jurisdiction, topic tags, and short repository-authored notes.
+
 CAP static case JSON may be committed when each record carries CAP source URL, CC0 license metadata, and requested attribution. CourtListener API results must not be committed as full text unless the record is traced back to CAP/static/public-domain source metadata or a later source review clears redistribution.
 
 ## Initial Corpus Plan

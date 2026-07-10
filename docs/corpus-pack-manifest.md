@@ -58,6 +58,7 @@ Each `sources[]` item requires:
 | Field | Type | Meaning |
 |---|---|---|
 | `name` | string | Source name. |
+| `registry_source_id` | string | Key in `corpus/source_registry.json`; full-text ingestion must pass that registry entry. |
 | `url` | string or null | Source URL or `file://` path. |
 | `source_format` | string | `html`, `txt`, `pdf`, `docx`, `json`, `bulk_json`, etc. |
 | `access` | string | `local_repo`, `public_web`, `bulk_download`, `manual`, etc. |

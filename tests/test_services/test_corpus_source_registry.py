@@ -12,7 +12,12 @@ from src.corpus_source_registry import (
     assert_text_commit_allowed,
     load_source_registry,
 )
-from src.services.scraper_service import merge_into_corpus, save_scraped
+from src.services.scraper_service import (
+    merge_into_corpus,
+    metadata_record_from_scraped,
+    save_scraped,
+    save_scraped_metadata,
+)
 
 
 def _registry_names_and_aliases() -> set[str]:
@@ -37,6 +42,14 @@ def test_registry_covers_pack_manifest_sources():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         for source in manifest["sources"]:
             assert source["name"] in names
+
+
+def test_pack_manifest_sources_have_valid_registry_ids():
+    registry = load_source_registry()
+    for manifest_path in Path("corpus/packs").glob("*/manifest.json"):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for source in manifest["sources"]:
+            assert source["registry_source_id"] in registry
 
 
 def test_registry_covers_source_decision_sources():
@@ -85,6 +98,37 @@ def test_text_commit_gate_allows_only_cleared_sources():
         assert_text_commit_allowed("missing_source")
 
 
+def test_text_commit_gate_requires_allowed_redistribution_status(tmp_path):
+    registry_path = tmp_path / "source_registry.json"
+    registry_path.write_text(
+        json.dumps(
+            [
+                {
+                    "source_id": "restricted_true",
+                    "name": "Restricted True",
+                    "url": "https://example.test",
+                    "jurisdiction": "test",
+                    "subject": "tort",
+                    "source_kind": "html",
+                    "license_name": "test",
+                    "license_url": None,
+                    "redistribution_status": "restricted",
+                    "commercial_use": "restricted",
+                    "text_commit_allowed": True,
+                    "derived_metadata_allowed": True,
+                    "attribution_required": True,
+                    "terms_checked_at": "2026-07-10",
+                    "notes": "fixture",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SourceRegistryError, match="non-allowed"):
+        assert_text_commit_allowed("restricted_true", path=registry_path)
+
+
 def test_record_text_commit_gate_requires_registered_source_id():
     assert_records_text_commit_allowed(
         [{"id": "ok", "source": {"source_id": "cap_static_case_json"}}]
@@ -110,6 +154,49 @@ def test_scraper_text_writes_block_link_only_sources(tmp_path):
 
     with pytest.raises(SourceRegistryError, match="not cleared"):
         merge_into_corpus([entry], corpus_path=str(tmp_path / "corpus.json"))
+
+
+def test_scraper_metadata_export_strips_full_text(tmp_path):
+    entry = {
+        "text": "negligence duty of care",
+        "topic": ["negligence", "duty_of_care"],
+        "metadata": {
+            "source": "commonlii",
+            "source_url": "http://www.commonlii.org/sg/cases/SGHC/2024/1.html",
+            "title": "Example",
+            "year": 2024,
+            "jurisdiction": "Singapore",
+        },
+    }
+
+    record = metadata_record_from_scraped(entry, notes="repo-authored topic note")
+    assert set(record) == {
+        "source_id",
+        "url",
+        "title",
+        "date",
+        "jurisdiction",
+        "topics",
+        "repo_authored_notes",
+    }
+    assert record["source_id"] == "commonlii_sg"
+    assert record["topics"] == ["negligence", "duty_of_care"]
+    assert "text" not in record
+
+    output = save_scraped_metadata(
+        [entry],
+        output_path=str(tmp_path / "metadata.json"),
+        notes="repo-authored topic note",
+    )
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert saved == [record]
+
+
+def test_scraper_metadata_notes_are_short():
+    entry = {"topic": [], "metadata": {"source": "commonlii"}}
+
+    with pytest.raises(ValueError, match="280"):
+        metadata_record_from_scraped(entry, notes="x" * 281)
 
 
 def test_registry_path_points_to_json_file():

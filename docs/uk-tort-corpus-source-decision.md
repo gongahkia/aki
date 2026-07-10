@@ -19,7 +19,9 @@ Use The National Archives Find Case Law service as the first UK Tort corpus sour
 
 ## Redistribution Rule
 
-Committed UK sample records may include capped excerpts from current Find Case Law XML with source URL, content hash, retrieved date, attribution, and Open Justice Licence metadata. Broad ingestion, embedding, search indexing, enrichment, or other computational analysis must wait for a separate Find Case Law computational-analysis licence or written clearance.
+Public URL does not imply permission to commit full text. Full-text writes must pass `corpus/source_registry.json` with `text_commit_allowed=true` and `redistribution_status=allowed` or `bundled_fixture`. Sources with `restricted` or `unknown` status may commit only URL, title, date, jurisdiction, topic tags, and short repository-authored notes.
+
+Committed UK sample records may include capped excerpts from current Find Case Law XML with source URL, content hash, retrieved date, attribution, and Open Justice Licence metadata because the registry marks that source as allowed for this capped fixture use. Broad ingestion, embedding, search indexing, enrichment, or other computational analysis must wait for a separate Find Case Law computational-analysis licence or written clearance.
 
 ## Initial Corpus Plan
 

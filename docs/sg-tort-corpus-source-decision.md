@@ -21,6 +21,8 @@ Use only open-access Singapore legal publishing for corpus and eval enrichment. 
 
 ## Redistribution Rule
 
+Public URL does not imply permission to commit full text. Full-text writes must pass `corpus/source_registry.json` with `text_commit_allowed=true` and `redistribution_status=allowed` or `bundled_fixture`. Sources with `restricted` or `unknown` status may commit only URL, title, date, jurisdiction, topic tags, and short repository-authored notes.
+
 Committed SG records include:
 
 - The bundled 41-entry training corpus at `corpus/labelled/sg_tort/corpus.json` (repository fixture, authored for this project).
@@ -31,6 +33,7 @@ Not committed:
 
 - Full-text SG Supreme Court judgments (redistribution terms not yet cleared).
 - SAL Annual Review chapter text (open access but redistribution terms require attribution and non-alteration checks not yet automated in ingestion pipeline).
+- Full text from CommonLII, Singapore Judiciary, SICC, Singapore Law Gazette, Singapore Law Watch, eLitigation.sg, or ASEAN Law Association unless the source registry is updated after terms review.
 
 ## Corpus Growth Plan
 

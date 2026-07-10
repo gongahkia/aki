@@ -26,6 +26,8 @@ REQUIRED_SOURCE_FIELDS = (
     "notes",
 )
 
+FULL_TEXT_REDISTRIBUTION_STATUSES = {"allowed", "bundled_fixture"}
+
 
 class SourceRegistryError(ValueError):
     """Raised when source registry data blocks ingestion."""
@@ -76,6 +78,11 @@ def assert_text_commit_allowed(
     if source["text_commit_allowed"] is not True:
         raise SourceRegistryError(
             f"source {source_id} is not cleared for committed full text"
+        )
+    if source["redistribution_status"] not in FULL_TEXT_REDISTRIBUTION_STATUSES:
+        raise SourceRegistryError(
+            f"source {source_id} has non-allowed redistribution status: "
+            f"{source['redistribution_status']}"
         )
     return source
 

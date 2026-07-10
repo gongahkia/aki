@@ -10,6 +10,8 @@ Use `jurisdiction.code=au`, `jurisdiction.name=Australia`, `jurisdiction.legal_s
 
 Do not ingest AU Tort text yet. Start with source/legal review and a manifest proposal only. Australian court sources have inconsistent reuse terms, so the first usable pack should prefer sources with explicit judgment-reuse permission and preserve attribution, source URL, version, and publication-restriction metadata.
 
+Public URL does not imply permission to commit full text. Full-text writes must pass `corpus/source_registry.json` with `text_commit_allowed=true` and `redistribution_status=allowed` or `bundled_fixture`. AU sources currently remain metadata-only: URL, title, date, jurisdiction, topic tags, and short repository-authored notes.
+
 ## Source Review
 
 | Source | Source URL | Access | Terms URL | Redistribution status | Decision |

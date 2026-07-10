@@ -33,23 +33,6 @@ Verified local corpus:
 
 ## P0 Tasks
 
-### 3. Stop Treating Public Web as Reusable Text
-
-Codify this rule:
-
-Public URL != permission to commit full text.
-
-Files/surfaces:
-- `script/fetch_*.py`
-- `src/services/scraper_service.py`
-- `docs/*corpus-source-decision.md`
-- `corpus/packs/*/manifest.json`
-
-Acceptance:
-- Fetch scripts write full text only when registry status is `allowed`.
-- Restricted/unknown sources can write only URL, title, date, jurisdiction, topic tags, and short repo-authored notes.
-- Tests cover blocked ingestion.
-
 ### 4. Build a Student-Useful Record Schema
 
 Current records mostly store fact pattern + topics. Active students need more.

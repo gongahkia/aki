@@ -24,6 +24,7 @@
   "sources": [
     {
       "name": "Bundled SG Contract seed fixtures",
+      "registry_source_id": "sg_contract_seed_fixture",
       "url": "file://corpus/raw/contract",
       "source_format": "txt",
       "access": "local_repo",

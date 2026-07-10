@@ -297,7 +297,7 @@
     "source_kind": "case_law_xml",
     "license_name": "Open Justice Licence v2.0",
     "license_url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
-    "redistribution_status": "restricted",
+    "redistribution_status": "allowed",
     "commercial_use": "allowed_with_conditions",
     "text_commit_allowed": true,
     "derived_metadata_allowed": true,
