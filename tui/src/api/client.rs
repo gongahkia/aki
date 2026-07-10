@@ -207,8 +207,16 @@ impl ApiClient {
         &self,
         topic: Option<&str>,
         limit: u32,
+        corpus_pack: &str,
+        jurisdiction: &str,
     ) -> Result<Vec<CorpusEntry>> {
-        let mut url = format!("{}?limit={}", self.url("/corpus/entries"), limit);
+        let mut url = format!(
+            "{}?limit={}&corpus_pack={}&jurisdiction={}",
+            self.url("/corpus/entries"),
+            limit,
+            corpus_pack,
+            jurisdiction
+        );
         if let Some(t) = topic {
             url = format!("{}&topic={}", url, t);
         }

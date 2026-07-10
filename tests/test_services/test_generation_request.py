@@ -65,6 +65,11 @@ def test_generation_request_defaults_to_sg_tort_pack():
     assert request.law_domain == "tort"
 
 
+def test_generation_request_rejects_non_sg_jurisdiction_without_pack():
+    with pytest.raises(ValueError, match="corpus_pack 'sg_tort' supports jurisdiction"):
+        GenerationRequest(topics=["negligence"], jurisdiction="us")
+
+
 def test_generation_request_allows_registered_fake_jurisdiction_pack():
     register_domain_pack(
         DomainPack(

@@ -603,7 +603,8 @@ impl ChatScreen {
                 };
                 self.runtime_ctx.last_topics = topics.clone();
                 self.add_meta(format!(
-                    "Step 1/2: ensuring required ML training. Step 2/2: generating hypothetical for topics: {}",
+                    "Step 1/2: ensuring required ML training. Step 2/2: generating {} hypothetical for topics: {}",
+                    req.corpus_pack,
                     topics.join(", ")
                 ));
                 self.start_task(TaskKind::Hypo, {
@@ -744,6 +745,13 @@ impl ChatScreen {
                 ScreenAction::None
             }
             ChatCommand::Corpus(args) => {
+                let (corpus_pack, jurisdiction) = match Self::pack_scope_from_args(&args) {
+                    Ok(scope) => scope,
+                    Err(msg) => {
+                        self.add_meta(msg);
+                        return ScreenAction::None;
+                    }
+                };
                 let topic = args
                     .get("topic")
                     .or_else(|| args.first())
@@ -761,7 +769,14 @@ impl ChatScreen {
                     let api = ctx.api_url.clone();
                     async move {
                         let client = crate::api::client::ApiClient::new(&api);
-                        let entries = client.list_corpus_entries(topic.as_deref(), limit).await?;
+                        let entries = client
+                            .list_corpus_entries(
+                                topic.as_deref(),
+                                limit,
+                                &corpus_pack,
+                                &jurisdiction,
+                            )
+                            .await?;
                         Ok(TaskPayload::CorpusEntries(entries))
                     }
                 });
@@ -802,10 +817,17 @@ impl ChatScreen {
                     }
                 };
 
+                let (corpus_pack, jurisdiction) = match Self::pack_scope_from_args(&args) {
+                    Ok(scope) => scope,
+                    Err(msg) => {
+                        self.add_meta(msg);
+                        return ScreenAction::None;
+                    }
+                };
                 let req = CorpusQueryRequest {
                     topics,
-                    corpus_pack: "sg_tort".into(),
-                    jurisdiction: "sg".into(),
+                    corpus_pack,
+                    jurisdiction,
                     subject: "tort".into(),
                     subtopics: Vec::new(),
                     sample_size,
@@ -855,12 +877,19 @@ impl ChatScreen {
                     return ScreenAction::None;
                 };
 
+                let (corpus_pack, jurisdiction) = match Self::pack_scope_from_args(&args) {
+                    Ok(scope) => scope,
+                    Err(msg) => {
+                        self.add_meta(msg);
+                        return ScreenAction::None;
+                    }
+                };
                 let req = ValidateRequest {
                     text,
                     required_topics,
                     expected_parties,
-                    corpus_pack: "sg_tort".into(),
-                    jurisdiction: "sg".into(),
+                    corpus_pack,
+                    jurisdiction,
                     subject: "tort".into(),
                     subtopics: Vec::new(),
                     law_domain: "tort".into(),
@@ -1309,7 +1338,9 @@ impl ChatScreen {
                                 let api = ctx.api_url.clone();
                                 async move {
                                     let client = crate::api::client::ApiClient::new(&api);
-                                    let entries = client.list_corpus_entries(None, limit).await?;
+                                    let entries = client
+                                        .list_corpus_entries(None, limit, "sg_tort", "sg")
+                                        .await?;
                                     Ok(TaskPayload::CorpusEntries(entries))
                                 }
                             },
@@ -1543,7 +1574,7 @@ impl ChatScreen {
             args.positionals.join(",")
         } else {
             return Err(
-                "Usage: /hypo <topic1,topic2,...> [complexity=1-5|level] [parties=2-5] [analysis=true|false]"
+                "Usage: /hypo <topic1,topic2,...> [pack=sg_tort|us_tort|uk_tort] [complexity=1-5|level] [parties=2-5] [analysis=true|false]"
                     .into(),
             );
         };
@@ -1591,11 +1622,12 @@ impl ChatScreen {
             let timer = self.parse_u32(raw, "timer_seconds")?;
             user_preferences.insert("timer_seconds".into(), serde_json::json!(timer));
         }
+        let (corpus_pack, jurisdiction) = Self::pack_scope_from_args(args)?;
 
         let request = GenerationRequest {
             topics: topics.clone(),
-            corpus_pack: "sg_tort".into(),
-            jurisdiction: "sg".into(),
+            corpus_pack,
+            jurisdiction,
             subject: "tort".into(),
             subtopics: Vec::new(),
             law_domain: "tort".into(),
@@ -3078,6 +3110,70 @@ impl ChatScreen {
         )
     }
 
+    fn pack_scope_from_args(args: &CommandArgs) -> std::result::Result<(String, String), String> {
+        let corpus_pack = args
+            .get("pack")
+            .or(args.get("corpus_pack"))
+            .or(args.get("corpus"))
+            .map(|raw| Self::normalize_corpus_pack(raw))
+            .transpose()?
+            .unwrap_or_else(|| "sg_tort".into());
+        let jurisdiction = args
+            .get("jurisdiction")
+            .or(args.get("country"))
+            .map(|raw| Self::normalize_jurisdiction(raw))
+            .transpose()?
+            .unwrap_or_else(|| Self::jurisdiction_for_pack(&corpus_pack).into());
+        let expected = Self::jurisdiction_for_pack(&corpus_pack);
+        if jurisdiction != expected {
+            return Err(format!(
+                "corpus_pack '{}' requires jurisdiction '{}'.",
+                corpus_pack, expected
+            ));
+        }
+        Ok((corpus_pack, jurisdiction))
+    }
+
+    fn normalize_corpus_pack(value: &str) -> std::result::Result<String, String> {
+        let token = value
+            .trim()
+            .to_ascii_lowercase()
+            .replace('-', "_")
+            .replace(' ', "_");
+        match token.as_str() {
+            "sg" | "singapore" | "singapore_tort" | "sg_tort" => Ok("sg_tort".into()),
+            "us" | "usa" | "united_states" | "united_states_tort" | "us_tort" => {
+                Ok("us_tort".into())
+            }
+            "uk" | "united_kingdom" | "england" | "england_and_wales" | "uk_tort" => {
+                Ok("uk_tort".into())
+            }
+            _ => Err("Invalid corpus pack. Use sg_tort, us_tort, or uk_tort.".into()),
+        }
+    }
+
+    fn normalize_jurisdiction(value: &str) -> std::result::Result<String, String> {
+        let token = value
+            .trim()
+            .to_ascii_lowercase()
+            .replace('-', "_")
+            .replace(' ', "_");
+        match token.as_str() {
+            "sg" | "singapore" => Ok("sg".into()),
+            "us" | "usa" | "united_states" | "united_states_of_america" => Ok("us".into()),
+            "uk" | "united_kingdom" | "england" | "england_and_wales" | "wales" => Ok("uk".into()),
+            _ => Err("Invalid jurisdiction. Use sg, us, or uk.".into()),
+        }
+    }
+
+    fn jurisdiction_for_pack(corpus_pack: &str) -> &'static str {
+        match corpus_pack {
+            "us_tort" => "us",
+            "uk_tort" => "uk",
+            _ => "sg",
+        }
+    }
+
     fn normalize_practice_mode(value: &str) -> std::result::Result<String, String> {
         let normalized = value.trim().to_ascii_lowercase().replace('-', "_");
         match normalized.as_str() {
@@ -3117,7 +3213,7 @@ impl ChatScreen {
 /providers
 
 /generation
-/hypo <topic1,topic2,...> [mode=issue_spotting|progressive_hints|timed_exam|model_answer_review|spaced_topic_drill|difficulty_ladder] [complexity=1-5|level] [parties=<n>] [analysis=true|false] [timer_seconds=<n>]
+/hypo <topic1,topic2,...> [pack=sg_tort|us_tort|uk_tort] [mode=issue_spotting|progressive_hints|timed_exam|model_answer_review|spaced_topic_drill|difficulty_ladder] [complexity=1-5|level] [parties=<n>] [analysis=true|false] [timer_seconds=<n>]
 /regenerate <generation_id|last>
 /report <generation_id|last> issue=<csv> [comment=\"...\"]
 /reports <generation_id|last>
@@ -3125,9 +3221,9 @@ impl ChatScreen {
 
 /corpus
 /topics
-/corpus [topic=<topic>] [limit=<n>]
-/query topics=<csv> [sample=<n>] [overlap=<n>]
-/validate required=<csv> [parties=<n>] [text=\"...\"]
+/corpus [topic=<topic>] [pack=sg_tort|us_tort|uk_tort] [limit=<n>]
+/query topics=<csv> [pack=sg_tort|us_tort|uk_tort] [sample=<n>] [overlap=<n>]
+/validate required=<csv> [pack=sg_tort|us_tort|uk_tort] [parties=<n>] [text=\"...\"]
 
 /jobs
 /preprocess [raw_dir=<path>] [output_path=<path>] [merge=true|false] [include_non_tort=true|false]

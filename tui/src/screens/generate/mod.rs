@@ -20,6 +20,7 @@ use ratatui::Frame;
 
 enum Phase {
     ModeSelect(MenuState),
+    PackSelect(MenuState),
     TopicSelect(CheckboxState),
     ConfigConfirm(Confirm),
     Streaming(StreamView),
@@ -31,6 +32,8 @@ enum Phase {
 
 struct GenerateConfig {
     topics: Vec<String>,
+    corpus_pack: String,
+    jurisdiction: String,
     provider: String,
     model: Option<String>,
     temperature: f64,
@@ -45,6 +48,8 @@ impl Default for GenerateConfig {
         let state = TuiState::load();
         Self {
             topics: Vec::new(),
+            corpus_pack: "sg_tort".into(),
+            jurisdiction: "sg".into(),
             provider: state.last_config.provider,
             model: None,
             temperature: state.last_config.temperature,
@@ -100,14 +105,15 @@ impl GenerateScreen {
     fn build_topic_checkbox(&self) -> CheckboxState {
         CheckboxState::new(
             "Select Topics (Space=toggle, Enter=confirm)",
-            topics::topic_items(),
+            topics::topic_items_for_pack(&self.config.corpus_pack),
         )
     }
 
     fn show_config_confirm(&self) -> Confirm {
         let summary = format!(
-            "Mode: {}  Topics: {}  Provider: {}  Temp: {:.1}  Complexity: {}  Parties: {}  Analysis: {}  ML Training: required",
+            "Mode: {}  Pack: {}  Topics: {}  Provider: {}  Temp: {:.1}  Complexity: {}  Parties: {}  Analysis: {}  ML Training: required",
             self.mode,
+            Self::pack_label(&self.config.corpus_pack),
             if self.config.topics.is_empty() { "--".into() } else { self.config.topics.join(", ") },
             self.config.provider, self.config.temperature, self.config.complexity,
             self.config.parties,
@@ -116,11 +122,41 @@ impl GenerateScreen {
         Confirm::new(&format!("Proceed? {}", summary), true)
     }
 
+    fn pack_select_menu() -> MenuState {
+        MenuState::new(
+            "Corpus Pack",
+            vec![
+                MenuItem::new("Singapore Tort", "sg_tort reference pack"),
+                MenuItem::new("United States Tort", "us_tort comparator pack"),
+                MenuItem::new("United Kingdom Tort", "uk_tort comparator pack"),
+            ],
+        )
+    }
+
+    fn set_pack_by_index(&mut self, idx: usize) {
+        let (pack, jurisdiction) = match idx {
+            1 => ("us_tort", "us"),
+            2 => ("uk_tort", "uk"),
+            _ => ("sg_tort", "sg"),
+        };
+        self.config.corpus_pack = pack.into();
+        self.config.jurisdiction = jurisdiction.into();
+        self.config.topics.clear();
+    }
+
+    fn pack_label(corpus_pack: &str) -> &'static str {
+        match corpus_pack {
+            "us_tort" => "United States Tort",
+            "uk_tort" => "United Kingdom Tort",
+            _ => "Singapore Tort",
+        }
+    }
+
     fn start_generation(&mut self, ctx: &mut AppContext) {
         let req = GenerationRequest {
             topics: self.config.topics.clone(),
-            corpus_pack: "sg_tort".into(),
-            jurisdiction: "sg".into(),
+            corpus_pack: self.config.corpus_pack.clone(),
+            jurisdiction: self.config.jurisdiction.clone(),
             subject: "tort".into(),
             subtopics: Vec::new(),
             law_domain: "tort".into(),
@@ -289,6 +325,12 @@ impl Screen for GenerateScreen {
                         self.config.complexity = 5;
                         self.config.parties = 4;
                     }
+                    self.phase = Phase::PackSelect(Self::pack_select_menu());
+                }
+            }
+            Phase::PackSelect(menu) => {
+                if let Some(idx) = menu.handle_key(key) {
+                    self.set_pack_by_index(idx);
                     self.phase = Phase::TopicSelect(self.build_topic_checkbox());
                 }
             }
@@ -353,7 +395,7 @@ impl Screen for GenerateScreen {
                     match idx {
                         0 => return ScreenAction::Pop,
                         1 => {
-                            self.phase = Phase::TopicSelect(self.build_topic_checkbox());
+                            self.phase = Phase::PackSelect(Self::pack_select_menu());
                         }
                         2 => {} // report -- TODO
                         3 => {
@@ -368,7 +410,7 @@ impl Screen for GenerateScreen {
                     match idx {
                         0 => self.start_generation(ctx), // retry
                         1 => {
-                            self.phase = Phase::TopicSelect(self.build_topic_checkbox());
+                            self.phase = Phase::PackSelect(Self::pack_select_menu());
                         }
                         _ => return ScreenAction::Pop,
                     }
@@ -381,6 +423,7 @@ impl Screen for GenerateScreen {
     fn render(&mut self, f: &mut Frame, area: Rect, _ctx: &AppContext) {
         match &mut self.phase {
             Phase::ModeSelect(menu) => menu.render(f, area),
+            Phase::PackSelect(menu) => menu.render(f, area),
             Phase::TopicSelect(cb) => cb.render(f, area),
             Phase::ConfigConfirm(confirm) => {
                 let layout = Layout::default()
@@ -388,8 +431,9 @@ impl Screen for GenerateScreen {
                     .constraints([Constraint::Min(3), Constraint::Length(3)])
                     .split(area);
                 let summary = format!(
-                    "Mode: {}\nTopics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nAnalysis: {}\nML Training: required before generation",
+                    "Mode: {}\nCorpus pack: {}\nTopics: {}\nProvider: {}\nTemperature: {:.1}\nComplexity: {}\nParties: {}\nAnalysis: {}\nML Training: required before generation",
                     self.mode,
+                    Self::pack_label(&self.config.corpus_pack),
                     self.config.topics.join(", "), self.config.provider,
                     self.config.temperature, self.config.complexity,
                     self.config.parties,

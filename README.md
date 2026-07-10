@@ -3,7 +3,7 @@
 Open-source infrastructure for AI-generated common-law exam-question practice.
 Jikai generates legal hypotheticals and model answers with an ML foundation stage before LLM drafting, so topic selection, retrieval, quality scoring, and validation constrain the final output instead of leaving generation as a raw prompt.
 It is built for law students, educators, and legal-tech builders who want local-first practice-question generation, corpus-backed retrieval, validation gates, and exportable study artifacts.
-Current corpus: Singapore Tort. Pivot target: SG + UK + US Tort corpus packs, with SG Tort as the reference pack.
+Current corpus: Singapore Tort reference pack plus explicit UK/US Tort comparator packs.
 Try it locally with `make env-setup`, `make dev-setup`, and `make run`.
 Hosted public fixture demo: https://gabrielongzm.com/jikai/. Server-backed deployment runbook: [`docs/deployment/hosted-demo.md`](docs/deployment/hosted-demo.md).
 
@@ -94,7 +94,7 @@ The shortened fixture below shows the shape of one SG Tort run. It is documentat
 ## Feature Surface
 
 * *ML-before-LLM orchestration*: `src/services/workflow_facade.py` blocks generation until the ML pipeline is trained or bootstrapped.
-* *Common-law corpus direction*: SG Tort ships now; UK and US Tort are planned as first-class corpus packs after source/licensing review.
+* *Common-law corpus direction*: SG Tort is the reference pack; UK and US Tort comparator packs are explicit opt-ins.
 * *Local-first LLM path*: Ollama is the default provider, with OpenAI, Anthropic, Gemini, and local llama.cpp-compatible servers available by configuration.
 * *RAG and validation*: Chroma-backed semantic retrieval, deterministic topic/party/realism checks, optional Legal-BERT embeddings, and optional LLM validation.
 * *Study workflow outputs*: model answers, generation reports, batch generation, DOCX/PDF export, and Anki TSV export.
@@ -250,6 +250,7 @@ Hosted mode (`API_HOSTED_MODE=true` or `ENVIRONMENT=production`) keeps only `/he
 | `POST` | `/workflow/report` | Submit a quality report for a generation |
 | `GET` | `/workflow/reports/{generation_id}` | List reports for a generation |
 | `POST` | `/workflow/batch-generate` | Generate multiple hypotheticals with topic coverage |
+| `GET` | `/corpus/packs` | List explicit corpus packs and jurisdictions |
 | `GET` | `/corpus/topics` | List all available tort-law topics |
 | `GET` | `/corpus/entries` | Fetch corpus entries (`topic`, `limit` query params supported) |
 | `POST` | `/corpus/query` | Query corpus by topics with semantic search |
@@ -286,7 +287,7 @@ SG Tort is the current reference corpus. The pivot path is:
 
 1. Add first-class jurisdiction, subject, topic, and subtopic fields.
 2. Keep SG Tort on the bronze/silver/gold corpus pipeline.
-3. Add UK and US Tort packs only after source terms and redistribution constraints are documented.
+3. Keep UK and US Tort packs explicit opt-ins with source terms and redistribution constraints documented.
 4. Use the blind-evaluation rubric in [`docs/evals/blind-eval-rubric-v1.md`](docs/evals/blind-eval-rubric-v1.md) before generating comparison samples.
 5. Keep public comparison claims out of the README until blind evaluation artifacts support them.
 

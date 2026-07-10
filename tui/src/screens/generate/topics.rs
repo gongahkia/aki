@@ -1,6 +1,65 @@
 use crate::ui::widgets::checkbox::CheckboxItem;
 
-/// 28 Singapore tort law topics in 6 categories -- compiled into binary
+const US_TORT_TOPICS: &[&str] = &[
+    "negligence",
+    "duty_of_care",
+    "standard_of_care",
+    "causation",
+    "remoteness",
+    "strict_liability",
+    "product_liability",
+    "battery",
+    "assault",
+    "false_imprisonment",
+    "trespass_to_land",
+    "private_nuisance",
+    "defamation",
+    "vicarious_liability",
+    "economic_loss",
+];
+
+const UK_TORT_TOPICS: &[&str] = &[
+    "negligence",
+    "duty_of_care",
+    "standard_of_care",
+    "causation",
+    "remoteness",
+    "occupiers_liability",
+    "product_liability",
+    "vicarious_liability",
+    "economic_loss",
+    "psychiatric_harm",
+    "private_nuisance",
+    "defamation",
+];
+
+pub fn topic_items_for_pack(corpus_pack: &str) -> Vec<CheckboxItem> {
+    match corpus_pack {
+        "us_tort" => filtered_topic_items(US_TORT_TOPICS),
+        "uk_tort" => filtered_topic_items(UK_TORT_TOPICS),
+        _ => topic_items(),
+    }
+}
+
+fn filtered_topic_items(allowed: &[&str]) -> Vec<CheckboxItem> {
+    let mut items = Vec::new();
+    let mut header = None;
+    for item in topic_items() {
+        if item.is_header {
+            header = Some(item);
+            continue;
+        }
+        if allowed.contains(&item.value.as_str()) {
+            if let Some(pending) = header.take() {
+                items.push(pending);
+            }
+            items.push(item);
+        }
+    }
+    items
+}
+
+/// common-law tort topics in categories -- compiled into binary
 pub fn topic_items() -> Vec<CheckboxItem> {
     vec![
         CheckboxItem::header("Negligence-Based"),

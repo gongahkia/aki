@@ -40,12 +40,69 @@ class AddEntryRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+def _pack_source_ids(manifest_path: str) -> List[str]:
+    import json
+    from pathlib import Path
+
+    path = Path(manifest_path)
+    if not path.is_absolute():
+        path = Path(__file__).resolve().parents[3] / path
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    sources = payload.get("sources", [])
+    if not isinstance(sources, list):
+        return []
+    return [
+        str(source["registry_source_id"])
+        for source in sources
+        if isinstance(source, dict) and source.get("registry_source_id")
+    ]
+
+
 @router.get("/topics")
-async def list_topics():
+async def list_topics(
+    corpus_pack: str = "sg_tort",
+    jurisdiction: str = "sg",
+    subject: str = "tort",
+):
     from ...services import corpus_service
 
-    topics = await corpus_service.extract_all_topics()
-    return {"topics": topics}
+    topics = await corpus_service.extract_all_topics(
+        corpus_pack=corpus_pack,
+        jurisdiction=jurisdiction,
+        subject=subject,
+    )
+    return {
+        "topics": topics,
+        "corpus_pack": corpus_pack,
+        "jurisdiction": jurisdiction,
+        "subject": subject,
+    }
+
+
+@router.get("/packs")
+async def list_packs():
+    from ...domain import list_domain_packs
+
+    return {
+        "packs": [
+            {
+                "key": pack.key,
+                "display_name": pack.display_name,
+                "jurisdiction": pack.jurisdiction_key,
+                "subject": pack.subject_key,
+                "topic_count": len(pack.topic_keys),
+                "topics": list(pack.topic_keys),
+                "manifest_path": pack.manifest_path,
+                "corpus_path": pack.corpus_path,
+                "record_format": pack.record_format,
+                "source_ids": _pack_source_ids(pack.manifest_path),
+            }
+            for pack in list_domain_packs()
+        ]
+    }
 
 
 @router.get("/entries")
@@ -68,20 +125,11 @@ async def list_entries(
         and e.subject == subject
     ]
     if topic:
-        entries = [
-            e
-            for e in entries
-            if topic in (e.topics if hasattr(e, "topics") else e.get("topics", []))
-        ]
+        entries = [e for e in entries if topic in e.topics]
     entries = entries[:limit]
     return {
         "entries": [
-            (
-                e.student_view(include_model_answer=include_model_answer)
-                if hasattr(e, "student_view")
-                else e
-            )
-            for e in entries
+            e.student_view(include_model_answer=include_model_answer) for e in entries
         ],
         "count": len(entries),
     }

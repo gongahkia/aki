@@ -94,7 +94,7 @@ impl Screen for LabelScreen {
         let api = ctx.api_url.clone();
         self.pending = Some(tokio::spawn(async move {
             let client = crate::api::client::ApiClient::new(&api);
-            client.list_corpus_entries(None, 500).await
+            client.list_corpus_entries(None, 500, "sg_tort", "sg").await
         }));
     }
 
