@@ -9,8 +9,8 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_illegality",
-      "defence_of_contributory_negligence",
+      "illegality_defence",
+      "contributory_negligence",
       "vicarious_liability"
     ],
     "corpus_pack_key": "sg_tort",
@@ -70,11 +70,11 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "trespass_to_land",
       "private_nuisance",
       "rylands_v_fletcher",
-      "defence_of_consent"
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -198,7 +198,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_consent",
+      "consent_defence",
       "rylands_v_fletcher"
     ],
     "corpus_pack_key": "sg_tort",
@@ -320,7 +320,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_contributory_negligence"
+      "contributory_negligence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -379,7 +379,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_consent",
+      "consent_defence",
       "vicarious_liability"
     ],
     "corpus_pack_key": "sg_tort",
@@ -439,7 +439,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_illegality",
+      "illegality_defence",
       "private_nuisance",
       "vicarious_liability"
     ],
@@ -498,9 +498,9 @@
       "negligence",
       "vicarious_liability",
       "harassment",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "battery",
-      "defence_of_consent",
+      "consent_defence",
       "trespass_to_land",
       "defamation"
     ],
@@ -561,7 +561,7 @@
       "trespass_to_land",
       "strict_liability",
       "private_nuisance",
-      "defence_of_consent",
+      "consent_defence",
       "causation",
       "remoteness",
       "duty_of_care",
@@ -686,7 +686,7 @@
       "remoteness",
       "vicarious_liability",
       "defamation",
-      "defence_of_consent",
+      "consent_defence",
       "private_nuisance"
     ],
     "corpus_pack_key": "sg_tort",
@@ -749,7 +749,7 @@
       "vicarious_liability",
       "private_nuisance",
       "defamation",
-      "wilkinson_v_downton_tort_of_mental_infliction"
+      "intentional_infliction_of_mental_harm"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -871,7 +871,7 @@
       "private_nuisance",
       "vicarious_liability",
       "defamation",
-      "defence_of_consent"
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -930,10 +930,10 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "private_nuisance",
       "vicarious_liability",
-      "defence_of_consent"
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -992,7 +992,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_contributory_negligence",
+      "contributory_negligence",
       "vicarious_liability"
     ],
     "corpus_pack_key": "sg_tort",
@@ -1052,7 +1052,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_consent",
+      "consent_defence",
       "contributory_negligence"
     ],
     "corpus_pack_key": "sg_tort",
@@ -1224,7 +1224,7 @@
       "duty_of_care",
       "trespass_to_land",
       "private_nuisance",
-      "defence_of_contributory_negligence"
+      "contributory_negligence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1279,10 +1279,10 @@
     "text": "Maven Technologies (MT) is a newly-minted Singapore-based tech unicorn whose pri-\nmary product is a virtual reality headset known as the MaveGear. As described on Maven's\n\nwebsite, the MaveGear is a \"truly revolutionary advance in VR tech that delivers true-to-\nlife, hyper-realistic, fully-immersive experiences\". Its in-built speakers allow people to\n\ntalk to one another online as if they were meeting in person. Maven's proprietary \"neural\nlink\" technology allows some physical touch to be simulated. Users can therefore feel\n'pain', but this is highly limited and never actually dangerous to the body.\nPriced at $1,500, each MaveGear is worn much like a motorcyclist's helmet. On startup,\nit always displays a standard warning that the MaveGear should \"only be used in physical\nspaces with enough clearance for safe mobility\", and that \"some MaveGear apps may\ncontain disturbing images and/or light patterns or flashing lights that may trigger epileptic\nseizures\".\nThe MaveGear has taken Singapore by storm. It is wildly popular amongst youths aged\n29 and under, who have been using it to play a variety of first-person shooter, open-world,\nrole-playing, adventure, and other VR games. Many also use it simply to meet friends\nand chat. The MaveGear experience is so authentic that users sometimes lose track of\nreal-world time.\nRecently, taking seriously the Silicon Valley lore that \"those who are serious about their\nhardware should make their own software\", Maven unveiled a new killer app for the\nMaveGear known as the Maven Creator Universe (MCU). The MCU is both a VR world\n\nin itself as well as an app store. In itself, the MCU is already a vast, explorable land-\nscape. Third-party developers (\"creators\") can further build and host their own virtual\n\nspaces. This is, and can only be, done using Maverick, an open-source code framework\ndeveloped, maintained, and documented by Maven.\nAfter the MCU's release, swathes of small-time and established VR developers descend\n\non the platform. They create scores of wondrous MCU spaces styled after alternate galax-\nies, magical worlds, and medieval castles alike. One such developer YuriTech, a small\n\ngame development company with only 5 employees. Working round the clock, they scrap\ntogether a new game they call \"Among Them\". On release day, a quaint countryside village appears on the MCU landscape. It is surrounded by ten metre tall, opaque brick\nwalls. The only entrance to (and exit from) the village is a set of massive steel gates at\nthe village's southernmost tip. By day, the village is bustling with activity. Scores of\ncomputer-controlled non-playable characters (NPCs) hawk exotic wares, delicious foods,\ncarnival games, etc. This festive sight attracts numerous passer-by MCU users to enter and\nexplore the village.\n\nAs soon as the MCU World Clock strikes 7p.m., the steel gates swing shut. The previously-\nfriendly NPCs spontaneously transform into all sorts of nightly horrors — zombies, were-\nwolves, giants, beasts, vampires. Time in the village stops momentarily while a voice in\n\nthe sky announces that everyone there has become \"players in a next-generation VR game,\nbrought to you by YuriTech\". They are asked to choose from a variety of guns, swords,\nclimbing gear, etc, and told that \"the only way out is to fight and survive till the sun rises,\nor die trying\". Everyone is taken aback, but many experienced gamers take to it quickly.\nThey go on to have the most fun they've ever had in years.\nEli, 23, is not so lucky. Since young, he had been terrified of the dark. He had carefully\navoided all horror movies and games. Just hearing YuriTech's announcement had put him\nin a state of severe shock. Now finding himself suddenly amongst monsters, all Eli could\ndo was hide in a corner of the village crying to himself. Through the night, he (his VR\ncharacter) is repeatedly attacked and hurt by monsters. He is very, very distressed. It was\nnot until the dawn the next (virtual) day that his real world university friend Nadia, who\nhad racked up the second highest score that night, discovers him sobbing in a corner. She\ndrags him out of there and screams, \"ELI, JUST LOG OUT!\"\nA surge of clarity takes over Eli. He does so. But it is too late. He had been stuck in\nthe MCU for 8 real world hours. Haunted by images of the night, he develops a serious,\nrecognized psychiatric injury within a week.",
     "topics": [
       "harassment",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "negligence",
       "duty_of_care",
-      "defence_of_consent"
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1459,7 +1459,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_contributory_negligence"
+      "contributory_negligence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1634,8 +1634,8 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_contributory_negligence",
-      "defence_of_illegality"
+      "contributory_negligence",
+      "illegality_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1695,7 +1695,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_consent"
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1750,8 +1750,8 @@
     "text": "Dear Partner,\nLong time. I remember your stellar business law notes in uni and am reaching out to\nask for some real advice on a matter that just came up. One of the startups I advise just\ngot a lawyers' letter demanding they cease operations and I need help on how we should\nrespond.\nThe startup Wallrus was founded by three post-grad computer science students at Singa-\npore University of Startups (SUS). Their idea, which I completely loved when they pitched\nme, was to sell computer vision AI add-ons to commercial CCTVs that allow them to\ndetect mold, cracks, leaks, rust, and other potential issues in building walls. I invested\nalmost immediately when they told me of the huge addressable market. Apparently Sin-\ngapore companies and residents spend upwards of S$500 million a year fixing such wall\nissues (internally we call them Wall-Ees). So any software that enables early detecting and\nreporting is worth millions. I told them that to protect their IP and ensure no one can steal their AI, they must only train\ntheir AI on their own hardware, which my venture capital was more than capable of spon-\nsor. I also said they should operate as lean as possible, so they essentially avoided renting\nactual office space for their training clusters. Instead, they have essentially converted their\nstudent housing, located in an apartment building owned by SUS along Waterloo Street,\ninto a data centre. They did this with full permission from SUS, who were very proud to\nhave their students running a multi-million dollar, VC-backed startup.\nUsing my capital, Wallrus bought dozens of state-of-the-art H100 chips and have been\ntraining, hosting, and serving their AI systems from a super-computing cluster they'd set\nup in the apartment. This of course incur significant electricity costs, but we have a special\narrangement with SUS that allows us to pay our fair share for the additional usage.\nThe lawyer's letter came last month from Liquid Drake (LD), a company whose storage\nfacilities are located in a unit on the same floor in the adjacent building (not owned by\nSUS). LD has been in that building for six years. They sell energy drinks which it markets\nas being \"the absolute coolest you can get\". They are typically stored in liquid nitrogen and\nonly taken out when someone orders them on their app. Apparently the drink's efficacy in\nrevitalising people is most effective when consumed at freezing temperatures.\nLD's and SUS's buildings were built in the 1950s and I'm not too sure what kind of\ninsulation they have. Also, the buildings are joined physically, in that they share a common\nmiddle wall. As fate would have it — as if this was some kind of business school law\nhypothetical — Wallrus and LD's units just happen to be two units down from each other.\nThat is, Wallrus' data centre is the leftmost on SUS's building's third storey while LD's\nunit is second from the right. The unit on the rightmost of LD's building is unoccupied;\nits previous tenant got busted for money laundering and all its officers ran away, leaving\nthe office eerily abandoned.\nAccording to LD's letter, their cold storage coolers have been constantly overworking and\nbreaking down ever since Wallrus set up shop in May last year. They had been puzzled at\nwhy this was happening for some time and had even tried replacing their coolers with bet-\nter quality ones — to no avail. These cooling problems had seriously affected their sales.\nRecently they stumbled across an SUS press release championing the 'AI whizzes' oper-\nating from their student residences and began to sense a connection. LD is demanding that Wallrus stop training their AI systems in SUS accommodation immediately. Attached to\ntheir lawyer's letter was also an expert report they had commissioned to study why the tem-\nperature in their building was constantly elevated. The report, which seems very credible\nto me, indicated \"the presence of significant heat sources consistent with the round-the-\nclock operation of heavy machinery and/or computer clusters in the vicinity\" as the main\nsource of the problem.\nTo make matters worse, LD managed to enlist support from several other SUS students\nliving on the same floor. It turned out they had also been having their aircons breaking\ndown constantly. Coupled with the recent hot weather, it has been difficult for them to\nstudy at home. One of them happened to be an SUS law student and took it upon herself\nto draft a fancy legal letter. The students sent this to both Wallrus and SUS, making\nessentially the same claims and demands as LD.\nI need to make sure this startup flourishes because I have bet almost the entire fund on\nthem. Would you kindly let us know how we can get LD and the other pesky SUS students\noff our backs? It would be important also to make sure we keep SUS on our side.",
     "topics": [
       "private_nuisance",
-      "defence_of_illegality",
-      "defence_of_consent",
+      "illegality_defence",
+      "consent_defence",
       "causation",
       "remoteness"
     ],
@@ -1811,13 +1811,13 @@
       "battery",
       "false_imprisonment",
       "harassment",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "negligence",
       "duty_of_care",
       "standard_of_care",
       "causation",
       "remoteness",
-      "defence_of_consent"
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1878,7 +1878,7 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "wilkinson_v_downton_tort_of_mental_infliction"
+      "intentional_infliction_of_mental_harm"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -1938,8 +1938,8 @@
       "standard_of_care",
       "causation",
       "remoteness",
-      "wilkinson_v_downton_tort_of_mental_infliction",
-      "consent"
+      "intentional_infliction_of_mental_harm",
+      "consent_defence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -2003,8 +2003,8 @@
       "causation",
       "remoteness",
       "vicarious_liability",
-      "defence_of_consent",
-      "defence_of_contributory_negligence"
+      "consent_defence",
+      "contributory_negligence"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -2119,7 +2119,7 @@
     "text": "In a bustling city park, John, an avid jogger, frequently runs along a popular path. One evening, during his routine jog, he notices a group of teenagers playing with a drone. The drone, buzzing loudly, swoops down and hovers menacingly close to John's face, causing him to stop abruptly. Feeling threatened, John raises his hands defensively and shouts at the teenagers to control their device. The teenagers laugh and deliberately maneuver the drone closer, making John fear an imminent impact. Distressed and perceiving an immediate threat to his safety, John decides to leave the park to avoid further confrontation. He subsequently develops PTSD, a recognised psychiatric injury (RPI).",
     "topics": [
       "assault",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "negligence",
       "duty_of_care",
       "standard_of_care",
@@ -2241,7 +2241,7 @@
       "battery",
       "false_imprisonment",
       "harassment",
-      "wilkinson_v_downton_tort_of_mental_infliction"
+      "intentional_infliction_of_mental_harm"
     ],
     "corpus_pack_key": "sg_tort",
     "jurisdiction": "sg",
@@ -2417,7 +2417,7 @@
       "false_imprisonment",
       "defamation",
       "harassment",
-      "wilkinson_v_downton_tort_of_mental_infliction",
+      "intentional_infliction_of_mental_harm",
       "negligence",
       "duty_of_care",
       "standard_of_care",

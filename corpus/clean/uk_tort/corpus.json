@@ -57,7 +57,17 @@
     "topics": [
       "duty_of_care",
       "negligence"
-    ]
+    ],
+    "provenance": {
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
+      "source_url": "https://caselaw.nationalarchives.gov.uk/uksc/2018/4",
+      "data_url": "https://caselaw.nationalarchives.gov.uk/uksc/2018/4/data.xml",
+      "content_hash": "7c9b5be5e720f5cc4486125e93c7695f27fb4bf3c9a75ef614284f87ee3bd027",
+      "document_uri": "https://caselaw.nationalarchives.gov.uk/id/uksc/2018/4",
+      "neutral_citation": "[2018] UKSC 4",
+      "decision_date": "2018-02-08"
+    }
   },
   {
     "corpus_pack_key": "uk_tort",
@@ -118,7 +128,17 @@
       "economic_loss",
       "negligence",
       "duty_of_care"
-    ]
+    ],
+    "provenance": {
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
+      "source_url": "https://caselaw.nationalarchives.gov.uk/uksc/2021/20",
+      "data_url": "https://caselaw.nationalarchives.gov.uk/uksc/2021/20/data.xml",
+      "content_hash": "b4d17cd5a63606414b03a8e763b899611ff38596a1762cdd60992818aab77b5d",
+      "document_uri": "https://caselaw.nationalarchives.gov.uk/id/uksc/2021/20",
+      "neutral_citation": "[2021] UKSC 20",
+      "decision_date": "2021-06-18"
+    }
   },
   {
     "corpus_pack_key": "uk_tort",
@@ -179,7 +199,17 @@
       "standard_of_care",
       "causation",
       "negligence"
-    ]
+    ],
+    "provenance": {
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
+      "source_url": "https://caselaw.nationalarchives.gov.uk/uksc/2021/21",
+      "data_url": "https://caselaw.nationalarchives.gov.uk/uksc/2021/21/data.xml",
+      "content_hash": "8a2128170d632e45123d8f2b4dc4a28596a646f8f156d80bd01d168e8f23c50c",
+      "document_uri": "https://caselaw.nationalarchives.gov.uk/id/uksc/2021/21",
+      "neutral_citation": "[2021] UKSC 21",
+      "decision_date": "2021-06-18"
+    }
   },
   {
     "corpus_pack_key": "uk_tort",
@@ -240,7 +270,17 @@
       "psychiatric_harm",
       "negligence",
       "duty_of_care"
-    ]
+    ],
+    "provenance": {
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
+      "source_url": "https://caselaw.nationalarchives.gov.uk/uksc/2024/1",
+      "data_url": "https://caselaw.nationalarchives.gov.uk/uksc/2024/1/data.xml",
+      "content_hash": "1e273f2cd657e3fe64e5730f7bf38f44d7c61f453689f7999c2fa5ff72bfa27c",
+      "document_uri": "https://caselaw.nationalarchives.gov.uk/id/uksc/2024/1",
+      "neutral_citation": "[2024] UKSC 1",
+      "decision_date": "2024-01-11"
+    }
   },
   {
     "corpus_pack_key": "uk_tort",
@@ -300,6 +340,16 @@
     "topics": [
       "vicarious_liability",
       "negligence"
-    ]
+    ],
+    "provenance": {
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2",
+      "source_url": "https://caselaw.nationalarchives.gov.uk/uksc/2020/12",
+      "data_url": "https://caselaw.nationalarchives.gov.uk/uksc/2020/12/data.xml",
+      "content_hash": "75711af376e937af7e976ab69b0e28696fc7f2cbadb6bfe6a0997bbd522e2bdb",
+      "document_uri": "https://caselaw.nationalarchives.gov.uk/id/uksc/2020/12",
+      "neutral_citation": "[2020] UKSC 12",
+      "decision_date": "2020-04-01"
+    }
   }
 ]

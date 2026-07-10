@@ -72,7 +72,17 @@
       "duty_of_care",
       "negligence",
       "remoteness"
-    ]
+    ],
+    "provenance": {
+      "batch": "2018",
+      "date_added": "2019-08-29",
+      "source": "Harvard",
+      "source_record_id": "1905144",
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://case.law/terms/",
+      "source_url": "https://static.case.law/ny/248/cases/0339-01.json",
+      "decision_date": "1928-05-29"
+    }
   },
   {
     "corpus_pack_key": "us_tort",
@@ -147,7 +157,17 @@
       "product_liability",
       "negligence",
       "duty_of_care"
-    ]
+    ],
+    "provenance": {
+      "batch": "2018",
+      "date_added": "2019-08-29",
+      "source": "Harvard",
+      "source_record_id": "75756",
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://case.law/terms/",
+      "source_url": "https://static.case.law/ny/217/cases/0382-01.json",
+      "decision_date": "1916-03-14"
+    }
   },
   {
     "corpus_pack_key": "us_tort",
@@ -221,7 +241,17 @@
     "topics": [
       "strict_liability",
       "product_liability"
-    ]
+    ],
+    "provenance": {
+      "batch": "2018",
+      "date_added": "2019-08-29",
+      "source": "Harvard",
+      "source_record_id": "2253482",
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://case.law/terms/",
+      "source_url": "https://static.case.law/cal-2d/24/cases/0453-01.json",
+      "decision_date": "1944-07-05"
+    }
   },
   {
     "corpus_pack_key": "us_tort",
@@ -295,7 +325,17 @@
     "topics": [
       "duty_of_care",
       "negligence"
-    ]
+    ],
+    "provenance": {
+      "batch": "2018",
+      "date_added": "2019-08-29",
+      "source": "Harvard",
+      "source_record_id": "2292851",
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://case.law/terms/",
+      "source_url": "https://static.case.law/cal-3d/17/cases/0425-01.json",
+      "decision_date": "1976-07-01"
+    }
   },
   {
     "corpus_pack_key": "us_tort",
@@ -369,6 +409,16 @@
     "topics": [
       "causation",
       "negligence"
-    ]
+    ],
+    "provenance": {
+      "batch": "2018",
+      "date_added": "2019-08-29",
+      "source": "Harvard",
+      "source_record_id": "4395205",
+      "retrieved_at": "2026-07-01",
+      "terms_url": "https://case.law/terms/",
+      "source_url": "https://static.case.law/cal-2d/33/cases/0080-01.json",
+      "decision_date": "1948-11-17"
+    }
   }
 ]

@@ -151,7 +151,11 @@
         "label": "Contributory Negligence",
         "category": "Negligence-Based",
         "description": "Claimant fault and apportionment.",
-        "aliases": ["contributory negligence"],
+        "aliases": [
+          "contributory negligence",
+          "defence of contributory negligence",
+          "defence_of_contributory_negligence"
+        ],
         "subtopics": []
       },
       {
@@ -176,6 +180,20 @@
         "category": "Intentional Torts",
         "description": "Unlawful restraint of liberty.",
         "aliases": ["false imprisonment"],
+        "subtopics": []
+      },
+      {
+        "key": "intentional_infliction_of_mental_harm",
+        "label": "Intentional Infliction Of Mental Harm",
+        "category": "Intentional Torts",
+        "description": "Intentional conduct causing recognized mental injury.",
+        "aliases": [
+          "intentional infliction of mental harm",
+          "intentional infliction of emotional distress",
+          "wilkinson v downton",
+          "wilkinson_v_downton_tort_of_mental_infliction",
+          "iied"
+        ],
         "subtopics": []
       },
       {
@@ -287,7 +305,12 @@
         "label": "Consent Defence",
         "category": "Doctrines & Defences",
         "description": "Voluntary assumption of known risk.",
-        "aliases": ["consent defence"],
+        "aliases": [
+          "consent",
+          "consent defence",
+          "defence of consent",
+          "defence_of_consent"
+        ],
         "subtopics": []
       },
       {
@@ -295,7 +318,11 @@
         "label": "Illegality Defence",
         "category": "Doctrines & Defences",
         "description": "Claim barred by claimant illegality.",
-        "aliases": ["illegality defence"],
+        "aliases": [
+          "illegality defence",
+          "defence of illegality",
+          "defence_of_illegality"
+        ],
         "subtopics": []
       },
       {
@@ -347,6 +374,7 @@
         "employers_liability": "Include workplace conditions, safe system of work, training provided, and employer's knowledge.",
         "breach_of_statutory_duty": "Specify the relevant statute/regulation, the duty imposed, and how it was breached.",
         "rylands_v_fletcher": "Include non-natural use of land, accumulation of dangerous thing, and escape from defendant's land.",
+        "intentional_infliction_of_mental_harm": "Include deliberate conduct, targeted claimant, recognized psychiatric or mental harm, and causal link.",
         "consent_defence": "Include express or implied consent, scope of consent, and whether risk was voluntarily assumed.",
         "illegality_defence": "Include the illegal act by the claimant and its connection to the tort claim.",
         "limitation_periods": "Include timeline of events, date of knowledge, and relevant limitation period under Singapore law.",
@@ -381,6 +409,7 @@
         "battery": ["battery", "intentional", "contact", "touching", "physical force"],
         "assault": ["assault", "threat", "fear", "apprehension", "imminent"],
         "false_imprisonment": ["imprisonment", "confined", "restrained", "detained", "liberty"],
+        "intentional_infliction_of_mental_harm": ["wilkinson", "mental harm", "emotional distress", "psychiatric", "intention"],
         "defamation": ["defamation", "defamatory", "reputation", "slander", "libel"],
         "private_nuisance": ["nuisance", "interference", "enjoyment", "land", "property"],
         "trespass_to_land": ["trespass", "entered", "land", "property", "without permission"],

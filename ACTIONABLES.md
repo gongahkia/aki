@@ -33,25 +33,6 @@ Verified local corpus:
 
 ## P0 Tasks
 
-### 1. Make Corpus State Measurable
-
-Create a corpus audit command that outputs counts by pack, source type, topic, license, answer/rubric availability, and exam-likeness.
-
-Files/surfaces:
-- `script/`
-- `corpus/**/corpus.json`
-- `corpus/packs/*/manifest.json`
-- `src/domain/topics.py`
-
-Acceptance:
-- Command prints current counts above.
-- Fails if a record lacks `source`, `provenance`, `license`, `jurisdiction`, `subject`, or `topics`.
-- Fails if a topic is not canonical for the pack taxonomy.
-- Flags whether each record is `hypo`, `model_answer`, `case_law`, `doctrinal_reference`, or `unknown`.
-
-Verify:
-- `uv run --python 3.13 python script/audit_corpus.py`
-
 ### 2. Add a Hypo Source Registry
 
 Add a machine-readable registry for external practice sources before adding more text.
@@ -270,23 +251,6 @@ Acceptance:
 - Public demo exposes only safe demo/generate surfaces.
 - Mutating/admin routes require auth.
 - Provider selection is request-scoped or admin-only.
-
-### 12. Normalize Topic Taxonomy
-
-Current SG records include legacy topic labels:
-- `defence_of_consent`
-- `defence_of_contributory_negligence`
-- `defence_of_illegality`
-- `wilkinson_v_downton_tort_of_mental_infliction`
-
-Tasks:
-- Add alias map or migrate records to canonical keys.
-- Ensure corpus audit fails on unmapped labels.
-- Add coverage report by canonical topic.
-
-Acceptance:
-- No record has unmapped topics.
-- Topic selector, validation, prompt templates, and exports use the same canonical keys.
 
 ## P1 Tasks
 

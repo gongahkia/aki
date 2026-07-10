@@ -55,7 +55,11 @@ TORT_TOPICS: Dict[str, TopicDefinition] = {
         label="Contributory Negligence",
         category="Negligence-Based",
         description="claimant's own fault",
-        aliases=("contributory negligence",),
+        aliases=(
+            "contributory negligence",
+            "defence of contributory negligence",
+            "defence_of_contributory_negligence",
+        ),
     ),
     "battery": TopicDefinition(
         key="battery",
@@ -75,6 +79,19 @@ TORT_TOPICS: Dict[str, TopicDefinition] = {
         category="Intentional Torts",
         description="unlawful restraint of liberty",
         aliases=("false imprisonment",),
+    ),
+    "intentional_infliction_of_mental_harm": TopicDefinition(
+        key="intentional_infliction_of_mental_harm",
+        label="Intentional Infliction Of Mental Harm",
+        category="Intentional Torts",
+        description="intentional conduct causing recognized mental injury",
+        aliases=(
+            "intentional infliction of mental harm",
+            "intentional infliction of emotional distress",
+            "wilkinson v downton",
+            "wilkinson_v_downton_tort_of_mental_infliction",
+            "iied",
+        ),
     ),
     "trespass_to_land": TopicDefinition(
         key="trespass_to_land",
@@ -170,14 +187,23 @@ TORT_TOPICS: Dict[str, TopicDefinition] = {
         label="Consent Defence",
         category="Doctrines & Defences",
         description="voluntary assumption of known risk",
-        aliases=("consent defence",),
+        aliases=(
+            "consent",
+            "consent defence",
+            "defence of consent",
+            "defence_of_consent",
+        ),
     ),
     "illegality_defence": TopicDefinition(
         key="illegality_defence",
         label="Illegality Defence",
         category="Doctrines & Defences",
         description="claim barred by claimant illegality",
-        aliases=("illegality defence",),
+        aliases=(
+            "illegality defence",
+            "defence of illegality",
+            "defence_of_illegality",
+        ),
     ),
     "limitation_periods": TopicDefinition(
         key="limitation_periods",
