@@ -14,6 +14,7 @@ impl MoreScreen {
         let items = vec![
             MenuItem::new("History", "browse past generations"),
             MenuItem::new("Statistics", "generation metrics dashboard"),
+            MenuItem::new("Progress", "weak topics and study queue"),
             MenuItem::new("Providers", "LLM provider health and selection"),
             MenuItem::new("Settings", "configuration and API keys"),
             MenuItem::new("Batch Operations", "bulk generate, import, label"),
@@ -40,11 +41,12 @@ impl Screen for MoreScreen {
             match idx {
                 0 => ScreenAction::Push(Box::new(super::history::HistoryScreen::new())),
                 1 => ScreenAction::Push(Box::new(super::stats::StatsScreen::new())),
-                2 => ScreenAction::Push(Box::new(super::providers::ProvidersScreen::new())),
-                3 => ScreenAction::Push(Box::new(super::settings::SettingsScreen::new())),
-                4 => ScreenAction::Push(Box::new(super::batch::BatchScreen::new())),
-                5 => ScreenAction::Push(Box::new(super::guided::GuidedScreen::new())),
-                6 => ScreenAction::Push(Box::new(super::cleanup::CleanupScreen::new())),
+                2 => ScreenAction::Push(Box::new(super::progress::ProgressScreen::new())),
+                3 => ScreenAction::Push(Box::new(super::providers::ProvidersScreen::new())),
+                4 => ScreenAction::Push(Box::new(super::settings::SettingsScreen::new())),
+                5 => ScreenAction::Push(Box::new(super::batch::BatchScreen::new())),
+                6 => ScreenAction::Push(Box::new(super::guided::GuidedScreen::new())),
+                7 => ScreenAction::Push(Box::new(super::cleanup::CleanupScreen::new())),
                 _ => ScreenAction::None,
             }
         } else {

@@ -7,7 +7,7 @@ import asyncio
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -39,6 +39,20 @@ class GenerationFeedback(BaseModel):
     report_id: int
     generation_id: int
     feedback_text: str
+    created_at: Optional[str] = None
+
+
+class StudentAttempt(BaseModel):
+    """Student self-assessment linked to practice progress tracking."""
+
+    id: Optional[int] = None
+    generation_id: Optional[int] = None
+    topics: List[str] = Field(default_factory=list)
+    self_rating: Optional[int] = Field(default=None, ge=1, le=5)
+    rubric_misses: List[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+    elapsed_seconds: Optional[int] = Field(default=None, ge=0)
+    attempted_at: Optional[str] = None
     created_at: Optional[str] = None
 
 
@@ -177,6 +191,31 @@ class DatabaseService:
                 cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_generation_feedback_report_id
                     ON generation_feedback(report_id)
+                """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS student_attempts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        generation_id INTEGER,
+                        attempted_at TEXT NOT NULL,
+                        topics TEXT NOT NULL,
+                        self_rating INTEGER,
+                        rubric_misses TEXT NOT NULL DEFAULT '[]',
+                        notes TEXT,
+                        elapsed_seconds INTEGER,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (generation_id) REFERENCES generation_history(id) ON DELETE SET NULL
+                    )
+                """)
+
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_student_attempts_attempted_at
+                    ON student_attempts(attempted_at DESC)
+                """)
+
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_student_attempts_generation_id
+                    ON student_attempts(generation_id)
                 """)
 
                 cursor.execute("""
@@ -431,6 +470,189 @@ class DatabaseService:
             "retry_reason": row["retry_reason"],
             "retry_attempt": row["retry_attempt"] or 0,
         }
+
+    @staticmethod
+    def _normalize_attempt_topics(topics: List[str]) -> List[str]:
+        normalized: List[str] = []
+        seen = set()
+        for topic in topics or []:
+            text = " ".join(str(topic).strip().lower().replace("_", " ").split())
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            normalized.append(text)
+        if not normalized:
+            raise ValueError("student attempt requires at least one topic")
+        return normalized
+
+    @staticmethod
+    def _normalize_rubric_misses(rubric_misses: List[str]) -> List[str]:
+        normalized: List[str] = []
+        seen = set()
+        for miss in rubric_misses or []:
+            text = "_".join(str(miss).strip().lower().replace("-", " ").split())
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            normalized.append(text)
+        return normalized
+
+    @staticmethod
+    def _parse_progress_timestamp(value: Any) -> Optional[datetime]:
+        if not value:
+            return None
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+            if parsed.tzinfo is not None:
+                return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _utcnow_naive() -> datetime:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    def _row_to_student_attempt(self, row: sqlite3.Row) -> Dict[str, Any]:
+        attempt = {
+            "id": row["id"],
+            "generation_id": row["generation_id"],
+            "topics": self._safe_json_decode(
+                row["topics"], field_name="student_attempt_topics", fallback=[]
+            ),
+            "self_rating": row["self_rating"],
+            "rubric_misses": self._safe_json_decode(
+                row["rubric_misses"],
+                field_name="student_attempt_rubric_misses",
+                fallback=[],
+            ),
+            "notes": row["notes"],
+            "elapsed_seconds": row["elapsed_seconds"],
+            "attempted_at": row["attempted_at"],
+            "created_at": row["created_at"],
+        }
+        if "generation_timestamp" in row.keys() and row["generation_timestamp"]:
+            response_data = self._safe_json_decode(
+                row["response_data"], field_name="response_data", fallback={}
+            )
+            attempt["generation"] = {
+                "timestamp": row["generation_timestamp"],
+                "hypothetical": response_data.get("hypothetical", ""),
+            }
+        return attempt
+
+    def _aggregate_topic_progress(
+        self, attempts: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        topic_rows: Dict[str, Dict[str, Any]] = {}
+        for attempt in attempts:
+            topics = self._normalize_attempt_topics(attempt.get("topics", []))
+            rating = attempt.get("self_rating")
+            misses = self._normalize_rubric_misses(attempt.get("rubric_misses", []))
+            attempted_at = attempt.get("attempted_at")
+            attempted_dt = self._parse_progress_timestamp(attempted_at)
+            is_weak = bool(misses) or (rating is not None and int(rating) <= 2)
+            for topic in topics:
+                row = topic_rows.setdefault(
+                    topic,
+                    {
+                        "topic": topic,
+                        "attempt_count": 0,
+                        "weak_attempt_count": 0,
+                        "rating_total": 0,
+                        "rating_count": 0,
+                        "last_self_rating": None,
+                        "last_attempted_at": None,
+                        "_last_attempted_dt": None,
+                        "rubric_miss_counts": {},
+                    },
+                )
+                row["attempt_count"] += 1
+                if rating is not None:
+                    row["rating_total"] += int(rating)
+                    row["rating_count"] += 1
+                if is_weak:
+                    row["weak_attempt_count"] += 1
+                for miss in misses:
+                    row["rubric_miss_counts"][miss] = (
+                        row["rubric_miss_counts"].get(miss, 0) + 1
+                    )
+                if attempted_dt is None:
+                    continue
+                if (
+                    row["_last_attempted_dt"] is None
+                    or attempted_dt > row["_last_attempted_dt"]
+                ):
+                    row["_last_attempted_dt"] = attempted_dt
+                    row["last_attempted_at"] = attempted_at
+                    row["last_self_rating"] = rating
+
+        progress: List[Dict[str, Any]] = []
+        for row in topic_rows.values():
+            rating_count = row.pop("rating_count")
+            rating_total = row.pop("rating_total")
+            row.pop("_last_attempted_dt", None)
+            average_rating = (
+                round(rating_total / rating_count, 2) if rating_count else None
+            )
+            miss_total = sum(row["rubric_miss_counts"].values())
+            weak_rate = row["weak_attempt_count"] / row["attempt_count"]
+            rating_penalty = (
+                max(0.0, (5.0 - average_rating) / 4.0)
+                if average_rating is not None
+                else 0.0
+            )
+            miss_penalty = min(1.0, miss_total / max(1, row["attempt_count"] * 2))
+            row["average_self_rating"] = average_rating
+            row["repeated_weak_topic"] = row["weak_attempt_count"] >= 2
+            row["rubric_miss_counts"] = dict(
+                sorted(
+                    row["rubric_miss_counts"].items(),
+                    key=lambda item: (-item[1], item[0]),
+                )
+            )
+            row["weakness_score"] = round(
+                (weak_rate * 0.5) + (rating_penalty * 0.3) + (miss_penalty * 0.2),
+                3,
+            )
+            if row["weak_attempt_count"] or (
+                average_rating is not None and average_rating <= 3
+            ):
+                progress.append(row)
+
+        progress.sort(
+            key=lambda row: (
+                -row["weakness_score"],
+                row["last_attempted_at"] or "",
+                row["topic"],
+            )
+        )
+        return progress
+
+    def _next_review_at(self, topic_row: Dict[str, Any]) -> str:
+        last_attempt = self._parse_progress_timestamp(
+            topic_row.get("last_attempted_at")
+        )
+        if last_attempt is None:
+            return self._utcnow_naive().isoformat(timespec="seconds")
+        rating = topic_row.get("average_self_rating")
+        has_misses = bool(topic_row.get("rubric_miss_counts"))
+        if (
+            topic_row.get("repeated_weak_topic")
+            or has_misses
+            or (rating is not None and rating <= 2)
+        ):
+            interval_days = 1
+        elif rating is not None and rating <= 3:
+            interval_days = 3
+        else:
+            interval_days = 7
+        return (last_attempt + timedelta(days=interval_days)).isoformat(
+            timespec="seconds"
+        )
 
     async def migrate_legacy_history_json(
         self, history_path: str = "data/history.json"
@@ -950,6 +1172,183 @@ class DatabaseService:
                 segments.append("; ".join(report_parts))
 
         return " | ".join(segments)
+
+    async def save_student_attempt(self, attempt: StudentAttempt) -> int:
+        """Persist student attempt/self-rating progress data."""
+        topics = self._normalize_attempt_topics(attempt.topics)
+        rubric_misses = self._normalize_rubric_misses(attempt.rubric_misses)
+        attempted_at = (
+            attempt.attempted_at or self._utcnow_naive().isoformat()
+        ).strip()
+        if self._parse_progress_timestamp(attempted_at) is None:
+            raise ValueError("attempted_at must be an ISO timestamp")
+
+        try:
+
+            def _op() -> int:
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO student_attempts (
+                            generation_id, attempted_at, topics, self_rating,
+                            rubric_misses, notes, elapsed_seconds
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            attempt.generation_id,
+                            attempted_at,
+                            json.dumps(topics),
+                            attempt.self_rating,
+                            json.dumps(rubric_misses),
+                            attempt.notes,
+                            attempt.elapsed_seconds,
+                        ),
+                    )
+                    attempt_id = cursor.lastrowid
+                    conn.commit()
+                    return int(attempt_id)
+
+            attempt_id = await self._run_in_thread(_op)
+            logger.info("Student attempt saved", attempt_id=attempt_id)
+            return attempt_id
+        except Exception as e:
+            logger.error("Failed to save student attempt", error=str(e))
+            raise
+
+    async def get_student_attempts(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Return recent student attempts with linked generation context."""
+        safe_limit = max(1, min(int(limit), 500))
+        try:
+
+            def _op() -> List[Dict[str, Any]]:
+                with self._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT
+                            a.id,
+                            a.generation_id,
+                            a.attempted_at,
+                            a.topics,
+                            a.self_rating,
+                            a.rubric_misses,
+                            a.notes,
+                            a.elapsed_seconds,
+                            a.created_at,
+                            h.timestamp AS generation_timestamp,
+                            h.response_data
+                        FROM student_attempts a
+                        LEFT JOIN generation_history h ON h.id = a.generation_id
+                        ORDER BY a.attempted_at DESC, a.id DESC
+                        LIMIT ?
+                        """,
+                        (safe_limit,),
+                    )
+                    return [
+                        self._row_to_student_attempt(row) for row in cursor.fetchall()
+                    ]
+
+            return await self._run_in_thread(_op)
+        except Exception as e:
+            logger.error("Failed to get student attempts", error=str(e))
+            return []
+
+    async def get_weak_topics(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Aggregate repeated weak topics from student attempts."""
+        safe_limit = max(1, min(int(limit), 100))
+        attempts = await self.get_student_attempts(limit=500)
+        return self._aggregate_topic_progress(attempts)[:safe_limit]
+
+    async def get_spaced_repetition_queue(
+        self, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Return topic review queue derived from weak-topic history."""
+        safe_limit = max(1, min(int(limit), 100))
+        now = self._utcnow_naive()
+        queue = []
+        for topic in await self.get_weak_topics(limit=100):
+            next_review_at = self._next_review_at(topic)
+            review_dt = self._parse_progress_timestamp(next_review_at)
+            top_miss = next(iter(topic["rubric_miss_counts"]), None)
+            queue.append(
+                {
+                    "topic": topic["topic"],
+                    "next_review_at": next_review_at,
+                    "due_now": review_dt is None or review_dt <= now,
+                    "weakness_score": topic["weakness_score"],
+                    "attempt_count": topic["attempt_count"],
+                    "weak_attempt_count": topic["weak_attempt_count"],
+                    "average_self_rating": topic["average_self_rating"],
+                    "repeated_weak_topic": topic["repeated_weak_topic"],
+                    "suggested_action": (
+                        f"retry rubric criterion: {top_miss}"
+                        if top_miss
+                        else "retry issue spotting under timed conditions"
+                    ),
+                }
+            )
+        queue.sort(
+            key=lambda item: (
+                not item["due_now"],
+                item["next_review_at"],
+                -item["weakness_score"],
+                item["topic"],
+            )
+        )
+        return queue[:safe_limit]
+
+    async def export_study_plan(self, days: int = 7) -> Dict[str, Any]:
+        """Export a simple markdown study plan from the spaced repetition queue."""
+        safe_days = max(1, min(int(days), 30))
+        generated_at = self._utcnow_naive()
+        queue = await self.get_spaced_repetition_queue(limit=100)
+        items = []
+        if queue:
+            for index, queue_item in enumerate(queue):
+                day_index = index % safe_days
+                target_date = (
+                    (generated_at + timedelta(days=day_index)).date().isoformat()
+                )
+                items.append(
+                    {
+                        "date": target_date,
+                        "topic": queue_item["topic"],
+                        "suggested_action": queue_item["suggested_action"],
+                        "weakness_score": queue_item["weakness_score"],
+                    }
+                )
+        markdown_lines = [
+            "# Study plan",
+            "",
+            f"Generated: {generated_at.isoformat(timespec='seconds')}",
+            "",
+        ]
+        if not items:
+            markdown_lines.append("No weak topics recorded.")
+        else:
+            for item in items:
+                markdown_lines.append(
+                    f"- {item['date']}: {item['topic']} - {item['suggested_action']}"
+                )
+        return {
+            "generated_at": generated_at.isoformat(timespec="seconds"),
+            "days": safe_days,
+            "items": items,
+            "markdown": "\n".join(markdown_lines),
+        }
+
+    async def get_progress_summary(self, limit: int = 10) -> Dict[str, Any]:
+        """Return attempt history, weak topics, spaced queue, and study plan."""
+        safe_limit = max(1, min(int(limit), 100))
+        return {
+            "recent_attempts": await self.get_student_attempts(limit=safe_limit),
+            "weak_topics": await self.get_weak_topics(limit=safe_limit),
+            "spaced_repetition_queue": await self.get_spaced_repetition_queue(
+                limit=safe_limit
+            ),
+            "study_plan": await self.export_study_plan(days=7),
+        }
 
     async def update_generation_report_comment(self, report_id: int, comment: str):
         """Generation reports are append-only and cannot be edited."""

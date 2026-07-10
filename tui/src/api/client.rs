@@ -378,6 +378,16 @@ impl ApiClient {
             .await?)
     }
 
+    pub async fn get_progress_summary(&self) -> Result<serde_json::Value> {
+        Ok(self
+            .client
+            .get(self.url("/db/progress/summary"))
+            .send()
+            .await?
+            .json()
+            .await?)
+    }
+
     // -- validation --
 
     pub async fn validate(&self, req: &ValidateRequest) -> Result<serde_json::Value> {

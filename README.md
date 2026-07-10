@@ -268,6 +268,9 @@ Hosted mode (`API_HOSTED_MODE=true` or `ENVIRONMENT=production`) keeps only `/he
 | `GET` | `/db/count` | Get total generation count |
 | `GET` | `/db/statistics` | Generation statistics from the SQLite database |
 | `GET` | `/db/reports/{generation_id}` | Get reports for a generation |
+| `POST` | `/db/progress/attempts` | Store a student attempt, self-rating, and rubric misses |
+| `GET` | `/db/progress/attempts` | Fetch student attempt history |
+| `GET` | `/db/progress/summary` | Fetch weak topics, spaced queue, and study plan |
 | `POST` | `/validation/validate` | Validate a hypothetical against required topics |
 | `POST` | `/jobs/preprocess` | Preprocess raw corpus files (async job) |
 | `POST` | `/jobs/scrape` | Scrape cases from legal databases (async job) |

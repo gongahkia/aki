@@ -14,6 +14,7 @@ from src.services.database_service import (
     DatabaseService,
     GenerationFeedback,
     GenerationReport,
+    StudentAttempt,
 )
 
 
@@ -57,12 +58,18 @@ class TestDatabaseService:
                 row["name"]
                 for row in conn.execute("PRAGMA index_list('generation_reports')")
             }
+            attempt_indexes = {
+                row["name"]
+                for row in conn.execute("PRAGMA index_list('student_attempts')")
+            }
         finally:
             conn.close()
 
         assert "idx_generation_history_timestamp" in history_indexes
         assert "idx_generation_history_parent_generation_id" in history_indexes
         assert "idx_generation_reports_generation_id" in report_indexes
+        assert "idx_student_attempts_attempted_at" in attempt_indexes
+        assert "idx_student_attempts_generation_id" in attempt_indexes
 
     @pytest.mark.asyncio
     async def test_save_generation(self, database_service):
@@ -309,6 +316,80 @@ class TestDatabaseService:
         assert len(reports) == 1
         assert reports[0].issue_types == ["topic_mismatch"]
         assert reports[0].is_locked is True
+
+    @pytest.mark.asyncio
+    async def test_student_attempts_drive_weak_topics_and_study_plan(
+        self, database_service
+    ):
+        """Student attempt history should expose weak topics and review queue."""
+        generation_id = await database_service.save_generation(
+            request_data={
+                "topics": ["negligence"],
+                "law_domain": "tort",
+                "number_parties": 2,
+                "complexity_level": "intermediate",
+            },
+            response_data={
+                "hypothetical": "Test hypothetical text...",
+                "analysis": "Test analysis...",
+                "generation_time": 11.0,
+                "validation_results": {"passed": True, "quality_score": 8.0},
+                "metadata": {"generation_timestamp": "2025-01-01T00:00:00"},
+            },
+        )
+
+        await database_service.save_student_attempt(
+            StudentAttempt(
+                generation_id=generation_id,
+                topics=["negligence"],
+                self_rating=2,
+                rubric_misses=["issue_spotting"],
+                attempted_at="2025-01-01T00:00:00",
+            )
+        )
+        await database_service.save_student_attempt(
+            StudentAttempt(
+                generation_id=generation_id,
+                topics=["negligence", "causation"],
+                self_rating=2,
+                rubric_misses=["citation rule accuracy"],
+                attempted_at="2025-01-02T00:00:00",
+            )
+        )
+        await database_service.save_student_attempt(
+            StudentAttempt(
+                generation_id=generation_id,
+                topics=["battery"],
+                self_rating=5,
+                attempted_at="2025-01-03T00:00:00",
+            )
+        )
+
+        attempts = await database_service.get_student_attempts(limit=10)
+        assert len(attempts) == 3
+        assert attempts[0]["topics"] == ["battery"]
+        assert attempts[1]["generation"]["hypothetical"] == "Test hypothetical text..."
+
+        weak_topics = await database_service.get_weak_topics(limit=10)
+        negligence = next(row for row in weak_topics if row["topic"] == "negligence")
+        assert negligence["repeated_weak_topic"] is True
+        assert negligence["weak_attempt_count"] == 2
+        assert negligence["rubric_miss_counts"]["issue_spotting"] == 1
+        assert negligence["rubric_miss_counts"]["citation_rule_accuracy"] == 1
+        assert all(row["topic"] != "battery" for row in weak_topics)
+
+        queue = await database_service.get_spaced_repetition_queue(limit=10)
+        negligence_review = next(row for row in queue if row["topic"] == "negligence")
+        assert negligence_review["next_review_at"] == "2025-01-03T00:00:00"
+        assert negligence_review["due_now"] is True
+
+        study_plan = await database_service.export_study_plan(days=3)
+        assert "negligence" in study_plan["markdown"]
+
+        summary = await database_service.get_progress_summary(limit=5)
+        assert summary["recent_attempts"]
+        assert summary["weak_topics"]
+        assert summary["spaced_repetition_queue"]
 
     @pytest.mark.asyncio
     async def test_generation_report_foreign_key_enforced(self, database_service):

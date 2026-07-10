@@ -4,6 +4,7 @@ from .database_service import (
     DatabaseService,
     GenerationFeedback,
     GenerationReport,
+    StudentAttempt,
     database_service,
 )
 from .error_mapper import ErrorMapping, map_exception
@@ -49,6 +50,7 @@ __all__ = [
     "DatabaseService",
     "GenerationReport",
     "GenerationFeedback",
+    "StudentAttempt",
     "database_service",
     "ErrorMapping",
     "map_exception",

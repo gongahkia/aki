@@ -10,6 +10,7 @@ pub mod history;
 pub mod main_menu;
 pub mod more;
 pub mod preprocess;
+pub mod progress;
 pub mod providers;
 pub mod scrape;
 pub mod settings;
