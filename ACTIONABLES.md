@@ -382,6 +382,10 @@ Tasks:
 Acceptance:
 - README does not overclaim corpus scale, legal correctness, or benchmark rigor.
 
+### 20. Delete ACTIONABLES.md
+
+Once all tasks are done, delete ACTIONABLES.md
+
 ## Source Notes From Web Audit
 
 Reusable/possible:
