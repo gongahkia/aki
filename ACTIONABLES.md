@@ -33,35 +33,6 @@ Verified local corpus:
 
 ## P0 Tasks
 
-### 2. Add a Hypo Source Registry
-
-Add a machine-readable registry for external practice sources before adding more text.
-
-Suggested file:
-- `corpus/source_registry.json`
-
-Required fields:
-- `source_id`
-- `name`
-- `url`
-- `jurisdiction`
-- `subject`
-- `source_kind`
-- `license_name`
-- `license_url`
-- `redistribution_status`
-- `commercial_use`
-- `text_commit_allowed`
-- `derived_metadata_allowed`
-- `attribution_required`
-- `terms_checked_at`
-- `notes`
-
-Acceptance:
-- Ingestion refuses any source without `text_commit_allowed=true`.
-- Link-only sources can produce metadata but cannot write full text into `corpus/`.
-- Registry includes every source already named in pack manifests and source-decision docs.
-
 ### 3. Stop Treating Public Web as Reusable Text
 
 Codify this rule:

@@ -17,8 +17,13 @@ from src.corpus_ingestion import (
     DEFAULT_HEALTH_PATH,
     fetch_http_text,
 )
+from src.corpus_source_registry import (
+    assert_records_text_commit_allowed,
+    assert_text_commit_allowed,
+)
 
 USER_AGENT = "jikai-uk-tort-ingester/0.1"
+TNA_SOURCE_ID = "tna_find_case_law_xml"
 OJL_URL = "https://caselaw.nationalarchives.gov.uk/open-justice-licence/version/2"
 DEFAULT_OUTPUT = Path("corpus/clean/uk_tort/corpus.json")
 DEFAULT_MAX_TEXT_CHARS = 12000
@@ -155,6 +160,7 @@ def record_from_tna_xml(
         max_text_chars,
     )
     source = {
+        "source_id": TNA_SOURCE_ID,
         "name": "The National Archives Find Case Law",
         "url": source_url.removesuffix("/data.xml"),
         "data_url": source_url,
@@ -172,6 +178,17 @@ def record_from_tna_xml(
     }
     source_key = document_uri.removeprefix("https://caselaw.nationalarchives.gov.uk/")
     source_key = source_key.replace("/", ":")
+    provenance = {
+        "source_id": TNA_SOURCE_ID,
+        "source_url": source["url"],
+        "data_url": source_url,
+        "retrieved_at": retrieved_at,
+        "terms_url": OJL_URL,
+        "content_hash": content_hash,
+        "document_uri": document_uri,
+        "neutral_citation": neutral_citation,
+        "decision_date": judgment_date,
+    }
     metadata = {
         "case_name": case_name,
         "neutral_citation": neutral_citation,
@@ -184,6 +201,7 @@ def record_from_tna_xml(
         "max_text_chars": max_text_chars,
         "current_version_required": True,
         "computational_analysis_requires_permission": True,
+        "provenance": provenance,
         "source": source,
         "license": license_data,
     }
@@ -196,6 +214,7 @@ def record_from_tna_xml(
         "subtopics": _string_list(subtopics or []),
         "text": capped_text,
         "source": source,
+        "provenance": provenance,
         "license": license_data,
         "metadata": metadata,
     }
@@ -224,6 +243,7 @@ def build_records(
     raw_dir: Path | None = None,
     max_text_chars: int = DEFAULT_MAX_TEXT_CHARS,
 ) -> list[dict[str, Any]]:
+    assert_text_commit_allowed(TNA_SOURCE_ID)
     records = []
     headers = {"User-Agent": USER_AGENT}
     with httpx.Client(headers=headers, follow_redirects=True, timeout=30.0) as client:
@@ -249,6 +269,7 @@ def build_records(
 
 
 def write_records(records: list[dict[str, Any]], output: Path) -> None:
+    assert_records_text_commit_allowed(records)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(records, indent=2, sort_keys=True, ensure_ascii=True) + "\n",

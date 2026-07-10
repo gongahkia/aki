@@ -2,7 +2,6 @@ import pytest
 
 from script.fetch_uk_tort_corpus import clean_text, fetch_tna_xml, record_from_tna_xml
 
-
 MINIMAL_TNA_XML = """\
 <akomaNtoso xmlns="http://docs.oasis-open.org/legaldocml/ns/akn/3.0"
   xmlns:uk="https://caselaw.nationalarchives.gov.uk/akn">
@@ -88,8 +87,11 @@ def test_record_from_tna_xml_tags_source_license_and_metadata():
     assert record["jurisdiction"] == "uk"
     assert record["source"]["name"] == "The National Archives Find Case Law"
     assert record["source"]["data_url"].endswith("/uksc/2018/4/data.xml")
+    assert record["source"]["source_id"] == "tna_find_case_law_xml"
     assert record["license"]["name"] == "Open Justice Licence v2.0"
     assert record["license"]["redistribution_status"] == "restricted"
+    assert record["provenance"]["source_id"] == "tna_find_case_law_xml"
+    assert record["provenance"]["content_hash"] == "abc123"
     assert record["metadata"]["neutral_citation"] == "[2018] UKSC 4"
     assert record["metadata"]["content_hash"] == "abc123"
     assert record["metadata"]["text_scope"] == "full_text"

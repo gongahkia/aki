@@ -15,6 +15,8 @@ from typing import Dict, List, Optional, Tuple
 
 import httpx
 
+from src.corpus_source_registry import assert_text_commit_allowed
+
 logger = logging.getLogger(__name__)
 
 COMMONLII_BASE = "http://www.commonlii.org"
@@ -134,6 +136,13 @@ _HEADERS = {
 
 _REQUEST_DELAY = 1.5  # seconds between requests (polite crawling)
 
+_SCRAPER_SOURCE_IDS = {
+    "commonlii": "commonlii_sg",
+    "judiciary_sg": "sg_judiciary_judgments",
+    "sicc": "sg_sicc_judgments",
+    "gazette": "sg_law_gazette",
+}
+
 
 def _require_bs4():
     try:
@@ -168,13 +177,32 @@ def _clean_case_text(raw: str) -> str:
 
 def _entry_from_case(title: str, text: str, meta: Dict) -> Dict:
     now = datetime.utcnow().isoformat()
+    source_name = str(meta.get("source", ""))
+    source_id = _SCRAPER_SOURCE_IDS.get(source_name, source_name)
     return {
         "text": text,
         "topic": _infer_topics(text),
-        "metadata": {**meta, "title": title, "jurisdiction": "Singapore"},
+        "metadata": {
+            **meta,
+            "source_id": source_id,
+            "title": title,
+            "jurisdiction": "Singapore",
+        },
         "created_at": now,
         "updated_at": now,
     }
+
+
+def _assert_scraped_text_commit_allowed(entries: List[Dict]) -> None:
+    for entry in entries:
+        metadata = entry.get("metadata", {})
+        if not isinstance(metadata, dict):
+            assert_text_commit_allowed("")
+        source_id = metadata.get("source_id")
+        if not isinstance(source_id, str) or not source_id.strip():
+            source_name = str(metadata.get("source", ""))
+            source_id = _SCRAPER_SOURCE_IDS.get(source_name, source_name)
+        assert_text_commit_allowed(source_id)
 
 
 class CommonLIIScraper:
@@ -437,6 +465,7 @@ def save_scraped(
 
     Returns list of written paths (for the OCR preprocessor to pick up).
     """
+    _assert_scraped_text_commit_allowed(entries)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     written: List[Path] = []
@@ -463,6 +492,7 @@ def merge_into_corpus(
     entries: List[Dict], corpus_path: str = "corpus/clean/tort/corpus.json"
 ) -> int:
     """Merge scraped entries into existing corpus JSON. Returns count added."""
+    _assert_scraped_text_commit_allowed(entries)
     cp = Path(corpus_path)
     existing: List[Dict] = []
     if cp.exists():

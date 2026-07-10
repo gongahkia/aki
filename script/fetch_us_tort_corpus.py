@@ -17,8 +17,13 @@ from src.corpus_ingestion import (
     CorpusParseError,
     fetch_http_json,
 )
+from src.corpus_source_registry import (
+    assert_records_text_commit_allowed,
+    assert_text_commit_allowed,
+)
 
 USER_AGENT = "jikai-us-tort-ingester/0.1"
+CAP_SOURCE_ID = "cap_static_case_json"
 CAP_TERMS_URL = "https://case.law/terms/"
 CC0_URL = "https://creativecommons.org/publicdomain/zero/1.0/"
 DEFAULT_OUTPUT = Path("corpus/clean/us_tort/corpus.json")
@@ -119,6 +124,7 @@ def record_from_cap_case(
     court = _mapping(payload.get("court"))
     jurisdiction = _mapping(payload.get("jurisdiction"))
     source = {
+        "source_id": CAP_SOURCE_ID,
         "name": "Caselaw Access Project",
         "url": source_url,
         "terms_url": CAP_TERMS_URL,
@@ -133,6 +139,15 @@ def record_from_cap_case(
         "attribution_required": False,
         "attribution_requested": True,
         "terms_url": CAP_TERMS_URL,
+    }
+    provenance = {
+        **_mapping(payload.get("provenance")),
+        "source_id": CAP_SOURCE_ID,
+        "source_url": source_url,
+        "source_record_id": case_id,
+        "retrieved_at": retrieved_at,
+        "terms_url": CAP_TERMS_URL,
+        "decision_date": payload.get("decision_date"),
     }
     metadata = {
         "case_name": payload.get("name"),
@@ -153,7 +168,7 @@ def record_from_cap_case(
             "name_long": jurisdiction.get("name_long"),
         },
         "last_updated": payload.get("last_updated"),
-        "provenance": payload.get("provenance"),
+        "provenance": provenance,
         "source": source,
         "license": license_data,
     }
@@ -166,6 +181,7 @@ def record_from_cap_case(
         "subtopics": _string_list(subtopics or []),
         "text": text,
         "source": source,
+        "provenance": provenance,
         "license": license_data,
         "metadata": metadata,
     }
@@ -196,6 +212,7 @@ def build_records(
     retrieved_at: str,
     raw_dir: Path | None = None,
 ) -> list[dict[str, Any]]:
+    assert_text_commit_allowed(CAP_SOURCE_ID)
     records = []
     headers = {"User-Agent": USER_AGENT}
     with httpx.Client(headers=headers, follow_redirects=True, timeout=30.0) as client:
@@ -223,6 +240,7 @@ def build_records(
 
 
 def write_records(records: list[dict[str, Any]], output: Path) -> None:
+    assert_records_text_commit_allowed(records)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(records, indent=2, sort_keys=True, ensure_ascii=True) + "\n",

@@ -83,6 +83,9 @@ def test_record_from_cap_case_tags_cap_source_and_license():
     )
     assert record["license"]["name"] == "CC0-1.0"
     assert record["license"]["redistribution_status"] == "allowed"
+    assert record["source"]["source_id"] == "cap_static_case_json"
+    assert record["provenance"]["source_id"] == "cap_static_case_json"
+    assert record["provenance"]["source_record_id"] == "1905144"
     assert record["metadata"]["citations"] == ["248 N.Y. 339"]
     assert record["metadata"]["court"]["name"] == "New York Court of Appeals"
     assert (
