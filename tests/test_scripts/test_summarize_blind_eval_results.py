@@ -23,13 +23,15 @@ def _row(packet, sample, rater, preference="sample_a"):
         "sample_id": sample,
         "rater_id": rater,
         "rater_profile": "law_graduate",
-        "doctrinal_accuracy": "5",
-        "factual_richness": "4",
-        "issue_coverage": "5",
-        "explanation_quality": "4",
+        "issue_spotting_coverage": "5",
+        "fact_sufficiency": "4",
+        "legal_ambiguity": "4",
+        "sg_law_fit": "5",
+        "answer_structure": "4",
+        "citation_rule_accuracy": "5",
+        "distractor_quality": "3",
         "difficulty_calibration": "3",
-        "usefulness_for_study": "5",
-        "jurisdiction_fit": "5",
+        "feedback_usefulness": "5",
         "overall_preference": preference,
         "confidence": "4",
         "free_text_failure_modes": "shallow facts|weak difficulty calibration",
@@ -46,6 +48,7 @@ def test_summarize_completed_sheet(tmp_path):
             _row("p1", "p1-a", "r1"),
             _row("p1", "p1-b", "r2", preference="sample_b"),
             _row("p2", "p2-a", "r3", preference="tie"),
+            _row("p2", "p2-b", "r1", preference="tie"),
         ],
     )
     manifest.write_text(
@@ -65,18 +68,27 @@ def test_summarize_completed_sheet(tmp_path):
         encoding="utf-8",
     )
 
-    summary = summarize(ratings, manifest_path=manifest, require_publishable=True)
+    summary = summarize(
+        ratings,
+        manifest_path=manifest,
+        require_publishable=True,
+        min_samples=2,
+    )
 
     assert summary["sample_size"] == 2
     assert summary["rater_count"] == 3
     assert summary["publishable"] is True
+    assert summary["items_with_min_raters"] == 2
     assert summary["weighted_score_distribution"]["p1-a"]["source"] == "jikai"
     assert summary["preference_distribution"] == {
         "sample_a": 1,
         "sample_b": 1,
-        "tie": 1,
+        "tie": 2,
     }
-    assert summary["failure_modes"]["shallow facts"] == 3
+    assert summary["failure_modes"]["shallow facts"] == 4
+    assert (
+        summary["inter_rater_agreement"]["issue_spotting_coverage"]["rated_items"] == 0
+    )
 
 
 def test_empty_sheet_fails_fast(tmp_path):
@@ -87,12 +99,26 @@ def test_empty_sheet_fails_fast(tmp_path):
         summarize(ratings)
 
 
-def test_require_publishable_needs_three_raters(tmp_path):
+def test_require_publishable_needs_min_samples_and_two_raters_per_item(tmp_path):
     ratings = tmp_path / "ratings.csv"
     _write_rows(ratings, [_row("p1", "p1-a", "r1")])
 
-    with pytest.raises(ValueError, match="3 distinct raters"):
+    with pytest.raises(ValueError, match="30 held-out"):
         summarize(ratings, require_publishable=True)
+
+    with pytest.raises(ValueError, match="2 distinct raters per item"):
+        summarize(ratings, require_publishable=True, min_samples=1)
+
+
+def test_require_publishable_rejects_non_law_trained_profile(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    row_a = _row("p1", "p1-a", "r1")
+    row_b = _row("p1", "p1-a", "r2")
+    row_b["rater_profile"] = "friend"
+    _write_rows(ratings, [row_a, row_b])
+
+    with pytest.raises(ValueError, match="law-trained rater profiles"):
+        summarize(ratings, require_publishable=True, min_samples=1)
 
 
 def test_markdown_writer_outputs_required_sections(tmp_path):
@@ -103,7 +129,18 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
             "sample_size": 1,
             "rater_count": 3,
             "publishable": True,
+            "min_samples_required": 1,
+            "min_raters_per_item_required": 2,
+            "publishability_errors": [],
             "rater_profiles": {"law_graduate": 3},
+            "inter_rater_agreement": {
+                "issue_spotting_coverage": {
+                    "rated_items": 1,
+                    "pair_count": 3,
+                    "exact_match_rate": 1.0,
+                    "mean_abs_delta": 0.0,
+                }
+            },
             "weighted_score_distribution": {
                 "p1-a": {"source": "jikai", "mean": 90, "min": 85, "max": 95, "n": 3}
             },
@@ -114,5 +151,7 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
     )
 
     text = md.read_text(encoding="utf-8")
+    assert "## Publishability Gates" in text
+    assert "## Inter-Rater Agreement" in text
     assert "## Weighted Scores" in text
     assert "| p1-a | jikai | 90 | 85 | 95 | 3 |" in text

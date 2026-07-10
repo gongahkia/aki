@@ -37,3 +37,5 @@ Registered evaluators:
 - `tort_element_coverage`
 
 Results use `schema_version: jikai.eval.v1` for downstream leaderboard ingestion.
+
+Current leaderboard and ablation artifacts are dry-run smoke metrics. They are not human-rated student-utility evidence and must stay labeled as dry-run until the 30-item SG Tort blind evaluation has at least two independent law-trained raters per item and reports inter-rater agreement.

@@ -1,5 +1,7 @@
 # Jikai Ablations
 
+**DRY-RUN ONLY.** These ablations are automated smoke metrics, not human-rated student-utility results. They cannot support public quality, bar-prep, or product-comparison claims until replaced by the 30-item SG Tort blind evaluation with independent law-trained raters.
+
 | Scenario | Faithfulness | Citation | IRAC | Hallucination | Delta Faithfulness |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | baseline | 0.620 | 0.570 | 0.540 | 0.660 | +0.000 |

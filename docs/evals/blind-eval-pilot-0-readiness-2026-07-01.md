@@ -22,6 +22,7 @@ This is a setup artifact, not a completed pilot evaluation. It records the proto
 | preference distribution | pending |
 | failure modes | pending |
 | claims permitted | none |
+| inter-rater agreement | pending |
 | claims blocked | all public comparative quality claims |
 
 ## Baseline Decision
@@ -42,16 +43,16 @@ Use one of these alternatives for the first pilot:
 ## Ready-to-Run Checklist
 
 - Choose jurisdiction and corpus pack.
-- Generate 10 Jikai samples after freezing the rubric.
-- Select 10 legally cleared baseline samples using `blind-eval-baseline-source-decision-2026-07-10.md`.
+- Generate 30 held-out SG Tort Jikai samples after freezing the rubric.
+- Select 30 legally cleared baseline samples using `blind-eval-baseline-source-decision-2026-07-10.md`.
 - Build packet manifest from `blind-eval-sample-manifest.template.json`.
 - Randomize A/B order per packet.
 - Build blinded rater packets with `python3 script/build_blind_eval_packets.py docs/evals/blind-eval-sample-manifest.json --output-dir docs/evals/blind-packets`.
-- Recruit at least three eligible raters.
+- Recruit at least two independent eligible law-trained raters per item.
 - Collect ratings using `blind-eval-rater-sheet.csv`.
 - Summarize completed ratings with `python3 script/summarize_blind_eval_results.py docs/evals/blind-eval-rater-sheet.csv --manifest docs/evals/blind-eval-sample-manifest.json --output docs/evals/blind-eval-summary.json --markdown docs/evals/blind-eval-summary.md --require-publishable`.
 - Publish aggregate results, failure modes, and claim limits.
 
 ## Blocker
 
-#14 cannot be closed from repo work alone because the acceptance criteria require at least three legally trained blind raters and a scoring distribution. Fabricating those ratings would invalidate the artifact.
+#14 and #34 cannot be closed from repo work alone because the acceptance criteria require completed human ratings from independent law-trained raters and inter-rater agreement. Fabricating those ratings would invalidate the artifact.

@@ -1,5 +1,7 @@
 # Jikai Eval Leaderboard
 
+**DRY-RUN ONLY.** These rows are automated smoke metrics, not human-rated student-utility results. They cannot support public quality, bar-prep, or product-comparison claims until replaced by the 30-item SG Tort blind evaluation with independent law-trained raters.
+
 | Provider | Retrieval | Backend | R@5 | MRR | Faithfulness | Citation | IRAC | Hallucination |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | ollama | hybrid | refine | 0.770 | 0.650 | 0.810 | 0.760 | 0.730 | 0.850 |

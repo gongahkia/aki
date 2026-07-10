@@ -3,7 +3,7 @@
 Rubric version: 1.0
 Date: 2026-07-01
 Owner: Jikai maintainers
-Status: ready for pilot; human ratings not yet collected
+Status: ready for SG Tort student-utility pilot; human ratings not yet collected
 
 ## Purpose
 
@@ -13,7 +13,7 @@ No README, launch, blog, or video claim may use comparative quality language unl
 
 ## Eligible Reviewers
 
-At least three legally trained raters are required for a publishable pilot. Eligible raters are law students, law graduates, trainee lawyers, lawyers, legal academics, or equivalent legally trained reviewers.
+At least two independent law-trained raters per item are required for a publishable SG Tort student-utility pilot. Eligible raters are law students, law graduates, trainee lawyers, lawyers, legal academics, or equivalent legally trained reviewers.
 
 Each rater record must include only a coarse profile, such as `law_student_2l`, `law_graduate`, `trainee_lawyer`, or `law_academic`. Do not record names, schools, employers, email addresses, or demographic details in repo artifacts.
 
@@ -21,11 +21,12 @@ Each rater record must include only a coarse profile, such as `law_student_2l`, 
 
 Use paired samples. Each packet must present a Jikai output and one baseline output answering the same topic, jurisdiction, subject, and difficulty target.
 
-Minimum publishable pilot:
+Minimum publishable SG Tort student-utility pilot:
 
-- 10 paired samples per jurisdiction being claimed.
-- 3 or more eligible raters.
+- 30 held-out SG Tort items.
+- At least two independent law-trained raters per item.
 - Same packet order randomization policy across raters.
+- Inter-rater agreement reported by dimension.
 - No source labels, provider names, product names, prompt names, model names, file paths, or metadata visible to raters.
 - Prompt and corpus settings recorded in a private run log or public manifest if licensing permits.
 
@@ -53,13 +54,15 @@ Rate each sample from 1 to 5 on every dimension.
 
 | Dimension | Weight | 1 | 3 | 5 |
 | --- | ---: | --- | --- | --- |
-| doctrinal accuracy | 25 | wrong rules, wrong elements, or misleading law | mostly right but incomplete or imprecise | correct, jurisdiction-fit, and exam-usable |
-| issue coverage | 20 | misses central issues | covers central issue but misses material secondary issues | covers central and secondary issues with clear prioritization |
-| factual richness | 15 | thin facts or generic parties | enough facts for basic analysis | realistic, legally salient facts with productive ambiguity |
-| explanation quality | 15 | unclear, unsupported, or conclusory answer | usable explanation with gaps | clear rule-application-conclusion structure with useful nuance |
-| difficulty calibration | 10 | much too easy or much too hard for target | roughly aligned but uneven | well matched to target level |
-| usefulness for study | 10 | not useful for practice | useful with edits | directly useful for self-study, teaching, or review |
-| jurisdiction fit | 5 | jurisdictionally wrong or generic | partly localized | authorities, terminology, and framing fit the requested jurisdiction |
+| issue spotting coverage | 20 | misses central issues | covers central issue but misses material secondary issues | covers central and secondary issues with clear prioritization |
+| fact sufficiency | 12 | too thin or generic for analysis | enough facts for basic analysis | facts are legally salient, concrete, and usable for multi-step application |
+| legal ambiguity | 10 | answer is obvious or facts are internally incoherent | some contestable points | productive ambiguity supports realistic arguments on both sides |
+| SG law fit | 12 | jurisdictionally wrong or generic | partly localized | authorities, terminology, and framing fit Singapore tort law |
+| answer structure | 10 | unclear, unsupported, or conclusory | usable structure with gaps | clear issue-rule-application-conclusion structure |
+| citation/rule accuracy | 20 | wrong rules, wrong elements, or unsupported authorities | mostly right but incomplete or imprecise | correct, SG-fit, and exam-usable |
+| distractor quality | 6 | distractors are irrelevant or misleading | some useful non-core facts | distractors are realistic and test prioritization without derailing |
+| difficulty calibration | 5 | much too easy or much too hard for target | roughly aligned but uneven | well matched to target level |
+| feedback usefulness | 5 | not useful for practice | useful with edits | directly useful for self-study, teaching, or review |
 
 Weighted score formula:
 
@@ -96,6 +99,7 @@ Each completed pilot report must include:
 - rater count and coarse profiles
 - anonymization and blinding method
 - packet randomization method
+- inter-rater agreement by dimension
 - scoring distribution by dimension
 - weighted score distribution
 - preference distribution
@@ -106,6 +110,6 @@ Each completed pilot report must include:
 
 ## Claim Gate
 
-Supported claims must be narrower than the evidence. For example, a 10-sample SG Tort pilot supports only SG Tort hypothetical-practice claims, not bar-review, MBE, essay, UK, US, or all-common-law claims.
+Supported claims must be narrower than the evidence. For example, a 30-item SG Tort pilot supports only SG Tort hypothetical-practice claims, not bar-review, MBE, essay, UK, US, or all-common-law claims.
 
 `beats Quimbee`, `beats Studicata`, `replaces Quimbee`, `replaces Studicata`, or similar claims require legally cleared baseline samples and a completed blind evaluation with at least three eligible raters. Without that artifact, public copy must say only that Jikai is an open-source hypothetical generator with corpus-backed validation.
