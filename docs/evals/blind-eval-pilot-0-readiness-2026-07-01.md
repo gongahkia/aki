@@ -30,6 +30,7 @@ Quimbee and Studicata are not cleared baselines for committed sample text.
 
 - Quimbee terms reviewed: https://www.quimbee.com/about/terms
 - Studicata terms reviewed: https://www.studicata.com/legal/terms-of-use
+- Additional baseline source decision: `blind-eval-baseline-source-decision-2026-07-10.md`
 
 Use one of these alternatives for the first pilot:
 
@@ -42,7 +43,7 @@ Use one of these alternatives for the first pilot:
 
 - Choose jurisdiction and corpus pack.
 - Generate 10 Jikai samples after freezing the rubric.
-- Select 10 legally cleared baseline samples.
+- Select 10 legally cleared baseline samples using `blind-eval-baseline-source-decision-2026-07-10.md`.
 - Build packet manifest from `blind-eval-sample-manifest.template.json`.
 - Randomize A/B order per packet.
 - Build blinded rater packets with `python3 script/build_blind_eval_packets.py docs/evals/blind-eval-sample-manifest.json --output-dir docs/evals/blind-packets`.

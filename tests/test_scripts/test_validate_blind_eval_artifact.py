@@ -3,6 +3,7 @@ from pathlib import Path
 from script.validate_blind_eval_artifact import (
     EXPECTED_RATER_HEADERS,
     validate_eval_artifacts,
+    validate_markdown_terms,
     validate_rater_sheet,
     validate_sample_manifest_template,
 )
@@ -28,6 +29,15 @@ def test_rater_sheet_accepts_expected_header(tmp_path):
     path.write_text(",".join(EXPECTED_RATER_HEADERS) + "\n", encoding="utf-8")
 
     assert validate_rater_sheet(path) == []
+
+
+def test_markdown_required_terms_are_reported(tmp_path):
+    path = tmp_path / "decision.md"
+    path.write_text("CALI\n", encoding="utf-8")
+
+    assert validate_markdown_terms(path, ["CALI", "permission-required"]) == [
+        f"{path} missing required term: permission-required"
+    ]
 
 
 def test_manifest_template_requires_hidden_source_labels(tmp_path):

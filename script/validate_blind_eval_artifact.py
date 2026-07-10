@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 EXPECTED_RATER_HEADERS = [
     "packet_id",
     "sample_id",
@@ -47,8 +46,19 @@ REQUIRED_RUBRIC_TERMS = [
 REQUIRED_PILOT_TERMS = [
     "human ratings pending",
     "human sample size | 0",
+    "blind-eval-baseline-source-decision-2026-07-10.md",
     "claims permitted | none",
     "#14 cannot be closed from repo work alone",
+]
+
+REQUIRED_BASELINE_SOURCE_TERMS = [
+    "CALI",
+    "CC BY-NC-SA 4.0",
+    "Singapore Law Watch",
+    "2Civility",
+    "University of Washington Street Law",
+    "permission-required",
+    "#14 remains open",
 ]
 
 
@@ -114,7 +124,9 @@ def validate_sample_manifest_template(path: Path) -> list[str]:
         manifest.get("packet_randomization"), "packet_randomization", errors
     )
     if randomization.get("source_labels_visible_to_raters") is not False:
-        errors.append("packet_randomization.source_labels_visible_to_raters must be false")
+        errors.append(
+            "packet_randomization.source_labels_visible_to_raters must be false"
+        )
     baseline = _require_mapping(manifest.get("baseline"), "baseline", errors)
     if "Quimbee or Studicata" not in str(baseline.get("notes", "")):
         errors.append("baseline.notes must preserve incumbent permission warning")
@@ -136,6 +148,12 @@ def validate_eval_artifacts(repo_root: Path) -> list[str]:
         validate_markdown_terms(
             eval_dir / "blind-eval-pilot-0-readiness-2026-07-01.md",
             REQUIRED_PILOT_TERMS,
+        )
+    )
+    errors.extend(
+        validate_markdown_terms(
+            eval_dir / "blind-eval-baseline-source-decision-2026-07-10.md",
+            REQUIRED_BASELINE_SOURCE_TERMS,
         )
     )
     errors.extend(validate_rater_sheet(eval_dir / "blind-eval-rater-sheet.csv"))
