@@ -3,7 +3,9 @@ Validation Service for deterministic hypothetical validation.
 Replaces expensive LLM-based validation with fast, reliable programmatic checks.
 """
 
+import json
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Tuple
 
 import structlog
@@ -739,6 +741,259 @@ class ValidationService:
                 "evidence": {},
                 "error": str(e),
             }
+
+    def validate_model_answer(
+        self,
+        answer_text: str,
+        *,
+        expected_issues: List[str],
+        corpus_pack: str = "sg_tort",
+        supported_corpus_ids: List[str] | None = None,
+    ) -> Dict[str, Any]:
+        """Validate answer quality separately from hypothetical quality."""
+        expected = self._canonical_issue_list(expected_issues, corpus_pack)
+        irac_result = self.validate_irac_structure(answer_text)
+        issue_result = self.validate_answer_issue_coverage(
+            answer_text, expected_issues=expected, corpus_pack=corpus_pack
+        )
+        citation_result = self.validate_answer_citations(
+            answer_text,
+            corpus_pack=corpus_pack,
+            supported_corpus_ids=supported_corpus_ids or [],
+        )
+        issue_score = float(issue_result.get("coverage_ratio", 0.0))
+        false_issue_penalty = min(0.2 * len(issue_result.get("false_issues", [])), 0.4)
+        citation_score = 1.0 if citation_result.get("passed") else 0.0
+        if citation_result.get("citations_found", 0) == 0:
+            citation_score = 0.5
+        score = (
+            float(irac_result.get("structure_score", 0.0)) * 3.0
+            + max(0.0, issue_score - false_issue_penalty) * 4.0
+            + citation_score * 3.0
+        )
+        score = round(min(10.0, max(0.0, score)), 1)
+        feedback = self._answer_feedback(irac_result, issue_result, citation_result)
+        passed = (
+            score >= 7.0
+            and irac_result.get("passed") is True
+            and issue_result.get("missing_issues") == []
+            and citation_result.get("passed") is True
+        )
+        return {
+            "passed": passed,
+            "answer_quality_score": score,
+            "checks": {
+                "irac_structure": irac_result,
+                "expected_issues": issue_result,
+                "citation_support": citation_result,
+            },
+            "diagnostics": {
+                "missing_issues": issue_result.get("missing_issues", []),
+                "false_issues": issue_result.get("false_issues", []),
+                "unsupported_citations": citation_result.get(
+                    "unsupported_citations", []
+                ),
+                "feedback": feedback,
+            },
+            "summary": {
+                "expected_issues": expected,
+                "addressed_issues": issue_result.get("addressed_issues", []),
+                "hypothetical_quality_separate": True,
+            },
+        }
+
+    def validate_irac_structure(self, answer_text: str) -> Dict[str, Any]:
+        """Check issue-rule-application-conclusion organization."""
+        text_lower = answer_text.lower()
+        patterns = {
+            "issue": r"\bissue\b|\bi\s*:",
+            "rule": r"\brule\b|\br\s*:",
+            "application": r"\bapplication\b|\bapply\b|\ba\s*:",
+            "conclusion": r"\bconclusion\b|\boverall conclusion\b|\bc\s*:",
+        }
+        found = [
+            label
+            for label, pattern in patterns.items()
+            if re.search(pattern, text_lower)
+        ]
+        missing = [label for label in patterns if label not in found]
+        score = round(len(found) / len(patterns), 3)
+        return {
+            "passed": not missing,
+            "structure_score": score,
+            "sections_found": found,
+            "missing_sections": missing,
+            "message": (
+                "IRAC structure present"
+                if not missing
+                else f"Missing IRAC sections: {', '.join(missing)}"
+            ),
+        }
+
+    def validate_answer_issue_coverage(
+        self,
+        answer_text: str,
+        *,
+        expected_issues: List[str],
+        corpus_pack: str = "sg_tort",
+    ) -> Dict[str, Any]:
+        """Check expected and unexpected issue coverage in a model answer."""
+        mentioned = self._mentioned_answer_topics(answer_text, corpus_pack)
+        expected = self._canonical_issue_list(expected_issues, corpus_pack)
+        missing = [issue for issue in expected if issue not in mentioned]
+        false_issues = [issue for issue in mentioned if issue not in expected]
+        coverage_ratio = (
+            (len(expected) - len(missing)) / len(expected) if expected else 1.0
+        )
+        return {
+            "passed": not missing,
+            "expected_issues": expected,
+            "addressed_issues": mentioned,
+            "missing_issues": missing,
+            "false_issues": false_issues,
+            "coverage_ratio": round(coverage_ratio, 3),
+            "message": (
+                "All expected issues addressed"
+                if not missing
+                else f"Missing expected issues: {', '.join(missing)}"
+            ),
+        }
+
+    def validate_answer_citations(
+        self,
+        answer_text: str,
+        *,
+        corpus_pack: str = "sg_tort",
+        supported_corpus_ids: List[str] | None = None,
+    ) -> Dict[str, Any]:
+        """Flag case/statute/corpus citations not supported by pack metadata."""
+        supported = self._supported_answer_references(
+            corpus_pack, supported_corpus_ids or []
+        )
+        found_refs = self._extract_answer_references(answer_text)
+        unsupported = []
+        supported_found = []
+        for ref in found_refs:
+            normalized = self._normalize_reference(ref)
+            is_supported = normalized in supported or any(
+                normalized in item or item in normalized for item in supported
+            )
+            if is_supported:
+                supported_found.append(ref)
+            else:
+                unsupported.append(ref)
+        return {
+            "passed": not unsupported,
+            "citations_found": len(found_refs),
+            "supported_citations": supported_found,
+            "unsupported_citations": unsupported,
+            "message": (
+                "No unsupported citations found"
+                if not unsupported
+                else f"Unsupported citations: {', '.join(unsupported)}"
+            ),
+        }
+
+    def _canonical_issue_list(self, issues: List[str], corpus_pack: str) -> List[str]:
+        canonical: List[str] = []
+        for issue in issues:
+            key = self._canonicalize_required_topic(issue, corpus_pack)
+            if key not in canonical:
+                canonical.append(key)
+        return canonical
+
+    def _mentioned_answer_topics(self, answer_text: str, corpus_pack: str) -> List[str]:
+        text_lower = answer_text.lower()
+        mentioned: List[str] = []
+        topic_keywords = self._topic_keywords_for_pack(corpus_pack)
+        for topic, keywords in topic_keywords.items():
+            candidates = [topic.replace("_", " "), *keywords]
+            for keyword in candidates:
+                pattern = r"\b" + re.escape(str(keyword).lower()) + r"\b"
+                if re.search(pattern, text_lower):
+                    mentioned.append(topic)
+                    break
+        return mentioned
+
+    def _supported_answer_references(
+        self, corpus_pack: str, supported_corpus_ids: List[str]
+    ) -> set[str]:
+        supported = {self._normalize_reference(item) for item in supported_corpus_ids}
+        try:
+            pack = resolve_domain_pack(corpus_pack)
+            manifest = json.loads(Path(pack.manifest_path).read_text(encoding="utf-8"))
+            authorities_path = manifest.get("authorities_path")
+            if authorities_path:
+                payload = json.loads(Path(str(authorities_path)).read_text("utf-8"))
+                for item in payload.get("authorities", []) + payload.get(
+                    "statutes", []
+                ):
+                    if not isinstance(item, dict):
+                        continue
+                    citation = str(item.get("citation", "")).strip()
+                    if not citation:
+                        continue
+                    supported.add(self._normalize_reference(citation))
+                    supported.add(
+                        self._normalize_reference(self._reference_name(citation))
+                    )
+                    authority_id = str(item.get("id", "")).strip()
+                    if authority_id:
+                        supported.add(self._normalize_reference(authority_id))
+        except Exception as exc:
+            logger.warning("Failed to load answer citation support", error=str(exc))
+        return {item for item in supported if item}
+
+    @staticmethod
+    def _extract_answer_references(answer_text: str) -> List[str]:
+        references: List[str] = []
+        patterns = [
+            r"\b[A-Z][A-Za-z0-9&'(). -]{1,80}\s+v\s+[A-Z][A-Za-z0-9&'(). -]{1,100}\s+\[\d{4}\]\s+[A-Z][A-Za-z() ]+\s+\d+\b",
+            r"\b[A-Z][A-Za-z0-9&'(). -]{1,80}\s+v\s+[A-Z][A-Za-z0-9&'(). -]{1,100}\s+\(\d{4}\)[A-Za-z0-9 .()]*\d*\b",
+            r"\b[A-Z][A-Za-z0-9&'(). -]{1,80}\s+v\s+[A-Z][A-Za-z0-9&'(). -]{1,100}",
+            r"\b[A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*){0,8}\s+Act(?:\s+\d{4}|\s*\(Cap\.?\s*\d+\))?",
+            r"\b(?:sg_tort|uk_tort|us_tort)[A-Za-z0-9:_-]+\b",
+        ]
+        for pattern in patterns:
+            for match in re.findall(pattern, answer_text):
+                ref = " ".join(str(match).split()).rstrip(".,;:")
+                normalized = ValidationService._normalize_reference(ref)
+                has_existing = any(
+                    normalized == ValidationService._normalize_reference(item)
+                    or normalized in ValidationService._normalize_reference(item)
+                    or ValidationService._normalize_reference(item) in normalized
+                    for item in references
+                )
+                if ref and not has_existing:
+                    references.append(ref)
+        return references
+
+    @staticmethod
+    def _reference_name(citation: str) -> str:
+        return re.split(r"\s+\[\d{4}\]|\s+\(\d{4}\)", citation, maxsplit=1)[0]
+
+    @staticmethod
+    def _normalize_reference(value: str) -> str:
+        return " ".join(re.sub(r"[^a-z0-9]+", " ", value.lower()).split())
+
+    @staticmethod
+    def _answer_feedback(
+        irac_result: Dict[str, Any],
+        issue_result: Dict[str, Any],
+        citation_result: Dict[str, Any],
+    ) -> List[str]:
+        feedback = []
+        for section in irac_result.get("missing_sections", []):
+            feedback.append(f"Add an IRAC {section} section.")
+        for issue in issue_result.get("missing_issues", []):
+            feedback.append(f"Address the expected issue: {issue}.")
+        for issue in issue_result.get("false_issues", []):
+            feedback.append(f"Remove or justify the extra issue: {issue}.")
+        for citation in citation_result.get("unsupported_citations", []):
+            feedback.append(f"Replace unsupported citation: {citation}.")
+        if citation_result.get("citations_found", 0) == 0:
+            feedback.append("Add citations from the corpus pack authorities.")
+        return feedback
 
     def _get_ml_pipeline(self):
         """Lazy-load ML pipeline for enhanced validation."""

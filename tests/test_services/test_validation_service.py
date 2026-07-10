@@ -221,6 +221,56 @@ class TestValidationService:
         assert "party_count" in result["checks"]
         assert "topic_inclusion" in result["checks"]
 
+    def test_validate_model_answer_reports_irac_issue_and_citation_quality(
+        self, validation_service
+    ):
+        answer = """
+        Issue: Whether the defendant owed a duty of care in negligence.
+        Rule: Spandeck Engineering (S) Pte Ltd v Defence Science & Technology Agency [2007] SGCA 37 sets out factual foreseeability, proximity, and policy.
+        Application: The claimant was directly affected by the defendant's unsafe premises, so proximity and breach should be analysed on the facts.
+        Conclusion: The claimant has an arguable negligence claim if causation and damage are proved.
+        """
+
+        report = validation_service.validate_model_answer(
+            answer,
+            expected_issues=["negligence", "duty_of_care"],
+            corpus_pack="sg_tort",
+        )
+
+        assert report["passed"] is True
+        assert report["answer_quality_score"] >= 7.0
+        assert report["checks"]["irac_structure"]["passed"] is True
+        assert report["checks"]["expected_issues"]["missing_issues"] == []
+        assert report["checks"]["citation_support"]["unsupported_citations"] == []
+        assert report["summary"]["hypothetical_quality_separate"] is True
+
+    def test_validate_model_answer_flags_missing_false_and_unsupported_diagnostics(
+        self, validation_service
+    ):
+        answer = """
+        Issue: Whether negligence or battery applies.
+        Rule: Made Up v Citation [2099] SGCA 999 says the defendant always pays.
+        Application: The answer discusses only negligent conduct.
+        Conclusion: The claimant wins.
+        """
+
+        report = validation_service.validate_model_answer(
+            answer,
+            expected_issues=["negligence", "defamation"],
+            corpus_pack="sg_tort",
+        )
+
+        diagnostics = report["diagnostics"]
+        assert report["passed"] is False
+        assert "defamation" in diagnostics["missing_issues"]
+        assert "battery" in diagnostics["false_issues"]
+        assert diagnostics["unsupported_citations"] == [
+            "Made Up v Citation [2099] SGCA 999"
+        ]
+        assert any(
+            "Address the expected issue" in item for item in diagnostics["feedback"]
+        )
+
     def test_calculate_overall_score(self, validation_service):
         """Test overall score calculation."""
         validation_results = {

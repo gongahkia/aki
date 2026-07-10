@@ -110,7 +110,7 @@ def normalize_practice_mode(value: Any) -> str:
 class GenerationRequest(BaseModel):
     """Request model for hypothetical generation."""
 
-    topics: List[str] = Field(..., min_items=1, max_items=10)
+    topics: List[str] = Field(..., min_length=1, max_length=10)
     corpus_pack: str = Field(default="sg_tort")
     jurisdiction: str = Field(default="sg")
     subject: str = Field(default="tort")
@@ -229,6 +229,7 @@ class ValidationResult(BaseModel):
     similarity_check: Dict[str, Any] = Field(default_factory=dict)
     faithfulness: Optional[Dict[str, Any]] = None
     citation: Optional[Dict[str, Any]] = None
+    answer_quality: Optional[Dict[str, Any]] = None
     quality_score: float = Field(default=0.0, ge=0.0, le=10.0)
     legal_realism_score: float = Field(default=0.0, ge=0.0, le=1.0)
     exam_likeness_score: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -701,6 +702,19 @@ class HypotheticalService:
                     ma_started = time.perf_counter()
                     model_answer = await self._generate_model_answer(
                         request, hypothetical, validation_results, context_entries
+                    )
+                    answer_quality = self.validation_service.validate_model_answer(
+                        model_answer,
+                        expected_issues=request.topics,
+                        corpus_pack=request.corpus_pack,
+                        supported_corpus_ids=[
+                            str(entry.id)
+                            for entry in context_entries
+                            if entry.id is not None
+                        ],
+                    )
+                    validation_results = validation_results.model_copy(
+                        update={"answer_quality": answer_quality}
                     )
                     model_answer_time_ms = round(
                         (time.perf_counter() - ma_started) * 1000, 2

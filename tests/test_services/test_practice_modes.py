@@ -97,4 +97,11 @@ async def test_model_answer_review_mode_generates_model_answer_without_preferenc
 
     assert response.model_answer == "Review answer."
     assert response.metadata["practice"]["mode"] == "model_answer_review"
+    assert response.validation_results["answer_quality"]["passed"] is False
+    assert (
+        response.validation_results["answer_quality"]["checks"]["irac_structure"][
+            "passed"
+        ]
+        is False
+    )
     service_any._generate_model_answer.assert_awaited_once()
