@@ -2,7 +2,7 @@
 
 Status: public fixture demo ready; server-backed provider demo remains repo-ready.
 
-Public fixture URL: https://gongahkia.github.io/jikai/
+Public fixture URL: https://gabrielongzm.com/jikai/
 
 ## Public GitHub Pages Target
 
@@ -26,9 +26,9 @@ Use GitHub Pages for the public no-secret fixture demo and Render for the server
 
 1. Keep the static demo at `docs/index.html`.
 2. Enable Pages from `main` and `/docs`.
-3. Verify `https://gongahkia.github.io/jikai/`.
-4. Run `python3 script/validate_hosted_demo.py https://gongahkia.github.io/jikai/ --static`.
-5. Keep the README public demo link pointed at `https://gongahkia.github.io/jikai/`.
+3. Verify `https://gabrielongzm.com/jikai/`.
+4. Run `python3 script/validate_hosted_demo.py https://gabrielongzm.com/jikai/ --static`.
+5. Keep the README public demo link pointed at `https://gabrielongzm.com/jikai/`.
 
 ## Required Secrets
 
