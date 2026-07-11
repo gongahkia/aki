@@ -116,6 +116,26 @@ def test_summarize_distinguishes_dry_run_mode(tmp_path):
     ]
 
 
+def test_summarize_reports_chance_adjusted_agreement(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    row_a = _row("p1", "p1-a", "r1")
+    row_b = _row("p1", "p1-a", "r2")
+    row_c = _row("p2", "p2-a", "r1")
+    row_d = _row("p2", "p2-a", "r2")
+    row_c["issue_spotting_coverage"] = "1"
+    row_d["issue_spotting_coverage"] = "5"
+    _write_rows(ratings, [row_a, row_b, row_c, row_d])
+
+    summary = summarize(ratings, min_samples=2)
+    agreement = summary["inter_rater_agreement"]["issue_spotting_coverage"]
+
+    assert agreement["rated_items"] == 2
+    assert agreement["pair_count"] == 2
+    assert agreement["exact_match_rate"] == 0.5
+    assert agreement["mean_abs_delta"] == 2.0
+    assert agreement["krippendorff_alpha_interval"] == 0.0
+
+
 def test_empty_sheet_fails_fast(tmp_path):
     ratings = tmp_path / "ratings.csv"
     _write_rows(ratings, [])
@@ -165,6 +185,7 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
                     "pair_count": 3,
                     "exact_match_rate": 1.0,
                     "mean_abs_delta": 0.0,
+                    "krippendorff_alpha_interval": 1.0,
                 }
             },
             "weighted_score_distribution": {
@@ -180,5 +201,6 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
     assert "## Publishability Gates" in text
     assert "Eval mode: external-human" in text
     assert "## Inter-Rater Agreement" in text
+    assert "| issue_spotting_coverage | 1 | 3 | 1.0 | 0.0 | 1.0 |" in text
     assert "## Weighted Scores" in text
     assert "| p1-a | jikai | 90 | 85 | 95 | 3 |" in text

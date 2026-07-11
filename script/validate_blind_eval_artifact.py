@@ -43,6 +43,7 @@ REQUIRED_RUBRIC_TERMS = [
     "At least two independent law-trained raters per item",
     "30 held-out SG Tort items",
     "inter-rater agreement",
+    "Krippendorff alpha",
     "Baseline Source Policy",
     "Claim Gate",
     "Quimbee terms",

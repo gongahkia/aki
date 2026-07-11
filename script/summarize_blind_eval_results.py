@@ -286,11 +286,13 @@ def _inter_rater_agreement(
         exact_matches = 0
         pair_count = 0
         rated_items = 0
+        unit_scores: list[list[int]] = []
         for scores_by_dimension in sample_dimension_scores.values():
             scores = scores_by_dimension.get(field, [])
             if len(scores) < 2:
                 continue
             rated_items += 1
+            unit_scores.append(scores)
             for left_index, left in enumerate(scores):
                 for right in scores[left_index + 1 :]:
                     pair_count += 1
@@ -305,8 +307,41 @@ def _inter_rater_agreement(
                 round(exact_matches / pair_count, 3) if pair_count else None
             ),
             "mean_abs_delta": round(statistics.fmean(deltas), 3) if deltas else None,
+            "krippendorff_alpha_interval": _krippendorff_alpha_interval(unit_scores),
         }
     return out
+
+
+def _krippendorff_alpha_interval(unit_scores: list[list[int]]) -> float | None:
+    """Chance-adjusted agreement over 1..5 score ratings using squared distance."""
+    scores_by_unit = [scores for scores in unit_scores if len(scores) >= 2]
+    all_scores = [score for scores in scores_by_unit for score in scores]
+    if len(all_scores) < 2:
+        return None
+    observed_sum = 0.0
+    observed_pairs = 0
+    for scores in scores_by_unit:
+        for left_index, left in enumerate(scores):
+            for right_index, right in enumerate(scores):
+                if left_index == right_index:
+                    continue
+                observed_sum += float((left - right) ** 2)
+                observed_pairs += 1
+    if observed_pairs == 0:
+        return None
+    expected_sum = 0.0
+    expected_pairs = 0
+    for left_index, left in enumerate(all_scores):
+        for right_index, right in enumerate(all_scores):
+            if left_index == right_index:
+                continue
+            expected_sum += float((left - right) ** 2)
+            expected_pairs += 1
+    observed = observed_sum / observed_pairs
+    expected = expected_sum / expected_pairs if expected_pairs else 0.0
+    if expected == 0.0:
+        return 1.0 if observed == 0.0 else None
+    return round(1.0 - (observed / expected), 3)
 
 
 def write_markdown(summary: dict[str, Any], path: Path) -> None:
@@ -340,12 +375,15 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
     for profile, count in summary["rater_profiles"].items():
         lines.append(f"- {profile}: {count}")
     lines.extend(["", "## Inter-Rater Agreement", ""])
-    lines.append("| Dimension | Rated Items | Pairs | Exact Match | Mean Abs Delta |")
-    lines.append("|---|---:|---:|---:|---:|")
+    lines.append(
+        "| Dimension | Rated Items | Pairs | Exact Match | Mean Abs Delta | Alpha |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|")
     for field, stats in summary["inter_rater_agreement"].items():
         lines.append(
             f"| {field} | {stats['rated_items']} | {stats['pair_count']} | "
-            f"{stats['exact_match_rate']} | {stats['mean_abs_delta']} |"
+            f"{stats['exact_match_rate']} | {stats['mean_abs_delta']} | "
+            f"{stats.get('krippendorff_alpha_interval')} |"
         )
     lines.extend(["", "## Weighted Scores", ""])
     lines.append("| Sample | Source | Mean | Min | Max | N |")
