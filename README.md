@@ -3,13 +3,13 @@
 Open-source infrastructure for AI-generated common-law exam-question practice.
 Jikai generates legal hypotheticals and model answers with an ML foundation stage before LLM drafting, so topic selection, retrieval, quality scoring, and validation constrain the final output instead of leaving generation as a raw prompt.
 It is built for law students, educators, and legal-tech builders who want local-first practice-question generation, corpus-backed retrieval, validation gates, and exportable study artifacts.
-Current corpus: Singapore Tort reference pack plus explicit UK/US Tort comparator packs.
+Current corpus: 121 Singapore Tort practice records, plus 5 US Tort and 5 UK Tort comparator records.
+Validation checks coverage, structure, and realism signals; it is not a legal-correctness guarantee.
+Research badges are dry-run smoke metrics only, not external benchmark results.
 Try it locally with `make env-setup`, `make dev-setup`, and `make run`.
 Hosted public fixture demo: https://gabrielongzm.com/jikai/. Server-backed deployment runbook: [`docs/deployment/hosted-demo.md`](docs/deployment/hosted-demo.md).
 
-[![](https://img.shields.io/badge/jikai_1.0.0-passing-8BC34A)](https://github.com/gongahkia/jikai/releases/tag/1.0.0)
 [![](https://img.shields.io/badge/jikai_2.0.0-passing-4CAF50)](https://github.com/gongahkia/jikai/releases/tag/2.0.0)
-[![](https://img.shields.io/badge/jikai_3.0.0-passing-2E7D32)](https://github.com/gongahkia/jikai/releases/tag/3.0.0)
 ![](https://github.com/gongahkia/jikai/actions/workflows/ci.yml/badge.svg)
 
 > [!IMPORTANT]
@@ -94,7 +94,7 @@ The shortened fixture below shows the shape of one SG Tort run. It is documentat
 ## Feature Surface
 
 * *ML-before-LLM orchestration*: `src/services/workflow_facade.py` blocks generation until the ML pipeline is trained or bootstrapped.
-* *Common-law corpus direction*: SG Tort is the reference pack; UK and US Tort comparator packs are explicit opt-ins.
+* *Common-law corpus direction*: SG Tort is the 121-record reference pack; UK and US Tort comparator packs are 5 records each and explicit opt-ins.
 * *Local-first LLM path*: Ollama is the default provider, with OpenAI, Anthropic, Gemini, and local llama.cpp-compatible servers available by configuration.
 * *RAG and validation*: Chroma-backed semantic retrieval, deterministic topic/party/realism checks, optional Legal-BERT embeddings, and optional LLM validation.
 * *Study workflow outputs*: model answers, generation reports, batch generation, DOCX/PDF export, and Anki TSV export.
