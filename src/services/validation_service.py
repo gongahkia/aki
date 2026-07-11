@@ -10,7 +10,13 @@ from typing import Any, Dict, List, Mapping, Tuple
 
 import structlog
 
-from ..domain import canonicalize_topic, normalize_scope_token, resolve_domain_pack
+from ..domain import (
+    canonicalize_topic,
+    normalize_scope_token,
+    resolve_course_profile,
+    resolve_domain_pack,
+    resolve_validation_overlay,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -57,14 +63,23 @@ class ValidationService:
 
     @staticmethod
     def _pack_validation_overlay(corpus_pack: str) -> Dict[str, Any]:
+        return ValidationService._validation_overlay(corpus_pack)
+
+    @staticmethod
+    def _validation_overlay(
+        corpus_pack: str,
+        course_profile: str | None = None,
+    ) -> Dict[str, Any]:
         try:
-            overlay = resolve_domain_pack(corpus_pack).validation_overlay or {}
+            overlay = resolve_validation_overlay(corpus_pack, course_profile)
         except KeyError:
             return {}
         return dict(overlay) if isinstance(overlay, dict) else {}
 
-    def _topic_keywords_for_pack(self, corpus_pack: str) -> Dict[str, List[str]]:
-        overlay = self._pack_validation_overlay(corpus_pack)
+    def _topic_keywords_for_pack(
+        self, corpus_pack: str, course_profile: str | None = None
+    ) -> Dict[str, List[str]]:
+        overlay = self._validation_overlay(corpus_pack, course_profile)
         raw_keywords = overlay.get("topic_keywords", {})
         normalized = (
             self._normalize_topic_keywords(raw_keywords, corpus_pack=corpus_pack)
@@ -173,6 +188,7 @@ class ValidationService:
         text: str,
         required_topics: List[str],
         corpus_pack: str = "sg_tort",
+        course_profile: str | None = None,
     ) -> Dict[str, Any]:
         """
         Check if required topics are present in text using keyword matching.
@@ -186,7 +202,9 @@ class ValidationService:
             topic_evidence: Dict[str, List[str]] = {}
             canonical_required_topics: List[str] = []
             seen_topics = set()
-            topic_keywords = self._topic_keywords_for_pack(corpus_pack)
+            topic_keywords = self._topic_keywords_for_pack(corpus_pack, course_profile)
+            overlay = self._validation_overlay(corpus_pack, course_profile)
+            coverage_threshold = float(overlay.get("topic_coverage_threshold", 0.7))
 
             for topic in required_topics:
                 canonical = self._canonicalize_required_topic(topic, corpus_pack)
@@ -227,8 +245,7 @@ class ValidationService:
                 else 1.0
             )
 
-            # Pass if at least 70% of topics are covered
-            passed = coverage_ratio >= 0.7
+            passed = coverage_ratio >= coverage_threshold
 
             logger.info(
                 "Topic inclusion validation",
@@ -243,6 +260,7 @@ class ValidationService:
                 "topics_found": topics_found,
                 "topics_missing": topics_missing,
                 "coverage_ratio": coverage_ratio,
+                "coverage_threshold": coverage_threshold,
                 "topic_evidence": topic_evidence,
                 "message": f"Found {len(topics_found)}/{len(canonical_required_topics)} topics ({coverage_ratio:.0%} coverage)",
             }
@@ -360,14 +378,20 @@ class ValidationService:
         text: str,
         jurisdiction: str = "sg",
         corpus_pack: str = "sg_tort",
+        course_profile: str | None = None,
     ) -> Dict[str, Any]:
         """Route jurisdiction-specific context checks."""
         jurisdiction_key = normalize_scope_token(jurisdiction)
-        if jurisdiction_key in {"sg", "singapore", "singapore_law", "singapore_tort"}:
+        if not course_profile and jurisdiction_key in {
+            "sg",
+            "singapore",
+            "singapore_law",
+            "singapore_tort",
+        }:
             result = self.validate_singapore_context(text)
             result["jurisdiction"] = "sg"
             return result
-        overlay = self._pack_validation_overlay(corpus_pack)
+        overlay = self._validation_overlay(corpus_pack, course_profile)
         indicators = overlay.get("jurisdiction_context_indicators", [])
         if isinstance(indicators, list) and indicators:
             return self._validate_context_indicators(
@@ -567,6 +591,7 @@ class ValidationService:
         text: str,
         jurisdiction: str = "sg",
         corpus_pack: str = "sg_tort",
+        course_profile: str | None = None,
     ) -> Dict[str, Any]:
         """Score legal realism signals using shared checks plus pack context cues."""
         try:
@@ -578,10 +603,11 @@ class ValidationService:
                 "singapore_tort",
             }
             text_lower = text.lower()
-            overlay = self._pack_validation_overlay(corpus_pack)
+            overlay = self._validation_overlay(corpus_pack, course_profile)
             realism_overlay = overlay.get("legal_realism", {})
             if not isinstance(realism_overlay, dict):
                 realism_overlay = {}
+            min_score = float(realism_overlay.get("min_score", 0.6))
             context_cues = realism_overlay.get("context_cues", [])
             if not isinstance(context_cues, list):
                 context_cues = []
@@ -629,13 +655,14 @@ class ValidationService:
             )
             if is_sg and context_cues and context_score == 0.0:
                 realism_score = min(realism_score, 0.59)
-            passed = realism_score >= 0.6 and (
+            passed = realism_score >= min_score and (
                 jurisdiction_context_score > 0.0 or not is_sg
             )
 
             return {
                 "passed": passed,
                 "realism_score": realism_score,
+                "min_score": min_score,
                 "components": {
                     "singapore_context_score": (
                         round(context_score, 3) if is_sg else 1.0
@@ -666,11 +693,20 @@ class ValidationService:
                 "error": str(e),
             }
 
-    def validate_exam_likeness(self, text: str) -> Dict[str, Any]:
+    def validate_exam_likeness(
+        self,
+        text: str,
+        corpus_pack: str = "sg_tort",
+        course_profile: str | None = None,
+    ) -> Dict[str, Any]:
         """Score exam-likeness signals: issue density, ambiguity balance, fact sufficiency."""
         try:
             text_lower = text.lower()
-            issue_terms = [
+            overlay = self._validation_overlay(corpus_pack, course_profile)
+            exam_overlay = overlay.get("exam_likeness", {})
+            if not isinstance(exam_overlay, dict):
+                exam_overlay = {}
+            issue_terms = exam_overlay.get("issue_terms") or [
                 "issue",
                 "duty",
                 "breach",
@@ -680,7 +716,7 @@ class ValidationService:
                 "liability",
                 "damages",
             ]
-            ambiguity_terms = [
+            ambiguity_terms = exam_overlay.get("ambiguity_terms") or [
                 "unclear",
                 "disputed",
                 "arguably",
@@ -689,7 +725,7 @@ class ValidationService:
                 "however",
                 "alternatively",
             ]
-            fact_terms = [
+            fact_terms = exam_overlay.get("fact_terms") or [
                 "date",
                 "time",
                 "location",
@@ -699,10 +735,13 @@ class ValidationService:
                 "witness",
                 "evidence",
             ]
+            min_score = float(exam_overlay.get("min_score", 0.6))
 
-            issue_hits = [term for term in issue_terms if term in text_lower]
-            ambiguity_hits = [term for term in ambiguity_terms if term in text_lower]
-            fact_hits = [term for term in fact_terms if term in text_lower]
+            issue_hits = [str(term) for term in issue_terms if str(term) in text_lower]
+            ambiguity_hits = [
+                str(term) for term in ambiguity_terms if str(term) in text_lower
+            ]
+            fact_hits = [str(term) for term in fact_terms if str(term) in text_lower]
 
             issue_density = min(1.0, len(issue_hits) / 5.0)
             # Ambiguity should not be too low or too high; centered around 3 hits.
@@ -716,11 +755,12 @@ class ValidationService:
                 + (fact_sufficiency * 0.30),
                 3,
             )
-            passed = exam_score >= 0.6
+            passed = exam_score >= min_score
 
             return {
                 "passed": passed,
                 "exam_likeness_score": exam_score,
+                "min_score": min_score,
                 "components": {
                     "issue_density": round(issue_density, 3),
                     "ambiguity_balance": round(ambiguity_balance, 3),
@@ -748,6 +788,7 @@ class ValidationService:
         *,
         expected_issues: List[str],
         corpus_pack: str = "sg_tort",
+        course_profile: str | None = None,
         supported_corpus_ids: List[str] | None = None,
     ) -> Dict[str, Any]:
         """Validate answer quality separately from hypothetical quality."""
@@ -759,6 +800,7 @@ class ValidationService:
         citation_result = self.validate_answer_citations(
             answer_text,
             corpus_pack=corpus_pack,
+            course_profile=course_profile,
             supported_corpus_ids=supported_corpus_ids or [],
         )
         issue_score = float(issue_result.get("coverage_ratio", 0.0))
@@ -864,11 +906,12 @@ class ValidationService:
         answer_text: str,
         *,
         corpus_pack: str = "sg_tort",
+        course_profile: str | None = None,
         supported_corpus_ids: List[str] | None = None,
     ) -> Dict[str, Any]:
         """Flag case/statute/corpus citations not supported by pack metadata."""
         supported = self._supported_answer_references(
-            corpus_pack, supported_corpus_ids or []
+            corpus_pack, supported_corpus_ids or [], course_profile=course_profile
         )
         found_refs = self._extract_answer_references(answer_text)
         unsupported = []
@@ -916,11 +959,19 @@ class ValidationService:
         return mentioned
 
     def _supported_answer_references(
-        self, corpus_pack: str, supported_corpus_ids: List[str]
+        self,
+        corpus_pack: str,
+        supported_corpus_ids: List[str],
+        *,
+        course_profile: str | None = None,
     ) -> set[str]:
         supported = {self._normalize_reference(item) for item in supported_corpus_ids}
         try:
             pack = resolve_domain_pack(corpus_pack)
+            profile = resolve_course_profile(corpus_pack, course_profile)
+            allowed_authority_ids = (
+                set(profile.allowed_authority_ids) if profile else set()
+            )
             manifest = json.loads(Path(pack.manifest_path).read_text(encoding="utf-8"))
             authorities_path = manifest.get("authorities_path")
             if authorities_path:
@@ -930,6 +981,12 @@ class ValidationService:
                 ):
                     if not isinstance(item, dict):
                         continue
+                    authority_id = str(item.get("id", "")).strip()
+                    if (
+                        allowed_authority_ids
+                        and authority_id not in allowed_authority_ids
+                    ):
+                        continue
                     citation = str(item.get("citation", "")).strip()
                     if not citation:
                         continue
@@ -937,7 +994,6 @@ class ValidationService:
                     supported.add(
                         self._normalize_reference(self._reference_name(citation))
                     )
-                    authority_id = str(item.get("id", "")).strip()
                     if authority_id:
                         supported.add(self._normalize_reference(authority_id))
         except Exception as exc:
@@ -1017,6 +1073,7 @@ class ValidationService:
         corpus_pack: str = "sg_tort",
         jurisdiction: str = "sg",
         subject: str = "tort",
+        course_profile: str | None = None,
         subtopics: List[str] | None = None,
         fast_mode: bool = False,
     ) -> Dict[str, Any]:
@@ -1030,9 +1087,13 @@ class ValidationService:
             # Run all validation checks
             party_result = self.validate_party_count(text, expected_parties)
             topic_result = self.validate_topic_inclusion(
-                text, required_topics, corpus_pack=corpus_pack
+                text,
+                required_topics,
+                corpus_pack=corpus_pack,
+                course_profile=course_profile,
             )
             jurisdiction_key = normalize_scope_token(jurisdiction)
+            overlay = self._validation_overlay(corpus_pack, course_profile)
 
             if fast_mode:
                 fast_results = {
@@ -1052,6 +1113,7 @@ class ValidationService:
                     "summary": {
                         "mode": "fast",
                         "corpus_pack": corpus_pack,
+                        "course_profile": course_profile,
                         "jurisdiction": jurisdiction_key,
                         "subject": subject,
                         "parties": f"{party_result['actual_count']}/{expected_parties}",
@@ -1059,14 +1121,31 @@ class ValidationService:
                     },
                 }
 
-            word_result = self.validate_word_count(text)
+            word_count_overlay = overlay.get("word_count", {})
+            if not isinstance(word_count_overlay, dict):
+                word_count_overlay = {}
+            word_result = self.validate_word_count(
+                text,
+                min_words=int(word_count_overlay.get("min", 800)),
+                max_words=int(word_count_overlay.get("max", 1500)),
+            )
             jurisdiction_result = self.validate_jurisdiction_context(
-                text, jurisdiction_key, corpus_pack=corpus_pack
+                text,
+                jurisdiction_key,
+                corpus_pack=corpus_pack,
+                course_profile=course_profile,
             )
             legal_realism_result = self.validate_legal_realism(
-                text, jurisdiction_key, corpus_pack=corpus_pack
+                text,
+                jurisdiction_key,
+                corpus_pack=corpus_pack,
+                course_profile=course_profile,
             )
-            exam_likeness_result = self.validate_exam_likeness(text)
+            exam_likeness_result = self.validate_exam_likeness(
+                text,
+                corpus_pack=corpus_pack,
+                course_profile=course_profile,
+            )
 
             # Collect all results
             all_results = {
@@ -1098,6 +1177,7 @@ class ValidationService:
                     "topics": f"{len(topic_result['topics_found'])}/{len(required_topics)}",
                     "words": word_result["word_count"],
                     "corpus_pack": corpus_pack,
+                    "course_profile": course_profile,
                     "jurisdiction": jurisdiction_key,
                     "subject": subject,
                     "subtopics": subtopics or [],

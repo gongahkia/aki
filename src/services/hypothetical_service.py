@@ -18,7 +18,12 @@ import structlog
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from ..config import settings
-from ..domain import normalize_scope_token, resolve_domain_pack
+from ..domain import (
+    normalize_scope_token,
+    resolve_course_profile,
+    resolve_domain_pack,
+    resolve_validation_overlay,
+)
 
 try:
     from .corpus_service import CorpusQuery, HypotheticalEntry, corpus_service
@@ -114,6 +119,7 @@ class GenerationRequest(BaseModel):
     corpus_pack: str = Field(default="sg_tort")
     jurisdiction: str = Field(default="sg")
     subject: str = Field(default="tort")
+    course_profile: Optional[str] = None
     subtopics: List[str] = Field(default_factory=list)
     law_domain: str = Field(default="tort")
     number_parties: int = Field(default=3, ge=2, le=5)
@@ -198,6 +204,39 @@ class GenerationRequest(BaseModel):
         self.jurisdiction = domain_pack.jurisdiction_key
         self.subject = domain_pack.subject_key
         self.law_domain = domain_pack.subject_key
+        if self.course_profile:
+            try:
+                profile = resolve_course_profile(domain_pack.key, self.course_profile)
+            except KeyError as exc:
+                raise ValueError(
+                    f"Unknown course_profile '{self.course_profile}' for "
+                    f"corpus_pack '{self.corpus_pack}'"
+                ) from exc
+            if profile is None:
+                raise ValueError(
+                    f"Unknown course_profile '{self.course_profile}' for "
+                    f"corpus_pack '{self.corpus_pack}'"
+                )
+            if not profile.data_backed:
+                raise ValueError(
+                    f"course_profile '{profile.key}' is not data-backed for "
+                    f"corpus_pack '{self.corpus_pack}'"
+                )
+            canonical_topics = {
+                domain_pack.canonicalize_topic(topic) for topic in self.topics
+            }
+            if profile.syllabus_topics:
+                outside_syllabus = sorted(
+                    topic
+                    for topic in canonical_topics
+                    if topic not in profile.syllabus_topics
+                )
+                if outside_syllabus:
+                    raise ValueError(
+                        f"course_profile '{profile.key}' does not support topics: "
+                        + ", ".join(outside_syllabus)
+                    )
+            self.course_profile = profile.key
         return self
 
     @field_validator("complexity_level")
@@ -448,6 +487,7 @@ class HypotheticalService:
             "corpus_pack": request.corpus_pack,
             "jurisdiction": request.jurisdiction,
             "subject": request.subject,
+            "course_profile": request.course_profile,
             "subtopics": sorted(request.subtopics),
             "law_domain": request.law_domain,
             "number_parties": request.number_parties,
@@ -707,6 +747,7 @@ class HypotheticalService:
                         model_answer,
                         expected_issues=request.topics,
                         corpus_pack=request.corpus_pack,
+                        course_profile=request.course_profile,
                         supported_corpus_ids=[
                             str(entry.id)
                             for entry in context_entries
@@ -752,6 +793,7 @@ class HypotheticalService:
                     "corpus_pack": request.corpus_pack,
                     "jurisdiction": request.jurisdiction,
                     "subject": request.subject,
+                    "course_profile": request.course_profile,
                     "subtopics": request.subtopics,
                     "law_domain": request.law_domain,
                     "number_parties": request.number_parties,
@@ -1292,6 +1334,7 @@ class HypotheticalService:
             corpus_pack=request.corpus_pack,
             jurisdiction=request.jurisdiction,
             subject=request.subject,
+            course_profile=request.course_profile,
             subtopics=request.subtopics,
             law_domain=request.law_domain,
             number_parties=request.number_parties,
@@ -1579,6 +1622,7 @@ class HypotheticalService:
                 corpus_pack=request.corpus_pack,
                 jurisdiction=request.jurisdiction,
                 subject=request.subject,
+                course_profile=request.course_profile,
                 subtopics=request.subtopics,
                 fast_mode=self._should_use_fast_validation(request),
             )
@@ -1600,8 +1644,22 @@ class HypotheticalService:
                 checks.get("exam_likeness", {}).get("exam_likeness_score", 0.0)
             )
             quality_score_normalized = quality_score / 10.0
-            min_realism_score = float(getattr(settings, "min_realism_score", 0.0))
-            min_quality_score = float(getattr(settings, "min_quality_score", 0.0))
+            profile_overlay = resolve_validation_overlay(
+                request.corpus_pack, request.course_profile
+            )
+            quality_gate_overlay = profile_overlay.get("quality_gate", {})
+            if not isinstance(quality_gate_overlay, dict):
+                quality_gate_overlay = {}
+            min_realism_score = float(
+                quality_gate_overlay.get(
+                    "min_realism_score", getattr(settings, "min_realism_score", 0.0)
+                )
+            )
+            min_quality_score = float(
+                quality_gate_overlay.get(
+                    "min_quality_score", getattr(settings, "min_quality_score", 0.0)
+                )
+            )
             realism_gate_passed = legal_realism_score >= min_realism_score
             quality_gate_passed = quality_score_normalized >= min_quality_score
             passed = (
@@ -1763,6 +1821,7 @@ class HypotheticalService:
                 corpus_pack=request.corpus_pack,
                 jurisdiction=request.jurisdiction,
                 subject=request.subject,
+                course_profile=request.course_profile,
                 subtopics=request.subtopics,
                 law_domain=request.law_domain,
             )

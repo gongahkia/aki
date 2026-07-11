@@ -271,6 +271,70 @@
       }
     }
   },
+  "course_profiles": {
+    "generic_common_law_tort": {
+      "display_name": "Generic Common-Law Tort",
+      "syllabus_topics": [
+        "negligence",
+        "duty_of_care",
+        "standard_of_care",
+        "causation",
+        "remoteness",
+        "comparative_negligence",
+        "strict_liability",
+        "product_liability",
+        "battery",
+        "assault",
+        "false_imprisonment",
+        "private_nuisance",
+        "defamation",
+        "vicarious_liability"
+      ],
+      "allowed_authority_ids": [],
+      "difficulty_profile": {
+        "default": "intermediate",
+        "supported": ["beginner", "basic", "intermediate"],
+        "party_range": [2, 4],
+        "target_minutes": 30
+      },
+      "exam_style": {
+        "answer_format": "IRAC",
+        "question_form": "identify issues and advise",
+        "include_defences": true,
+        "include_ambiguity": true
+      },
+      "overlays": {
+        "prompt": {
+          "course_guidance": [
+            "Use common-law tort vocabulary and avoid state-specific doctrine unless a retrieved record supports it.",
+            "Frame questions for general issue spotting rather than jurisdiction-specific bar preparation."
+          ]
+        },
+        "validation": {
+          "topic_coverage_threshold": 0.7,
+          "word_count": {"min": 650, "max": 1200},
+          "quality_gate": {"min_realism_score": 0.6, "min_quality_score": 0.7}
+        }
+      },
+      "data_backed": true,
+      "data_sources": [
+        "corpus/clean/us_tort/corpus.json",
+        "corpus/clean/uk_tort/corpus.json",
+        "corpus/labelled/sg_tort/corpus.json"
+      ],
+      "notes": "Common-law issue-spotting profile backed by comparator sample records; not a bar-review profile."
+    },
+    "bar_essay": {
+      "display_name": "Bar Essay",
+      "syllabus_topics": [],
+      "allowed_authority_ids": [],
+      "difficulty_profile": {},
+      "exam_style": {},
+      "data_backed": false,
+      "data_sources": [],
+      "notes": "Not selectable until a redistribution-safe bar essay corpus is added."
+    }
+  },
   "pipeline": {
     "ingestion_command": "python3 script/fetch_us_tort_corpus.py --output corpus/clean/us_tort/corpus.json --retrieved-at 2026-07-01",
     "cleaner_command": "python3 script/fetch_us_tort_corpus.py --output corpus/clean/us_tort/corpus.json --retrieved-at 2026-07-01",

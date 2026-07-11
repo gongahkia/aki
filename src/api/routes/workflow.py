@@ -17,6 +17,7 @@ class GenerateRequest(BaseModel):
     corpus_pack: str = "sg_tort"
     jurisdiction: str = "sg"
     subject: str = "tort"
+    course_profile: Optional[str] = None
     subtopics: List[str] = Field(default_factory=list)
     law_domain: str = "tort"
     number_parties: int = Field(default=3, ge=2, le=5)
@@ -87,6 +88,7 @@ async def generate(req: GenerateRequest):
         corpus_pack=req.corpus_pack,
         jurisdiction=req.jurisdiction,
         subject=req.subject,
+        course_profile=req.course_profile,
         subtopics=req.subtopics,
         law_domain=req.law_domain,
         number_parties=req.number_parties,

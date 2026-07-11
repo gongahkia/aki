@@ -784,6 +784,9 @@ class WorkflowFacade:
                 "jurisdiction", fallback.get("jurisdiction", "sg")
             ),
             subject=request_data.get("subject", fallback.get("subject", "tort")),
+            course_profile=request_data.get(
+                "course_profile", fallback.get("course_profile")
+            ),
             subtopics=request_data.get("subtopics", fallback.get("subtopics", [])),
             law_domain=request_data.get(
                 "law_domain", fallback.get("law_domain", "tort")

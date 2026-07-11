@@ -15,6 +15,7 @@ class ValidateRequest(BaseModel):
     corpus_pack: str = "sg_tort"
     jurisdiction: str = "sg"
     subject: str = "tort"
+    course_profile: str | None = None
     subtopics: List[str] = Field(default_factory=list)
     law_domain: str = "tort"
     fast_mode: bool = False
@@ -31,6 +32,7 @@ async def validate(req: ValidateRequest):
         corpus_pack=req.corpus_pack,
         jurisdiction=req.jurisdiction,
         subject=req.subject,
+        course_profile=req.course_profile,
         subtopics=req.subtopics,
         law_domain=req.law_domain,
         fast_mode=req.fast_mode,

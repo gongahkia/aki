@@ -16,7 +16,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from pydantic import BaseModel
 
-from ...domain import canonicalize_topic, resolve_domain_pack
+from ...domain import (
+    canonicalize_topic,
+    resolve_course_profile,
+    resolve_domain_pack,
+    resolve_prompt_overlay,
+)
 
 if TYPE_CHECKING:
     from .schemas import RefineCritique
@@ -53,6 +58,7 @@ class PromptContext:
     corpus_pack: str = "sg_tort"
     jurisdiction: str = "sg"
     subject: str = "tort"
+    course_profile: Optional[str] = None
     subtopics: List[str] = field(default_factory=list)
     law_domain: str = "tort"
     number_parties: int = 3
@@ -77,10 +83,18 @@ def _context_labels(context: PromptContext) -> Dict[str, str]:
 
 def _prompt_overlay(context: PromptContext) -> Dict[str, Any]:
     try:
-        overlay = resolve_domain_pack(context.corpus_pack).prompt_overlay or {}
-    except Exception:
+        overlay = resolve_prompt_overlay(context.corpus_pack, context.course_profile)
+    except KeyError:
         return {}
     return dict(overlay) if isinstance(overlay, dict) else {}
+
+
+def _profile_label(context: PromptContext) -> str:
+    try:
+        profile = resolve_course_profile(context.corpus_pack, context.course_profile)
+    except KeyError:
+        profile = None
+    return profile.display_name if profile else "none"
 
 
 def _canonicalize_for_context(context: PromptContext, topic: str) -> str:
@@ -231,6 +245,7 @@ QUALITY STANDARDS:
 Corpus Pack: {corpus_pack}
 Jurisdiction: {jurisdiction_label}
 Subject: {subject_label}
+Course Profile: {course_profile}
 Legal Domain: {law_domain}
 Target Topics: {topics}
 Target Subtopics: {subtopics}
@@ -354,6 +369,12 @@ SCENARIO METADATA:
                 str(line).strip() for line in guidance if str(line).strip()
             ]
             hints.extend(f"- {line}" for line in guidance_lines)
+        for guidance_key in ("course_guidance", "exam_style_guidance"):
+            profile_guidance = overlay.get(guidance_key, [])
+            if isinstance(profile_guidance, list):
+                hints.extend(
+                    f"- {line}" for line in profile_guidance if str(line).strip()
+                )
         for topic in context.topics:
             canonical_topic = _canonicalize_for_context(context, topic)
             if canonical_topic in overlay_hints:
@@ -384,6 +405,7 @@ SCENARIO METADATA:
             corpus_pack=context.corpus_pack,
             jurisdiction_label=labels["jurisdiction_label"],
             subject_label=labels["subject_label"],
+            course_profile=_profile_label(context),
             law_domain=context.law_domain,
             topics=", ".join(context.topics),
             subtopics=", ".join(context.subtopics) if context.subtopics else "none",

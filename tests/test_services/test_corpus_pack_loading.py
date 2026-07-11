@@ -22,9 +22,17 @@ def test_sg_tort_domain_pack_uses_reference_manifest():
     assert pack.topic_definitions is not None
     assert pack.prompt_overlay is not None
     assert pack.validation_overlay is not None
+    assert pack.course_profiles is not None
     assert pack.topic_definitions["negligence"].label == "Negligence"
     assert "limitation_periods" in pack.prompt_overlay["topic_hints"]
     assert "negligence" in pack.validation_overlay["topic_keywords"]
+    assert "nus_sg_tort" in pack.course_profiles
+    assert "bar_essay" in pack.course_profiles
+    nus_profile = pack.course_profiles["nus_sg_tort"]
+    assert nus_profile.data_backed is True
+    assert "negligence" in nus_profile.syllabus_topics
+    assert "spandeck_2007" in nus_profile.allowed_authority_ids
+    assert pack.course_profiles["bar_essay"].data_backed is False
 
 
 @pytest.mark.asyncio

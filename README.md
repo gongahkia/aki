@@ -43,7 +43,7 @@ The diagram is maintained directly in this README. Update it with the stage owne
 | ML foundation | Topic prediction, quality scoring, diversity cluster | `src/ml/pipeline.py`, `src/ml/classifier.py`, `src/ml/regressor.py`, `src/ml/clustering.py` |
 | Planning | Topic-ranked examples and fact-pattern skeleton | `src/ml/topic_selector.py`, `src/ml/structural_planner.py`, `src/services/hypo_generator.py` |
 | Retrieval | SG Tort examples, vector metadata, fallback overlap search | `src/services/vector_service.py`, `src/services/corpus_service.py` |
-| Prompt assembly | Common-law base prompt plus selected jurisdiction overlay | `src/services/prompt_engineering/templates.py`, `corpus/packs/sg_tort/manifest.json` |
+| Prompt assembly | Common-law base prompt plus selected jurisdiction/course overlay | `src/services/prompt_engineering/templates.py`, `corpus/packs/sg_tort/manifest.json` |
 | LLM draft | Provider/model routing, health, fallback, streaming | `src/services/llm_service.py`, `src/services/llm_providers/` |
 | Validation | Required topics, party count, jurisdiction context, realism gate, similarity | `src/services/validation_service.py`, `src/services/hypothetical_service.py` |
 | Artifacts | History, feedback, DOCX/PDF, Anki TSV | `src/services/database_service.py`, `src/services/export_service.py` |
@@ -251,6 +251,7 @@ Hosted mode (`API_HOSTED_MODE=true` or `ENVIRONMENT=production`) keeps only `/he
 | `GET` | `/workflow/reports/{generation_id}` | List reports for a generation |
 | `POST` | `/workflow/batch-generate` | Generate multiple hypotheticals with topic coverage |
 | `GET` | `/corpus/packs` | List explicit corpus packs and jurisdictions |
+| `GET` | `/corpus/profiles` | List corpus-pack course/module profiles |
 | `GET` | `/corpus/topics` | List all available tort-law topics |
 | `GET` | `/corpus/entries` | Fetch corpus entries (`topic`, `limit` query params supported) |
 | `POST` | `/corpus/query` | Query corpus by topics with semantic search |

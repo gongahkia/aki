@@ -103,9 +103,31 @@ Readers must preserve legacy `text` while treating `fact_pattern` as the student
 | `validation.topic_coverage` | string | Topic coverage expectation. |
 | `validation.jurisdiction_expectations` | string array | Jurisdiction-specific validation cues. |
 | `validation.quality_checks` | string array | Human or automated quality checks. |
+| `course_profiles` | object | Optional educator-defined course/module profiles scoped to this pack. |
 | `artifacts` | object | Optional vector/model/label artifact names. |
 | `maintainers` | array | Optional pack maintainers. |
 | `notes` | string | Free-form implementation notes. |
+
+## Course Profiles
+
+`course_profiles` lets a pack define selectable overlays for syllabus topics, allowed authorities, difficulty, exam style, prompt guidance, and validation thresholds. Profiles are discoverable through `/corpus/profiles` and selectable with `course_profile` on generation and validation requests.
+
+Only profiles with `data_backed: true` are selectable for prompt/validation overlays. Use `data_backed: false` for planned profiles such as `bar_essay` until redistribution-safe corpus records, authority metadata, and answer/rubric examples exist.
+
+Each profile may include:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `display_name` | string | Human-readable profile label. |
+| `syllabus_topics` | string array | Canonical topics accepted by this profile. |
+| `allowed_authority_ids` | string array | Authority/statute IDs allowed for answer citation support. |
+| `difficulty_profile` | object | Supported levels, party ranges, or timing targets. |
+| `exam_style` | object | Answer format and issue-spotting conventions. |
+| `overlays.prompt` | object | Profile-specific prompt guidance merged over the pack prompt overlay. |
+| `overlays.validation` | object | Profile-specific validation thresholds merged over the pack validation overlay. |
+| `data_backed` | boolean | Whether profile use is backed by committed corpus/authority data. |
+| `data_sources` | string array | Corpus/metadata paths supporting the profile. |
+| `notes` | string | Source limitations or usage caveats. |
 
 ## Redistribution Rules
 

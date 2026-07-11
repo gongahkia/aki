@@ -2,14 +2,20 @@
 
 from .packs import (
     DOMAIN_PACK_REGISTRY,
+    CourseProfile,
     DomainPack,
     Jurisdiction,
     default_domain_pack,
+    get_course_profile,
     get_domain_pack,
+    list_course_profiles,
     list_domain_packs,
     normalize_scope_token,
     register_domain_pack,
+    resolve_course_profile,
     resolve_domain_pack,
+    resolve_prompt_overlay,
+    resolve_validation_overlay,
 )
 from .topics import (
     TOPIC_ALIASES,
@@ -23,13 +29,19 @@ from .topics import (
 
 __all__ = [
     "DomainPack",
+    "CourseProfile",
     "Jurisdiction",
     "DOMAIN_PACK_REGISTRY",
     "register_domain_pack",
     "get_domain_pack",
+    "get_course_profile",
     "list_domain_packs",
+    "list_course_profiles",
     "default_domain_pack",
     "resolve_domain_pack",
+    "resolve_course_profile",
+    "resolve_prompt_overlay",
+    "resolve_validation_overlay",
     "normalize_scope_token",
     "TopicDefinition",
     "TORT_TOPICS",

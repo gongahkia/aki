@@ -99,3 +99,19 @@ def test_generation_request_allows_registered_fake_jurisdiction_pack():
 
     assert request.corpus_pack == "test_tort"
     assert request.jurisdiction == "test"
+
+
+def test_generation_request_accepts_data_backed_course_profile():
+    request = GenerationRequest(topics=["negligence"], course_profile="NUS SG Tort")
+
+    assert request.course_profile == "nus_sg_tort"
+
+
+def test_generation_request_rejects_unbacked_course_profile():
+    with pytest.raises(ValueError, match="not data-backed"):
+        GenerationRequest(topics=["negligence"], course_profile="bar_essay")
+
+
+def test_generation_request_rejects_topic_outside_course_profile_syllabus():
+    with pytest.raises(ValueError, match="does not support topics"):
+        GenerationRequest(topics=["harassment"], course_profile="nus_sg_tort")

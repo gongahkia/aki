@@ -42,6 +42,24 @@ class Jurisdiction:
 
 
 @dataclass(frozen=True)
+class CourseProfile:
+    """Educator-defined course/module profile scoped to a corpus pack."""
+
+    key: str
+    display_name: str
+    corpus_pack_key: str
+    syllabus_topics: Tuple[str, ...] = ()
+    allowed_authority_ids: Tuple[str, ...] = ()
+    difficulty_profile: Mapping[str, Any] | None = None
+    exam_style: Mapping[str, Any] | None = None
+    prompt_overlay: Mapping[str, Any] | None = None
+    validation_overlay: Mapping[str, Any] | None = None
+    data_backed: bool = False
+    data_sources: Tuple[str, ...] = ()
+    notes: str = ""
+
+
+@dataclass(frozen=True)
 class DomainPack:
     """Describes a pluggable legal-domain package."""
 
@@ -57,6 +75,7 @@ class DomainPack:
     topic_definitions: Mapping[str, TopicDefinition] | None = None
     prompt_overlay: Mapping[str, Any] | None = None
     validation_overlay: Mapping[str, Any] | None = None
+    course_profiles: Mapping[str, CourseProfile] | None = None
     manifest_path: str = ""
     corpus_path: str = ""
     supplemental_corpus_paths: Tuple[str, ...] = ()
@@ -142,6 +161,86 @@ def _overlay_mapping(overlays: Mapping[str, Any], key: str) -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _merge_overlay(
+    base: Mapping[str, Any] | None,
+    overlay: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    merged = dict(base or {})
+    for key, value in dict(overlay or {}).items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            nested = dict(existing)
+            nested.update(value)
+            merged[key] = nested
+            continue
+        if isinstance(existing, list) and isinstance(value, list):
+            combined = list(existing)
+            for item in value:
+                if item not in combined:
+                    combined.append(item)
+            merged[key] = combined
+            continue
+        merged[key] = value
+    return merged
+
+
+def _build_course_profiles(
+    manifest: Mapping[str, Any],
+    *,
+    pack_key: str,
+    topic_aliases: Mapping[str, str],
+    topic_definitions: Mapping[str, TopicDefinition],
+) -> Dict[str, CourseProfile]:
+    raw_profiles = manifest.get("course_profiles", {})
+    if isinstance(raw_profiles, dict):
+        profile_items: list[tuple[str, Any]] = list(raw_profiles.items())
+    elif isinstance(raw_profiles, list):
+        profile_items = [
+            (str(item.get("key", "")), item)
+            for item in raw_profiles
+            if isinstance(item, dict)
+        ]
+    else:
+        return {}
+
+    profiles: Dict[str, CourseProfile] = {}
+    for raw_key, raw_profile in profile_items:
+        if not isinstance(raw_profile, dict):
+            continue
+        key = normalize_scope_token(str(raw_profile.get("key") or raw_key))
+        if not key:
+            continue
+        syllabus_topics: list[str] = []
+        raw_syllabus = raw_profile.get("syllabus_topics", [])
+        if isinstance(raw_syllabus, (list, tuple)):
+            for topic in raw_syllabus:
+                canonical = _canonicalize_from_aliases(str(topic), topic_aliases)
+                if canonical in topic_definitions and canonical not in syllabus_topics:
+                    syllabus_topics.append(canonical)
+        overlays = _manifest_mapping(raw_profile, "overlays")
+        difficulty_profile = _manifest_mapping(raw_profile, "difficulty_profile")
+        exam_style = _manifest_mapping(raw_profile, "exam_style")
+        profiles[key] = CourseProfile(
+            key=key,
+            display_name=str(
+                raw_profile.get("display_name") or key.replace("_", " ").title()
+            ),
+            corpus_pack_key=pack_key,
+            syllabus_topics=tuple(syllabus_topics),
+            allowed_authority_ids=_string_tuple(
+                raw_profile.get("allowed_authority_ids")
+            ),
+            difficulty_profile=difficulty_profile,
+            exam_style=exam_style,
+            prompt_overlay=_overlay_mapping(overlays, "prompt"),
+            validation_overlay=_overlay_mapping(overlays, "validation"),
+            data_backed=bool(raw_profile.get("data_backed", False)),
+            data_sources=_string_tuple(raw_profile.get("data_sources")),
+            notes=str(raw_profile.get("notes", "")),
+        )
+    return profiles
+
+
 def _domain_pack_from_manifest(
     manifest_path: str,
     *,
@@ -181,6 +280,12 @@ def _domain_pack_from_manifest(
     supplemental_paths = corpus.get("supplemental_paths", [])
     if not isinstance(supplemental_paths, (list, tuple)):
         supplemental_paths = []
+    course_profiles = _build_course_profiles(
+        manifest,
+        pack_key=pack_key,
+        topic_aliases=topic_aliases,
+        topic_definitions=topic_definitions,
+    )
 
     def canonicalize_manifest_topic(topic: str) -> str:
         return _canonicalize_from_aliases(topic, topic_aliases)
@@ -209,6 +314,7 @@ def _domain_pack_from_manifest(
         topic_definitions=dict(topic_definitions),
         prompt_overlay=dict(prompt_overlay),
         validation_overlay=dict(validation_overlay),
+        course_profiles=course_profiles,
         corpus_path=str(corpus.get("clean_path", fallback_clean_path)),
         supplemental_corpus_paths=tuple(
             str(path) for path in supplemental_paths if str(path).strip()
@@ -296,6 +402,71 @@ def get_domain_pack(key: str = "sg_tort") -> DomainPack:
 def list_domain_packs() -> Tuple[DomainPack, ...]:
     """List all registered domain packs."""
     return tuple(DOMAIN_PACK_REGISTRY.values())
+
+
+def list_course_profiles(corpus_pack: str | None = None) -> Tuple[CourseProfile, ...]:
+    """List course profiles, optionally scoped to one corpus pack."""
+    packs = (resolve_domain_pack(corpus_pack),) if corpus_pack else list_domain_packs()
+    profiles: list[CourseProfile] = []
+    for pack in packs:
+        profiles.extend((pack.course_profiles or {}).values())
+    return tuple(profiles)
+
+
+def get_course_profile(corpus_pack: str, course_profile: str) -> CourseProfile:
+    """Fetch a course profile by corpus pack and profile key."""
+    pack = resolve_domain_pack(corpus_pack)
+    token = normalize_scope_token(course_profile)
+    profiles = pack.course_profiles or {}
+    if token not in profiles:
+        raise KeyError(
+            f"Unknown course_profile '{course_profile}' for corpus_pack '{pack.key}'"
+        )
+    return profiles[token]
+
+
+def resolve_course_profile(
+    corpus_pack: str,
+    course_profile: str | None = None,
+) -> CourseProfile | None:
+    """Resolve an optional course profile."""
+    if not course_profile:
+        return None
+    return get_course_profile(corpus_pack, course_profile)
+
+
+def _require_data_backed_profile(profile: CourseProfile) -> None:
+    if not profile.data_backed:
+        raise ValueError(
+            f"course_profile '{profile.key}' is not data-backed for "
+            f"corpus_pack '{profile.corpus_pack_key}'"
+        )
+
+
+def resolve_prompt_overlay(
+    corpus_pack: str,
+    course_profile: str | None = None,
+) -> Dict[str, Any]:
+    """Merge pack prompt overlay with an optional course-profile overlay."""
+    pack = resolve_domain_pack(corpus_pack)
+    profile = resolve_course_profile(pack.key, course_profile)
+    if profile is None:
+        return dict(pack.prompt_overlay or {})
+    _require_data_backed_profile(profile)
+    return _merge_overlay(pack.prompt_overlay, profile.prompt_overlay)
+
+
+def resolve_validation_overlay(
+    corpus_pack: str,
+    course_profile: str | None = None,
+) -> Dict[str, Any]:
+    """Merge pack validation overlay with an optional course-profile overlay."""
+    pack = resolve_domain_pack(corpus_pack)
+    profile = resolve_course_profile(pack.key, course_profile)
+    if profile is None:
+        return dict(pack.validation_overlay or {})
+    _require_data_backed_profile(profile)
+    return _merge_overlay(pack.validation_overlay, profile.validation_overlay)
 
 
 def default_domain_pack() -> DomainPack:

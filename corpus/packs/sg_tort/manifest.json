@@ -473,6 +473,139 @@
       }
     }
   },
+  "course_profiles": {
+    "nus_sg_tort": {
+      "display_name": "NUS-style SG Tort",
+      "syllabus_topics": [
+        "negligence",
+        "duty_of_care",
+        "standard_of_care",
+        "causation",
+        "remoteness",
+        "occupiers_liability",
+        "contributory_negligence",
+        "vicarious_liability",
+        "defamation",
+        "private_nuisance",
+        "psychiatric_harm",
+        "economic_loss"
+      ],
+      "allowed_authority_ids": [
+        "spandeck_2007",
+        "anwar_patrick_2014",
+        "hii_chii_kok_2017",
+        "review_publishing_2010",
+        "ngiam_kong_seng_2008",
+        "donoghue_stevenson_1932",
+        "wagon_mound_1961",
+        "civil_law_act",
+        "contributory_negligence_act",
+        "defamation_act",
+        "limitation_act"
+      ],
+      "difficulty_profile": {
+        "default": "intermediate",
+        "supported": ["basic", "intermediate", "advanced"],
+        "party_range": [3, 5],
+        "target_minutes": 45
+      },
+      "exam_style": {
+        "answer_format": "issue-first IRAC",
+        "question_form": "advise the parties",
+        "include_defences": true,
+        "include_ambiguity": true
+      },
+      "overlays": {
+        "prompt": {
+          "course_guidance": [
+            "Use Singapore undergraduate tort-exam framing: advise parties, surface competing claims, and include likely defences.",
+            "Do not describe this as an official NUS question; use NUS-style only as a course-profile shorthand."
+          ],
+          "exam_style_guidance": [
+            "Prefer multi-party fact patterns with several plausible claim paths.",
+            "Include enough ambiguity for students to argue both liability and defences."
+          ]
+        },
+        "validation": {
+          "topic_coverage_threshold": 0.8,
+          "word_count": {"min": 700, "max": 1400},
+          "legal_realism": {"min_score": 0.65},
+          "exam_likeness": {"min_score": 0.65},
+          "quality_gate": {"min_realism_score": 0.65, "min_quality_score": 0.72}
+        }
+      },
+      "data_backed": true,
+      "data_sources": [
+        "corpus/labelled/sg_tort/corpus.json",
+        "corpus/contrib/sg_tort/corpus.json",
+        "corpus/packs/sg_tort/authorities.json"
+      ],
+      "notes": "Backed by repository SG Tort practice records and SG authority metadata; not an official NUS corpus."
+    },
+    "generic_common_law_tort": {
+      "display_name": "Generic Common-Law Tort",
+      "syllabus_topics": [
+        "negligence",
+        "duty_of_care",
+        "standard_of_care",
+        "causation",
+        "remoteness",
+        "battery",
+        "assault",
+        "false_imprisonment",
+        "defamation",
+        "private_nuisance",
+        "vicarious_liability"
+      ],
+      "allowed_authority_ids": [
+        "donoghue_stevenson_1932",
+        "wagon_mound_1961",
+        "rylands_fletcher_1868"
+      ],
+      "difficulty_profile": {
+        "default": "intermediate",
+        "supported": ["beginner", "basic", "intermediate"],
+        "party_range": [2, 4],
+        "target_minutes": 30
+      },
+      "exam_style": {
+        "answer_format": "IRAC",
+        "question_form": "identify issues and advise",
+        "include_defences": true,
+        "include_ambiguity": true
+      },
+      "overlays": {
+        "prompt": {
+          "course_guidance": [
+            "Use common-law tort vocabulary while retaining the selected pack's jurisdiction metadata.",
+            "Prefer general common-law principles over jurisdiction-specific procedural detail unless the source context supports it."
+          ]
+        },
+        "validation": {
+          "topic_coverage_threshold": 0.7,
+          "word_count": {"min": 650, "max": 1200},
+          "quality_gate": {"min_realism_score": 0.6, "min_quality_score": 0.7}
+        }
+      },
+      "data_backed": true,
+      "data_sources": [
+        "corpus/labelled/sg_tort/corpus.json",
+        "corpus/clean/us_tort/corpus.json",
+        "corpus/clean/uk_tort/corpus.json"
+      ],
+      "notes": "Common-law profile backed by the SG reference corpus and explicit UK/US comparator packs."
+    },
+    "bar_essay": {
+      "display_name": "Bar Essay",
+      "syllabus_topics": [],
+      "allowed_authority_ids": [],
+      "difficulty_profile": {},
+      "exam_style": {},
+      "data_backed": false,
+      "data_sources": [],
+      "notes": "Not selectable until a bar-essay corpus with redistribution-safe prompts and answers is added."
+    }
+  },
   "pipeline": {
     "ingestion_command": "make corpus-bronze CORPUS_PACK=sg_tort",
     "cleaner_command": "make corpus-silver CORPUS_PACK=sg_tort",

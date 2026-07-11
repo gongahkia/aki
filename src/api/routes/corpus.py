@@ -40,6 +40,21 @@ class AddEntryRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+def _profile_payload(profile: Any) -> Dict[str, Any]:
+    return {
+        "key": profile.key,
+        "display_name": profile.display_name,
+        "corpus_pack": profile.corpus_pack_key,
+        "syllabus_topics": list(profile.syllabus_topics),
+        "allowed_authority_ids": list(profile.allowed_authority_ids),
+        "difficulty_profile": dict(profile.difficulty_profile or {}),
+        "exam_style": dict(profile.exam_style or {}),
+        "data_backed": profile.data_backed,
+        "data_sources": list(profile.data_sources),
+        "notes": profile.notes,
+    }
+
+
 def _pack_source_ids(manifest_path: str) -> List[str]:
     import json
     from pathlib import Path
@@ -99,10 +114,22 @@ async def list_packs():
                 "corpus_path": pack.corpus_path,
                 "record_format": pack.record_format,
                 "source_ids": _pack_source_ids(pack.manifest_path),
+                "course_profiles": [
+                    _profile_payload(profile)
+                    for profile in (pack.course_profiles or {}).values()
+                ],
             }
             for pack in list_domain_packs()
         ]
     }
+
+
+@router.get("/profiles")
+async def list_profiles(corpus_pack: Optional[str] = None):
+    from ...domain import list_course_profiles
+
+    profiles = list_course_profiles(corpus_pack=corpus_pack)
+    return {"profiles": [_profile_payload(profile) for profile in profiles]}
 
 
 @router.get("/entries")

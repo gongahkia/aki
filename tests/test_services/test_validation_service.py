@@ -4,7 +4,7 @@ Tests for ValidationService.
 
 import pytest
 
-from src.domain import DomainPack, Jurisdiction, register_domain_pack
+from src.domain import CourseProfile, DomainPack, Jurisdiction, register_domain_pack
 from src.services.validation_service import ValidationService
 
 
@@ -15,6 +15,7 @@ def _token(value: str) -> str:
 def _register_validation_test_pack(
     key: str = "validation_test_tort",
     *,
+    course_profiles=None,
     validation_overlay=None,
 ) -> None:
     aliases = {
@@ -48,6 +49,7 @@ def _register_validation_test_pack(
                 _token(alias): canonical for alias, canonical in aliases.items()
             },
             subject_label="Tort Law",
+            course_profiles=course_profiles or {},
             validation_overlay=validation_overlay or {},
         )
     )
@@ -153,6 +155,40 @@ class TestValidationService:
 
         assert result["passed"] is True
         assert result["topics_found"] == ["local_duty"]
+
+    def test_validate_topic_inclusion_uses_course_profile_threshold(
+        self, validation_service
+    ):
+        profile = CourseProfile(
+            key="strict_profile",
+            display_name="Strict Profile",
+            corpus_pack_key="profile_validation_tort",
+            syllabus_topics=("local_duty", "negligence"),
+            validation_overlay={"topic_coverage_threshold": 1.0},
+            data_backed=True,
+        )
+        _register_validation_test_pack(
+            "profile_validation_tort",
+            course_profiles={"strict_profile": profile},
+            validation_overlay={
+                "topic_coverage_threshold": 0.5,
+                "topic_keywords": {
+                    "local_duty": ["local duty marker"],
+                    "negligence": ["negligent marker"],
+                },
+            },
+        )
+
+        result = validation_service.validate_topic_inclusion(
+            "The record contains a local duty marker.",
+            required_topics=["local duty", "negligence"],
+            corpus_pack="profile_validation_tort",
+            course_profile="strict_profile",
+        )
+
+        assert result["passed"] is False
+        assert result["coverage_threshold"] == 1.0
+        assert result["coverage_ratio"] == 0.5
 
     def test_validate_word_count_success(self, validation_service):
         """Test word count validation with appropriate length."""

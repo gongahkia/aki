@@ -18,6 +18,20 @@ def test_corpus_packs_endpoint_lists_common_law_comparators():
     assert packs["uk_tort"]["corpus_path"] == "corpus/clean/uk_tort/corpus.json"
     assert "cap_static_case_json" in packs["us_tort"]["source_ids"]
     assert "tna_find_case_law_xml" in packs["uk_tort"]["source_ids"]
+    sg_profiles = {profile["key"] for profile in packs["sg_tort"]["course_profiles"]}
+    assert {"nus_sg_tort", "generic_common_law_tort", "bar_essay"} <= sg_profiles
+
+
+def test_corpus_profiles_endpoint_lists_pack_scoped_profiles():
+    client = TestClient(create_app())
+
+    response = client.get("/corpus/profiles", params={"corpus_pack": "sg_tort"})
+
+    assert response.status_code == 200
+    profiles = {profile["key"]: profile for profile in response.json()["profiles"]}
+    assert profiles["nus_sg_tort"]["data_backed"] is True
+    assert profiles["bar_essay"]["data_backed"] is False
+    assert "spandeck_2007" in profiles["nus_sg_tort"]["allowed_authority_ids"]
 
 
 def test_corpus_topics_endpoint_honors_explicit_pack_scope():

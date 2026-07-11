@@ -99,3 +99,13 @@ def test_prompt_overlay_only_applies_to_selected_pack():
 
     assert "under Singapore law" in sg_prompt["user"]
     assert "under Singapore law" not in fallback_prompt["user"]
+
+
+def test_prompt_overlay_applies_selected_course_profile():
+    manager = PromptTemplateManager()
+    context = PromptContext(topics=["negligence"], course_profile="nus_sg_tort")
+
+    prompt = manager.format_prompt(PromptTemplateType.HYPOTHETICAL_GENERATION, context)
+
+    assert "Course Profile: NUS-style SG Tort" in prompt["user"]
+    assert "Singapore undergraduate tort-exam framing" in prompt["user"]
