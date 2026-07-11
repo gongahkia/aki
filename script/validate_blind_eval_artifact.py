@@ -57,6 +57,7 @@ REQUIRED_PILOT_TERMS = [
     "human sample size | 0",
     "inter-rater agreement",
     "blind-eval-baseline-source-decision-2026-07-10.md",
+    "build_blind_eval_rater_sheet.py",
     "every sample has at least two independent law-trained ratings",
     "claims permitted | none",
     "#14 and #34 cannot be closed from repo work alone",
