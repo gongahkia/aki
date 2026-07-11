@@ -41,6 +41,8 @@ REQUIRED_RUBRIC_TERMS = [
     "difficulty calibration",
     "feedback usefulness",
     "At least two independent law-trained raters per item",
+    "Every assigned rater scores both samples in the packet",
+    "Every sample has at least two independent law-trained ratings",
     "30 held-out SG Tort items",
     "inter-rater agreement",
     "Krippendorff alpha",
@@ -55,6 +57,7 @@ REQUIRED_PILOT_TERMS = [
     "human sample size | 0",
     "inter-rater agreement",
     "blind-eval-baseline-source-decision-2026-07-10.md",
+    "every sample has at least two independent law-trained ratings",
     "claims permitted | none",
     "#14 and #34 cannot be closed from repo work alone",
 ]

@@ -49,6 +49,8 @@ Use one of these alternatives for the first pilot:
 - Randomize A/B order per packet.
 - Build blinded rater packets with `python3 script/build_blind_eval_packets.py docs/evals/blind-eval-sample-manifest.json --output-dir docs/evals/blind-packets`.
 - Recruit at least two independent eligible law-trained raters per item.
+- Assign each rater to score both samples in every packet they receive.
+- Check that every sample has at least two independent law-trained ratings before running publishable summary mode.
 - Collect ratings using `blind-eval-rater-sheet.csv`.
 - Summarize completed ratings with `python3 script/summarize_blind_eval_results.py docs/evals/blind-eval-rater-sheet.csv --manifest docs/evals/blind-eval-sample-manifest.json --output docs/evals/blind-eval-summary.json --markdown docs/evals/blind-eval-summary.md --require-publishable`.
 - Publish aggregate results, failure modes, and claim limits.

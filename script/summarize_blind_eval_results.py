@@ -135,6 +135,9 @@ def summarize(
     )
     packet_ids: set[str] = set()
     packet_raters: dict[str, set[str]] = defaultdict(set)
+    sample_raters: dict[str, set[str]] = defaultdict(set)
+    packet_preferences: dict[tuple[str, str], str] = {}
+    rater_profile_by_id: dict[str, str] = {}
     raters: set[str] = set()
 
     for idx, row in enumerate(rows, start=2):
@@ -146,11 +149,26 @@ def summarize(
             raise ValueError(f"row {idx}: packet_id, sample_id, rater_id required")
         if preference not in PREFERENCES:
             raise ValueError(f"row {idx}: invalid overall_preference")
+        if rater_id in sample_raters[sample_id]:
+            raise ValueError(f"row {idx}: duplicate rating for sample_id/rater_id")
         packet_ids.add(packet_id)
         packet_raters[packet_id].add(rater_id)
+        sample_raters[sample_id].add(rater_id)
         raters.add(rater_id)
-        rater_profiles[row["rater_profile"].strip() or "unknown"] += 1
-        preferences[preference] += 1
+        rater_profile = row["rater_profile"].strip() or "unknown"
+        prior_profile = rater_profile_by_id.get(rater_id)
+        if prior_profile is None:
+            rater_profile_by_id[rater_id] = rater_profile
+        elif prior_profile != rater_profile:
+            raise ValueError(f"row {idx}: conflicting rater_profile for rater_id")
+        preference_key = (packet_id, rater_id)
+        prior_preference = packet_preferences.get(preference_key)
+        if prior_preference is None:
+            packet_preferences[preference_key] = preference
+        elif prior_preference != preference:
+            raise ValueError(
+                f"row {idx}: conflicting overall_preference for packet/rater"
+            )
         for field in DIMENSION_WEIGHTS:
             value = _score(row[field], field=field, row_index=idx)
             dimension_scores[field].append(value)
@@ -159,9 +177,12 @@ def summarize(
         sample_scores[sample_id].append(weighted)
         failures.update(_split_failures(row["free_text_failure_modes"]))
 
+    rater_profiles.update(rater_profile_by_id.values())
+    preferences.update(packet_preferences.values())
     publishability_errors = _publishability_errors(
         packet_ids=packet_ids,
         packet_raters=packet_raters,
+        sample_raters=sample_raters,
         rater_profiles=set(rater_profiles),
         min_samples=min_samples,
         min_raters_per_item=min_raters_per_item,
@@ -190,6 +211,16 @@ def summarize(
             packet_id
             for packet_id in packet_ids
             if len(packet_raters[packet_id]) < min_raters_per_item
+        ),
+        "samples_with_min_raters": sum(
+            1
+            for sample_id in sample_raters
+            if len(sample_raters[sample_id]) >= min_raters_per_item
+        ),
+        "samples_missing_min_raters": sorted(
+            sample_id
+            for sample_id in sample_raters
+            if len(sample_raters[sample_id]) < min_raters_per_item
         ),
         "anonymization_method": "packet/sample/rater IDs only",
         "blinding_method": "source labels hidden from raters",
@@ -236,6 +267,7 @@ def _publishability_errors(
     *,
     packet_ids: set[str],
     packet_raters: dict[str, set[str]],
+    sample_raters: dict[str, set[str]],
     rater_profiles: set[str],
     min_samples: int,
     min_raters_per_item: int,
@@ -256,6 +288,17 @@ def _publishability_errors(
             f"{min_raters_per_item} distinct raters per item; missing: "
             + ", ".join(missing)
         )
+    sample_missing = sorted(
+        sample_id
+        for sample_id, raters_for_sample in sample_raters.items()
+        if len(raters_for_sample) < min_raters_per_item
+    )
+    if sample_missing:
+        errors.append(
+            "publishable pilot requires at least "
+            f"{min_raters_per_item} distinct raters per sample; missing: "
+            + ", ".join(sample_missing)
+        )
     invalid_profiles = sorted(rater_profiles - LAW_TRAINED_PROFILES)
     if invalid_profiles:
         errors.append(
@@ -267,7 +310,7 @@ def _publishability_errors(
 
 def _mode_publishability_errors(eval_mode: str) -> list[str]:
     if not eval_mode:
-        return []
+        return ["publishable pilot requires eval_mode external-human"]
     if eval_mode not in EVAL_MODES:
         return [f"unknown eval_mode: {eval_mode}"]
     if eval_mode == "dry-run":
@@ -356,6 +399,8 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
         f"Minimum held-out items required: {summary['min_samples_required']}",
         "Minimum distinct raters per item required: "
         f"{summary['min_raters_per_item_required']}",
+        "Samples with minimum rater coverage: "
+        f"{summary.get('samples_with_min_raters', 'n/a')}",
         "",
         "## Publishability Gates",
         "",

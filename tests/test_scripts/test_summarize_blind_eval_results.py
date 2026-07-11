@@ -42,19 +42,32 @@ def _row(packet, sample, rater, preference="sample_a"):
 def test_summarize_completed_sheet(tmp_path):
     ratings = tmp_path / "ratings.csv"
     manifest = tmp_path / "manifest.json"
+    p1_r1_a = _row("p1", "p1-a", "r1")
+    p1_r1_b = _row("p1", "p1-b", "r1")
+    p1_r2_a = _row("p1", "p1-a", "r2", preference="sample_b")
+    p1_r2_b = _row("p1", "p1-b", "r2", preference="sample_b")
+    p2_r1_a = _row("p2", "p2-a", "r1", preference="tie")
+    p2_r1_b = _row("p2", "p2-b", "r1", preference="tie")
+    p2_r3_a = _row("p2", "p2-a", "r3", preference="tie")
+    p2_r3_b = _row("p2", "p2-b", "r3", preference="tie")
     _write_rows(
         ratings,
         [
-            _row("p1", "p1-a", "r1"),
-            _row("p1", "p1-b", "r2", preference="sample_b"),
-            _row("p2", "p2-a", "r3", preference="tie"),
-            _row("p2", "p2-b", "r1", preference="tie"),
+            p1_r1_a,
+            p1_r1_b,
+            p1_r2_a,
+            p1_r2_b,
+            p2_r1_a,
+            p2_r1_b,
+            p2_r3_a,
+            p2_r3_b,
         ],
     )
     manifest.write_text(
         json.dumps(
             {
                 "rubric_version": "1.0",
+                "eval_mode": "external-human",
                 "packets": [
                     {
                         "samples": [
@@ -79,15 +92,17 @@ def test_summarize_completed_sheet(tmp_path):
     assert summary["rater_count"] == 3
     assert summary["publishable"] is True
     assert summary["items_with_min_raters"] == 2
+    assert summary["samples_with_min_raters"] == 4
+    assert summary["rater_profiles"] == {"law_graduate": 3}
     assert summary["weighted_score_distribution"]["p1-a"]["source"] == "jikai"
     assert summary["preference_distribution"] == {
         "sample_a": 1,
         "sample_b": 1,
         "tie": 2,
     }
-    assert summary["failure_modes"]["shallow facts"] == 4
+    assert summary["failure_modes"]["shallow facts"] == 8
     assert (
-        summary["inter_rater_agreement"]["issue_spotting_coverage"]["rated_items"] == 0
+        summary["inter_rater_agreement"]["issue_spotting_coverage"]["rated_items"] == 4
     )
 
 
@@ -136,6 +151,96 @@ def test_summarize_reports_chance_adjusted_agreement(tmp_path):
     assert agreement["krippendorff_alpha_interval"] == 0.0
 
 
+def test_require_publishable_needs_two_raters_per_sample(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    manifest = tmp_path / "manifest.json"
+    _write_rows(
+        ratings,
+        [
+            _row("p1", "p1-a", "r1"),
+            _row("p1", "p1-a", "r2"),
+            _row("p1", "p1-b", "r1"),
+        ],
+    )
+    manifest.write_text(
+        json.dumps({"rubric_version": "1.0", "eval_mode": "external-human"}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="2 distinct raters per sample"):
+        summarize(
+            ratings,
+            manifest_path=manifest,
+            require_publishable=True,
+            min_samples=1,
+        )
+
+
+def test_preferences_are_counted_once_per_packet_rater(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    manifest = tmp_path / "manifest.json"
+    _write_rows(
+        ratings,
+        [
+            _row("p1", "p1-a", "r1"),
+            _row("p1", "p1-b", "r1"),
+            _row("p1", "p1-a", "r2", preference="sample_b"),
+            _row("p1", "p1-b", "r2", preference="sample_b"),
+        ],
+    )
+    manifest.write_text(
+        json.dumps({"rubric_version": "1.0", "eval_mode": "external-human"}),
+        encoding="utf-8",
+    )
+
+    summary = summarize(ratings, manifest_path=manifest, min_samples=1)
+
+    assert summary["preference_distribution"] == {"sample_a": 1, "sample_b": 1}
+
+
+def test_conflicting_packet_preference_fails_fast(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    row_a = _row("p1", "p1-a", "r1")
+    row_b = _row("p1", "p1-b", "r1", preference="sample_b")
+    _write_rows(ratings, [row_a, row_b])
+
+    with pytest.raises(ValueError, match="conflicting overall_preference"):
+        summarize(ratings)
+
+
+def test_duplicate_sample_rater_fails_fast(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    _write_rows(ratings, [_row("p1", "p1-a", "r1"), _row("p1", "p1-a", "r1")])
+
+    with pytest.raises(ValueError, match="duplicate rating"):
+        summarize(ratings)
+
+
+def test_conflicting_rater_profile_fails_fast(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    row_a = _row("p1", "p1-a", "r1")
+    row_b = _row("p1", "p1-b", "r1")
+    row_b["rater_profile"] = "law_student"
+    _write_rows(ratings, [row_a, row_b])
+
+    with pytest.raises(ValueError, match="conflicting rater_profile"):
+        summarize(ratings)
+
+
+def test_publishable_requires_external_human_mode(tmp_path):
+    ratings = tmp_path / "ratings.csv"
+    _write_rows(
+        ratings,
+        [
+            _row("p1", "p1-a", "r1"),
+            _row("p1", "p1-a", "r2"),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="eval_mode external-human"):
+        summarize(ratings, require_publishable=True, min_samples=1)
+
+
 def test_empty_sheet_fails_fast(tmp_path):
     ratings = tmp_path / "ratings.csv"
     _write_rows(ratings, [])
@@ -177,6 +282,7 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
             "publishable": True,
             "min_samples_required": 1,
             "min_raters_per_item_required": 2,
+            "samples_with_min_raters": 1,
             "publishability_errors": [],
             "rater_profiles": {"law_graduate": 3},
             "inter_rater_agreement": {
@@ -200,6 +306,7 @@ def test_markdown_writer_outputs_required_sections(tmp_path):
     text = md.read_text(encoding="utf-8")
     assert "## Publishability Gates" in text
     assert "Eval mode: external-human" in text
+    assert "Samples with minimum rater coverage: 1" in text
     assert "## Inter-Rater Agreement" in text
     assert "| issue_spotting_coverage | 1 | 3 | 1.0 | 0.0 | 1.0 |" in text
     assert "## Weighted Scores" in text
