@@ -147,6 +147,39 @@ The desktop watcher is not enterprise endpoint enforcement.
 - It cannot prove that every local file, clipboard value, or app workflow was reviewed.
 - It should route enforced workflows to direct API, Outlook Smart Alerts, DMS hooks, or managed browser adapters.
 
+## Threat Model
+
+The desktop watcher is an experimental opt-in local fallback and should not be treated as enterprise endpoint enforcement.
+
+### Clipboard sensitivity
+
+- Clipboard monitoring is enabled only when the user explicitly starts the watcher with `--clipboard`.
+- Clipboard contents should be treated as sensitive and should not be written to logs or exposed in error messages.
+- Clipboard review is intended for local review workflows where the user has explicitly opted in.
+
+### Local authentication
+
+- When local daemon ACLs are enabled, use `--local-token`, `--local-token-file`, or `JUNAS_LOCAL_DAEMON_TOKEN`.
+- Authentication failures must not expose clipboard or watched file contents.
+
+### Notifications and review
+
+- The watcher provides local review results only.
+- It does not guarantee that notifications are acknowledged or acted upon.
+- Users remain responsible for deciding whether reviewed content should be shared.
+
+### Watched-folder scope
+
+- Configure `--watch-folder` only for directories intended for review.
+- Avoid monitoring unnecessarily broad locations to reduce accidental review of unrelated files.
+- Use `--once` when a single review pass is sufficient.
+
+### Large-file considerations
+
+- The watcher is intended for supported text-like files.
+- Restrict watched folders to the intended review scope to reduce accidental scans of large or unrelated files.
+- Enterprise enforcement workflows should use supported integrations instead of relying on local folder monitoring.
+
 ## Auth And Output
 
 - Use `--local-token`, `--local-token-file`, or `JUNAS_LOCAL_DAEMON_TOKEN` when local daemon ACLs are enabled.
