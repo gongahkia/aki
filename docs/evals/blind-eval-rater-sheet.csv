@@ -1,1 +1,0 @@
-packet_id,sample_id,rater_id,rater_profile,issue_spotting_coverage,fact_sufficiency,legal_ambiguity,sg_law_fit,answer_structure,citation_rule_accuracy,distractor_quality,difficulty_calibration,feedback_usefulness,overall_preference,confidence,free_text_failure_modes,notes

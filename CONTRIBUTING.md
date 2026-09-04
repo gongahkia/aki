@@ -1,104 +1,97 @@
 # Contributing
 
-Start with a small, source-clear contribution. The fastest path is a manifest-only corpus pack PR that proves source legality, taxonomy fit, and local validation before adding ingestion code.
+Junas is backend-first. Contributions should preserve the deterministic local
+runtime and keep adapter claims tied to documented evidence.
 
-## Corpus Packs
+## Setup
 
-Jikai accepts new jurisdictions and subjects through corpus packs. Start with [docs/corpus-pack-manifest.md](docs/corpus-pack-manifest.md), then copy the SG reference shape from [corpus/packs/sg_tort/manifest.json](corpus/packs/sg_tort/manifest.json).
-
-Required contribution path:
-
-1. Create `corpus/packs/<pack_key>/manifest.json`.
-2. Fill in jurisdiction, subject, source URLs, source format, license/terms notes, taxonomy, ingestion command, cleaner command, and validation expectations.
-3. Run `python3 script/validate_corpus_pack.py corpus/packs/<pack_key>/manifest.json`.
-4. Add or update scraper/cleaner code only when the source terms allow the workflow.
-5. Add tests or fixtures that do not depend on paid, private, or non-redistributable text.
-6. Open a PR that explains source provenance and redistribution status.
-
-Good first issues use `good-first-corpus` or `good-first-jurisdiction`. A good first PR should be narrow: one source family, one jurisdiction, one subject, and no core retrieval or generation refactor.
-
-## Licensing Rules
-
-Do not commit third-party legal text unless the source terms permit redistribution. This includes paid outlines, casebooks, commercial bar-prep material, proprietary summaries, and scraped full text from sources with restricted or unknown terms.
-
-For authored SG practice hypos, use `corpus/contrib/sg_tort/`. Each contribution must include the certification, anonymization, and review fields in `corpus/contrib/sg_tort/submission_template.json`, then pass `python3 script/validate_contrib_corpus.py`.
-
-For restricted or unknown sources, contribute only:
-
-- Manifest metadata.
-- Source URLs and terms URLs.
-- Scraper or cleaner code.
-- Small synthetic fixtures.
-- Instructions for users to reproduce the corpus locally.
-
-Every pack must set `license.redistribution_status` to `allowed`, `restricted`, `unknown`, or `bundled_fixture`.
-
-## Source Citation
-
-Every corpus-pack PR must cite:
-
-- Source homepage or collection URL.
-- Terms URL.
-- License name or terms label.
-- Access method: local repo, public web, bulk download, manual, API, or other.
-- Redistribution status and reasoning.
-- Retrieval date for fetched sources.
-
-If the terms are unclear, set `license.redistribution_status` to `unknown` and do not commit third-party raw or clean text.
-
-## Topic Taxonomy
-
-Topic keys must be lower snake case and stable. Prefer a small taxonomy that can pass validation over a large taxonomy with sparse or ambiguous records.
-
-Each topic should include:
-
-- `key`
-- `label`
-- `category`
-- `description`
-- `aliases`
-- `subtopics`
-
-Jurisdiction-specific aliases are allowed when they improve input matching or validation.
-
-## Tests and Validation
-
-Corpus-pack PRs should include at least one of:
-
-- A manifest-only validation update.
-- Scraper or cleaner unit tests using synthetic or redistributable fixtures.
-- Corpus-loading tests for the new pack.
-- Validation-rule tests for jurisdiction-specific terminology or doctrine.
-
-## Local Checks
-
-Run focused checks before PR:
+Use `uv` from the repo root:
 
 ```sh
-python3 script/validate_corpus_pack.py corpus/packs/sg_tort/manifest.json
-python3 script/validate_blind_eval_artifact.py
+uv sync --extra dev
+uv run python -m spacy download en_core_web_sm
+uv run python scripts/preflight.py --strict
+```
+
+Run the one-command deterministic demo:
+
+```sh
+./scripts/demo.sh
+```
+
+Start the backend when you need an interactive local API:
+
+```sh
+./scripts/launch/run_backend_only.sh
+curl http://127.0.0.1:8000/ready
+```
+
+## Verification
+
+For docs-only changes, run the focused tests that cover the touched surface plus
+format checks:
+
+```sh
+uv run ruff check
 git diff --check
 ```
 
-For code changes, also run the relevant Python or TUI tests for the touched area.
+For runtime changes, run the standard gate:
 
-## Issue Templates
+```sh
+./scripts/verify_runtime.sh
+uv run pytest
+```
 
-Use:
+CI runs changed-file whitespace, Ruff format/lint, grouped pytest suites, the
+one-command demo, redaction smoke tests, Docker smoke, and benchmark gates.
 
-- Corpus-pack request: concrete source-backed pack proposals.
-- Jurisdiction request: first-class jurisdiction support before source work is ready.
-- Ingestion bug: scraper, cleaner, manifest, or validation failures.
-- Validation-quality report: generated-output quality or doctrinal problems.
+For accuracy, corpus, or detector work, also run the relevant generated-doc and
+recall gates:
 
-Do not paste paid, private, account-gated, or non-redistributable legal text into issues.
+```sh
+uv run python scripts/recall_gate.py
+uv run python scripts/generate_accuracy_doc.py --check
+```
 
-## Cadence
+## Invariants
 
-Post-launch maintenance target: one new corpus pack or major feature every 2-4 weeks for the first 3 months. Prefer small reviewable increments:
+- The default local runtime is deterministic and offline. Do not add provider keys,
+  external HTTP calls, LLM calls, or cloud dependencies to `review_profile=strict`.
+- The local SKU must not require `torch`, `transformers`, `sentence-transformers`,
+  `redis`, `xgboost`, `scikit-learn`, `pandas`, `accelerate`, or external HTTP.
+- The FastAPI backend remains the trust boundary. Adapters collect workflow context
+  and display backend decisions; they must not become separate detection or policy
+  engines.
+- Deterministic-high findings must stay visible in the review and policy path.
+  Optional public-evidence or LLM helpers may add context for eligible audit-grade
+  cases, but must not erase deterministic-high evidence.
+- Logs, telemetry, SIEM events, docs examples, and issue bodies must not include
+  real secrets, customer text, live personal data, reversible mappings, or auth
+  headers.
+- README/product claims need local evidence: docs, tests, eval reports, screenshots,
+  generated artifacts, or vendor docs where platform behavior is involved.
 
-1. Manifest and licensing review.
-2. Ingestion or cleaner code.
-3. Corpus-loading and validation tests.
-4. Prompt or validation overlay.
-5. Demo or README update after the pack works locally.
+## Rule Packs
+
+Community secret rule-pack changes must follow `docs/community-rule-packs.md`.
+Each contribution needs one regex or detector-equivalent rule plus one synthetic
+matching fixture. Add a non-matching or allowlisted fixture when false positives
+are likely, and run `uv run junas rules test` against the touched pack before review.
+
+## Good First Issues
+
+Prefer docs and small tests before changing detector, auth, persistence, or adapter
+runtime code. Current scoped issues:
+
+- [#16: Add built-in fake-secret demo](https://github.com/gongahkia/junas/issues/16)
+
+These are intentionally small scoped entry points drawn from the GitHub issue backlog.
+
+## Pull Request Notes
+
+- Keep changes scoped to the issue or task.
+- Update tests when changing behavior, contracts, or user-visible docs.
+- Do not broaden maturity, security, or accuracy claims without adding evidence in
+  the same change.
+- Include the commands you ran in the PR description.
